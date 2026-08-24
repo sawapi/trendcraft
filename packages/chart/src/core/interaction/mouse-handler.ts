@@ -142,8 +142,7 @@ export function attachMouseHandlers(
     }
     ctx.drag.viewportMutated = false;
     ctx.viewState.isDragging = false;
-    ctx.drag.scrollbarDragging = false;
-    ctx.drag.scrollbarGrabOffsetFrac = null;
+    ctx.endScrollbarDrag();
     ctx.paneResize.gap = null;
   };
 

@@ -140,6 +140,8 @@ export type InteractionContext = {
   // Scrollbar-press helpers (kept on Viewport to preserve their docstrings).
   applyScrollbarDrag: (mouseX: number, sb: ScrollbarRect) => void;
   beginScrollbarDrag: (mouseX: number, sb: ScrollbarRect) => void;
+  /** Clears `drag.scrollbarDragging` and `drag.scrollbarGrabOffsetFrac` together. */
+  endScrollbarDrag: () => void;
 
   /**
    * Whether a drawing tool is currently armed in the host. Touch gesture

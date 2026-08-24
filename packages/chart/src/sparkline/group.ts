@@ -35,6 +35,15 @@ type Entry = {
   /** CSS-pixel size cached at last render. */
   cssWidth: number;
   cssHeight: number;
+  /**
+   * Size the author declared via the `width`/`height` attributes, captured
+   * before the first render. Once rendered, those attributes hold the
+   * DPR-scaled bitmap size instead, so the intent is only readable here.
+   */
+  authorWidth: number;
+  authorHeight: number;
+  /** Whether the last render found a real layout box to size from. */
+  laidOut: boolean;
 };
 
 type GroupHoverConfig = {
@@ -58,15 +67,35 @@ function fmt(v: number): string {
   return v.toFixed(4);
 }
 
-function setupCanvas(canvas: HTMLCanvasElement): {
+/** CSS-pixel size used when nothing else can say how big the canvas is. */
+const FALLBACK_CSS_WIDTH = 80;
+const FALLBACK_CSS_HEIGHT = 30;
+
+function setupCanvas(entry: Entry): {
   cssWidth: number;
   cssHeight: number;
+  laidOut: boolean;
   ctx: CanvasRenderingContext2D | null;
 } {
+  const { canvas } = entry;
   const dpr = safeDevicePixelRatio();
   const rect = canvas.getBoundingClientRect();
-  const cssWidth = rect.width || canvas.clientWidth || canvas.width || 80;
-  const cssHeight = rect.height || canvas.clientHeight || canvas.height || 30;
+  const laidOut = rect.width > 0 || canvas.clientWidth > 0;
+  // Never fall back to canvas.width / canvas.height: those hold the
+  // DPR-scaled bitmap this function wrote on the previous pass. Reading one
+  // back as a CSS size re-multiplies it by dpr, so a canvas with no layout
+  // box (display:none, a collapsed panel, not yet attached) grows its bitmap
+  // by a factor of dpr on every render until the browser's dimension cap
+  // invalidates it. The last CSS size we measured, and the size the author
+  // declared, are both stable.
+  const cssWidth =
+    rect.width || canvas.clientWidth || entry.cssWidth || entry.authorWidth || FALLBACK_CSS_WIDTH;
+  const cssHeight =
+    rect.height ||
+    canvas.clientHeight ||
+    entry.cssHeight ||
+    entry.authorHeight ||
+    FALLBACK_CSS_HEIGHT;
   // Set bitmap size only if changed (avoid clearing).
   const targetW = Math.round(cssWidth * dpr);
   const targetH = Math.round(cssHeight * dpr);
@@ -79,7 +108,22 @@ function setupCanvas(canvas: HTMLCanvasElement): {
   if (ctx) {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
-  return { cssWidth, cssHeight, ctx };
+  return { cssWidth, cssHeight, laidOut, ctx };
+}
+
+/**
+ * Read an author-declared `width`/`height` attribute, in CSS pixels.
+ *
+ * The attribute is absent on a plain `<canvas>` (whose `width` property still
+ * reports the 300x150 default), so this distinguishes "the author asked for
+ * this size" from "nobody has said anything yet" — but only before the first
+ * render writes the bitmap size back onto the same attribute.
+ */
+function readAuthorSize(canvas: HTMLCanvasElement, attr: "width" | "height"): number {
+  const raw = canvas.getAttribute(attr);
+  if (raw === null) return 0;
+  const value = Number.parseFloat(raw);
+  return Number.isFinite(value) && value > 0 ? value : 0;
 }
 
 function applyMaxCandles(
@@ -107,12 +151,13 @@ function resolveBaselineValue(
 }
 
 function renderEntry(entry: Entry, groupColors: ResolvedColors): void {
-  const { canvas, opts } = entry;
-  const setup = setupCanvas(canvas);
+  const { opts } = entry;
+  const setup = setupCanvas(entry);
   if (!setup.ctx) return;
   const { cssWidth, cssHeight } = setup;
   entry.cssWidth = cssWidth;
   entry.cssHeight = cssHeight;
+  entry.laidOut = setup.laidOut;
 
   // Merge per-instance `colors` overrides on top of the group palette.
   const themeColors: ResolvedColors = opts.colors
@@ -342,13 +387,18 @@ export function createSparklineGroup(groupOpts: SparklineGroupOptions): Sparklin
       sessionLayout: null,
       cssWidth: 0,
       cssHeight: 0,
+      // Captured here, before the first render overwrites these attributes
+      // with the DPR-scaled bitmap size.
+      authorWidth: readAuthorSize(canvas, "width"),
+      authorHeight: readAuthorSize(canvas, "height"),
+      laidOut: false,
     };
     entries.set(id, entry);
     renderEntry(entry, themeColors);
-    // If the canvas was detached at add() time, getBoundingClientRect() returned
-    // 0 and we fell back to the 80px default. Defer a second render to next frame
+    // If the canvas had no layout box at add() time, the size above is a
+    // fallback rather than a measurement. Defer a second render to next frame,
     // when the canvas is likely laid out.
-    if (entry.cssWidth <= 0 || entry.cssWidth === 80) {
+    if (!entry.laidOut) {
       const raf =
         typeof requestAnimationFrame !== "undefined"
           ? requestAnimationFrame

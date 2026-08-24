@@ -8,25 +8,67 @@ import type { LayoutConfig, PaneConfig, PaneRect } from "./types";
 
 const DEFAULT_GAP = 4;
 
-/** Default layout: main chart + volume */
-export const DEFAULT_LAYOUT: LayoutConfig = {
+/**
+ * Deep-freeze a layout template so it cannot be adopted as mutable state.
+ *
+ * The engine mutates its own config in place (panes are pushed, spliced, and
+ * their `flex` rewritten by divider drags), so a template held by reference
+ * would become every later chart's create-time default. Freezing makes that
+ * mistake throw in strict mode instead of silently corrupting the module.
+ */
+function freezeLayout(config: LayoutConfig): LayoutConfig {
+  for (const pane of config.panes) Object.freeze(pane);
+  Object.freeze(config.panes);
+  return Object.freeze(config);
+}
+
+/**
+ * Copy a pane so the engine owns the object it mutates.
+ *
+ * One level deep is the right depth, and the whole depth that is needed:
+ * `flex` is the only field written after construction (by `resizePanes` and
+ * the zero-flex normalisation in `recompute`). The nested `yRange`,
+ * `referenceLines` and `leftScale` are read-only to the engine, so they are
+ * shared rather than duplicated on every layout change.
+ */
+function clonePane(pane: PaneConfig): PaneConfig {
+  return { ...pane };
+}
+
+/**
+ * Clone a layout config so the engine owns every object it mutates.
+ *
+ * Both the `panes` array and each `PaneConfig` inside it are copied — a
+ * shallow copy of the array would leave the panes themselves shared.
+ */
+function cloneLayout(config: LayoutConfig): LayoutConfig {
+  return { ...config, panes: config.panes.map(clonePane) };
+}
+
+/**
+ * Default layout: main chart + volume.
+ *
+ * An immutable template. {@link LayoutEngine} clones it rather than adopting
+ * it, so runtime pane changes on one chart never reach another.
+ */
+export const DEFAULT_LAYOUT: LayoutConfig = freezeLayout({
   panes: [
     { id: "main", flex: 3 },
     { id: "volume", flex: 0.7 },
   ],
   gap: DEFAULT_GAP,
   scrollbar: true,
-};
+});
 
-/** Default layout without volume pane */
-export const DEFAULT_LAYOUT_NO_VOLUME: LayoutConfig = {
+/** Default layout without volume pane. An immutable template, as above. */
+export const DEFAULT_LAYOUT_NO_VOLUME: LayoutConfig = freezeLayout({
   panes: [{ id: "main", flex: 3 }],
   gap: DEFAULT_GAP,
   scrollbar: true,
-};
+});
 
 export class LayoutEngine {
-  private _config: LayoutConfig = DEFAULT_LAYOUT;
+  private _config: LayoutConfig = cloneLayout(DEFAULT_LAYOUT);
   private _totalWidth = 0;
   private _totalHeight = 0;
   private _priceAxisWidth = 60;
@@ -89,14 +131,26 @@ export class LayoutEngine {
     this.recompute();
   }
 
+  /**
+   * Replace the layout. The config is cloned: the engine mutates panes in
+   * place, and the caller's object — often a shared default template — must
+   * not be rewritten by this chart's later pane changes.
+   */
   setLayout(config: LayoutConfig): void {
-    this._config = config;
+    this._config = cloneLayout(config);
     this.recompute();
   }
 
-  /** Add a new pane dynamically */
+  /**
+   * Add a new pane dynamically.
+   *
+   * The config is copied, for the same reason {@link setLayout} copies: the
+   * engine writes `flex` onto its panes, so storing the caller's object would
+   * let a divider drag here rewrite a pane the caller still holds — or one it
+   * handed to another engine.
+   */
   addPane(paneConfig: PaneConfig): void {
-    this._config.panes.push(paneConfig);
+    this._config.panes.push(clonePane(paneConfig));
     this.recompute();
   }
 

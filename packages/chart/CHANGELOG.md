@@ -7,6 +7,74 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — panes no longer leak between charts
+
+`LayoutEngine` held the module-level `DEFAULT_LAYOUT` by reference and mutated
+it in place: `addPane` pushed into its `panes`, `removePane` spliced it, and a
+divider drag rewrote `flex` on the shared pane objects. Every runtime pane
+change therefore rewrote the **create-time default for every chart constructed
+afterwards** in the same page, permanently — `destroy()` did not undo it.
+
+Adding an indicator to its own pane on chart A gave a chart B created later a
+phantom, permanently empty pane eating vertical space, with no way to remove it
+(no series ever lands in it, so the auto-empty-pane hook never fires). The
+mirror cases were just as bad: `chartA.setShowVolume(false)` left chart B with
+no volume pane despite `volume` defaulting to `true`, and one divider drag
+changed the default main/volume proportions of every later chart. Two charts on
+screen at once were not required — a wrapper unmounting and remounting, or a
+double-mounted development build, inherits the same corruption.
+
+Each engine now owns a private deep copy of its config. Every way a config
+enters the engine copies it — the create-time default, `setLayout(config)` and
+`addPane(paneConfig)` — so a caller's object is never mutated by the chart's
+later pane changes. Adding one pane config to two engines and dragging a
+divider on the first no longer resizes the second's pane (or the caller's own
+object), and the zero-flex fallback normalises the engine's copies rather than
+writing `flex: 1` back onto what the caller passed in.
+
+`DEFAULT_LAYOUT` and `DEFAULT_LAYOUT_NO_VOLUME` are now frozen templates: code
+that still tries to mutate them throws in strict mode instead of silently
+corrupting the module.
+
+### Fixed — a touch scrollbar drag no longer hijacks every later pan
+
+The mouse path releases a scrollbar drag on `mouseup`, but `touchend` reset
+`viewportMutated`, `isDragging`, the long-press lock and the pinch baseline
+while leaving `scrollbarDragging` set. Since the touch move handler checks that
+flag before the pan branch, one touch of the scrollbar turned the whole canvas
+into a scrollbar-drag surface: with 20,000 bars and 100 visible at 800px, a
+subsequent 50px finger drag in the plot area jumped the viewport to bar 11,200
+instead of panning to 5,193.75 — 6,006 bars off — and kept doing so on every
+later drag until a mouse event or Escape happened to clear it.
+
+`touchend` and `touchcancel` now release the drag. The release itself is a
+single owner sitting next to the code that begins the drag, so the flag and its
+grab offset can no longer be cleared in one place and forgotten in another;
+mouse-up, touch-end and Escape all go through it.
+
+### Fixed — hidden sparklines no longer grow their canvas without bound
+
+`setupCanvas` derived the CSS size with a fallback chain ending in
+`canvas.width` — the *bitmap* width the same function had already multiplied by
+`devicePixelRatio` on the previous render. With no layout box (`display: none`,
+a collapsed panel, a hidden tab, a canvas not yet attached) both `rect.width`
+and `clientWidth` read 0, so the DPR-scaled bitmap was read back as a CSS size
+and re-scaled. At DPR 2 an 80x30 sparkline being updated by a live feed grew
+160 -> 320 -> 640 -> ... -> 40,960 over eight updates, quadrupling its memory
+each tick until it passed the browser's maximum canvas dimension and stayed
+blank even after being shown again.
+
+The CSS size now comes only from sources this function does not write: the
+element's layout box, the last size measured from one, or the `width`/`height`
+attributes the author declared (captured before the first render, since after
+it those attributes hold the bitmap size). A hidden sparkline keeps its bitmap
+and picks the real size back up when it becomes visible.
+
+The deferred re-render that `add()` schedules for a not-yet-laid-out canvas now
+triggers on whether a layout box was actually found, rather than on the CSS
+width having come out as exactly 80 — a test that could never pass, because a
+bare `<canvas>` reports a bitmap width of 300.
+
 ## [0.5.0] - 2026-08-10
 
 ### Fixed — interaction and event hardening for logical-range viewports

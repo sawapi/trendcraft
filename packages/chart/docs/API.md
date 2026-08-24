@@ -231,6 +231,11 @@ getVisibleRange(): VisibleRangeChangeData | null
 setLayout(config: LayoutConfig): void
 ```
 
+`setLayout` copies the config. The chart mutates panes in place as they are
+added, removed and resized, so it never adopts the object you pass — later
+edits to your object have no effect, and a shared config (including the
+exported `DEFAULT_LAYOUT`) is safe to hand to more than one chart.
+
 `RangeDuration = '1D' | '1W' | '1M' | '3M' | '6M' | 'YTD' | '1Y' | 'ALL'`
 
 `setVisibleLogicalRange(from, to)` sets the viewport in logical (bar-index)

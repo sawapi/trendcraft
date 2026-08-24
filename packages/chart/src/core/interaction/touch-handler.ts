@@ -184,6 +184,10 @@ export function attachTouchHandlers(
     }
     ctx.drag.viewportMutated = false;
     ctx.viewState.isDragging = false;
+    // A scrollbar drag started by touch has no mouseup to release it. Without
+    // this the flag survives the gesture, and onTouchMove's scrollbar branch
+    // then swallows every later one-finger drag anywhere on the canvas.
+    ctx.endScrollbarDrag();
     ctx.touch.longPressCrosshairLocked = false;
     ctx.touch.lastDist = 0;
   };
