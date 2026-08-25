@@ -32,8 +32,7 @@ export function attachKeyboardHandlers(
       // long-press crosshair lock, and any in-progress drawing tool
       // (delegated to the host via dispatch).
       ctx.viewState.isDragging = false;
-      ctx.drag.scrollbarDragging = false;
-      ctx.drag.scrollbarGrabOffsetFrac = null;
+      ctx.endScrollbarDrag();
       inertia.stopPan();
       inertia.stopZoom();
       ctx.pan.velocity = 0;

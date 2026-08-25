@@ -135,7 +135,7 @@
     {
       "name": "Headless API",
       "path": "dist/headless.js",
-      "limit": "11.75 kB"
+      "limit": "11.9 kB"
     },
     {
       "name": "Sparkline (vanilla)",

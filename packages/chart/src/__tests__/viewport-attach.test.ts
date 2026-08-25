@@ -465,6 +465,50 @@ describe("Viewport.attach() — touch", () => {
     fireTouch(s.el, "touchmove", [makeTouch(200, 200), makeTouch(600, 200)]);
     expect(s.ts.barSpacing).not.toBe(beforeSpacing);
   });
+
+  it("releases the scrollbar drag on touchend so later drags still pan", () => {
+    // The mouse path releases the drag on mouseup. A touch-only device never
+    // produces one, so a stale flag routed every later one-finger drag into
+    // the scrollbar branch: a 50px drag teleported the viewport by thousands
+    // of bars instead of panning by 50 / barSpacing.
+    fireTouch(s.el, "touchstart", [makeTouch(200, 585)]); // on the scrollbar track
+    fireTouch(s.el, "touchmove", [makeTouch(240, 585)]);
+    fireTouch(s.el, "touchend", []);
+
+    const afterScrollbar = s.ts.rawStartIndex;
+    const spacing = s.ts.barSpacing;
+
+    fireTouch(s.el, "touchstart", [makeTouch(400, 200)]); // plot area
+    fireTouch(s.el, "touchmove", [makeTouch(450, 200)]);
+
+    // A 50px rightward drag pans back by 50 / barSpacing bars.
+    expect(s.ts.rawStartIndex).toBeCloseTo(afterScrollbar - 50 / spacing, 6);
+    fireTouch(s.el, "touchend", []);
+  });
+
+  it("releases the scrollbar drag on touchcancel too", () => {
+    fireTouch(s.el, "touchstart", [makeTouch(200, 585)]);
+    fireTouch(s.el, "touchcancel", []);
+
+    const afterScrollbar = s.ts.rawStartIndex;
+    const spacing = s.ts.barSpacing;
+
+    fireTouch(s.el, "touchstart", [makeTouch(400, 200)]);
+    fireTouch(s.el, "touchmove", [makeTouch(450, 200)]);
+
+    expect(s.ts.rawStartIndex).toBeCloseTo(afterScrollbar - 50 / spacing, 6);
+    fireTouch(s.el, "touchend", []);
+  });
+
+  it("still drags the scrollbar while the touch is down", () => {
+    // The release must not break the gesture it ends: a move between
+    // touchstart and touchend still maps through the scrollbar.
+    const before = s.ts.rawStartIndex;
+    fireTouch(s.el, "touchstart", [makeTouch(200, 585)]);
+    fireTouch(s.el, "touchmove", [makeTouch(600, 585)]);
+    expect(s.ts.rawStartIndex).toBeGreaterThan(before);
+    fireTouch(s.el, "touchend", []);
+  });
 });
 
 describe("Viewport.attach() — cleanup", () => {

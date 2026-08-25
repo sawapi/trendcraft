@@ -140,6 +140,19 @@ export class Viewport {
   }
 
   /**
+   * Release the scrollbar drag.
+   *
+   * The flag and its grab offset are one unit — `scrollbarDragging` gates the
+   * scrollbar branch in every pointer handler, and `scrollbarGrabOffsetFrac`
+   * is the position it drags from — so they are cleared together here rather
+   * than restated at each gesture-end site.
+   */
+  private _endScrollbarDrag(): void {
+    this._drag.scrollbarDragging = false;
+    this._drag.scrollbarGrabOffsetFrac = null;
+  }
+
+  /**
    * Programmatic crosshair control for host code that wants to drive the
    * crosshair without a DOM pointer event (e.g. remote-driven playback).
    * Only touches `crosshairIndex` — mouseX/mouseY/activePaneId stay as the
@@ -201,6 +214,7 @@ export class Viewport {
       },
       applyScrollbarDrag: (mouseX, sb) => this._applyScrollbarDrag(mouseX, sb, timeScale),
       beginScrollbarDrag: (mouseX, sb) => this._beginScrollbarDrag(mouseX, sb, timeScale),
+      endScrollbarDrag: () => this._endScrollbarDrag(),
       isDrawingActive: opts?.isDrawingActive,
     };
 
