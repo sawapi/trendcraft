@@ -38,6 +38,7 @@ export { formatCsv, formatJson, formatTable } from "./formatters";
 export {
   CONDITION_PRESETS,
   createCriteriaFromNames,
+  firstUncomputableField,
   getAvailableConditions,
   screenStock,
   screenStockSafe,

@@ -9,7 +9,7 @@ import * as conditions from "../backtest/conditions";
 import { evaluateCondition } from "../backtest/conditions/core";
 import { buildMtfSetup, updateMtfIndices } from "../core/mtf-context";
 import { rsi } from "../indicators/momentum/rsi";
-import { calculateAtrPercent } from "../indicators/volatility/atr-filter";
+import { calculateAtrPercentDetail } from "../indicators/volatility/atr-filter";
 import { volumeMa } from "../indicators/volume/volume-ma";
 import type { Condition, NormalizedCandle } from "../types";
 import { err, ok, type Result, tcError } from "../types/result";
@@ -21,6 +21,66 @@ import type {
   ScreenStockOptions,
   ScreenStockSeriesOptions,
 } from "./types";
+
+/**
+ * An optional metric is reported only when it is a real number.
+ *
+ * Every field of `ScreeningResult.metrics` is optional precisely so that
+ * "could not evaluate" has a representation of its own. A non-finite value
+ * would put a number-typed nothing in a slot callers format and compare.
+ */
+function finiteOrAbsent(value: number | null | undefined): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+/**
+ * The headline fields of a {@link ScreeningResult} that must be real numbers
+ * for the result to be reportable: every formatter prints them, and
+ * `atrPercent` is the key results are ranked by.
+ *
+ * Unlike `metrics`, these are not optional — a result that cannot supply them
+ * is not a result, so `runScreening` skips the symbol instead.
+ */
+const REQUIRED_FINITE_FIELDS = ["currentPrice", "timestamp", "atrPercent"] as const;
+
+/**
+ * Name the first headline field that is not usable, or `null` when the result
+ * is fully reportable.
+ *
+ * Checks that `currentPrice`, `timestamp` and `atrPercent` are real numbers,
+ * and that `atrSampleCount` is a positive whole number of bars — a finite
+ * `atrPercent` backed by no measurement is a placeholder, not a reading.
+ *
+ * @param result - A result produced by {@link screenStock}
+ * @returns The offending field name, or `null`
+ *
+ * @example
+ * ```ts
+ * import { firstUncomputableField, screenStock } from "trendcraft";
+ *
+ * const screened = screenStock("AAAA", candles, criteria);
+ * const bad = firstUncomputableField(screened);
+ * if (bad !== null) console.log(`${screened.ticker}: ${bad} is not computable`);
+ * ```
+ */
+export function firstUncomputableField(result: ScreeningResult): string | null {
+  for (const field of REQUIRED_FINITE_FIELDS) {
+    if (!Number.isFinite(result[field])) return field;
+  }
+  // A finite `atrPercent` is not necessarily a measured one: with fewer
+  // candles than the ATR period, or no bar with a positive close, it is a
+  // substituted 0 that no finiteness check can tell from a flat series.
+  //
+  // Checking `=== 0` would only catch the shape this package produces. The
+  // count arrives from outside at runtime too: this function is exported,
+  // JavaScript callers are not held to the type, and through JSON a field
+  // that predates this release is simply absent while a `NaN` arrives as
+  // `null`. All of those are `!== 0`. A count is a whole number of bars.
+  if (!Number.isInteger(result.atrSampleCount) || result.atrSampleCount <= 0) {
+    return "atrPercent";
+  }
+  return null;
+}
 
 /**
  * Screen a single stock against criteria
@@ -83,16 +143,27 @@ export function screenStock(
     ? evaluateCondition(criteria.exit, indicators, lastCandle, lastIndex, candles, mtf?.context)
     : false;
 
-  // Calculate ATR%
-  const atrPercent = calculateAtrPercent(candles);
+  // Calculate ATR%. `sampleCount === 0` means nothing could be measured, in
+  // which case `atrPercent` is a placeholder 0 rather than a flat reading.
+  const { atrPercent, sampleCount: atrSampleCount } = calculateAtrPercentDetail(candles);
 
   // Calculate additional metrics
   const rsiData = rsi(candles, { period: 14 });
   const rsi14 = rsiData[lastIndex]?.value ?? undefined;
 
+  // `1` would mean "volume is exactly average" — a real reading — so it
+  // cannot double as "no average to compare against". Report the absence the
+  // way `rsi14` above does, which is what the optional field type and both
+  // formatters already expect.
   const volMaData = volumeMa(candles, { period: 20 });
-  const avgVolume = volMaData[lastIndex]?.value ?? 0;
-  const volumeRatio = avgVolume > 0 ? lastCandle.volume / avgVolume : 1;
+  // The average must be finite as well as positive: an overflowing volume
+  // column makes it `Infinity`, and `Infinity / Infinity` is `NaN` while
+  // `1e308 / Infinity` is a perfectly plausible-looking `0`.
+  const avgVolume = volMaData[lastIndex]?.value ?? null;
+  const volumeRatio =
+    avgVolume !== null && Number.isFinite(avgVolume) && avgVolume > 0
+      ? lastCandle.volume / avgVolume
+      : undefined;
 
   return {
     ticker,
@@ -101,10 +172,11 @@ export function screenStock(
     currentPrice: lastCandle.close,
     timestamp: lastCandle.time,
     atrPercent,
+    atrSampleCount,
     metrics: {
-      rsi14,
-      volume: lastCandle.volume,
-      volumeRatio,
+      rsi14: finiteOrAbsent(rsi14),
+      volume: finiteOrAbsent(lastCandle.volume),
+      volumeRatio: finiteOrAbsent(volumeRatio),
     },
     candles: includeCandles ? candles : undefined,
   };

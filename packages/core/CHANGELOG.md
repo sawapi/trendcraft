@@ -2,6 +2,136 @@
 
 ## [Unreleased]
 
+### Added — `calculateAtrPercentDetail`
+
+Returns `{ atrPercent, sampleCount }`. `sampleCount` is how many bars
+contributed; `0` means nothing could be measured and `atrPercent` is a
+placeholder rather than a reading. `calculateAtrPercent` is unchanged and now
+delegates to it.
+
+### Breaking — the screener no longer reports what it could not evaluate
+
+Screening turned "not evaluable" into an ordinary in-band value in several
+places. Each is fixed to say so instead.
+
+`ScreeningResult` gains a required `atrSampleCount` field; code that
+constructs one (rather than reading one) must supply it. The exported
+`firstUncomputableField` validates it as a positive whole number rather than
+comparing it to `0`. The count also reaches that function from JavaScript
+callers, who are not held to the type, and from results that have been through
+JSON, where a field this old predates is simply absent (`undefined`) and a
+`NaN` arrives as `null`. Every one of those is `!== 0`, so an equality check
+would have admitted them all.
+
+**A symbol whose headline numbers cannot be computed is skipped, not kept.**
+The `minAtrPercent` filter was written in negated form (`atrPercent < min`),
+which is `false` for `NaN` — so the one symbol the filter should have excluded
+was the one it let through. One malformed OHLC row is enough to get there, and
+the CSV parser accepts the literal `null` that historical exports write for a
+halted day. On five 150-bar low-volatility symbols where one carries a single
+`2024-02-20,null,null,null,null,null` row, a `minAtrPercent: 2.3` screen used
+to return exactly one hit — the broken symbol, with `atrPercent: NaN` — while
+correctly skipping the four clean ones. It now returns no hits, and the broken
+symbol appears in `skipped`.
+
+The check covers `currentPrice`, `timestamp` and `atrPercent` together,
+because a malformed row takes out different ones depending on where it sits: a
+mid-series row poisons every later ATR value through Wilder smoothing, while a
+row at the END leaves `atrPercent` finite and takes out `currentPrice`
+instead. A trailing `null` row used to produce a reported hit reading
+`currentPrice: NaN, atrPercent: 4.00`. The skip now applies even when no
+`minAtrPercent` is set: `atrPercent` is the key results are sorted by, so a
+`NaN` there left the result order undefined too. The threshold test itself is
+now written positively (`atrPercent >= min`), matching `passesAtrFilter`.
+
+A finite ATR% is not automatically a measured one: `calculateAtrPercent`
+substitutes `0` when it has no bar it can measure — fewer candles than the ATR
+period, or no bar with a positive close — and `0` is a real reading no
+finiteness check can tell from a placeholder. `ScreeningResult` gains
+`atrSampleCount` (bars that contributed) so the two are distinguishable, and a
+symbol whose count is 0 is skipped like any other unevaluable one. An 8-bar
+symbol under `minDataPoints: 5` used to be listed with `atrPercent: 0`, and
+under `minAtrPercent: 2.3` was reported as "ATR% too low (0.00%)" — judged on a
+number that was never computed.
+
+**`metrics` report absence rather than a number that was never computed.**
+`volumeRatio` was `1` — the exact value meaning "volume is precisely average".
+A 10-bar symbol (inside the 20-bar volume MA warm-up) and a 60-bar symbol that
+never traded were byte-identical on this field to a healthy symbol trading at
+exactly its average. `undefined` is what the field's optional type already
+declared and what `rsi14` on the adjacent line already did.
+
+Every field of `metrics` now follows that rule, not just `volumeRatio`:
+`volume` was an unchecked passthrough that reported `NaN` for a malformed
+volume column, and `volumeRatio` itself had three more shapes of the same
+problem once the average overflowed — `Infinity / Infinity` gave `NaN`,
+a cancelling window gave `+Infinity`, and `1e308 / Infinity` gave a
+plausible-looking `0` for a bar whose true ratio was `1`.
+
+Note for JSON consumers: `formatTable` renders an absent metric as `-` and
+`formatCsv` as an empty field, but `formatJson` passes the object to
+`JSON.stringify`, which **omits the key entirely**. `metrics.volumeRatio` used
+to be present on every result; it is now absent for symbols that have no
+volume average.
+
+**`summary.processedFiles` counts files that screened through.** It was
+`loadedStocks.length`, which included files that were subsequently skipped, so
+`processedFiles` and `skippedFiles` overlapped and neither reconciled with
+`totalFiles`: two CSVs both filtered out reported `Total 2 / Processed 2 /
+Skipped 2`. `processedFiles + skippedFiles === totalFiles` now holds, and
+`processedFiles === results.length`. `totalFiles` is taken from the directory
+listing the run actually used rather than from a second scan taken after
+screening finished.
+
+### Fixed — `trendcraft-screen` no longer runs a screen you did not ask for
+
+`parseArgs` recognised only space-separated long options. Anything else
+starting with `-` matched no branch and was discarded silently, after which an
+empty entry list fell back to the built-in default:
+
+```
+trendcraft-screen ./data --entry=rsiAbove70 --min-atr=99 --all
+  before → { dataPath: "./data", entry: ["goldenCross", "volumeAnomaly"], showAll: true }
+  after  → { dataPath: "./data", entry: ["rsiAbove70"], minAtr: 99, showAll: true }
+```
+
+So the tool reported a successful screen for criteria nobody requested, with
+the volatility filter silently disabled. A typo'd flag was worse still — the
+flag was dropped and its value became the data path:
+
+```
+trendcraft-screen ./data --entries rsiAbove70
+  before → { dataPath: "rsiAbove70", entry: ["goldenCross", "volumeAnomaly"] }
+  after  → exits 1 with "Unknown option: --entries"
+```
+
+`--opt=value` now parses identically to `--opt value` for long options;
+unknown options, missing values, unparseable numbers and unsupported
+`--output` formats all exit non-zero with a message naming the argument. A
+value is parsed with `Number`, not `parseFloat` / `parseInt`, so a numeric
+prefix is rejected rather than truncated: `--min-atr 2.5abc` no longer becomes
+`2.5`, and `--min-data 2.9` no longer becomes `2` under an error message that
+promises an integer. An empty value (`--entry ""`) is a missing value, and a
+flag that takes none rejects `--all=x`.
+
+A negative bound is rejected too: `--min-atr -1` passes every finite ATR% and
+`--min-data -100` turns the data-sufficiency check off entirely, which disables
+a filter as silently as dropping the flag used to. `runScreening` validates
+`minAtrPercent` and `minDataPoints` the same way and throws otherwise. A second
+positional argument is an error rather than a silent replacement of the first,
+so `trendcraft-screen ./correct-data stray-token` no longer scans
+`stray-token`.
+
+`passesAtrFilter` gained the same treatment: `atrPercent >= threshold` rejects
+`NaN` but accepted `+Infinity` (which an overflowing price column produces) and
+the substituted `0` (which clears `threshold: 0`), so a volatility that could
+not be measured cleared a volatility minimum. A genuinely flat series still
+passes.
+
+Argument parsing moved into `screening/cli-args.ts` as `parseScreenArgs`,
+which returns its error instead of exiting, so it is testable without invoking
+the CLI. It is not exported from the package entry.
+
 ### Breaking — anchored walk-forward no longer tests a combination it never selected
 
 `anchoredWalkForwardAnalysis` optimizes a condition combination on each

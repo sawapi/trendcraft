@@ -42,33 +42,52 @@ export type AtrFilterResult = {
 export const DEFAULT_ATR_THRESHOLD = 2.3;
 
 /**
- * Calculate ATR% (ATR as percentage of price)
+ * ATR% together with the evidence behind it.
  *
- * ATR% = (ATR / Close) * 100
+ * `sampleCount` is how many bars actually contributed. It is 0 when nothing
+ * could be measured — fewer candles than the ATR period, or no bar with a
+ * positive close — in which case `atrPercent` is a placeholder `0` rather
+ * than a reading. Callers that must not treat "no volatility measurable" as
+ * "no volatility" check `sampleCount` first.
+ */
+export type AtrPercentDetail = {
+  /** Average ATR% over the lookback period, or `0` when `sampleCount` is 0 */
+  atrPercent: number;
+  /** Bars that contributed to the average */
+  sampleCount: number;
+};
+
+/**
+ * Calculate ATR% and report how many bars it could measure.
  *
- * This measures volatility relative to price, making it comparable across
- * stocks with different price levels.
+ * Same computation as {@link calculateAtrPercent}, which returns only the
+ * number. Use this when a substituted `0` and a genuine zero-volatility
+ * reading must be told apart.
  *
  * @param candles - Array of candles
  * @param options - Calculation options
- * @returns Average ATR% over the lookback period
+ * @returns The average ATR% and the number of contributing bars
  *
  * @example
  * ```ts
- * const atrPct = calculateAtrPercent(candles);
- * console.log(`ATR%: ${atrPct.toFixed(2)}%`);
+ * const { atrPercent, sampleCount } = calculateAtrPercentDetail(candles);
+ * if (sampleCount === 0) {
+ *   console.log("ATR% is not measurable for this series");
+ * } else {
+ *   console.log(`ATR%: ${atrPercent.toFixed(2)}%`);
+ * }
  * ```
  */
-export function calculateAtrPercent(
+export function calculateAtrPercentDetail(
   candles: Candle[] | NormalizedCandle[],
   options: Omit<AtrFilterOptions, "threshold"> = {},
-): number {
+): AtrPercentDetail {
   const { atrPeriod = 14, lookbackPeriod = 252 } = options;
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
 
   if (normalized.length < atrPeriod) {
-    return 0;
+    return { atrPercent: 0, sampleCount: 0 };
   }
 
   // Calculate ATR series
@@ -96,7 +115,35 @@ export function calculateAtrPercent(
     }
   }
 
-  return count > 0 ? sum / count : 0;
+  return { atrPercent: count > 0 ? sum / count : 0, sampleCount: count };
+}
+
+/**
+ * Calculate ATR% (ATR as percentage of price)
+ *
+ * ATR% = (ATR / Close) * 100
+ *
+ * This measures volatility relative to price, making it comparable across
+ * stocks with different price levels.
+ *
+ * Returns `0` both for a genuinely flat series and for one where nothing
+ * could be measured. {@link calculateAtrPercentDetail} distinguishes the two.
+ *
+ * @param candles - Array of candles
+ * @param options - Calculation options
+ * @returns Average ATR% over the lookback period
+ *
+ * @example
+ * ```ts
+ * const atrPct = calculateAtrPercent(candles);
+ * console.log(`ATR%: ${atrPct.toFixed(2)}%`);
+ * ```
+ */
+export function calculateAtrPercent(
+  candles: Candle[] | NormalizedCandle[],
+  options: Omit<AtrFilterOptions, "threshold"> = {},
+): number {
+  return calculateAtrPercentDetail(candles, options).atrPercent;
 }
 
 /**
@@ -162,10 +209,14 @@ export function passesAtrFilter(
 ): AtrFilterResult {
   const { threshold = DEFAULT_ATR_THRESHOLD, ...calcOptions } = options;
 
-  const atrPercent = calculateAtrPercent(candles, calcOptions);
+  const { atrPercent, sampleCount } = calculateAtrPercentDetail(candles, calcOptions);
 
   return {
-    passes: atrPercent >= threshold,
+    // A volatility that could not be measured must not clear a volatility
+    // minimum. `>=` alone rejects NaN but ACCEPTS +Infinity (which an
+    // overflowing price column produces) and the substituted `0` that a
+    // too-short series yields (which clears `threshold: 0`).
+    passes: sampleCount > 0 && Number.isFinite(atrPercent) && atrPercent >= threshold,
     atrPercent,
     threshold,
   };

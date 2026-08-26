@@ -15,10 +15,11 @@
  */
 
 export { atr } from "./atr";
-export type { AtrFilterOptions, AtrFilterResult } from "./atr-filter";
+export type { AtrFilterOptions, AtrFilterResult, AtrPercentDetail } from "./atr-filter";
 export {
   atrPercentSeries,
   calculateAtrPercent,
+  calculateAtrPercentDetail,
   DEFAULT_ATR_THRESHOLD,
   filterStocksByAtr,
   passesAtrFilter,

@@ -7,8 +7,8 @@
 
 import type { Condition } from "../types";
 import { err, ok, type Result, tcError } from "../types/result";
-import { getCsvFiles, loadCsvDirectory } from "./csv-loader";
-import { screenStock } from "./screen-stock";
+import { loadCsvDirectory } from "./csv-loader";
+import { firstUncomputableField, screenStock } from "./screen-stock";
 import type { ScreeningOptions, ScreeningResult, ScreeningSessionResult } from "./types";
 
 /**
@@ -46,6 +46,15 @@ export function runScreening(options: ScreeningOptions): ScreeningSessionResult 
     onProgress,
   } = options;
 
+  // The CLI rejects these; the library entry must too, or a negative bound
+  // turns a filter off without saying so.
+  if (!Number.isInteger(minDataPoints) || minDataPoints < 0) {
+    throw new Error(`minDataPoints must be a non-negative integer, got ${minDataPoints}`);
+  }
+  if (minAtrPercent !== undefined && (!Number.isFinite(minAtrPercent) || minAtrPercent < 0)) {
+    throw new Error(`minAtrPercent must be a non-negative number, got ${minAtrPercent}`);
+  }
+
   const startTime = Date.now();
 
   // Load all CSV files
@@ -78,8 +87,23 @@ export function runScreening(options: ScreeningOptions): ScreeningSessionResult 
         mtfTimeframes,
       });
 
-      // Check ATR% filter
-      if (minAtrPercent !== undefined && result.atrPercent < minAtrPercent) {
+      // A headline field that is not a real number means the symbol could
+      // not be evaluated, not that it passed. Malformed OHLC rows reach here
+      // in more than one shape: a mid-series one poisons every later ATR
+      // value through Wilder smoothing, while one on the LAST row leaves
+      // `atrPercent` finite and takes out `currentPrice` instead.
+      const uncomputable = firstUncomputableField(result);
+      if (uncomputable !== null) {
+        skipped.push({
+          ticker: stock.ticker,
+          reason: `${uncomputable} not computable — the source data has missing or malformed rows`,
+        });
+        continue;
+      }
+
+      // Check ATR% filter. Written in the positive form, matching
+      // `passesAtrFilter`, so an unexpected non-finite value fails closed.
+      if (minAtrPercent !== undefined && !(result.atrPercent >= minAtrPercent)) {
         skipped.push({
           ticker: stock.ticker,
           reason: `ATR% too low (${result.atrPercent.toFixed(2)}% < ${minAtrPercent}%)`,
@@ -119,8 +143,11 @@ export function runScreening(options: ScreeningOptions): ScreeningSessionResult 
       minAtrPercent,
     },
     summary: {
-      totalFiles: getCsvFiles(dataPath).length,
-      processedFiles: loadedStocks.length,
+      // `loadCsvDirectory` already partitions the directory into these two,
+      // so the counters agree with the run instead of with a second scan
+      // taken after it finished.
+      totalFiles: loadedStocks.length + loadErrors.length,
+      processedFiles: screeningResults.length,
       skippedFiles: skipped.length,
       entrySignals: screeningResults.filter((r) => r.entrySignal).length,
       exitSignals: screeningResults.filter((r) => r.exitSignal).length,

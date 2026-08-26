@@ -213,6 +213,7 @@ describe("formatters", () => {
         currentPrice: 1000,
         timestamp: Date.now(),
         atrPercent: 2.5,
+        atrSampleCount: 252,
         metrics: { rsi14: 35, volume: 1000000, volumeRatio: 1.5 },
       },
       {
@@ -222,6 +223,7 @@ describe("formatters", () => {
         currentPrice: 2000,
         timestamp: Date.now(),
         atrPercent: 3.0,
+        atrSampleCount: 252,
         metrics: { rsi14: 65, volume: 2000000, volumeRatio: 0.8 },
       },
     ],
@@ -264,6 +266,7 @@ describe("formatters", () => {
             currentPrice: 3000,
             timestamp: Date.now(),
             atrPercent: 2.0,
+            atrSampleCount: 252,
             metrics: {},
           },
         ],
