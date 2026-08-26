@@ -15,6 +15,7 @@
 import { loadStrategy } from "../strategy/hydrate";
 import type { ConditionRegistry } from "../strategy/registry";
 import type { StrategyJSON } from "../strategy/types";
+import { isScalarNumberParam } from "../strategy/utils";
 import { validateConditionSpec } from "../strategy/validate";
 import {
   applyParamOverrides,
@@ -114,9 +115,10 @@ export function validateRangePaths(
         `Invalid range path "${range.path}": condition "${leaf.name}" has no param "${parsed.paramName}"`,
       );
     }
-    if (schema.type !== "number") {
+    if (!isScalarNumberParam(schema)) {
+      const declared = schema.array ? `${schema.type}[]` : schema.type;
       throw new Error(
-        `Invalid range path "${range.path}": param "${parsed.paramName}" on "${leaf.name}" is type "${schema.type}", optimization only supports "number"`,
+        `Invalid range path "${range.path}": param "${parsed.paramName}" on "${leaf.name}" is type "${declared}", optimization only supports scalar "number"`,
       );
     }
     // Catch caller-side range shape errors here so the safe variant can

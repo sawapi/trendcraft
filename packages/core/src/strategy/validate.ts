@@ -15,6 +15,7 @@
 
 import type { ConditionRegistry } from "./registry";
 import type { ConditionSpec, ParamDef } from "./types";
+import { describeType, isPlainObject } from "./utils";
 
 /**
  * Validation result
@@ -54,6 +55,19 @@ function validateSpecRecursive<T>(
   errors: string[],
   path: string,
 ): void {
+  // `in` throws on a primitive or null, and a combinator's `conditions` array
+  // is a very ordinary place for one to appear — a bare condition NAME where
+  // an object belonged is exactly what a hand-written or generated strategy
+  // gets wrong. A validator must report that, not crash on it.
+  if (!isPlainObject(spec)) {
+    // Children are handed a path ending in `.` for the next token to consume
+    // (`and[0].` + `goldenCross`). This branch has no token to append, so the
+    // separator would dangle: `and[0].: expected condition object`.
+    const at = path.replace(/\.$/, "") || "condition";
+    errors.push(`${at}: expected condition object, got ${describeType(spec)}`);
+    return;
+  }
+
   // Combinator node
   if ("op" in spec) {
     if (!["and", "or", "not"].includes(spec.op)) {
@@ -86,6 +100,12 @@ function validateSpecRecursive<T>(
   }
 
   const params = spec.params ?? {};
+  // `Object.entries(42)` is `[]` and `Object.entries("ab")` yields index keys,
+  // so an ill-shaped container silently became "no params" or nonsense ones.
+  if (spec.params !== undefined && !isPlainObject(spec.params)) {
+    errors.push(`${prefix}.params: expected an object, got ${describeType(spec.params)}`);
+    return;
+  }
 
   // Check required params
   for (const [key, def] of Object.entries(entry.params)) {
@@ -96,26 +116,59 @@ function validateSpecRecursive<T>(
 
   // Check provided params
   for (const [key, value] of Object.entries(params)) {
-    const def = entry.params[key];
-    if (!def) {
+    // `entry.params[key]` would resolve `toString` / `constructor` through
+    // Object.prototype and treat the inherited function as a param definition,
+    // reporting `expected undefined, got number`.
+    if (!Object.hasOwn(entry.params, key)) {
       errors.push(`${prefix}.${key}: unknown parameter`);
       continue;
     }
+    const def = entry.params[key];
 
     validateParam(`${prefix}.${key}`, value, def, errors);
   }
 }
 
 function validateParam(path: string, value: unknown, def: ParamDef, errors: string[]): void {
+  if (def.array) {
+    if (!Array.isArray(value)) {
+      errors.push(`${path}: expected ${def.type}[], got ${describeType(value)}`);
+      return;
+    }
+    if (def.minItems !== undefined && value.length < def.minItems) {
+      errors.push(`${path}: expected at least ${def.minItems} items, got ${value.length}`);
+    }
+    if (def.maxItems !== undefined && value.length > def.maxItems) {
+      errors.push(`${path}: expected at most ${def.maxItems} items, got ${value.length}`);
+    }
+    if (def.minDistinct !== undefined) {
+      const distinct = new Set(value).size;
+      if (distinct < def.minDistinct) {
+        errors.push(
+          `${path}: expected at least ${def.minDistinct} distinct values, got ${distinct}`,
+        );
+      }
+    }
+    // Element constraints are the same ones a scalar of this type would get.
+    const elementDef: ParamDef = { ...def, array: false };
+    value.forEach((item, i) => validateParam(`${path}[${i}]`, item, elementDef, errors));
+    return;
+  }
+
   // Type check
   const actualType = typeof value;
   if (actualType !== def.type) {
-    errors.push(`${path}: expected ${def.type}, got ${actualType}`);
+    errors.push(`${path}: expected ${def.type}, got ${describeType(value)}`);
     return;
   }
 
   // Number range checks
   if (def.type === "number" && typeof value === "number") {
+    // `integer` was documented as a UI hint and enforced nowhere, so a param
+    // that declares it still accepted `5.5` and failed inside the indicator.
+    if (def.integer === true && !Number.isInteger(value)) {
+      errors.push(`${path}: expected an integer, got ${value}`);
+    }
     if (def.min !== undefined && value < def.min) {
       errors.push(`${path}: value ${value} is below minimum ${def.min}`);
     }

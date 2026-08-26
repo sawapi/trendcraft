@@ -50,19 +50,25 @@ import {
   bearishHarmonicDetected,
   bullFlagDetected,
   bullishHarmonicDetected,
+  CHANNEL_TYPES,
   channelDetected,
   cupHandleDetected,
   doubleBottomDetected,
   doubleTopDetected,
+  FLAG_TYPES,
   flagDetected,
+  HARMONIC_TYPES,
   harmonicPatternDetected,
   headShouldersDetected,
   inverseHeadShouldersDetected,
+  PATTERN_TYPES,
   patternConfidenceAbove,
   patternConfirmed,
   patternDetected,
   patternWithinBars,
+  TRIANGLE_TYPES,
   triangleDetected,
+  WEDGE_TYPES,
   wedgeDetected,
 } from "../backtest/conditions/patterns";
 import {
@@ -412,8 +418,15 @@ backtestRegistry.register({
 const poParams = {
   periods: {
     type: "number" as const,
+    array: true,
+    // The indicator sorts and de-duplicates before counting, so what it needs
+    // is two different lengths — not merely two entries.
+    minDistinct: 2,
+    min: 1,
+    integer: true,
     tunable: false,
-    description: "MA periods (array via JSON)",
+    description:
+      "MA periods — at least 2 distinct positive integers (e.g. [5, 25, 75]). Order does not matter.",
   },
 };
 
@@ -1099,12 +1112,26 @@ backtestRegistry.register({
 // Patterns
 // ============================================
 
+/**
+ * Every pattern identifier a pattern condition can resolve.
+ *
+ * Derived from the condition layer rather than restated: a value outside
+ * this set finds no detector and leaves the condition silently false on
+ * every bar, so the registry must not advertise one.
+ */
+const patternTypeParam = {
+  type: "string" as const,
+  required: true,
+  enum: [...PATTERN_TYPES],
+  description: "Pattern type name",
+};
+
 backtestRegistry.register({
   name: "patternDetected",
   displayName: "Pattern Detected",
   category: "pattern",
   params: {
-    type: { type: "string", required: true, description: "Pattern type name" },
+    type: patternTypeParam,
   },
   create: (p) => patternDetected(p.type as PatternType),
 });
@@ -1114,7 +1141,7 @@ backtestRegistry.register({
   displayName: "Pattern Confirmed",
   category: "pattern",
   params: {
-    type: { type: "string", required: true },
+    type: patternTypeParam,
   },
   create: (p) => patternConfirmed(p.type as PatternType),
 });
@@ -1140,7 +1167,7 @@ backtestRegistry.register({
   displayName: "Pattern Confidence Above",
   category: "pattern",
   params: {
-    type: { type: "string", required: true },
+    type: patternTypeParam,
     minConfidence: { type: "number", default: 70, min: 0, max: 100 },
   },
   create: (p) => patternConfidenceAbove(p.type as PatternType, (p.minConfidence as number) ?? 70),
@@ -1161,7 +1188,7 @@ backtestRegistry.register({
   displayName: "Pattern Within Bars",
   category: "pattern",
   params: {
-    type: { type: "string", required: true },
+    type: patternTypeParam,
     lookback: { type: "number", default: 5, min: 1 },
   },
   create: (p) => patternWithinBars(p.type as PatternType, (p.lookback as number) ?? 5),
@@ -1210,18 +1237,11 @@ backtestRegistry.register({
   params: {
     subtype: {
       type: "string",
-      enum: ["ascending", "descending", "symmetrical"],
+      enum: [...TRIANGLE_TYPES],
       description: "Triangle subtype",
     },
   },
-  create: (p) =>
-    triangleDetected(
-      p.subtype as
-        | "triangle_symmetrical"
-        | "triangle_ascending"
-        | "triangle_descending"
-        | undefined,
-    ),
+  create: (p) => triangleDetected(p.subtype as (typeof TRIANGLE_TYPES)[number] | undefined),
 });
 
 backtestRegistry.register({
@@ -1229,9 +1249,13 @@ backtestRegistry.register({
   displayName: "Wedge Detected",
   category: "pattern",
   params: {
-    subtype: { type: "string", enum: ["rising", "falling"], description: "Wedge subtype" },
+    subtype: {
+      type: "string",
+      enum: [...WEDGE_TYPES],
+      description: "Wedge subtype",
+    },
   },
-  create: (p) => wedgeDetected(p.subtype as "rising_wedge" | "falling_wedge" | undefined),
+  create: (p) => wedgeDetected(p.subtype as (typeof WEDGE_TYPES)[number] | undefined),
 });
 
 backtestRegistry.register({
@@ -1241,14 +1265,11 @@ backtestRegistry.register({
   params: {
     subtype: {
       type: "string",
-      enum: ["ascending", "descending", "horizontal"],
+      enum: [...CHANNEL_TYPES],
       description: "Channel subtype",
     },
   },
-  create: (p) =>
-    channelDetected(
-      p.subtype as "channel_ascending" | "channel_descending" | "channel_horizontal" | undefined,
-    ),
+  create: (p) => channelDetected(p.subtype as (typeof CHANNEL_TYPES)[number] | undefined),
 });
 
 backtestRegistry.register({
@@ -1256,12 +1277,13 @@ backtestRegistry.register({
   displayName: "Flag Detected",
   category: "pattern",
   params: {
-    subtype: { type: "string", enum: ["bull", "bear"], description: "Flag subtype" },
+    subtype: {
+      type: "string",
+      enum: [...FLAG_TYPES],
+      description: "Flag subtype",
+    },
   },
-  create: (p) =>
-    flagDetected(
-      p.subtype as "bull_flag" | "bear_flag" | "bull_pennant" | "bear_pennant" | undefined,
-    ),
+  create: (p) => flagDetected(p.subtype as (typeof FLAG_TYPES)[number] | undefined),
 });
 
 backtestRegistry.register({
@@ -1286,7 +1308,7 @@ backtestRegistry.register({
   params: {
     subtype: {
       type: "string",
-      enum: ["gartley", "bat", "butterfly", "crab", "abcd"],
+      enum: [...HARMONIC_TYPES],
       description: "Harmonic pattern subtype",
     },
   },

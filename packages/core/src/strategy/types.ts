@@ -111,8 +111,33 @@ export type SessionOverrides = {
  * Parameter definition for a condition parameter (lightweight, no external deps)
  */
 export type ParamDef = {
-  /** Parameter type */
+  /**
+   * Parameter type. The scalar name describes the ELEMENT type when
+   * {@link ParamDef.array} is set — `{ type: "number", array: true }` is a
+   * `number[]`, and `min` / `max` / `enum` then apply to each element.
+   */
   type: "number" | "string" | "boolean";
+  /**
+   * `true` when the param takes an array of `type` rather than one value.
+   *
+   * Without this, an array-valued param had no honest declaration: declaring
+   * the element type rejected the array form that actually works, and
+   * declaring it any other way let a scalar through to a factory that
+   * immediately failed on it.
+   */
+  array?: boolean;
+  /** Minimum number of elements when {@link ParamDef.array} is set */
+  minItems?: number;
+  /** Maximum number of elements when {@link ParamDef.array} is set */
+  maxItems?: number;
+  /**
+   * Minimum number of DISTINCT elements when {@link ParamDef.array} is set.
+   *
+   * Separate from `minItems` because a factory may de-duplicate before it
+   * counts: a set of MA periods needs two different lengths, so `[5, 5]` is
+   * two items but one period.
+   */
+  minDistinct?: number;
   /** Default value */
   default?: unknown;
   /** Human-readable description */
@@ -157,11 +182,10 @@ export type ParamDef = {
   suggestedMax?: number;
   /**
    * `false` opts the parameter out of generic numeric introspection
-   * (e.g. `listTunables`). Use this for params whose JSON value is *not*
-   * a scalar number — for instance MA period vectors declared with
-   * `type: "number"` for compactness but actually consumed as
-   * `number[]`. Defaults to `true` (the param participates in
-   * enumeration).
+   * (e.g. `listTunables`). Use it for a numeric param that a scalar grid
+   * sweep cannot vary meaningfully — an {@link ParamDef.array} param such as
+   * a set of MA periods, or a value whose sensible range depends on another
+   * param. Defaults to `true` (the param participates in enumeration).
    */
   tunable?: boolean;
 };

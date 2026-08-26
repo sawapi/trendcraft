@@ -7447,6 +7447,31 @@ const structResult = validateStrategyJSON(strategyJson);
 // { valid: boolean, errors: string[] }
 ```
 
+`array: true` を持つ `ParamDef` は `type` の配列を受け取り、`min` / `max` /
+`enum` は各要素に適用される。要素のエラーはインデックス付きで報告され、
+`minItems` / `maxItems` が長さを制約する:
+
+```typescript
+validateConditionSpec(
+  { name: "perfectOrderBullish", params: { periods: [5, "25", 75] } },
+  backtestRegistry,
+);
+// { valid: false, errors: ["perfectOrderBullish.periods[1]: expected number, got string"] }
+```
+
+`minItems` / `maxItems` は長さを、`minDistinct` は**異なる値の個数**を制約する
+（重複除去してから数える factory があるため）。`integer: true` は検証で強制され、
+配列 param では要素ごとに適用される。`params` 自体も、存在する場合はオブジェクトで
+なければならない。
+
+結合子の子要素がオブジェクトでない場合は throw でなく報告されるので、壊れた戦略でも
+`parseStrategySafe` は `Result` の契約を守る — `{ "op": "and", "conditions": ["goldenCross"] }`
+（オブジェクトを置くべき場所に条件名だけを書いたもの）は `TypeError` でなく
+`and[0]: expected condition object, got string` を返す。
+
+`hydrate` はエントリが宣言していないパラメータを黙って捨てず拒否するので、あるレジストリ
+向けに書いたチューニングが別のレジストリで無言のうちに失われることはない。
+
 ### StrategyJSON スキーマ
 
 ```typescript
