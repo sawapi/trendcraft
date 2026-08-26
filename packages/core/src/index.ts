@@ -256,6 +256,7 @@ export type {
   AroonValue,
   AtrFilterOptions,
   AtrFilterResult,
+  AtrPercentDetail,
   // Auto Trend Line / Channel / Fibonacci Extension / Pitchfork types
   AutoTrendLineOptions,
   AutoTrendLineValue,
@@ -437,6 +438,7 @@ export {
   breakOfStructure,
   // ATR Filter (stock screening)
   calculateAtrPercent,
+  calculateAtrPercentDetail,
   calculateAtrStop,
   calculateAtrTakeProfit,
   calculateAtrTrailingStop,
@@ -812,6 +814,7 @@ export { formatCsv, formatJson, formatTable } from "./screening/formatters";
 export {
   CONDITION_PRESETS,
   createCriteriaFromNames,
+  firstUncomputableField,
   getAvailableConditions,
   screenStock,
   screenStockSafe,

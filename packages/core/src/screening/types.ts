@@ -54,9 +54,34 @@ export type ScreeningResult = {
   currentPrice: number;
   /** Latest candle timestamp */
   timestamp: number;
-  /** ATR% for volatility assessment */
+  /**
+   * ATR% for volatility assessment.
+   *
+   * Finite in every result returned by `runScreening`, along with
+   * `currentPrice` and `timestamp`: a symbol that cannot supply all three is
+   * reported in `skipped` instead, because it can neither be filtered nor
+   * ranked. Malformed OHLC rows take out different ones — a mid-series row
+   * poisons every later ATR value through Wilder smoothing, while one on the
+   * last row leaves ATR% intact and takes out `currentPrice`.
+   *
+   * A finite value is not automatically a measured one — with fewer candles
+   * than the ATR period, or no bar with a positive close, the underlying
+   * calculation substitutes `0`. `atrSampleCount` separates the two, and
+   * `runScreening` skips a symbol whose count is 0.
+   */
   atrPercent: number;
-  /** Additional computed metrics */
+  /**
+   * Bars that contributed to `atrPercent`. `0` means nothing could be
+   * measured, so `atrPercent` is a placeholder rather than a reading —
+   * `runScreening` skips such symbols.
+   */
+  atrSampleCount: number;
+  /**
+   * Additional computed metrics. `undefined` means the metric could not be
+   * evaluated for this symbol, never a substituted value: `volumeRatio` is
+   * absent during the 20-bar volume MA warm-up and for a symbol that never
+   * traded, since `1` would mean "volume is exactly average".
+   */
   metrics: {
     rsi14?: number;
     volume?: number;
@@ -102,7 +127,12 @@ export type ScreeningOptions = {
   criteria: ScreeningCriteria;
   /** Minimum data points required (default: 100) */
   minDataPoints?: number;
-  /** Filter by ATR% threshold (default: no filter) */
+  /**
+   * Minimum ATR% a symbol must reach to be reported (default: no minimum).
+   *
+   * Independently of this option, a symbol whose headline fields cannot be
+   * computed is always skipped — see {@link ScreeningResult.atrPercent}.
+   */
   minAtrPercent?: number;
   /** Include full candle data in results (default: false) */
   includeCandles?: boolean;
@@ -130,10 +160,19 @@ export type ScreeningSessionResult = {
     minDataPoints: number;
     minAtrPercent?: number;
   };
-  /** Summary statistics */
+  /**
+   * Summary statistics.
+   *
+   * `processedFiles` and `skippedFiles` partition `totalFiles`: every CSV in
+   * the directory either produced a result or was skipped, never both.
+   * `processedFiles === results.length` and `skippedFiles === skipped.length`.
+   */
   summary: {
+    /** CSV files the run loaded or failed to load */
     totalFiles: number;
+    /** Files that screened all the way through — equals `results.length` */
     processedFiles: number;
+    /** Files excluded at any stage — equals `skipped.length` */
     skippedFiles: number;
     entrySignals: number;
     exitSignals: number;

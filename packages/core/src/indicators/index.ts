@@ -283,6 +283,7 @@ export {
 export type {
   AtrFilterOptions,
   AtrFilterResult,
+  AtrPercentDetail,
   ChoppinessIndexOptions,
   DonchianOptions,
   DonchianValue,
@@ -301,6 +302,7 @@ export {
   bollingerBands,
   // ATR Filter (stock screening)
   calculateAtrPercent,
+  calculateAtrPercentDetail,
   calculateAtrStop,
   calculateAtrTakeProfit,
   calculateAtrTrailingStop,

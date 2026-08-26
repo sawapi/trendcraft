@@ -21,85 +21,7 @@ import {
   getAvailableConditions,
   runScreening,
 } from "../src/screening";
-import type { OutputFormat } from "../src/screening/types";
-
-// Parse command line arguments
-function parseArgs(args: string[]): {
-  dataPath?: string;
-  entry: string[];
-  exit: string[];
-  output: OutputFormat;
-  minAtr?: number;
-  minData: number;
-  showAll: boolean;
-  verbose: boolean;
-  help: boolean;
-  list: boolean;
-} {
-  const result = {
-    dataPath: undefined as string | undefined,
-    entry: [] as string[],
-    exit: [] as string[],
-    output: "table" as OutputFormat,
-    minAtr: undefined as number | undefined,
-    minData: 100,
-    showAll: false,
-    verbose: false,
-    help: false,
-    list: false,
-  };
-
-  let i = 0;
-  while (i < args.length) {
-    const arg = args[i];
-
-    if (arg === "--help" || arg === "-h") {
-      result.help = true;
-    } else if (arg === "--list" || arg === "-l") {
-      result.list = true;
-    } else if (arg === "--entry" || arg === "-e") {
-      i++;
-      if (args[i]) {
-        result.entry = args[i].split(",").map((s) => s.trim());
-      }
-    } else if (arg === "--exit" || arg === "-x") {
-      i++;
-      if (args[i]) {
-        result.exit = args[i].split(",").map((s) => s.trim());
-      }
-    } else if (arg === "--output" || arg === "-o") {
-      i++;
-      if (args[i] && ["json", "table", "csv"].includes(args[i])) {
-        result.output = args[i] as OutputFormat;
-      }
-    } else if (arg === "--min-atr") {
-      i++;
-      if (args[i]) {
-        result.minAtr = Number.parseFloat(args[i]);
-      }
-    } else if (arg === "--min-data") {
-      i++;
-      if (args[i]) {
-        result.minData = Number.parseInt(args[i], 10);
-      }
-    } else if (arg === "--all" || arg === "-a") {
-      result.showAll = true;
-    } else if (arg === "--verbose" || arg === "-v") {
-      result.verbose = true;
-    } else if (!arg.startsWith("-")) {
-      result.dataPath = arg;
-    }
-
-    i++;
-  }
-
-  // Default entry condition
-  if (result.entry.length === 0) {
-    result.entry = ["goldenCross", "volumeAnomaly"];
-  }
-
-  return result;
-}
+import { parseScreenArgs } from "../src/screening/cli-args";
 
 function printHelp(): void {
   console.log(`
@@ -111,7 +33,7 @@ Usage:
 Arguments:
   data-path              Directory containing CSV files
 
-Options:
+Options (long options also accept --opt=value):
   -e, --entry <conds>    Entry conditions (comma-separated)
                          Default: goldenCross,volumeAnomaly
   -x, --exit <conds>     Exit conditions (comma-separated)
@@ -213,8 +135,12 @@ function printConditionList(): void {
 }
 
 async function main(): Promise<void> {
-  const args = process.argv.slice(2);
-  const options = parseArgs(args);
+  const parsed = parseScreenArgs(process.argv.slice(2));
+  if (!parsed.ok) {
+    console.error(parsed.error);
+    process.exit(1);
+  }
+  const options = parsed.args;
 
   if (options.help) {
     printHelp();
