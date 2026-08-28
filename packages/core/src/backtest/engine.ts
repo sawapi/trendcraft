@@ -438,8 +438,17 @@ export function runBacktest(
   /**
    * Deduct margin interest for the fraction of the loan being settled,
    * charged on the outstanding `borrowedAmount` over the entry-to-exit
-   * holding period. Call BEFORE `repayMarginLoan` reduces the balance, so
-   * each repaid tranche is charged for exactly the days it was outstanding.
+   * holding period, measured in FRACTIONAL days. Call BEFORE
+   * `repayMarginLoan` reduces the balance, so each repaid tranche is charged
+   * for exactly the time it was outstanding.
+   *
+   * This is simple interest over elapsed time, not the overnight-balance
+   * convention brokers actually bill on — a real intraday round trip accrues
+   * nothing. Modelling that needs a day boundary: a timezone and a settlement
+   * cutoff, since margin interest accrues on calendar days, weekends and
+   * holidays included. `BacktestOptions` takes neither today, though the
+   * package does ship the timezone primitive (`SessionDefinition`), so the
+   * gap is wiring rather than capability.
    *
    * The charge is settled in cash immediately, so it is deliberately NOT
    * added to `accumulatedInterest` — the equity check subtracts that field
@@ -448,7 +457,12 @@ export function runBacktest(
    */
   function deductMarginInterest(entryTime: number, exitTime: number, fraction = 1): void {
     if (marginConfig && marginState && marginConfig.interestRate) {
-      const holdDays = Math.max(1, Math.round((exitTime - entryTime) / MS_PER_DAY));
+      // Fractional days, not whole ones. `Math.max(1, Math.round(...))` made
+      // the charge a function of TRADE COUNT rather than time held: on
+      // intraday bars every round trip paid a full day, so 99 ten-minute
+      // trades inside a 1.4-day window were billed 99 days. The rounding
+      // also cut both ways — a 1.4-day hold billed 1 day, a 1.6-day hold 2.
+      const holdDays = Math.max(0, (exitTime - entryTime) / MS_PER_DAY);
       const interest =
         accrueInterest(marginState, marginConfig.interestRate / 365, holdDays) *
         Math.min(1, Math.max(0, fraction));

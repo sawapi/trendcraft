@@ -6,7 +6,19 @@ export type MarginConfig = {
   maintenanceMargin: number;
   /** Action on margin call */
   marginCallAction: "liquidate" | "reduceToMaintenance";
-  /** Annual interest rate on borrowed amount (e.g., 0.05 = 5%) */
+  /**
+   * Annual interest rate on the borrowed amount (e.g. `0.05` = 5%).
+   *
+   * Charged as simple interest over the elapsed holding time: the annual rate
+   * is divided by 365 and multiplied by the **fractional** days a position was
+   * open. A one-hour trade pays one hour of interest.
+   *
+   * This is not the convention brokers bill on — they charge on the overnight
+   * settled balance, so an intraday round trip accrues nothing at all.
+   * Modelling that needs a day boundary: a timezone and a settlement cutoff,
+   * since margin interest accrues on calendar days including weekends and
+   * holidays. `BacktestOptions` takes neither today.
+   */
   interestRate?: number;
 };
 
@@ -155,7 +167,7 @@ export function updateMarginState(
  *
  * @param state - Current margin state
  * @param dailyRate - Daily interest rate (annual rate / 365)
- * @param days - Number of days to accrue
+ * @param days - Days to accrue over. Fractional: a six-hour hold is `0.25`
  * @returns Interest amount for the period
  *
  * @example
@@ -164,6 +176,10 @@ export function updateMarginState(
  * // 5% annual rate → daily rate = 0.05 / 365
  * const interest = accrueInterest(state, 0.05 / 365, 1);
  * // interest ≈ 10000 * 0.000137 * 1 ≈ 1.37
+ *
+ * // Six hours of the same loan
+ * const partial = accrueInterest(state, 0.05 / 365, 6 / 24);
+ * // partial ≈ 0.34
  * ```
  */
 export function accrueInterest(state: MarginState, dailyRate: number, days: number): number {

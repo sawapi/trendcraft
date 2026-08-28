@@ -4518,6 +4518,28 @@ const result = runBacktestScaled(candles, goldenCrossCondition(), deadCrossCondi
 
 `ScaledBacktestOptions` 型はこれらを受け付けたままです。有効になるかどうかは `scaledEntry.tranches` という値に依存し、型では表現できないためです。使用したい場合は `runBacktest` を直接呼ぶか、`tranches: 1` で実行してください（`runBacktest` に委譲され、すべてのオプションが有効になります）。
 
+
+### `MarginConfig` — レバレッジと借入コスト
+
+```typescript
+type MarginConfig = {
+  leverage: number;                                 // 2.0 = 2倍
+  maintenanceMargin: number;                        // 0.25 = 25%
+  marginCallAction: "liquidate" | "reduceToMaintenance";
+  interestRate?: number;                            // 0.05 = 年率5%
+};
+```
+
+`interestRate` は**経過保有時間に対する単利**として課金される。年率を 365 で割り、
+各ローンが残っていた**分数**日数を掛けるので、1時間の取引は1時間分だけ支払う。
+決済時に現金から差し引かれ、部分決済ではトランシェごとに「そのトランシェが開いて
+いた間の残高」で課金される。
+
+これはブローカーの課金規約とは異なる。実際のブローカーはオーバーナイトの決済残高に
+課金するため、日中の往復は一切利息が付かない。それを再現するには日境界（タイムゾーン
+と決済カットオフ。margin 利息は週末・祝日を含む暦日で発生する）が必要だが、
+`BacktestOptions` はそのいずれも受け取らない。
+
 ---
 
 ## ストリーミング
