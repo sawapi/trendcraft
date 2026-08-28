@@ -99,6 +99,84 @@ const PATTERN_DETECTORS: Record<
 };
 
 /**
+ * Every pattern identifier a pattern condition can resolve.
+ *
+ * Derived from the detector table rather than restated, so it cannot fall
+ * short of `PatternType`: the table is a total `Record<PatternType, …>`, which
+ * fails to compile if a member is missing. A value outside this set finds no
+ * detector and leaves the condition false on every bar, so the strategy
+ * registry builds its pattern enums from it.
+ */
+export const PATTERN_TYPES: readonly PatternType[] = Object.keys(
+  PATTERN_DETECTORS,
+) as PatternType[];
+
+/**
+ * The members of each pattern family, in one place.
+ *
+ * Each family was written out four times — the factory's `subtype` union, the
+ * array it scans when no subtype is given, the strategy registry's `enum`, and
+ * the cast in that entry's `create`. Adding a member to one and forgetting
+ * another is invisible: a registry enum that is merely a SUBSET of the real
+ * pattern types passes every membership check.
+ */
+export const TRIANGLE_TYPES = [
+  "triangle_symmetrical",
+  "triangle_ascending",
+  "triangle_descending",
+] as const satisfies readonly PatternType[];
+
+/** See {@link TRIANGLE_TYPES}. */
+export const WEDGE_TYPES = [
+  "rising_wedge",
+  "falling_wedge",
+] as const satisfies readonly PatternType[];
+
+/** See {@link TRIANGLE_TYPES}. */
+export const CHANNEL_TYPES = [
+  "channel_ascending",
+  "channel_descending",
+  "channel_horizontal",
+] as const satisfies readonly PatternType[];
+
+/** See {@link TRIANGLE_TYPES}. Includes pennants, which share the flag detector. */
+export const FLAG_TYPES = [
+  "bull_flag",
+  "bear_flag",
+  "bull_pennant",
+  "bear_pennant",
+] as const satisfies readonly PatternType[];
+
+/** See {@link TRIANGLE_TYPES}. */
+export const HARMONIC_TYPES = [
+  "gartley_bullish",
+  "gartley_bearish",
+  "butterfly_bullish",
+  "butterfly_bearish",
+  "bat_bullish",
+  "bat_bearish",
+  "crab_bullish",
+  "crab_bearish",
+  "shark_bullish",
+  "shark_bearish",
+] as const satisfies readonly PatternType[];
+
+/**
+ * The directional halves of {@link HARMONIC_TYPES}.
+ *
+ * Every harmonic name ends in one suffix or the other, so these are derived
+ * rather than restated; a contract test asserts they partition the family.
+ */
+export const BULLISH_HARMONIC_TYPES: readonly PatternType[] = HARMONIC_TYPES.filter((t) =>
+  t.endsWith("_bullish"),
+);
+
+/** See {@link BULLISH_HARMONIC_TYPES}. */
+export const BEARISH_HARMONIC_TYPES: readonly PatternType[] = HARMONIC_TYPES.filter((t) =>
+  t.endsWith("_bearish"),
+);
+
+/**
  * Options for pattern conditions
  */
 export interface PatternConditionOptions {
@@ -150,7 +228,7 @@ function hasMatchingPattern(
   indicators: Record<string, unknown>,
   candles: CandleArray,
   candle: NormalizedCandle,
-  patternTypes: PatternType[],
+  patternTypes: readonly PatternType[],
   options: PatternConditionOptions,
 ): boolean {
   const { confirmedOnly = false } = options;
@@ -442,20 +520,15 @@ export function cupHandleDetected(options: PatternConditionOptions = {}): Preset
  * Triangle pattern detected (any subtype)
  */
 export function triangleDetected(
-  subtype?: "triangle_symmetrical" | "triangle_ascending" | "triangle_descending",
+  subtype?: (typeof TRIANGLE_TYPES)[number],
   options: PatternConditionOptions = {},
 ): PresetCondition {
   if (subtype) return patternDetected(subtype, options);
-  const types: PatternType[] = [
-    "triangle_symmetrical",
-    "triangle_ascending",
-    "triangle_descending",
-  ];
   return {
     type: "preset",
     name: "triangleDetected()",
     evaluate: (indicators, candle, _index, candles) =>
-      hasMatchingPattern(indicators, candles, candle, types, options),
+      hasMatchingPattern(indicators, candles, candle, TRIANGLE_TYPES, options),
   };
 }
 
@@ -463,16 +536,15 @@ export function triangleDetected(
  * Wedge pattern detected (any subtype)
  */
 export function wedgeDetected(
-  subtype?: "rising_wedge" | "falling_wedge",
+  subtype?: (typeof WEDGE_TYPES)[number],
   options: PatternConditionOptions = {},
 ): PresetCondition {
   if (subtype) return patternDetected(subtype, options);
-  const types: PatternType[] = ["rising_wedge", "falling_wedge"];
   return {
     type: "preset",
     name: "wedgeDetected()",
     evaluate: (indicators, candle, _index, candles) =>
-      hasMatchingPattern(indicators, candles, candle, types, options),
+      hasMatchingPattern(indicators, candles, candle, WEDGE_TYPES, options),
   };
 }
 
@@ -480,16 +552,15 @@ export function wedgeDetected(
  * Channel pattern detected (any subtype)
  */
 export function channelDetected(
-  subtype?: "channel_ascending" | "channel_descending" | "channel_horizontal",
+  subtype?: (typeof CHANNEL_TYPES)[number],
   options: PatternConditionOptions = {},
 ): PresetCondition {
   if (subtype) return patternDetected(subtype, options);
-  const types: PatternType[] = ["channel_ascending", "channel_descending", "channel_horizontal"];
   return {
     type: "preset",
     name: "channelDetected()",
     evaluate: (indicators, candle, _index, candles) =>
-      hasMatchingPattern(indicators, candles, candle, types, options),
+      hasMatchingPattern(indicators, candles, candle, CHANNEL_TYPES, options),
   };
 }
 
@@ -497,16 +568,15 @@ export function channelDetected(
  * Flag or Pennant pattern detected (any subtype)
  */
 export function flagDetected(
-  subtype?: "bull_flag" | "bear_flag" | "bull_pennant" | "bear_pennant",
+  subtype?: (typeof FLAG_TYPES)[number],
   options: PatternConditionOptions = {},
 ): PresetCondition {
   if (subtype) return patternDetected(subtype, options);
-  const types: PatternType[] = ["bull_flag", "bear_flag", "bull_pennant", "bear_pennant"];
   return {
     type: "preset",
     name: "flagDetected()",
     evaluate: (indicators, candle, _index, candles) =>
-      hasMatchingPattern(indicators, candles, candle, types, options),
+      hasMatchingPattern(indicators, candles, candle, FLAG_TYPES, options),
   };
 }
 
@@ -548,23 +618,11 @@ export function harmonicPatternDetected(
   options: PatternConditionOptions = {},
 ): PresetCondition {
   if (subtype) return patternDetected(subtype, options);
-  const types: PatternType[] = [
-    "gartley_bullish",
-    "gartley_bearish",
-    "butterfly_bullish",
-    "butterfly_bearish",
-    "bat_bullish",
-    "bat_bearish",
-    "crab_bullish",
-    "crab_bearish",
-    "shark_bullish",
-    "shark_bearish",
-  ];
   return {
     type: "preset",
     name: "harmonicPatternDetected()",
     evaluate: (indicators, candle, _index, candles) =>
-      hasMatchingPattern(indicators, candles, candle, types, options),
+      hasMatchingPattern(indicators, candles, candle, HARMONIC_TYPES, options),
   };
 }
 
@@ -579,18 +637,11 @@ export function harmonicPatternDetected(
  * ```
  */
 export function bullishHarmonicDetected(options: PatternConditionOptions = {}): PresetCondition {
-  const types: PatternType[] = [
-    "gartley_bullish",
-    "butterfly_bullish",
-    "bat_bullish",
-    "crab_bullish",
-    "shark_bullish",
-  ];
   return {
     type: "preset",
     name: "bullishHarmonicDetected()",
     evaluate: (indicators, candle, _index, candles) =>
-      hasMatchingPattern(indicators, candles, candle, types, options),
+      hasMatchingPattern(indicators, candles, candle, BULLISH_HARMONIC_TYPES, options),
   };
 }
 
@@ -605,17 +656,10 @@ export function bullishHarmonicDetected(options: PatternConditionOptions = {}): 
  * ```
  */
 export function bearishHarmonicDetected(options: PatternConditionOptions = {}): PresetCondition {
-  const types: PatternType[] = [
-    "gartley_bearish",
-    "butterfly_bearish",
-    "bat_bearish",
-    "crab_bearish",
-    "shark_bearish",
-  ];
   return {
     type: "preset",
     name: "bearishHarmonicDetected()",
     evaluate: (indicators, candle, _index, candles) =>
-      hasMatchingPattern(indicators, candles, candle, types, options),
+      hasMatchingPattern(indicators, candles, candle, BEARISH_HARMONIC_TYPES, options),
   };
 }

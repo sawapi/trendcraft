@@ -2,6 +2,117 @@
 
 ## [Unreleased]
 
+### Breaking — the strategy registry no longer advertises values its factories cannot use
+
+**Pattern subtype enums listed labels that make the condition permanently
+false.** Five entries (`triangleDetected`, `wedgeDetected`, `channelDetected`,
+`flagDetected`, `harmonicPatternDetected`) declared short labels
+(`"ascending"`, `"rising"`, `"bull"`, `"gartley"`) while the factories need
+full pattern identifiers (`"triangle_ascending"`, `"rising_wedge"`,
+`"bull_flag"`, `"gartley_bullish"`). A label that is not a pattern identifier
+finds no detector, so the condition returned no matches on every bar — and
+because the enum was also enforced, the value that *works* was rejected:
+
+```
+{ name: "triangleDetected", params: { subtype: "symmetrical" } }
+  before → valid, hydrates to patternDetected(symmetrical), never fires
+  after  → invalid: value "symmetrical" not in allowed values
+
+{ name: "triangleDetected", params: { subtype: "triangle_symmetrical" } }
+  before → invalid: value not in allowed values
+  after  → valid, hydrates to patternDetected(triangle_symmetrical)
+```
+
+Narrowing a working `flagDetected` to the bull side using the registry's own
+enum produced a strategy with zero entries and a 0-trade backtest that looked
+like a legitimate result. The enums now list real pattern identifiers, so
+`"abcd"` (never a pattern in this codebase) is gone and the shark harmonics are
+present.
+
+`patternDetected`, `patternConfirmed`, `patternConfidenceAbove` and
+`patternWithinBars` declared `type` as a free-form string with no `enum` at
+all, which had the same outcome for any typo. They now share one enum built
+from the pattern types the detectors actually resolve, and a contract test
+asserts that no pattern param can advertise a value outside that set.
+
+**`periods` was declared a number and is an array.** The shared schema behind
+17 Perfect Order conditions declared `type: "number"` with a description
+saying "array via JSON", so there was no value that both validated and worked:
+the array form was rejected as `expected number, got object`, while the scalar
+form validated and then made `hydrate` throw `periods.join is not a function`.
+A saved, working strategy became unloadable the moment a registry was passed
+to `parseStrategy`.
+
+`ParamDef` gains `array`, `minItems`, `maxItems` and `minDistinct`. With
+`array: true` the `type` names the ELEMENT type and `min` / `max` / `enum` /
+`integer` apply per element, with errors reported at their index. Scalar type
+errors now distinguish an array and `null` from an object, which `typeof`
+reported as `"object"` for all three.
+
+`minDistinct` exists because a factory may de-duplicate before it counts:
+`perfectOrder` needs two different MA lengths, so `[5, 5]` is two items but one
+period and used to validate before throwing at evaluate time. `[5, 5, 25]`
+still validates, since two lengths survive de-duplication.
+
+**`integer: true` is now enforced.** It was documented as a hint for UIs and
+checked nowhere, so a param declaring it still accepted `5.5` and failed later
+inside the indicator. 25 params across both registries declare it; none has a
+fractional default, so no existing declaration changes meaning.
+
+**The `params` container is now checked for shape.** `Object.entries(42)` is
+`[]` and `Object.entries("ab")` yields index keys, so
+`{ name: "goldenCross", params: 42 }` validated as "no parameters" and hydrated
+with defaults, while `params: "x"` produced an error about a parameter named
+`0`. `params` must be an object when present; `null` is rejected rather than
+treated as omitted.
+
+**A malformed combinator child crashed the validator.** `validateSpecRecursive`
+tested `"op" in spec` without first checking that `spec` is an object, so a
+`conditions` array holding a string, number or `null` — a bare condition name
+where an object belonged is an ordinary hand-written or generated mistake —
+threw `TypeError: Cannot use 'in' operator`. `parseStrategySafe` catches only
+`JSON.parse` failures, so the `TypeError` escaped a function documented to
+return a `Result` with a closed set of codes. Such a child is now reported as
+`expected condition object, got string`, `hydrate` refuses one with a readable
+message, and the registry-validation block is wrapped so nothing thrown inside
+it can escape the `Result` contract.
+
+**`hydrate` discarded parameters the entry does not declare.** It iterated the
+entry's own schema, so `{ threshold: 30, lookback: 10 }` passed to a streaming
+entry that accepts only `key` was dropped without a word, and a strategy tuned
+against one registry streamed with the tuning gone. Unknown parameters now
+throw, naming both the offenders and what the entry accepts.
+
+### Fixed — registry parity can no longer pass a pair it never compared
+
+The parity test skips any parameter the other registry lacks. Thirteen shared
+names have no overlapping parameters at all, so zero comparisons ran and they
+passed automatically. Only four are the paradigm difference the exemption was
+designed for — `macdCrossUp` / `macdCrossDown` / `stochCrossUp` /
+`stochCrossDown`, where both sides cross the same two lines and differ only in
+whether the indicator is computed from periods or read from a snapshot.
+
+The other **nine implement different rules behind the same name**:
+
+- `perfectOrderBullish` / `perfectOrderBearish` — the backtest condition fires
+  on the bar the order FORMS (an edge, plus a strength floor) over an SMA
+  ribbon; the streaming one fires on every bar an EMA ribbon is in order (a
+  level).
+- `perfectOrderCollapsed` — backtest reads "the alignment broke"; streaming
+  reads "the spread stopped widening", a different quantity.
+- `obvCrossUp` / `obvCrossDown` — backtest crosses two moving averages of OBV;
+  streaming crosses raw OBV over a single signal line.
+- `obvRising` / `obvFalling` — backtest compares OBV to its value `period` bars
+  ago; streaming compares to the previous bar.
+- `volatilityExpanding` / `volatilityContracting` — backtest needs the ATR
+  percentile to move past its lookback mean by a threshold; streaming fires on
+  any tick.
+
+Every disjoint pair must now be listed with a written justification, and the
+test fails both for an unlisted pair and for a listed one that no longer
+drifts. Reconciling the nine is a separate change, since it means either
+altering streaming semantics or renaming published entries.
+
 ### Added — `calculateAtrPercentDetail`
 
 Returns `{ atrPercent, sampleCount }`. `sampleCount` is how many bars

@@ -33,6 +33,7 @@
  */
 
 import type { ConditionCategory, ConditionRegistryEntry, ConditionSpec } from "./types";
+import { describeType, isPlainObject } from "./utils";
 
 /**
  * Central condition registry
@@ -107,6 +108,12 @@ export class ConditionRegistry<T = unknown> {
       not: (condition: T) => T;
     },
   ): T {
+    // Same guard as the validator: `in` throws on a primitive or null, and
+    // hydrate is reachable without validation via loadStrategy.
+    if (!isPlainObject(spec)) {
+      throw new Error(`Invalid condition spec: expected an object, got ${describeType(spec)}`);
+    }
+
     // Combinator node
     if ("op" in spec) {
       const children = spec.conditions.map((c) => this.hydrate(c, combinators));
@@ -124,6 +131,27 @@ export class ConditionRegistry<T = unknown> {
     const entry = this.entries.get(spec.name);
     if (!entry) {
       throw new Error(`Unknown condition: "${spec.name}"`);
+    }
+
+    // A param the entry does not declare is a mistake, not a no-op. Dropping
+    // it silently let a strategy tuned against one registry stream against
+    // another with the tuning quietly discarded.
+    // `key in entry.params` walks Object.prototype, so `toString` and
+    // `constructor` would count as declared and be dropped silently — the
+    // exact outcome this check exists to prevent.
+    if (spec.params !== undefined && !isPlainObject(spec.params)) {
+      throw new Error(
+        `Invalid params for "${spec.name}": expected an object, got ${describeType(spec.params)}`,
+      );
+    }
+    const undeclared = Object.keys(spec.params ?? {}).filter(
+      (key) => !Object.hasOwn(entry.params, key),
+    );
+    if (undeclared.length > 0) {
+      throw new Error(
+        `Unknown parameter(s) for "${spec.name}": ${undeclared.join(", ")}. ` +
+          `Accepted: ${Object.keys(entry.params).join(", ") || "(none)"}`,
+      );
     }
 
     // Merge defaults with provided params

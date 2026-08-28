@@ -174,7 +174,15 @@ export function parseStrategySafe<T = unknown>(
       );
     }
 
-    const condErrors = collectConditionErrors(obj, registry);
+    // Defence in depth: this function promises a Result and a closed set of
+    // codes, so nothing thrown from inside validation may escape past it.
+    let condErrors: string[];
+    try {
+      condErrors = collectConditionErrors(obj, registry);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      return err(tcError("INVALID_CONDITION", `Invalid strategy conditions: ${message}`));
+    }
     if (condErrors.length > 0) {
       return err(
         tcError(

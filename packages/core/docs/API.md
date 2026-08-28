@@ -7505,6 +7505,33 @@ const structResult = validateStrategyJSON(strategyJson);
 // { valid: boolean, errors: string[] }
 ```
 
+A `ParamDef` with `array: true` takes a list of its `type`, and `min` / `max` /
+`enum` then apply per element. Element errors are reported at their index, and
+`minItems` / `maxItems` bound the length:
+
+```typescript
+validateConditionSpec(
+  { name: "perfectOrderBullish", params: { periods: [5, "25", 75] } },
+  backtestRegistry,
+);
+// { valid: false, errors: ["perfectOrderBullish.periods[1]: expected number, got string"] }
+```
+
+`minItems` / `maxItems` bound the length and `minDistinct` bounds the number of
+distinct values — a factory may de-duplicate before it counts. `integer: true`
+is enforced, per element for an array param. `params` itself must be an object
+when present.
+
+A combinator child that is not an object is reported rather than thrown, so
+`parseStrategySafe` keeps its `Result` contract for a malformed strategy —
+`{ "op": "and", "conditions": ["goldenCross"] }`, a bare condition name where
+an object belonged, yields `and[0]: expected condition object, got string`
+instead of a `TypeError`.
+
+`hydrate` rejects a parameter the entry does not declare instead of dropping
+it, so tuning written against one registry cannot be silently discarded by
+another.
+
 ### StrategyJSON Schema
 
 ```typescript

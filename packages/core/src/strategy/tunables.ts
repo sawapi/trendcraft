@@ -18,17 +18,16 @@ import type { Condition } from "../types";
 import type { ConditionRegistry } from "./registry";
 import { backtestRegistry } from "./registry-backtest";
 import type { ParamDef, StrategyJSON } from "./types";
+import { isScalarNumberParam } from "./utils";
 import { flattenStrategyLeaves } from "./walker";
 
 /**
  * One tunable parameter discovered by walking a strategy's ConditionSpec.
  *
- * Numeric params only — `string` / `boolean` schema entries are filtered
- * out at enumeration time (they aren't tunable on a numeric grid).
- * Params marked `schema.tunable === false` are also skipped (used by the
- * registry to opt out of enumeration when `type: "number"` is declared
- * for compactness but the runtime value is non-scalar — e.g. MA period
- * vectors).
+ * Scalar numeric params only — `string` / `boolean` entries, and `array`
+ * params such as a set of MA periods, are filtered out at enumeration time
+ * (they aren't tunable on a numeric grid). Params marked
+ * `schema.tunable === false` are skipped for the same reason.
  *
  * The full registry `ParamDef` is attached as `schema` so callers can read
  * `schema.min` / `max` / `default` / `integer` / `precision` /
@@ -84,12 +83,9 @@ export function listTunables<T = Condition>(
     const entry = registry.get(leaf.name);
     if (!entry) continue;
     for (const [paramName, schema] of Object.entries(entry.params)) {
-      if (schema.type !== "number") continue;
-      // `tunable: false` is an explicit opt-out for params whose JSON
-      // value is not a scalar number — registry entries that declare
-      // `type: "number"` for compactness but actually consume the value
-      // as an array (e.g. Perfect Order MA periods). These would not
-      // survive a scalar grid sweep.
+      if (!isScalarNumberParam(schema)) continue;
+      // `tunable: false` is an explicit opt-out for a numeric param a scalar
+      // grid sweep cannot vary meaningfully.
       if (schema.tunable === false) continue;
       out.push({
         key: `${leaf.bucket}.${leaf.leafIndex}.${paramName}`,
