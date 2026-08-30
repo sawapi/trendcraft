@@ -2,6 +2,51 @@
 
 ## [Unreleased]
 
+### Fixed — margin interest is charged for the time held, not per trade
+
+`deductMarginInterest` converted the holding period to whole days with
+`Math.max(1, Math.round(...))`. The floor made the bill a function of **trade
+count** rather than time held: on intraday bars every round trip paid a full
+overnight even though nothing was held overnight. The rounding distorted
+multi-day holds in both directions on top of that.
+
+400 five-minute bars (33.3 hours of wall clock), price flat, capital 1,000,000
+at 2x leverage with `interestRate: 0.05`, entering every 4 bars and exiting 2
+bars later — 99 round trips of ten minutes each, zero P&L:
+
+```
+before → finalCapital 986,528.98   (13,471.02 of interest — a day per trade)
+after  → finalCapital   999,905.83 (     94.17 — the 0.6875 days actually held)
+```
+
+A break-even strategy was reported as −1.35%, and the error scales with how
+often the strategy trades: the same run over a year of five-minute bars would
+consume the account. The rounding half could also under-bill — a 34-hour hold
+was charged 136.99 against an honest 194.06, while a 38-hour hold was charged
+273.97 against 216.89.
+
+The holding period is now measured in fractional days, floored at zero so a
+non-monotonic exit time cannot produce a credit. Whole-day holds are unchanged,
+which is why the existing interest tests never caught this.
+
+`MarginConfig.interestRate` now documents the convention it bills on, and
+`docs/API.md` gains a `MarginConfig` reference that had never been written.
+This is simple interest over elapsed time, which is **not** what brokers
+charge: they bill the overnight settled balance, so a real intraday round trip
+accrues nothing at all. Modelling that needs a day boundary — a timezone and a
+settlement cutoff, since margin interest accrues on calendar days including
+weekends and holidays — and `BacktestOptions` takes neither today.
+
+If you run margin backtests with `interestRate`, re-run them: `finalCapital`
+and every metric derived from it move. Trades held for a **positive** exact
+multiple of 24 elapsed hours are unchanged — `Math.round` was a no-op for
+those, which is why the existing interest tests never caught this. Daily bars
+are not automatically in that set: a bar stamped in an exchange timezone spans
+23 or 25 hours across a DST transition, irregular timestamps can leave a hold
+that is not a whole number of days, and a same-bar-close fill can exit on the
+bar it entered — a zero-length hold, which the old floor billed a full day and
+which now costs nothing.
+
 ### Breaking — the strategy registry no longer advertises values its factories cannot use
 
 **Pattern subtype enums listed labels that make the condition permanently

@@ -4561,6 +4561,30 @@ The multi-tranche path is a separate engine from `runBacktest` and implements on
 
 `ScaledBacktestOptions` still accepts them, because whether they are honored depends on `scaledEntry.tranches` — a value, not a type. To use them, call `runBacktest` directly, or run with `tranches: 1`, which delegates to `runBacktest` and honors all of them.
 
+
+### `MarginConfig` — leverage and borrowing costs
+
+```typescript
+type MarginConfig = {
+  leverage: number;                                 // 2.0 = 2x
+  maintenanceMargin: number;                        // 0.25 = 25%
+  marginCallAction: "liquidate" | "reduceToMaintenance";
+  interestRate?: number;                            // 0.05 = 5% annual
+};
+```
+
+`interestRate` is charged as **simple interest over elapsed holding time**: the
+annual rate is divided by 365 and multiplied by the *fractional* days each loan
+was outstanding, so a one-hour trade pays one hour of interest. The charge is
+deducted in cash at exit, and a partial exit bills each tranche for the balance
+outstanding while that tranche was open.
+
+This is not the convention brokers bill on. They charge on the overnight
+settled balance, so a real intraday round trip accrues nothing at all.
+Modelling that needs a day boundary — a timezone and a settlement cutoff, since
+margin interest accrues on calendar days including weekends and holidays — and
+`BacktestOptions` takes neither.
+
 ---
 
 ## Streaming
