@@ -7016,6 +7016,14 @@ const rolling = rollingVaR(dailyReturns, { window: 60, confidence: 0.95 });
 
 Calculate risk parity allocation weights that equalize risk contribution across assets.
 
+Return series must be oldest-first, at the same cadence, and end at the same time.
+Assets with different history lengths are aligned on their common **trailing**
+(most recent) window. That window is set by the shortest history and applies to
+every pair, so one asset with a short history shortens the estimate for all of
+them. Throws if the shared window is shorter than two observations, or if the
+covariance matrix comes out non-finite; an empty `returnsSeries` yields an empty
+allocation.
+
 ```typescript
 import { riskParityAllocation } from "trendcraft";
 
@@ -7033,6 +7041,13 @@ const result = riskParityAllocation({
 ### `correlationAdjustedSize(currentReturns, portfolioReturns, options)`
 
 Adjust position size based on correlation with existing portfolio holdings.
+
+Return series must be oldest-first, at the same cadence, and end at the same time.
+Each holding is compared with the asset being sized over the **trailing** window
+the two share; holdings whose shared window is shorter than two observations are
+left out of the average rather than counted as uncorrelated. Unlike
+`riskParityAllocation` the window is per-pair, so a thin holding does not shorten
+the others.
 
 ```typescript
 import { correlationAdjustedSize } from "trendcraft";
@@ -7362,7 +7377,12 @@ const result = stressTest(dailyReturns, PRESET_SCENARIOS.lehman2008, 1_000_000);
 // result.scenario — scenario name
 // result.originalMetrics — { totalReturn, maxDrawdown, sharpe }
 // result.stressedMetrics — { totalReturn, maxDrawdown, sharpe }
-// result.worstCase — { drawdown, duration, recoveryDays }
+// result.worstCase — { drawdown, duration, recoveryDays, recovered }
+//   recoveryDays — bars from the trough back to the peak that drawdown started
+//   from. When `recovered` is false the curve never regained that level and
+//   recoveryDays is the bars from the trough to the end of the sample.
+//   Drawdowns of equal depth are reported earliest-first, and bars spent flat
+//   at the trough count toward recoveryDays.
 // result.survivalRate — 1.0 if stressed equity never falls to/below zero, 0.0 otherwise (binary survive/ruin flag)
 // result.capitalAtRisk — capital at risk amount
 // result.stressedVaR, result.stressedCVaR

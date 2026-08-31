@@ -89,12 +89,66 @@ function pearsonCorr(a: number[], b: number[]): number {
 }
 
 /**
+ * Observations needed before a variance, covariance or correlation carries any
+ * information. With a single observation every deviation from the mean is
+ * exactly 0, so the whole covariance matrix is a matrix of zeros — finite,
+ * plausible-looking, and meaningless.
+ */
+const MIN_ESTIMATION_WINDOW = 2;
+
+/**
+ * Length of the window every series in `series` shares.
+ * Returns 0 for an empty input so callers can branch on "no common window".
+ */
+function commonTrailingLength(series: readonly number[][]): number {
+  if (series.length === 0) return 0;
+  let len = series[0].length;
+  for (let i = 1; i < series.length; i++) {
+    if (series[i].length < len) len = series[i].length;
+  }
+  return len;
+}
+
+/**
+ * Truncate every series to the window they all share, keeping the MOST RECENT
+ * observations.
+ *
+ * Return series are ordered oldest-first and every question these functions
+ * answer ("how should I size this position now?", "how should I allocate
+ * today?") is anchored at the present, so the observations two histories have
+ * in common are their trailing ones. Keeping the leading `min(length)` entries
+ * instead pairs up disjoint calendar periods as soon as the histories differ in
+ * length, and the resulting correlation is not a correlation between the assets
+ * in any meaningful sense.
+ *
+ * This is a positional stand-in for aligning on timestamps, which these
+ * functions cannot do because they accept bare `number[]`. It is only correct
+ * when the caller supplies same-cadence series that all end at the same time.
+ *
+ * Note that `centeredCrossMoments` in `core/statistics.ts` documents the
+ * opposite convention ("compared over their common prefix") for the same
+ * abstract operation. That is deliberate for a least-squares fit over two
+ * series a caller has already paired up; it is wrong here, where the two
+ * histories are independent and the question is anchored at the present.
+ * Reconciling the two is a package-wide decision, so this helper stays local.
+ */
+function alignTrailing(series: readonly number[][]): number[][] {
+  const len = commonTrailingLength(series);
+  return series.map((s) => s.slice(s.length - len));
+}
+
+/**
  * Compute covariance matrix from an array of return series.
  * Each row in the input represents one asset's returns.
+ *
+ * Series of unequal length are aligned on their common trailing window before
+ * any statistic is computed, so each mean is taken over the same observations
+ * that feed the covariance sums.
  */
-function covarianceMatrix(series: number[][]): number[][] {
+function covarianceMatrix(rawSeries: number[][]): number[][] {
+  const series = alignTrailing(rawSeries);
   const n = series.length;
-  const len = series[0].length;
+  const len = series[0]?.length ?? 0;
   const means = series.map(mean);
   const cov: number[][] = Array.from({ length: n }, () => new Array(n).fill(0));
 
@@ -165,9 +219,19 @@ function normalizeWeights(weights: number[]): number[] {
  * inverse-volatility weights and iteratively adjusts until risk contributions
  * converge.
  *
+ * Series are expected oldest-first, at the same cadence, and to end at the same
+ * time. Assets with different history lengths are aligned on their common
+ * trailing (most recent) window before any statistic is computed. That window
+ * is set by the SHORTEST history and applies to every pair — one asset with a
+ * short history shortens the estimate for all of them.
+ *
  * @param returnsSeries - Object mapping asset names to their return arrays
  * @param options - Optimization options
- * @returns Risk parity allocation result
+ * @returns Risk parity allocation result. An empty `returnsSeries` yields an
+ *   empty allocation with zero volatility.
+ * @throws If the window the assets share is shorter than two observations, or
+ *   if the covariance matrix comes out non-finite (a NaN or Infinity in the
+ *   input, or an overflowing sum).
  *
  * @example
  * ```ts
@@ -190,11 +254,64 @@ export function riskParityAllocation(
 
   const assetNames = Object.keys(returnsSeries);
   const n = assetNames.length;
+  const series = assetNames.map((name) => returnsSeries[name]);
+
+  // No assets: the empty allocation is the answer, not an error. (This used to
+  // throw a TypeError from `series[0].length` inside covarianceMatrix.)
+  if (n === 0) {
+    return {
+      weights: {},
+      riskContributions: {},
+      portfolioVolatility: 0,
+      correlationMatrix: [],
+    };
+  }
+
+  // The covariance matrix is built over the window ALL assets share, so the
+  // shortest history sets the window for every pair. An asset with no returns
+  // used to make every covariance NaN, which surfaced as a confident weight of
+  // 0 for it (`NaN > 0` is false) beside a NaN portfolioVolatility — a
+  // clean-looking weight vector that had silently dropped an asset. A single
+  // shared observation is no better: every deviation is 0, so the matrix is all
+  // zeros, `hasNonZeroVol` is false, and the optimizer hands back naive equal
+  // weights with a portfolio volatility of 0 — a confident answer computed from
+  // no information.
+  //
+  // Sibling functions in this package (`calculateVaR`, `drawdownDistribution`,
+  // `conditionalDrawdown`) answer empty input with a zeroed result rather than
+  // throwing, and the empty portfolio above follows them. This case is different: the caller has named
+  // assets it wants weighted, and there is no honest weight to give one with no
+  // data — every "safe default" here either drops it or invents a number.
+  const sharedWindow = commonTrailingLength(series);
+  if (sharedWindow < MIN_ESTIMATION_WINDOW) {
+    let shortestIdx = 0;
+    for (let i = 1; i < series.length; i++) {
+      if (series[i].length < series[shortestIdx].length) shortestIdx = i;
+    }
+    throw new Error(
+      `riskParityAllocation: the assets share only ${sharedWindow} observation(s) (shortest history: "${assetNames[shortestIdx]}" with ${series[shortestIdx].length}); at least ${MIN_ESTIMATION_WINDOW} are needed to estimate a covariance`,
+    );
+  }
+
+  const covMat = covarianceMatrix(series);
+
+  // Finite inputs are not enough: a covariance sum over extreme values can still
+  // overflow, and a single non-finite return poisons a whole row. Either way the
+  // optimizer below turns the NaN into a weight of exactly 0 without any other
+  // symptom in `weights`, so refuse to emit an allocation instead. This runs
+  // before the single-asset branch so every path honours the same contract.
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < n; j++) {
+      if (!Number.isFinite(covMat[i][j])) {
+        throw new Error(
+          `riskParityAllocation: covariance between "${assetNames[i]}" and "${assetNames[j]}" is not finite; check the return series for NaN, Infinity or extreme values`,
+        );
+      }
+    }
+  }
 
   // Single asset case
   if (n === 1) {
-    const series = [returnsSeries[assetNames[0]]];
-    const covMat = covarianceMatrix(series);
     const vol = Math.sqrt(Math.max(0, covMat[0][0]));
     return {
       weights: { [assetNames[0]]: 1 },
@@ -204,8 +321,6 @@ export function riskParityAllocation(
     };
   }
 
-  const series = assetNames.map((name) => returnsSeries[name]);
-  const covMat = covarianceMatrix(series);
   const corrMat = correlationFromCov(covMat);
 
   // Initial weights: inverse volatility
@@ -304,10 +419,22 @@ export function riskParityAllocation(
  * is reduced to limit concentration risk. When correlation is low, full size
  * is applied.
  *
+ * Series are expected oldest-first, at the same cadence, and to end at the same
+ * time. Each holding is compared with the asset being sized over the common
+ * trailing (most recent) window; holdings whose shared window is shorter than
+ * two observations are excluded from the average rather than counted as
+ * uncorrelated.
+ *
  * @param currentReturns - Returns of the asset being sized
  * @param portfolioReturns - Returns of existing portfolio holdings
  * @param options - Sizing options including thresholds
- * @returns Adjusted size and correlation metrics
+ * @returns Adjusted size and correlation metrics. `averageCorrelation` is 0
+ *   when no holding could be measured, which yields full size. Each holding is
+ *   measured over its own shared window, so a thin holding does not shorten the
+ *   others the way it does in `riskParityAllocation`. A non-finite
+ *   return observation propagates to `averageCorrelation` and `adjustedSize`
+ *   rather than throwing — unlike `riskParityAllocation`, where the same input
+ *   would produce a clean-looking weight vector that hides the failure.
  *
  * @example
  * ```ts
@@ -340,17 +467,23 @@ export function correlationAdjustedSize(
     };
   }
 
-  // Calculate average absolute correlation with each existing holding
+  // Calculate average absolute correlation with each existing holding, over the
+  // window each pair shares. A holding whose shared window is too short to
+  // estimate a correlation is left out of the average entirely rather than
+  // counted as 0 — `pearsonCorr` returns 0 for a zero-variance pair, so a
+  // one-bar overlap read as "uncorrelated" and diluted the average, handing
+  // back a larger position than the measured holdings justify. Unlike
+  // riskParityAllocation this is per-pair, so one thin holding does not
+  // shorten the window used for the others.
   let totalCorr = 0;
+  let measured = 0;
   for (const holdingReturns of portfolioReturns) {
-    // Use the shorter length for comparison
-    const len = Math.min(currentReturns.length, holdingReturns.length);
-    if (len === 0) continue;
-    const a = currentReturns.slice(0, len);
-    const b = holdingReturns.slice(0, len);
+    const [a, b] = alignTrailing([currentReturns, holdingReturns]);
+    if (a.length < MIN_ESTIMATION_WINDOW) continue;
     totalCorr += Math.abs(pearsonCorr(a, b));
+    measured++;
   }
-  const avgCorr = totalCorr / portfolioReturns.length;
+  const avgCorr = measured > 0 ? totalCorr / measured : 0;
 
   // Linear interpolation between thresholds
   let sizeFactor: number;

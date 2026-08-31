@@ -41,9 +41,19 @@ export type StressTestResult = {
     sharpe: number;
   };
   worstCase: {
+    /** Depth of the worst drawdown, as a fraction of its starting peak */
     drawdown: number;
+    /** Bars from the peak that started the worst drawdown to its trough */
     duration: number;
+    /**
+     * Bars from that trough back to the drawdown's own starting peak. When the
+     * curve never regains that level, this is the number of bars from the
+     * trough to the end of the sample — a lower bound — and `recovered` is
+     * false.
+     */
     recoveryDays: number;
+    /** Whether the worst drawdown regained its starting peak within the sample */
+    recovered: boolean;
   };
   /** Probability capital stays above zero */
   survivalRate: number;
@@ -301,18 +311,25 @@ export function stressTest(
     }
   }
 
-  // Calculate recovery: how many bars after trough to reach the peak again
+  // Recovery is measured against the peak that STARTED the worst drawdown, not
+  // against `peak`, which by now holds the maximum of the whole curve. Once the
+  // curve recovers and goes on to make new highs, the two differ and waiting for
+  // the running maximum reports the time to a new all-time high instead of the
+  // time to recover the drawdown.
+  const ddPeak = equityCurve[worstDdStart];
   const troughIdx = worstDdEnd;
   let recoveryDays = 0;
-  for (let i = troughIdx + 1; i < equityCurve.length; i++) {
+  let recovered = worstDd === 0;
+  for (let i = troughIdx + 1; !recovered && i < equityCurve.length; i++) {
     recoveryDays++;
-    if (equityCurve[i] >= peak) break;
+    if (equityCurve[i] >= ddPeak) recovered = true;
   }
 
   const worstCase = {
     drawdown: worstDd,
     duration: worstDdEnd - worstDdStart,
     recoveryDays,
+    recovered,
   };
 
   // Survival rate: 1.0 if equity never goes below 0, 0.0 if it does

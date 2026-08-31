@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { mulberry32 } from "../../core/random";
 import {
   calculateMetricsFromReturns,
   generateShockedReturns,
@@ -272,5 +273,130 @@ describe("PRESET_SCENARIOS", () => {
       expect(Array.isArray(scenario.shocks)).toBe(true);
       expect(scenario.shocks.length).toBeGreaterThan(0);
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// worstCase recovery
+//
+// The drawdown scan reuses its running `peak`, which by the end of the loop is
+// the maximum of the whole stressed curve. The recovery loop compared against
+// that instead of against the peak the worst drawdown started from, so as soon
+// as the curve recovered and went on to make new highs it reported the time to
+// a new all-time high.
+// ---------------------------------------------------------------------------
+
+const NO_SHOCK = { name: "none", description: "no shocks", shocks: [] };
+
+describe("stressTest worstCase recovery", () => {
+  it("measures recovery to the drawdown's own peak, not to a later all-time high", () => {
+    // 1.0 -> 0.5 (trough at index 1) -> 1.0 at index 2, then 30 bars of +10%
+    // taking the curve to ~17.45.
+    const returns = [-0.5, 1.0, ...new Array(30).fill(0.1)];
+
+    const result = stressTest(returns, NO_SHOCK);
+
+    // The case is only interesting because the curve makes new highs after the
+    // drawdown is over, so the drawdown's own peak and the curve's maximum are
+    // far apart. Assert that before asserting the recovery time.
+    const curve = [1];
+    for (const r of returns) curve.push(curve[curve.length - 1] * (1 + r));
+    expect(curve[1]).toBeCloseTo(0.5, 12); // trough
+    expect(curve[2]).toBeCloseTo(1, 12); // back to the drawdown's peak of 1.0
+    expect(Math.max(...curve)).toBeGreaterThan(17); // and far beyond it later
+
+    expect(result.worstCase.drawdown).toBeCloseTo(0.5, 12);
+    // Was 31: the loop waited for equity >= 17.45.
+    expect(result.worstCase.recoveryDays).toBe(1);
+    expect(result.worstCase.recovered).toBe(true);
+  });
+
+  it("distinguishes a curve that never recovers from one that recovers on the last bar", () => {
+    const never = stressTest([-0.5, 0.1, 0.1], NO_SHOCK);
+    const onLastBar = stressTest([-0.5, 1.0], NO_SHOCK);
+
+    // Both used to report only a bar count, with nothing to tell them apart.
+    expect(never.worstCase.recovered).toBe(false);
+    expect(never.worstCase.recoveryDays).toBe(2); // trough to end of sample
+
+    expect(onLastBar.worstCase.recovered).toBe(true);
+    expect(onLastBar.worstCase.recoveryDays).toBe(1);
+  });
+
+  it("reports no recovery time for a curve that never draws down", () => {
+    const result = stressTest(new Array(20).fill(0.01), NO_SHOCK);
+
+    expect(result.worstCase.drawdown).toBe(0);
+    expect(result.worstCase.recoveryDays).toBe(0);
+    expect(result.worstCase.recovered).toBe(true);
+  });
+
+  it("does not grow recoveryDays as more post-recovery bars are appended", () => {
+    const rnd = mulberry32(2718);
+    let recoveredCases = 0;
+    let unrecoveredCases = 0;
+    const runs = 200;
+
+    for (let run = 0; run < runs; run++) {
+      const base = Array.from({ length: 40 }, () => (rnd() - 0.5) * 0.3);
+      const baseline = stressTest(base, NO_SHOCK).worstCase;
+
+      // Appending bars that only rise can never deepen the worst drawdown, so
+      // every field of worstCase must stay put. Under the old code each extra
+      // rising bar pushed the all-time high further away and inflated
+      // recoveryDays for curves that had already recovered.
+      for (const extra of [1, 5, 20]) {
+        const extended = stressTest([...base, ...new Array(extra).fill(0.05)], NO_SHOCK).worstCase;
+        expect(extended.drawdown).toBeCloseTo(baseline.drawdown, 12);
+        expect(extended.duration).toBe(baseline.duration);
+        if (baseline.recovered) {
+          expect(extended.recovered).toBe(true);
+          expect(extended.recoveryDays).toBe(baseline.recoveryDays);
+        }
+      }
+
+      if (baseline.recovered) recoveredCases++;
+      else unrecoveredCases++;
+    }
+
+    // The invariant is vacuous for curves that never recovered, so require both
+    // populations to appear.
+    expect(recoveredCases).toBeGreaterThan(0);
+    expect(unrecoveredCases).toBeGreaterThan(0);
+    expect(recoveredCases + unrecoveredCases).toBe(runs);
+  });
+
+  it("never reports more recovery bars than exist after the trough", () => {
+    const rnd = mulberry32(31415);
+    for (let run = 0; run < 200; run++) {
+      const returns = Array.from({ length: 60 }, () => (rnd() - 0.5) * 0.4);
+      const { worstCase } = stressTest(returns, NO_SHOCK);
+      const barsAfterTrough = returns.length - (worstCase.duration + 1) + 1;
+      expect(worstCase.recoveryDays).toBeGreaterThanOrEqual(0);
+      expect(worstCase.recoveryDays).toBeLessThanOrEqual(barsAfterTrough);
+    }
+  });
+});
+
+describe("stressTest worstCase on degenerate curves", () => {
+  it("reports an unrecovered drawdown when the trough is the last bar", () => {
+    const { worstCase } = stressTest([-0.2], NO_SHOCK);
+    // recoveryDays 0 used to be indistinguishable from an instant recovery.
+    expect(worstCase.drawdown).toBeCloseTo(0.2, 12);
+    expect(worstCase.recoveryDays).toBe(0);
+    expect(worstCase.recovered).toBe(false);
+  });
+
+  it("handles an empty return series", () => {
+    const { worstCase } = stressTest([], NO_SHOCK);
+    expect(worstCase).toEqual({ drawdown: 0, duration: 0, recoveryDays: 0, recovered: true });
+  });
+
+  it("handles a curve that is wiped out", () => {
+    expect(stressTest([-1, 0.5], NO_SHOCK).worstCase.recovered).toBe(false);
+    // Equity below zero: the drawdown exceeds 100% and never recovers.
+    const below = stressTest([-1.5, 0.5], NO_SHOCK).worstCase;
+    expect(below.drawdown).toBeGreaterThan(1);
+    expect(below.recovered).toBe(false);
   });
 });
