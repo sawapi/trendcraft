@@ -904,7 +904,11 @@ const rolling = rollingVaR(dailyReturns, { window: 60, confidence: 0.95 });
 
 ### `riskParityAllocation(returnsSeries, options?)`
 
-Risk parity allocation — equalizes risk contribution across assets.
+Risk parity allocation — equalizes risk contribution across assets. Return series
+must be oldest-first, same cadence, ending at the same time; assets with
+different history lengths are aligned on their common trailing window, which the
+shortest history sets for every pair. Throws if the shared window is shorter than
+two observations or the covariance matrix is non-finite.
 
 ```typescript
 import { riskParityAllocation } from 'trendcraft';
@@ -922,7 +926,10 @@ const result = riskParityAllocation({
 
 ### `correlationAdjustedSize(currentReturns, portfolioReturns, options)`
 
-Adjust position size based on correlation with existing portfolio.
+Adjust position size based on correlation with existing portfolio. Each holding
+is compared over the trailing window it shares with the asset being sized;
+holdings sharing fewer than two observations are excluded from the average. The
+window is per-pair, so a thin holding does not shorten the others.
 
 ```typescript
 import { correlationAdjustedSize } from 'trendcraft';
@@ -990,7 +997,9 @@ import { stressTest, runAllStressTests, PRESET_SCENARIOS } from 'trendcraft';
 // Single scenario
 const result = stressTest(dailyReturns, PRESET_SCENARIOS.lehman2008, 1_000_000);
 // result.scenario, result.originalMetrics, result.stressedMetrics
-// result.worstCase: { drawdown, duration, recoveryDays }
+// result.worstCase: { drawdown, duration, recoveryDays, recovered }
+//   recoveryDays counts from the trough back to the peak that drawdown started
+//   from; if `recovered` is false it is the bars to the end of the sample.
 // result.survivalRate, result.capitalAtRisk, result.stressedVaR, result.stressedCVaR
 
 // All preset scenarios at once

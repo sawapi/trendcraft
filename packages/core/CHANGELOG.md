@@ -2,6 +2,128 @@
 
 ## [Unreleased]
 
+### Fixed — risk functions aligned unequal-length return series from the oldest bar
+
+`riskParityAllocation`, `correlationAdjustedSize` and the covariance matrix
+behind them accept return series of different lengths. All of them kept the
+**leading** `min(length)` observations of each series. Return arrays are ordered
+oldest-first and every question these functions answer is anchored at the
+present, so as soon as two histories differed in length the code compared
+disjoint calendar periods, and both risk controls failed in the unsafe
+direction.
+
+`correlationAdjustedSize` with a 500-bar holding and a new position that is
+literally that holding's last 100 bars — a duplicate exposure:
+
+```
+before → averageCorrelation 0.09, sizeFactor 1.00, adjustedSize 10,000
+after  → averageCorrelation 1.00, sizeFactor 0.25, adjustedSize  2,500
+```
+
+The same function also divided the total correlation by *every* holding,
+including ones it had skipped for having no overlap. One empty holding beside
+one perfectly correlated holding reported an average of 0.5 and sized the
+position at 6,250 instead of 2,500. Skipped holdings are now excluded from the
+average instead of counted as uncorrelated.
+
+`riskParityAllocation` was worse: the observation count came from the first
+asset only, so a later asset with a shorter history was indexed out of bounds.
+The resulting NaN covariance failed the `v > 0` test in the inverse-volatility
+seed and became a weight of exactly **0** — an asset silently dropped from the
+portfolio, with `weights` and `riskContributions` both NaN-free and both wrong
+(the contributions were reported as perfectly equal). With the assets listed in
+the other order there
+was no NaN at all: the longer asset was truncated to its oldest bars while its
+mean was still taken over its full history. Two assets whose oldest 300 bars are
+anti-correlated and whose newest 300 bars are correlated came out as:
+
+```
+{ B, A } before → correlation -0.9946, portfolioVolatility 0.000576
+{ A, B } before → correlation NaN,     portfolioVolatility NaN, B weighted 0
+either   after  → correlation +0.9945, portfolioVolatility 0.011064
+```
+
+Before the fix the same data gave two different answers depending on JavaScript
+object key order — one with the correlation's sign inverted and the portfolio
+volatility understated 19x, the other with the asset dropped entirely. Both
+orders now agree.
+
+All of these now align on the common **trailing** window, which is the
+positional stand-in for aligning on timestamps that a bare `number[]` API can
+offer. Series are expected oldest-first, at the same cadence, and to end at the
+same time; that expectation is now documented on both functions.
+
+Two paths that used to return numbers now throw instead, because there is no
+allocation to report and the previous return value hid that:
+
+- a shared window shorter than two observations. This covers the asset with no
+  returns at all (`riskParityAllocation({ A, B: [] })`, previously `{ A: 1, B: 0 }`
+  with a NaN portfolio volatility) and the sharper case beside it: because the
+  covariance matrix is built over the window ALL assets share, one asset with a
+  single observation collapsed that window to one bar for every pair. Every
+  deviation from the mean is then exactly 0, so the matrix is all zeros — finite,
+  so no NaN appears anywhere — and the zero-volatility fallback returned
+  `{ A: 1/3, B: 1/3, OneDayOld: 1/3 }` with `portfolioVolatility: 0`, discarding
+  two 500-bar histories of real risk.
+- a covariance matrix that comes out non-finite, whether from a NaN or Infinity
+  in the input or from a sum that overflows on finite but extreme values
+
+That the window is set by the shortest history and applies to every pair is now
+documented; it is a property of estimating one covariance matrix rather than
+per-pair correlations, and it is unchanged by this release.
+
+`riskParityAllocation({})` now returns an empty allocation instead of throwing
+`Cannot read properties of undefined`.
+
+`correlationAdjustedSize` measures each holding over its own shared window, so a
+thin holding does not shorten the others. It applies the same two-observation
+rule per pair: a holding sharing one bar with the asset being sized used to read
+as "uncorrelated" (`pearsonCorr` returns 0 for a zero-variance pair) and dilute
+the average exactly as an empty holding did — one measurable holding at
+correlation 1 plus one one-bar holding reported an average of 0.5 and sized the
+position at 6,250 instead of 2,500. Such holdings are now excluded from the
+average.
+
+`correlationAdjustedSize` is otherwise unchanged: a non-finite input still
+propagates to `adjustedSize`, where it is visible, rather than being turned into
+a confident number.
+
+Trailing alignment is only correct when the series end at the same time, which is
+the case the functions are documented for. If you pass ragged series that share a
+START instead — a delisted name or a discontinued strategy, paired with one still
+running — the previous leading alignment happened to be right for you and this
+release is not. Align such series yourself before calling.
+
+### Fixed — stress test reported recovery to a new all-time high, not to the drawdown's peak
+
+`stressTest`'s worst-case scan reuses its running `peak` variable, which by the
+end of the loop holds the maximum of the entire stressed equity curve rather
+than the peak the worst drawdown started from. The recovery loop compared
+against that, so whenever the curve recovered and went on to make new highs,
+`worstCase.recoveryDays` reported the bars to the new all-time high.
+
+Returns `[-0.5, +1.0, 30 x +0.10]`: equity falls 1.0 → 0.5, is back at 1.0 one
+bar later, then grows to ~17.4.
+
+```
+before → worstCase.recoveryDays 31   (bars until equity reached 17.4)
+after  → worstCase.recoveryDays  1   (bars from the trough back to 1.0)
+```
+
+`worstCase` gains a `recovered: boolean`. Nothing previously distinguished "the
+drawdown was never recovered" from "it recovered on the final bar" — both were
+just a bar count. When `recovered` is false, `recoveryDays` is the bars from the
+trough to the end of the sample, a lower bound. A curve that never draws down at
+all now reports `recoveryDays: 0`; it used to report the full length of the
+series (20 for a 20-bar rising curve), because "the running maximum" is the last
+bar of a curve that only rises.
+
+Two properties of the scan are unchanged but now documented, because `recovered`
+makes them easier to misread: drawdowns of equal depth are reported
+earliest-first, so an equally deep later drawdown that never recovered is not
+what `worstCase` describes; and the trough is the first bar at the maximum depth,
+so bars spent flat at the bottom count toward `recoveryDays`.
+
 ### Fixed — margin interest is charged for the time held, not per trade
 
 `deductMarginInterest` converted the holding period to whole days with

@@ -6960,6 +6960,12 @@ const rolling = rollingVaR(dailyReturns, { window: 60, confidence: 0.95 });
 
 資産間のリスク寄与を均等化するリスクパリティ配分ウェイトを計算します。
 
+リターン系列は古い順・同一頻度で、同じ時点で終わっている必要があります。履歴の長さが
+異なる資産は、共通する**末尾（直近）**のウィンドウに揃えてから統計量を計算します。この
+ウィンドウは最短の履歴で決まり全ペアに適用されるため、履歴の短い資産が 1 つあると他の
+資産の推定も短くなります。共通ウィンドウが 2 観測未満の場合、および共分散行列が非有限に
+なった場合は例外を投げます。`returnsSeries` が空の場合は空の配分を返します。
+
 ```typescript
 import { riskParityAllocation } from "trendcraft";
 
@@ -6977,6 +6983,12 @@ const result = riskParityAllocation({
 ### `correlationAdjustedSize(currentReturns, portfolioReturns, options)`
 
 既存ポートフォリオとの相関に基づいてポジションサイズを調整します。
+
+リターン系列は古い順・同一頻度で、同じ時点で終わっている必要があります。各保有銘柄は、
+サイズを決める資産と共通する**末尾（直近）**のウィンドウで比較します。共通ウィンドウが
+2 観測未満の保有銘柄は「無相関」として数えるのではなく、平均から除外します。
+`riskParityAllocation` と違いウィンドウはペアごとなので、履歴の短い保有銘柄が他の推定を
+短くすることはありません。
 
 ```typescript
 import { correlationAdjustedSize } from "trendcraft";
@@ -7304,7 +7316,11 @@ const result = stressTest(dailyReturns, PRESET_SCENARIOS.lehman2008, 1_000_000);
 // result.scenario — シナリオ名
 // result.originalMetrics — { totalReturn, maxDrawdown, sharpe }
 // result.stressedMetrics — { totalReturn, maxDrawdown, sharpe }
-// result.worstCase — { drawdown, duration, recoveryDays }
+// result.worstCase — { drawdown, duration, recoveryDays, recovered }
+//   recoveryDays — トラフから、そのドローダウンの起点となったピークまでに要したバー数。
+//   `recovered` が false の場合はその水準を最後まで回復しておらず、recoveryDays は
+//   トラフからサンプル末尾までのバー数（下限値）になります。深さが同じドローダウンが
+//   複数ある場合は最も早いものを報告し、トラフで横ばいのバーも recoveryDays に含みます。
 // result.survivalRate — ストレス適用後のエクイティが一度もゼロ以下にならなければ 1.0、なれば 0.0（生存/破綻の二値フラグ）
 // result.capitalAtRisk — リスク資本額
 // result.stressedVaR, result.stressedCVaR
