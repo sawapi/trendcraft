@@ -82,8 +82,10 @@ export function drawMiniLine(args: LineDrawArgs): void {
     let curSegIdx = -2;
     for (const d of data) {
       const t = (d as SparklineCandle).time;
-      const x = sessionLayout.timeToX(t);
-      const segIdx = sessionLayout.segmentIndexOf(t);
+      // One call, one answer: asking for the pixel and the segment separately
+      // let the two disagree at a break boundary, and this loop dropped points
+      // that the candle renderer painted.
+      const { segment: segIdx, x } = sessionLayout.classify(t);
       // null x or break-internal point: close current segment, skip.
       if (x === null || segIdx < 0) {
         if (cur.length > 0) {

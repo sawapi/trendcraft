@@ -7,6 +7,127 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — sparkline session geometry had three owners that disagreed
+
+`buildSessionLayout` answered the same question in more than one way.
+`timeToX` treated `break.start` as the last instant of the segment before the
+break and returned a pixel for it; `segmentIndexOf` treated it as break-internal
+and returned -1; `isInBreakGap` then classified the very pixel `timeToX` had
+returned as inside the gap. Candle mode consults only `timeToX`, line mode
+consults both, so a bar stamped at exactly `break.start` — what a feed that
+stamps bars at their close produces for the last bar before a lunch break —
+rendered as a candle and vanished as a line.
+
+For a 100px canvas with a session of 0–100 and a break of 40–60:
+
+```
+before → timeToX(40) 45, segmentIndexOf(40) -1, isInBreakGap(45) true
+after  → timeToX(40) 45, segmentIndexOf(40)  0, isInBreakGap(45) false
+```
+
+In line mode the morning polyline ended at x=33.75 instead of 45, showing a
+21.25px break where 10px was configured; hovering the candle that candle mode
+had painted at x=45 returned nothing. `classify(t)` is now the single owner of
+the convention — a break is open at both ends, so `break.start` belongs to the
+segment before it and `break.end` to the segment after it, and in pixel space
+the gap is the open interval between the two — and `timeToX` / `segmentIndexOf`
+are projections of it that cannot drift from it. This matches what the
+`breakGap` docs already promised: `breakGap: 0` puts the 11:30 and 12:30 candles
+next to each other, which requires the 11:30 bar to be a rendered pre-break
+point.
+
+Overlapping breaks are now merged before anything is measured. Summing them
+unmerged counted the overlap twice and reserved a visual gap for each, so a
+session of 0–100 with breaks of 40–70 and 50–60 on a 100px canvas measured its
+active duration as 60 rather than 70 and gave away 20px of gap for one break:
+
+```
+before → timeToX(20) 26.67, timeToX(40) 53.33 (segment -1), timeToX(70) 60 (segment 2)
+after  → timeToX(20) 25.71, timeToX(40) 51.43 (segment 0),  timeToX(70) 61.43 (segment 1)
+```
+
+Both ends of the canvas still lined up, so the error was invisible at the edges
+and wrong everywhere in between.
+
+Three further inconsistencies in the layout's own geometry are fixed with it,
+each of which made the lookups disagree about a pixel:
+
+- The gap budget is capped at the canvas. A `breakGap` wider than the canvas
+  pushed segment offsets past the right edge — `classify` returned x=500 on a
+  100px canvas — while `xToTime` rejected the same pixel as off-canvas.
+- The inverse lookup no longer rejects the whole canvas when a session has no
+  active time. It returned `null` for every pixel in that case, including the
+  ones the forward lookup had just produced.
+- A segment with no duration now occupies no pixels. A break running to
+  `session.end` leaves a zero-length trailing segment, and its start and end
+  pixels could differ by a float's worth, putting the pixel reported for
+  `session.end` inside the gap that ended at the same place.
+
+Across 864 combinations of session shape, canvas width and gap size — 131,040
+sampled positions and 60,193 gap pixels — every position now falls inside the
+canvas, no positioned time lands in a gap, positions round-trip back to their
+own segment, and segments and gaps tile the canvas exactly.
+
+### Fixed — sparkline density fallback measured the wrong candle width
+
+`densityFallback` is documented as falling back to a line when a candle would be
+under 2px wide. It computed that width as `canvas / slot count` — the slot-mode
+formula — even when `session` was set, where the candles are placed by timestamp
+and the spacing is unrelated to the bar count.
+
+30 one-minute bars in a 6.5 hour session on an 80px canvas: the check saw
+80/30 = 2.67px and kept candles, while the renderer painted at 0.205px — 30
+bodies clamped to 1px, overlapping inside the leftmost 6 pixels.
+
+The pitch now comes from `candlePitchPx`, the one function the renderer itself
+uses, so the threshold and the painted width cannot disagree. In session mode it
+asks the layout where the candles land and takes the median distance between
+those pixels, rather than deriving it from the timestamps: a pair straddling a
+break is not `interval × pxPerMs` apart, because the layout drops the break's
+duration and puts a fixed `breakGap` there instead. On a 10px canvas with a 1px
+gap, candles at t=40/60/61 of a 0–100 session broken at 40–60 sit 1px and 0.11px
+apart, where measuring from the raw 20ms and 1ms deltas reported 2.25px and kept
+them as candles.
+
+Only candles the layout actually places count toward the pitch. Including the
+ones it skips — outside the session, or inside a break — could blank a chart
+outright: one visible candle among a hundred inside a break measured
+80/101 = 0.79px, the fallback chose a line, and a line needs two visible points,
+so nothing was drawn at all. The cases are now explicit: nothing painted reports
+no pitch, a lone candle reports the full canvas width and so is never "too thin",
+candles stacked on one pixel each get an equal share of the canvas, and anything
+else is the median distance between neighbours.
+
+The fallback stays selective: the same 30 bars spread across the whole session
+still render as candles (pitch 2.67px), and six candles straddling a break on a
+300px canvas all render.
+
+### Fixed — sparkline `maxCandles` cropped the head of a session chart
+
+`maxCandles` defaults to 60 and is applied from the tail. In slot mode that is
+harmless — the surviving bars just get wider slots and still fill the canvas. In
+session mode the x position comes from the timestamp, so the dropped head left a
+proportionally blank region on the left with nothing to explain it. The
+package's own intraday example lost the first half hour of the session.
+
+66 five-minute bars in a 6.5 hour session with a lunch break, on a 200px canvas:
+
+```
+before → 49 bodies, leftmost at x=17
+after  → 55 bodies (every bar outside the break), leftmost at x=-1
+```
+
+The default no longer applies when `session` is set; an explicit `maxCandles`
+still does, in both modes. Truncating first also defeated the density fallback:
+330 one-minute bars were cut to 60, which made the pitch look like 3.3px, so
+they stayed candles over a session window they covered a fraction of. The
+truncation and the layout are now ordered so the fallback sees the real data.
+
+The Vue `Sparkline` wrapper declared `maxCandles` with a default of 60 of its
+own, so every Vue sparkline passed the cap explicitly and the core could never
+tell "the caller did not ask for a cap" from "the caller asked for 60". The
+wrapper no longer restates it.
+
 ### Fixed — panes no longer leak between charts
 
 `LayoutEngine` held the module-level `DEFAULT_LAYOUT` by reference and mutated

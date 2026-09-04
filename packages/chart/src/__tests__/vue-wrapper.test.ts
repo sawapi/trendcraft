@@ -7,6 +7,7 @@
  */
 
 import { describe, expect, it } from "vitest";
+import { Sparkline } from "../../vue/sparkline";
 import { TrendChart } from "../../vue/TrendChart";
 
 describe("Vue TrendChart wrapper", () => {
@@ -49,5 +50,23 @@ describe("Vue TrendChart wrapper", () => {
   it("has a setup function", () => {
     expect((TrendChart as Record<string, unknown>).setup).toBeDefined();
     expect(typeof (TrendChart as Record<string, unknown>).setup).toBe("function");
+  });
+});
+
+describe("Vue Sparkline prop defaults", () => {
+  it("does not restate a default the core owns", () => {
+    const props = (Sparkline as unknown as { props: Record<string, { default?: unknown }> }).props;
+
+    // `maxCandles` is not a plain constant: the core applies 60 in slot mode
+    // and no cap at all when `session` is set. A literal 60 here made every Vue
+    // sparkline pass the cap explicitly, so the core could never see "the
+    // caller did not ask for a cap" and the session rule never applied.
+    expect(props.maxCandles.default).toBeUndefined();
+
+    // Anything else whose default depends on other options must stay undefined
+    // here too; these are plain constants and may legitimately be mirrored.
+    expect(props.totalSlots.default).toBeUndefined();
+    expect(props.session.default).toBeUndefined();
+    expect(props.breakGap.default).toBeUndefined();
   });
 });
