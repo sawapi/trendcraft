@@ -96,7 +96,11 @@ export const Sparkline = defineComponent({
       type: [String, Number, Boolean] as PropType<"auto" | number | false>,
       default: "auto",
     },
-    maxCandles: { type: Number, default: 60 },
+    // No default here: the core owns it, and it is not a constant — a
+    // `session` chart has no default cap because the session window, not a bar
+    // count, sets the visible range. Restating 60 made every Vue sparkline pass
+    // it explicitly, so the core could never apply the session rule.
+    maxCandles: { type: Number, default: undefined },
     totalSlots: { type: Number, default: undefined },
     session: {
       type: Object as PropType<NonNullable<SparklineOptions["session"]>>,

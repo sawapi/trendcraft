@@ -1,6 +1,6 @@
 import { safeDevicePixelRatio } from "../core/dpr";
 import { resolveColors } from "./color-resolve";
-import { drawMiniCandles } from "./draw-candle";
+import { candlePitchPx, drawMiniCandles } from "./draw-candle";
 import { drawMiniLine } from "./draw-line";
 import { buildSessionLayout, resolveBreakGapPx, type SessionLayout } from "./session";
 import { createTooltip, type Tooltip } from "./tooltip";
@@ -70,6 +70,16 @@ function fmt(v: number): string {
 /** CSS-pixel size used when nothing else can say how big the canvas is. */
 const FALLBACK_CSS_WIDTH = 80;
 const FALLBACK_CSS_HEIGHT = 30;
+
+/**
+ * Default cap on candle count, applied from the tail. Single owner — the
+ * framework wrappers must not restate it, because it is not a plain constant:
+ * `session` mode has no default cap (see renderEntry).
+ */
+export const DEFAULT_MAX_CANDLES = 60;
+
+/** Below this candle pitch, `densityFallback` renders a line instead. */
+const MIN_CANDLE_PITCH_PX = 2;
 
 function setupCanvas(entry: Entry): {
   cssWidth: number;
@@ -164,18 +174,43 @@ function renderEntry(entry: Entry, groupColors: ResolvedColors): void {
     ? { ...groupColors, ...opts.colors }
     : groupColors;
 
-  const maxCandles = opts.maxCandles ?? 60;
+  // In slot mode the x position comes from the bar's index, so capping the tail
+  // just means fewer, wider slots and the canvas still fills. In session mode it
+  // comes from the bar's timestamp, so a dropped head leaves a proportionally
+  // blank region on the left with nothing to say why — the package's own
+  // intraday example lost the first half hour of the session that way. The cap
+  // is a density control, and `session` already controls density by time, so the
+  // DEFAULT does not apply there. An explicit `maxCandles` still does.
+  const maxCandles =
+    opts.maxCandles ?? (opts.session ? Number.POSITIVE_INFINITY : DEFAULT_MAX_CANDLES);
   const densityFallback = opts.densityFallback !== false;
 
   const data = applyMaxCandles(opts.data, opts.type, maxCandles);
   const slots = Math.max(data.length, opts.totalSlots ?? 0);
+
+  // Build session layout if `session` is set and data is candle-like. This has
+  // to happen BEFORE the density fallback: in session mode the layout is what
+  // says how wide a candle actually is.
+  let layout: SessionLayout | null = null;
+  if (opts.session && data.length > 0 && typeof data[0] === "object") {
+    const gapPx = resolveBreakGapPx(opts.breakGap, cssWidth);
+    layout = buildSessionLayout(opts.session, cssWidth, gapPx);
+  }
+  entry.sessionLayout = layout;
+
   let type: "line" | "candle" = opts.type;
 
-  // Density fallback for candle mode — based on the slot width
-  // (totalSlots stretches the spacing if set).
-  if (type === "candle" && densityFallback && slots > 0) {
-    const slot = cssWidth / slots;
-    if (slot < 2) {
+  // Density fallback for candle mode, measured with the same pitch the renderer
+  // will paint at (slot mode: canvas / slots, stretched by totalSlots; session
+  // mode: the median distance between the pixels the layout places them at).
+  if (type === "candle" && densityFallback) {
+    const pitch = candlePitchPx({
+      data: data as SparklineCandle[],
+      width: cssWidth,
+      totalSlots: slots,
+      sessionLayout: layout ?? undefined,
+    });
+    if (pitch > 0 && pitch < MIN_CANDLE_PITCH_PX) {
       type = "line";
     }
   }
@@ -186,14 +221,6 @@ function renderEntry(entry: Entry, groupColors: ResolvedColors): void {
 
   const baselineValue = resolveBaselineValue(opts, data, type);
   const colors = resolveColors(opts.color, data, type, themeColors);
-
-  // Build session layout if `session` is set and data is candle-like.
-  let layout: SessionLayout | null = null;
-  if (opts.session && data.length > 0 && typeof data[0] === "object") {
-    const gapPx = resolveBreakGapPx(opts.breakGap, cssWidth);
-    layout = buildSessionLayout(opts.session, cssWidth, gapPx);
-  }
-  entry.sessionLayout = layout;
 
   if (type === "line") {
     drawMiniLine({
@@ -267,8 +294,9 @@ function indexFromXSession(x: number, candles: SparklineCandle[], layout: Sessio
     }
   }
   if (best < 0) return -1;
-  // Reject "tail" hovers: if cursor is past the last candle by more than
-  // half the median bar interval, hide the tooltip.
+  // Reject "tail" hovers: if cursor is past the last candle by more than half
+  // the last bar interval, hide the tooltip. (Time-domain tolerance — unrelated
+  // to the pixel pitch `candlePitchPx` measures.)
   if (candles.length >= 2) {
     const last = candles[candles.length - 1];
     const prev = candles[candles.length - 2];

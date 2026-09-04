@@ -75,7 +75,12 @@ export type SparklineOptions = {
   fill?: boolean;
   /** Baseline value: 'auto' (data[0] for line / first open for candle), number, or false to disable. Default: 'auto'. */
   baseline?: "auto" | number | false;
-  /** Cap candle count from the tail (candle only). Default: 60. */
+  /**
+   * Cap candle count from the tail (candle only). Default: 60, except with
+   * `session` set, where there is no default cap — the session window, not a
+   * bar count, defines the visible range, so a tail cap would leave the left
+   * of the canvas blank. An explicit value is honoured in both modes.
+   */
   maxCandles?: number;
   /**
    * Total horizontal slots the chart represents. Low-level escape hatch —
@@ -121,7 +126,17 @@ export type SparklineOptions = {
    * and 12:30 candles end up adjacent). Default: 'auto'.
    */
   breakGap?: number | "auto";
-  /** When candle width < 2px, fall back to line. Default: true. */
+  /**
+   * When candle width < 2px, fall back to line. Default: true.
+   *
+   * The width measured is the pitch the renderer will actually paint at: the
+   * canvas divided by the slot count in slot mode, and — when `session` is set
+   * — the median distance between the pixels the session layout places the
+   * candles at, which is not the same as their spacing in time across a break.
+   * Candles the layout does not place are excluded; if that leaves fewer than
+   * two distinct pixels, each remaining candle is credited an equal share of
+   * the canvas instead, so a lone candle never counts as too thin to draw.
+   */
   densityFallback?: boolean;
   /** Theme/color overrides. */
   colors?: Partial<ResolvedColors>;
