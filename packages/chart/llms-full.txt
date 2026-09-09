@@ -197,6 +197,92 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Breaking — React/Vue wrapper event callbacks are typed as the chart's own payloads
+
+`onError` was declared as `(data: { source: string; error: unknown }) => void`
+and `onSeriesAdded` / `onSeriesRemoved` as `(data: SeriesInfo) => void` in both
+`useTrendChart` composables and the `<TrendChart>` components. The chart never
+emitted those shapes: `error` carries `ChartErrorPayload = { message, code?,
+detail? }`, `seriesAdded` carries `{ id, label }` and `seriesRemoved` carries
+`{ id }`. A cast inside the wrappers hid the mismatch, so
+`onError={(e) => report(e.source, e.error)}` type-checked and reported
+`undefined undefined` for every chart warning.
+
+The declarations now use `ChartErrorPayload`, `SeriesAddedData` and
+`SeriesRemovedData` (the last two are new names for the shapes documented in
+the events table). Code that read `e.source` / `e.error`, or `s.paneId` /
+`s.type` / `s.visible` on the series callbacks, no longer compiles — those
+fields were always `undefined` at runtime. The Vue `<TrendChart>` `emits`
+declaration carries the same types.
+
+### Fixed — React/Vue `<Sparkline>` repaints when `width` / `height` change
+
+Both wrappers wrote the props onto the `<canvas>` `width`/`height` attributes.
+Assigning either attribute resets the bitmap to transparent, and nothing in the
+wrappers reacted to the change (the live-update path covers only the option
+keys), so a sparkline whose size changed after mount — a collapsible watchlist
+column, a responsive grid — stayed blank until some option such as `data`
+happened to change. At a device pixel ratio other than 1 the attribute also
+had two owners: the wrapper wrote CSS pixels, the core wrote CSS pixels × DPR.
+
+The core is now the single owner of the bitmap size. The wrappers size the CSS
+box only and repaint when it changes. A canvas with no layout box (hidden, or
+not yet attached) reads its declared size from an inline px style before
+falling back to the last measurement, so a hidden `<Sparkline width={200}>`
+still gets a 200 px bitmap without the attribute, and a size change while
+hidden takes effect at the next paint instead of leaving a stale bitmap.
+
+### Fixed — React/Vue wrappers forward only the `options` fields that changed
+
+`useTrendChart` (React) passed the whole `options` object to
+`chart.applyOptions()` as soon as the chart existed and again on every identity
+change; the Vue composable replayed the whole object on every change.
+`applyOptions` warns — on the console and through the `error` event — for
+fields that can only be set at creation (`locale`, `pixelRatio`,
+`scrollSensitivity`, `formatInfoOverlay`), so `<TrendChart options={{ locale }}>`
+logged "applyOptions: [locale] cannot be changed at runtime" on mount and on
+every parent re-render, for a value that was applied correctly at creation and
+never changed.
+
+Both wrappers now keep a snapshot of the options previously passed through
+the wrapper and forward only the top-level fields whose value differs,
+comparing plain objects and arrays structurally: an inline literal with the
+same content is not a change, a nested `undefined` reads as absent, and a
+field that is dropped and later re-supplied unchanged is not a change. Vue's
+deep watch also catches an in-place mutation of a nested field; React re-runs
+the diff only when the `options` prop gets a new identity. Function-valued
+options are compared by identity, so an inline `formatInfoOverlay` arrow —
+a creation-only field — still warns on every render; memoize it. The snapshot
+is what the wrapper passed, not the chart's live state: an imperative call on
+the instance (`setChartType`, a container resize picked up by the chart's own
+observer) is not undone by an unchanged `options` prop. Changing a
+creation-only field still warns, because that is a real request the chart
+cannot honour.
+
+### Fixed — React wrapper dispatches events to the current callbacks, from the first series on
+
+The React hook subscribed to chart events per callback identity, in an effect
+declared after the data effects. Two consequences: `onSeriesAdded` never saw
+the series created from the initial `indicators` prop, because that
+subscription did not exist yet when they were added; and with inline-arrow
+callbacks, the `seriesRemoved` emitted by the indicators cleanup during a
+re-render reached the *previous* render's closure — the handler that was about
+to be swapped out — so a callback closing over state saw stale state. The
+subscription now lives as long as the chart instance, is registered before any
+data effect, and dispatches to the callbacks of the latest *committed* render —
+a render held back by a suspended sibling in a transition does not capture the
+events of the chart still on screen.
+
+### Added — event payload types are exported from the package root
+
+`ChartClickData` (the documented `click` / `doubleClick` payload) and
+`SeriesActionData` (`seriesEditRequest` / `seriesRemoveRequest`) were declared
+and documented but missing from the root export list, so
+`import type { ChartClickData } from '@trendcraft/chart'` failed with TS2305.
+Both are exported now, together with the new `SeriesAddedData` and
+`SeriesRemovedData`. A test pins every payload type in `core/types/event.ts`
+to the root barrel so the list cannot drift again.
+
 ### Fixed — sparkline session geometry had three owners that disagreed
 
 `buildSessionLayout` answered the same question in more than one way.
@@ -1431,8 +1517,8 @@ Subscribe via `chart.on(event, handler)`. Unsubscribe via `chart.off`. Events ar
 | `click` | `ChartClickData` — x, y, index, time, shiftKey, altKey, metaKey, ctrlKey; fires on pointer up |
 | `resize` | `{ width, height }` |
 | `paneResize` | `{ paneId, height }` — fires when the user drags a pane divider |
-| `seriesAdded` | `{ id, label }` |
-| `seriesRemoved` | `{ id }` |
+| `seriesAdded` | `SeriesAddedData` — `{ id, label }` |
+| `seriesRemoved` | `SeriesRemovedData` — `{ id }` |
 | `dataFiltered` | `{ total, valid, removed }` — fires when invalid candles are dropped (`removed` = count) |
 | `drawingComplete` | `Drawing` — fires after a click-to-place drawing finishes |
 | `error` | `ChartErrorPayload` — `{ message, code?, detail? }`, non-fatal runtime warnings |
@@ -1905,8 +1991,8 @@ All time values are epoch milliseconds.
 | `visibleRangeChange` | `VisibleRangeChangeData = { startTime, endTime, startIndex, endIndex, logicalRange? }` — time/index fields are clamped to the data; `logicalRange: { from, to }` carries the unclamped fractional window edges (always populated; a right-edge margin is only visible here) |
 | `resize` | `{ width: number, height: number }` |
 | `paneResize` | `{ paneId: string, height: number }` |
-| `seriesAdded` | `{ id: string, label: string }` |
-| `seriesRemoved` | `{ id: string }` |
+| `seriesAdded` | `SeriesAddedData = { id: string, label: string }` |
+| `seriesRemoved` | `SeriesRemovedData = { id: string }` |
 | `dataFiltered` | `{ total: number, valid: number, removed: number }` |
 | `drawingComplete` | `Drawing` |
 | `error` | `ChartErrorPayload = { message: string, code?: ChartErrorCode, detail?: unknown }` |
@@ -2127,6 +2213,8 @@ import { TrendChart, useTrendChart } from '@trendcraft/chart/react';
 
 Props mirror the `useTrendChart` options: `candles`, `indicators`, `signals`, `trades`, `drawings`, `timeframes`, `backtest`, `patterns`, `scores`, `plugins`, `chartType`, `layout`, `theme`, `fitOnLoad`, event handlers (`onCrosshairMove`, `onSeriesAdded`, `onSeriesRemoved`, `onError`), an `options` prop carrying the remaining `ChartOptions`, plus `style` / `className`. Expose the underlying `ChartInstance` via ref.
 
+The event handlers receive the chart's own event payloads — `CrosshairMoveData`, `SeriesAddedData`, `SeriesRemovedData`, `ChartErrorPayload` (all exported from `@trendcraft/chart`). Handlers may be inline arrows; the subscription is held for the life of the chart and dispatches to the callbacks of the latest committed render. `options` is diffed against what was previously passed through the wrapper, so only fields whose value changed reach `applyOptions` — passing a creation-only field such as `locale` at mount does not warn, and dropping a field then re-supplying it unchanged does not either. Plain objects and arrays are compared structurally; function-valued options (`priceFormatter`, `timeFormatter`, `formatInfoOverlay`) by identity, so memoize them (`useCallback` / a module-level function) rather than passing a new arrow each render — `formatInfoOverlay` is creation-only and warns on every new identity. The diff is not against the chart's live state: an imperative call on the instance (`setChartType`, a container resize) is not undone by an unchanged `options` prop.
+
 **Hook** — imperative access to `ChartInstance` for drawing tools, live feeds, custom plugins:
 
 ```tsx
@@ -2148,7 +2236,7 @@ function MyChart({ candles }: { candles: CandleData[] }) {
 import { TrendChart, useTrendChart } from '@trendcraft/chart/vue';
 ```
 
-**Component** — same prop surface as React:
+**Component** — same prop surface as React; the `crosshairMove` / `seriesAdded` / `seriesRemoved` / `error` emits carry the chart's own event payloads:
 
 ```vue
 <TrendChart

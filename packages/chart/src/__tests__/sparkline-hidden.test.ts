@@ -130,6 +130,44 @@ describe("sparkline sizing without a layout box", () => {
     handle.destroy();
   });
 
+  it("keeps the last measured box over the width attribute while hidden", () => {
+    // A percent inline style is not a px declaration, so the only declared
+    // size is the attribute — which must not outrank a real measurement: on
+    // a re-attach the attribute holds the previous DPR-scaled bitmap.
+    const canvas = makeCanvas({ width: 300, height: 60 });
+    canvas.style.width = "100%";
+    canvas.style.height = "100%";
+    canvas.setAttribute("width", "200");
+    canvas.setAttribute("height", "50");
+    const handle = createSparkline(canvas, { type: "line", data });
+    expect(canvas.width).toBe(600);
+
+    hidden.add(canvas);
+    handle.update({ data });
+    expect(canvas.width).toBe(600);
+    expect(canvas.height).toBe(120);
+
+    handle.destroy();
+  });
+
+  it("takes a hidden canvas's size from an inline px style, over a stale measurement", () => {
+    const canvas = makeCanvas({ width: 80, height: 30 });
+    canvas.style.width = "80px";
+    canvas.style.height = "30px";
+    const handle = createSparkline(canvas, { type: "line", data });
+    expect(canvas.width).toBe(160);
+
+    // What a framework wrapper does when its width prop changes while hidden.
+    hidden.add(canvas);
+    canvas.style.width = "200px";
+    canvas.style.height = "60px";
+    handle.render();
+    expect(canvas.width).toBe(400);
+    expect(canvas.height).toBe(120);
+
+    handle.destroy();
+  });
+
   it("resizes to the real box when a hidden canvas becomes visible", () => {
     const canvas = makeCanvas({ width: 80, height: 30 });
     const handle = createSparkline(canvas, { type: "line", data });

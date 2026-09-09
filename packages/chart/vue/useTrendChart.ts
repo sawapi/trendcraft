@@ -44,6 +44,7 @@ import {
   toValue,
   watch,
 } from "vue";
+import { type ChartOptionsTracker, createChartOptionsTracker } from "../src/core/options-tracker";
 import type {
   AnyPrimitivePlugin,
   AnySeriesRendererPlugin,
@@ -53,6 +54,7 @@ import type {
 import type {
   BacktestResultData,
   CandleData,
+  ChartErrorPayload,
   ChartInstance,
   ChartOptions,
   ChartPatternSignal,
@@ -61,9 +63,10 @@ import type {
   DataPoint,
   Drawing,
   LayoutConfig,
+  SeriesAddedData,
   SeriesConfig,
   SeriesHandle,
-  SeriesInfo,
+  SeriesRemovedData,
   SignalMarker,
   ThemeColors,
   TimeframeOverlay,
@@ -103,9 +106,9 @@ export type UseTrendChartOptions = {
   options?: Reactive<Omit<ChartOptions, "theme"> | undefined>;
   fitOnLoad?: Reactive<boolean | undefined>;
   onCrosshairMove?: (data: CrosshairMoveData) => void;
-  onSeriesAdded?: (data: SeriesInfo) => void;
-  onSeriesRemoved?: (data: SeriesInfo) => void;
-  onError?: (data: { source: string; error: unknown }) => void;
+  onSeriesAdded?: (data: SeriesAddedData) => void;
+  onSeriesRemoved?: (data: SeriesRemovedData) => void;
+  onError?: (data: ChartErrorPayload) => void;
 };
 
 export type UseTrendChartResult = {
@@ -125,28 +128,24 @@ export function useTrendChart(opts: UseTrendChartOptions): UseTrendChartResult {
   let appliedDrawingIds: string[] = [];
   let appliedTimeframeIds: string[] = [];
   let appliedPrimitiveNames: string[] = [];
+  let optionsTracker: ChartOptionsTracker | null = null;
 
   onMounted(() => {
     if (!containerRef.value) return;
+    const initialOptions = toValue(opts.options);
     const instance = createChart(containerRef.value, {
-      ...toValue(opts.options),
+      ...initialOptions,
       theme: toValue(opts.theme) ?? "dark",
     });
+    optionsTracker = createChartOptionsTracker(initialOptions);
 
-    // Subscribe events unconditionally — handlers are invoked only if the
-    // consumer passed a callback, so this keeps registration count stable.
-    if (opts.onCrosshairMove) {
-      instance.on("crosshairMove", (d) => opts.onCrosshairMove?.(d as CrosshairMoveData));
-    }
-    if (opts.onSeriesAdded) {
-      instance.on("seriesAdded", (d) => opts.onSeriesAdded?.(d as SeriesInfo));
-    }
-    if (opts.onSeriesRemoved) {
-      instance.on("seriesRemoved", (d) => opts.onSeriesRemoved?.(d as SeriesInfo));
-    }
-    if (opts.onError) {
-      instance.on("error", (d) => opts.onError?.(d as { source: string; error: unknown }));
-    }
+    // Subscribe events unconditionally and read the callback at dispatch
+    // time, so a callback supplied after mount is honoured and the
+    // registration count never depends on which callbacks were passed.
+    instance.on("crosshairMove", (d) => opts.onCrosshairMove?.(d as CrosshairMoveData));
+    instance.on("seriesAdded", (d) => opts.onSeriesAdded?.(d as SeriesAddedData));
+    instance.on("seriesRemoved", (d) => opts.onSeriesRemoved?.(d as SeriesRemovedData));
+    instance.on("error", (d) => opts.onError?.(d as ChartErrorPayload));
 
     // Seed initial state synchronously so first render sees data
     instance.setCandles(toValue(opts.candles));
@@ -182,11 +181,15 @@ export function useTrendChart(opts: UseTrendChartOptions): UseTrendChartResult {
     appliedPrimitiveNames = [];
   });
 
-  // Reactive bindings — only fire after mount because `chart.value` is null until then
+  // Reactive bindings — only fire after mount because `chart.value` is null until then.
+  // Options are forwarded as a diff against what the chart last consumed:
+  // replaying the whole object would re-dispatch every setter and warn for
+  // creation-only fields such as `locale` that the consumer never changed.
   watch(
     () => toValue(opts.options),
     (val) => {
-      if (val) chart.value?.applyOptions(val);
+      const changed = optionsTracker?.diff(val);
+      if (changed) chart.value?.applyOptions(changed);
     },
     { deep: true },
   );

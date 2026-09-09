@@ -38,7 +38,9 @@ type Entry = {
   /**
    * Size the author declared via the `width`/`height` attributes, captured
    * before the first render. Once rendered, those attributes hold the
-   * DPR-scaled bitmap size instead, so the intent is only readable here.
+   * DPR-scaled bitmap size instead, so the intent is only readable here —
+   * and on a re-attach it is the bitmap that gets captured, which is why
+   * this ranks below a real measurement in setupCanvas.
    */
   authorWidth: number;
   authorHeight: number;
@@ -96,13 +98,26 @@ function setupCanvas(entry: Entry): {
   // back as a CSS size re-multiplies it by dpr, so a canvas with no layout
   // box (display:none, a collapsed panel, not yet attached) grows its bitmap
   // by a factor of dpr on every render until the browser's dimension cap
-  // invalidates it. The last CSS size we measured, and the size the author
-  // declared, are both stable.
+  // invalidates it. An inline px style, the last CSS size we measured, and
+  // the attribute captured at add() are all in CSS pixels and stable, and
+  // they rank in that order. The inline style outranks the measurement
+  // because it is the one that moves while the canvas is hidden (a framework
+  // wrapper changing its `width` prop) — the measurement is then stale. The
+  // attribute ranks below the measurement because it is captured once and
+  // can be wrong: on a re-attach (destroy() then add(), which the group
+  // wrappers do) the attribute already holds the DPR-scaled bitmap of the
+  // previous render, and a real measurement must keep shadowing it.
   const cssWidth =
-    rect.width || canvas.clientWidth || entry.cssWidth || entry.authorWidth || FALLBACK_CSS_WIDTH;
+    rect.width ||
+    canvas.clientWidth ||
+    readInlinePx(canvas, "width") ||
+    entry.cssWidth ||
+    entry.authorWidth ||
+    FALLBACK_CSS_WIDTH;
   const cssHeight =
     rect.height ||
     canvas.clientHeight ||
+    readInlinePx(canvas, "height") ||
     entry.cssHeight ||
     entry.authorHeight ||
     FALLBACK_CSS_HEIGHT;
@@ -130,7 +145,23 @@ function setupCanvas(entry: Entry): {
  * render writes the bitmap size back onto the same attribute.
  */
 function readAuthorSize(canvas: HTMLCanvasElement, attr: "width" | "height"): number {
-  const raw = canvas.getAttribute(attr);
+  return positivePx(canvas.getAttribute(attr));
+}
+
+/**
+ * Read an inline `style.width` / `style.height`, in CSS pixels; 0 when the
+ * style is absent or in any unit other than px (a percentage cannot be
+ * resolved without a layout box). A framework wrapper updates this style
+ * when its `width` / `height` prop changes, and setupCanvas only ever writes
+ * a px value into an *empty* style, so reading it back is stable.
+ */
+function readInlinePx(canvas: HTMLCanvasElement, prop: "width" | "height"): number {
+  const raw = canvas.style[prop];
+  return raw.endsWith("px") ? positivePx(raw) : 0;
+}
+
+/** Parse a CSS-pixel size; 0 for absent, non-numeric, non-finite or non-positive. */
+function positivePx(raw: string | null): number {
   if (raw === null) return 0;
   const value = Number.parseFloat(raw);
   return Number.isFinite(value) && value > 0 ? value : 0;

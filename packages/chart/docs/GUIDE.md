@@ -321,8 +321,8 @@ Subscribe via `chart.on(event, handler)`. Unsubscribe via `chart.off`. Events ar
 | `click` | `ChartClickData` — x, y, index, time, shiftKey, altKey, metaKey, ctrlKey; fires on pointer up |
 | `resize` | `{ width, height }` |
 | `paneResize` | `{ paneId, height }` — fires when the user drags a pane divider |
-| `seriesAdded` | `{ id, label }` |
-| `seriesRemoved` | `{ id }` |
+| `seriesAdded` | `SeriesAddedData` — `{ id, label }` |
+| `seriesRemoved` | `SeriesRemovedData` — `{ id }` |
 | `dataFiltered` | `{ total, valid, removed }` — fires when invalid candles are dropped (`removed` = count) |
 | `drawingComplete` | `Drawing` — fires after a click-to-place drawing finishes |
 | `error` | `ChartErrorPayload` — `{ message, code?, detail? }`, non-fatal runtime warnings |

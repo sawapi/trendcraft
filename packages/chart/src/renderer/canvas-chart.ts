@@ -30,8 +30,11 @@ import type {
   LayoutConfig,
   PaneConfig,
   PaneRect,
+  SeriesActionData,
+  SeriesAddedData,
   SeriesConfig,
   SeriesHandle,
+  SeriesRemovedData,
   SessionGapsOptions,
   SignalMarker,
   ThemeColors,
@@ -243,12 +246,14 @@ export class CanvasChart implements ChartInstance {
     if (!legend) return;
     legend.setOnEdit(
       this._hasListener("seriesEditRequest")
-        ? (seriesId, anchorEl) => this._emit("seriesEditRequest", { seriesId, anchorEl })
+        ? (seriesId, anchorEl) =>
+            this._emit("seriesEditRequest", { seriesId, anchorEl } satisfies SeriesActionData)
         : null,
     );
     legend.setOnRemove(
       this._hasListener("seriesRemoveRequest")
-        ? (seriesId, anchorEl) => this._emit("seriesRemoveRequest", { seriesId, anchorEl })
+        ? (seriesId, anchorEl) =>
+            this._emit("seriesRemoveRequest", { seriesId, anchorEl } satisfies SeriesActionData)
         : null,
     );
   }
@@ -397,7 +402,7 @@ export class CanvasChart implements ChartInstance {
     // connectIndicators teardown, legend-driven host removal) funnels
     // through the data layer, so this single hook covers them all.
     this._data.setOnSeriesRemoved((id) => {
-      this._emit("seriesRemoved", { id });
+      this._emit("seriesRemoved", { id } satisfies SeriesRemovedData);
       this._updateAriaLabel();
     });
 
@@ -789,7 +794,12 @@ export class CanvasChart implements ChartInstance {
       result.seriesType,
     );
     this._needsRender = true;
-    this._emit("seriesAdded", { id: handle.id, label: result.config.label });
+    // The introspector always resolves a label; `?? ""` mirrors getAllSeries()
+    // for the type, which keeps `label` optional on SeriesConfig.
+    this._emit("seriesAdded", {
+      id: handle.id,
+      label: result.config.label ?? "",
+    } satisfies SeriesAddedData);
     this._legendOverlay?.update(this._data.getAllSeries());
     this._updateAriaLabel();
     return handle;
