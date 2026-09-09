@@ -39,7 +39,9 @@ describe("Vue TrendChart wrapper", () => {
   });
 
   it("declares expected emits", () => {
-    const emits = (TrendChart as Record<string, unknown>).emits as string[];
+    // Object form: each key maps to a typed validator (payload type = the
+    // chart's own event payload).
+    const emits = Object.keys(TrendChart.emits ?? {});
     expect(emits).toBeDefined();
     expect(emits).toContain("crosshairMove");
     expect(emits).toContain("seriesAdded");

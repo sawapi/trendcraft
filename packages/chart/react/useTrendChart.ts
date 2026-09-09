@@ -27,7 +27,8 @@
  * ```
  */
 
-import { type RefObject, useEffect, useRef, useState } from "react";
+import { type RefObject, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { type ChartOptionsTracker, createChartOptionsTracker } from "../src/core/options-tracker";
 import type {
   AnyPrimitivePlugin,
   AnySeriesRendererPlugin,
@@ -37,6 +38,7 @@ import type {
 import type {
   BacktestResultData,
   CandleData,
+  ChartErrorPayload,
   ChartEvent,
   ChartInstance,
   ChartOptions,
@@ -46,14 +48,22 @@ import type {
   DataPoint,
   Drawing,
   LayoutConfig,
+  SeriesAddedData,
   SeriesConfig,
-  SeriesInfo,
+  SeriesRemovedData,
   SignalMarker,
   ThemeColors,
   TimeframeOverlay,
   TradeMarker,
 } from "../src/core/types";
 import { createChart } from "../src/index";
+
+/**
+ * `useLayoutEffect` is a no-op on the server and React 18 warns about it
+ * there; the ref it maintains is only read by browser event handlers, so the
+ * passive effect is an adequate stand-in for SSR.
+ */
+const useIsomorphicLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
 
 export type IndicatorInput<T = unknown> = {
   data: DataPoint<T>[];
@@ -80,9 +90,9 @@ export type UseTrendChartOptions = {
   options?: Omit<ChartOptions, "theme">;
   fitOnLoad?: boolean;
   onCrosshairMove?: (data: CrosshairMoveData) => void;
-  onSeriesAdded?: (data: SeriesInfo) => void;
-  onSeriesRemoved?: (data: SeriesInfo) => void;
-  onError?: (data: { source: string; error: unknown }) => void;
+  onSeriesAdded?: (data: SeriesAddedData) => void;
+  onSeriesRemoved?: (data: SeriesRemovedData) => void;
+  onError?: (data: ChartErrorPayload) => void;
 };
 
 export type UseTrendChartResult = {
@@ -117,6 +127,7 @@ export function useTrendChart(opts: UseTrendChartOptions): UseTrendChartResult {
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [chart, setChart] = useState<ChartInstance | null>(null);
+  const optionsTracker = useRef<ChartOptionsTracker | null>(null);
 
   // Init chart — create on mount, destroy on unmount. `options`/`theme` only
   // feed the initial creation; runtime updates go through dedicated setters.
@@ -124,6 +135,7 @@ export function useTrendChart(opts: UseTrendChartOptions): UseTrendChartResult {
   useEffect(() => {
     if (!containerRef.current) return;
     const instance = createChart(containerRef.current, { ...options, theme });
+    optionsTracker.current = createChartOptionsTracker(options);
     setChart(instance);
     return () => {
       instance.destroy();
@@ -131,12 +143,53 @@ export function useTrendChart(opts: UseTrendChartOptions): UseTrendChartResult {
     };
   }, []);
 
-  // Options — apply runtime-capable option changes after mount. Initial values
-  // were already consumed at chart creation, so this is a no-op on the first
-  // run but picks up any subsequent `options` prop change.
+  // Events — subscribed once per chart instance, before any data effect, and
+  // dispatched to the *current* callbacks through a ref. Subscribing per
+  // callback identity (the previous design, declared after the data effects)
+  // meant an event emitted by another effect's cleanup in the same commit —
+  // `seriesRemoved` from the indicators cleanup — reached the *previous*
+  // render's closure, and `seriesAdded` from the initial indicators reached
+  // nobody, because that subscription had not been made yet.
+  const callbacks = useRef({ onCrosshairMove, onSeriesAdded, onSeriesRemoved, onError });
+  // Updated in a layout effect, not during render: a render React does not
+  // commit (a transition held back by a suspended sibling) must not redirect
+  // the events of the chart that is still on screen to its callbacks. Layout
+  // effects run before the passive phase, so the ref is current by the time
+  // the passive cleanups of the same commit — the indicators cleanup that
+  // emits `seriesRemoved` — fire.
+  useIsomorphicLayoutEffect(() => {
+    callbacks.current = { onCrosshairMove, onSeriesAdded, onSeriesRemoved, onError };
+  });
+
   useEffect(() => {
-    if (!chart || !options) return;
-    chart.applyOptions(options);
+    if (!chart) return;
+    const subscribe = <T>(
+      event: ChartEvent,
+      pick: (c: typeof callbacks.current) => ((data: T) => void) | undefined,
+    ) => {
+      const h = (d: unknown) => pick(callbacks.current)?.(d as T);
+      chart.on(event, h);
+      return () => chart.off(event, h);
+    };
+    const offs = [
+      subscribe<CrosshairMoveData>("crosshairMove", (c) => c.onCrosshairMove),
+      subscribe<SeriesAddedData>("seriesAdded", (c) => c.onSeriesAdded),
+      subscribe<SeriesRemovedData>("seriesRemoved", (c) => c.onSeriesRemoved),
+      subscribe<ChartErrorPayload>("error", (c) => c.onError),
+    ];
+    return () => {
+      for (const off of offs) off();
+    };
+  }, [chart]);
+
+  // Options — forward only the fields that changed since the chart consumed
+  // them (at creation, or on the previous change). Replaying the whole object
+  // would re-dispatch every setter and warn for creation-only fields such as
+  // `locale` that the consumer never changed.
+  useEffect(() => {
+    if (!chart) return;
+    const changed = optionsTracker.current?.diff(options);
+    if (changed) chart.applyOptions(changed);
   }, [chart, options]);
 
   // Candles + fit
@@ -225,37 +278,6 @@ export function useTrendChart(opts: UseTrendChartOptions): UseTrendChartResult {
       for (const p of plugins.primitives ?? []) chart.removePrimitive(p.name);
     };
   }, [chart, plugins]);
-
-  // Events — wrap typed callbacks to match ChartInstance.on() signature
-  useEffect(() => {
-    if (!chart) return;
-    const handlers: Array<[ChartEvent, (data: unknown) => void]> = [];
-
-    if (onCrosshairMove) {
-      const h = (d: unknown) => onCrosshairMove(d as CrosshairMoveData);
-      chart.on("crosshairMove", h);
-      handlers.push(["crosshairMove", h]);
-    }
-    if (onSeriesAdded) {
-      const h = (d: unknown) => onSeriesAdded(d as SeriesInfo);
-      chart.on("seriesAdded", h);
-      handlers.push(["seriesAdded", h]);
-    }
-    if (onSeriesRemoved) {
-      const h = (d: unknown) => onSeriesRemoved(d as SeriesInfo);
-      chart.on("seriesRemoved", h);
-      handlers.push(["seriesRemoved", h]);
-    }
-    if (onError) {
-      const h = (d: unknown) => onError(d as { source: string; error: unknown });
-      chart.on("error", h);
-      handlers.push(["error", h]);
-    }
-
-    return () => {
-      for (const [event, handler] of handlers) chart.off(event, handler);
-    };
-  }, [chart, onCrosshairMove, onSeriesAdded, onSeriesRemoved, onError]);
 
   return { containerRef, chart };
 }

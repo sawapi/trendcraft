@@ -3,6 +3,7 @@
  */
 
 import type { TimeValue } from "./fundamental";
+import type { SeriesInfo } from "./integration";
 
 export type ChartEvent =
   | "crosshairMove"
@@ -35,6 +36,15 @@ export type SeriesActionData = {
   seriesId: string;
   anchorEl: HTMLElement;
 };
+
+/**
+ * Payload for the `seriesAdded` event: the `id` and resolved display `label`
+ * of the new series (the same fields `getAllSeries()` reports).
+ */
+export type SeriesAddedData = Pick<SeriesInfo, "id" | "label">;
+
+/** Payload for the `seriesRemoved` event. */
+export type SeriesRemovedData = Pick<SeriesInfo, "id">;
 
 /**
  * Payload for the `crosshairMove` event. Fires when the candle the crosshair

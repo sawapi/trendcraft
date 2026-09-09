@@ -165,7 +165,7 @@
     {
       "name": "Vue wrapper",
       "path": "dist/vue/TrendChart.js",
-      "limit": "34 kB"
+      "limit": "34.5 kB"
     }
   ],
   "devDependencies": {

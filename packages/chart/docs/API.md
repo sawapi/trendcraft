@@ -367,8 +367,8 @@ All time values are epoch milliseconds.
 | `visibleRangeChange` | `VisibleRangeChangeData = { startTime, endTime, startIndex, endIndex, logicalRange? }` — time/index fields are clamped to the data; `logicalRange: { from, to }` carries the unclamped fractional window edges (always populated; a right-edge margin is only visible here) |
 | `resize` | `{ width: number, height: number }` |
 | `paneResize` | `{ paneId: string, height: number }` |
-| `seriesAdded` | `{ id: string, label: string }` |
-| `seriesRemoved` | `{ id: string }` |
+| `seriesAdded` | `SeriesAddedData = { id: string, label: string }` |
+| `seriesRemoved` | `SeriesRemovedData = { id: string }` |
 | `dataFiltered` | `{ total: number, valid: number, removed: number }` |
 | `drawingComplete` | `Drawing` |
 | `error` | `ChartErrorPayload = { message: string, code?: ChartErrorCode, detail?: unknown }` |
@@ -589,6 +589,8 @@ import { TrendChart, useTrendChart } from '@trendcraft/chart/react';
 
 Props mirror the `useTrendChart` options: `candles`, `indicators`, `signals`, `trades`, `drawings`, `timeframes`, `backtest`, `patterns`, `scores`, `plugins`, `chartType`, `layout`, `theme`, `fitOnLoad`, event handlers (`onCrosshairMove`, `onSeriesAdded`, `onSeriesRemoved`, `onError`), an `options` prop carrying the remaining `ChartOptions`, plus `style` / `className`. Expose the underlying `ChartInstance` via ref.
 
+The event handlers receive the chart's own event payloads — `CrosshairMoveData`, `SeriesAddedData`, `SeriesRemovedData`, `ChartErrorPayload` (all exported from `@trendcraft/chart`). Handlers may be inline arrows; the subscription is held for the life of the chart and dispatches to the callbacks of the latest committed render. `options` is diffed against what was previously passed through the wrapper, so only fields whose value changed reach `applyOptions` — passing a creation-only field such as `locale` at mount does not warn, and dropping a field then re-supplying it unchanged does not either. Plain objects and arrays are compared structurally; function-valued options (`priceFormatter`, `timeFormatter`, `formatInfoOverlay`) by identity, so memoize them (`useCallback` / a module-level function) rather than passing a new arrow each render — `formatInfoOverlay` is creation-only and warns on every new identity. The diff is not against the chart's live state: an imperative call on the instance (`setChartType`, a container resize) is not undone by an unchanged `options` prop.
+
 **Hook** — imperative access to `ChartInstance` for drawing tools, live feeds, custom plugins:
 
 ```tsx
@@ -610,7 +612,7 @@ function MyChart({ candles }: { candles: CandleData[] }) {
 import { TrendChart, useTrendChart } from '@trendcraft/chart/vue';
 ```
 
-**Component** — same prop surface as React:
+**Component** — same prop surface as React; the `crosshairMove` / `seriesAdded` / `seriesRemoved` / `error` emits carry the chart's own event payloads:
 
 ```vue
 <TrendChart

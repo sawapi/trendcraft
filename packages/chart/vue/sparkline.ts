@@ -167,9 +167,21 @@ export const Sparkline = defineComponent({
       );
     }
 
+    // `width`/`height` are sources too: the core owns the canvas bitmap (CSS
+    // px × DPR) and sizes it from the CSS box, so a size change only needs the
+    // box patched and a repaint. `flush: "post"` runs the repaint after the
+    // DOM patch, so it measures the new box rather than the old one. Writing
+    // the props onto the `width`/`height` attributes instead wiped the bitmap
+    // on every change with nothing repainting it, and at DPR ≠ 1 fought the
+    // core over the attribute value.
     watch(
-      SPARKLINE_OPTION_KEYS.map((k) => () => (props as Record<string, unknown>)[k]),
+      [
+        ...SPARKLINE_OPTION_KEYS.map((k) => () => (props as Record<string, unknown>)[k]),
+        () => props.width,
+        () => props.height,
+      ],
       () => handleRef.value?.update(buildOpts()),
+      { flush: "post" },
     );
 
     onBeforeUnmount(() => {
@@ -180,8 +192,6 @@ export const Sparkline = defineComponent({
     return () =>
       h("canvas", {
         ref: canvasRef as unknown as string,
-        width: props.width,
-        height: props.height,
         style: {
           width: `${props.width}px`,
           height: `${props.height}px`,

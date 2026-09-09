@@ -95,10 +95,18 @@ export function Sparkline({ width = 80, height = 30, style, className, ...opts }
     };
   }, [group]);
 
+  // `width`/`height` are deps too: the core owns the canvas bitmap (CSS px ×
+  // DPR) and sizes it from the CSS box, so a size change only needs the box
+  // resized (below) and a repaint, which `update()` does. Writing the props
+  // onto the `width`/`height` attributes instead wiped the bitmap on every
+  // change with nothing repainting it, and at DPR ≠ 1 fought the core over
+  // the attribute value.
   // biome-ignore lint/correctness/useExhaustiveDependencies: granular opts deps; a full opts ref would over-trigger. React requires an array literal here, so keep this list in sync with SPARKLINE_OPTION_KEYS.
   useEffect(() => {
     handleRef.current?.update(opts as Partial<SparklineOptions>);
   }, [
+    width,
+    height,
     opts.type,
     opts.data,
     opts.color,
@@ -116,8 +124,6 @@ export function Sparkline({ width = 80, height = 30, style, className, ...opts }
   return (
     <canvas
       ref={canvasRef}
-      width={width}
-      height={height}
       className={className}
       style={{ width, height, display: "inline-block", ...style }}
     />
