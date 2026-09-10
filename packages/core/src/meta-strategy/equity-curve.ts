@@ -2,12 +2,19 @@
  * Equity Curve Trading
  *
  * Applies meta-strategy filters to backtest results by analyzing the equity curve.
- * When the equity curve is unhealthy (below MA, in drawdown, low win rate),
- * trades are skipped or reduced in size.
+ * When the strategy's equity curve is unhealthy (below MA, in drawdown, low win
+ * rate), trades are skipped or reduced in size. The curve the filters read is
+ * the strategy's own — every signal at full size, including the ones the
+ * filter declines — so a pause ends when the strategy recovers. That curve is
+ * reconstructed from `trades` (initial capital plus each trade's realized
+ * return, one point per trade); the backtest's mark-to-market
+ * `result.equityCurve` is not used.
  *
  * @packageDocumentation
  */
 
+import { profitFactorFromReturns } from "../analysis/return-metrics";
+import { depthPercent } from "../backtest/drawdown-tracker";
 import {
   annualizedRatios,
   computeExtendedMetrics,
@@ -67,7 +74,7 @@ export type EquityCurveHealthResult = {
   rollingWinRate: number;
   /** Overall health score (0-100) */
   healthScore: number;
-  /** Equity curve series */
+  /** Equity curve reconstructed from `trades` (one point per trade exit), not `result.equityCurve` */
   equityCurve: EquityPoint[];
   /** MA of equity curve */
   equityMa: (number | null)[];
@@ -124,23 +131,13 @@ function computeEma(values: number[], period: number): (number | null)[] {
 // single scale across the equity-curve API keeps health readings, filter
 // options, and rebuilt result fields directly comparable.
 
+/** Current drawdown of a curve from its running peak, in percent (the curve always has its start). */
 function getCurrentDrawdown(equityCurve: number[]): number {
-  if (equityCurve.length === 0) return 0;
   let peak = equityCurve[0];
   for (const e of equityCurve) {
     if (e > peak) peak = e;
   }
-  const current = equityCurve[equityCurve.length - 1];
-  return peak > 0 ? ((peak - current) / peak) * 100 : 0;
-}
-
-function getDrawdownAt(equityCurve: number[], index: number): number {
-  if (index < 0 || index >= equityCurve.length) return 0;
-  let peak = equityCurve[0];
-  for (let i = 1; i <= index; i++) {
-    if (equityCurve[i] > peak) peak = equityCurve[i];
-  }
-  return peak > 0 ? ((peak - equityCurve[index]) / peak) * 100 : 0;
+  return depthPercent(peak, equityCurve[equityCurve.length - 1]);
 }
 
 function getRollingWinRate(trades: Trade[], endIndex: number, window: number): number {
@@ -149,11 +146,6 @@ function getRollingWinRate(trades: Trade[], endIndex: number, window: number): n
   if (slice.length === 0) return 100;
   const wins = slice.filter((t) => t.return > 0).length;
   return (wins / slice.length) * 100;
-}
-
-function computeProfitFactor(grossProfit: number, grossLoss: number): number {
-  if (grossLoss > 0) return grossProfit / grossLoss;
-  return grossProfit > 0 ? Number.POSITIVE_INFINITY : 0;
 }
 
 function rebuildResult(trades: Trade[], original: BacktestResult): BacktestResult {
@@ -187,20 +179,16 @@ function rebuildResult(trades: Trade[], original: BacktestResult): BacktestResul
   const totalReturn = trades.reduce((sum, t) => sum + t.return, 0);
   const finalCapital = initialCapital + totalReturn;
   const wins = trades.filter((t) => t.return > 0);
-  const losses = trades.filter((t) => t.return <= 0);
-  const grossProfit = wins.reduce((sum, t) => sum + t.return, 0);
-  const grossLoss = Math.abs(losses.reduce((sum, t) => sum + t.return, 0));
 
   // Max drawdown from equity curve
   const curve = buildEquityCurve(trades, initialCapital);
   let peak = curve[0];
-  let maxDd = 0;
+  let maxDrawdownPercent = 0;
   for (const e of curve) {
     if (e > peak) peak = e;
-    const dd = peak > 0 ? (peak - e) / peak : 0;
-    if (dd > maxDd) maxDd = dd;
+    const dd = depthPercent(peak, e);
+    if (dd > maxDrawdownPercent) maxDrawdownPercent = dd;
   }
-  const maxDrawdownPercent = maxDd * 100;
 
   // Sharpe from the trade returns, annualised by the frequency those trades
   // actually occurred at — the shared owner the unfiltered backtest uses, so
@@ -235,7 +223,7 @@ function rebuildResult(trades: Trade[], original: BacktestResult): BacktestResul
     ...extended,
     firstBarTime: original.firstBarTime,
     lastBarTime: original.lastBarTime,
-    profitFactor: computeProfitFactor(grossProfit, grossLoss),
+    profitFactor: profitFactorFromReturns(trades.map((t) => t.return)),
     avgHoldingDays: trades.reduce((sum, t) => sum + t.holdingDays, 0) / trades.length,
     trades,
     settings: original.settings,
@@ -259,8 +247,10 @@ function scaleTrade(trade: Trade, factor: number): Trade {
  * Apply equity curve filter to a backtest result.
  *
  * Re-simulates the trade sequence, skipping or reducing trades when the
- * equity curve indicates poor strategy health (below MA, excessive drawdown,
- * low win rate, or a combination).
+ * strategy's equity curve indicates poor health (below MA, excessive drawdown,
+ * low win rate, or a combination). The health checks read the strategy's own
+ * curve — every trade at full size, reconstructed from `result.trades` — not
+ * the filtered one, so a pause ends as soon as the strategy recovers.
  *
  * @param result - Original backtest result
  * @param options - Filter options
@@ -305,51 +295,45 @@ export function applyEquityCurveFilter(
     };
   }
 
-  // Build equity curve incrementally and decide for each trade
-  const filteredTrades: Trade[] = [];
-  let equity = result.initialCapital;
-  // Track equity values after each trade for MA calculation
-  const equityValues: number[] = [equity];
-  let skipped = 0;
+  // Every decision reads the strategy's own equity curve — each signal at
+  // full size, including the ones the filter declines — never the filtered
+  // curve. A filter that reads its own censored output closes on itself: in
+  // skip mode the filtered curve stops moving the moment a trade is skipped,
+  // so a drawdown pause could never end; an SMA pause ended only because the
+  // window filled up with the frozen value, and an EMA pause — which only
+  // decays toward that value — effectively never ended. The win-rate branch
+  // always read the unfiltered trades; MA and drawdown now do the same.
+  // systemCurve[i] is the equity after trades 0..i-1 — the state trade i is
+  // decided on. The MA over it is causal, so ma[i] uses the same history.
+  const systemCurve = buildEquityCurve(trades, result.initialCapital);
+  const usesMa = type === "ma" || type === "combined";
+  const ma: (number | null)[] = !usesMa
+    ? []
+    : maType === "ema"
+      ? computeEma(systemCurve, maPeriod)
+      : systemCurve.map((_, idx) => computeSma(systemCurve, maPeriod, idx));
 
-  // Pre-compute EMA if needed (need to do incrementally)
-  let emaValue: number | null = null;
+  const filteredTrades: Trade[] = [];
+  let skipped = 0;
+  let peak = systemCurve[0];
 
   for (let i = 0; i < trades.length; i++) {
     const trade = trades[i];
+    const equity = systemCurve[i];
+    if (equity > peak) peak = equity;
 
     // Determine if trade passes filter
     let passes = true;
 
-    if (type === "ma" || type === "combined") {
-      let maValue: number | null = null;
-      if (maType === "sma") {
-        maValue = computeSma(equityValues, maPeriod, equityValues.length - 1);
-      } else {
-        // EMA: compute incrementally
-        if (equityValues.length < maPeriod) {
-          maValue = null;
-        } else if (emaValue === null) {
-          let sum = 0;
-          for (let j = equityValues.length - maPeriod; j < equityValues.length; j++) {
-            sum += equityValues[j];
-          }
-          emaValue = sum / maPeriod;
-          maValue = emaValue;
-        } else {
-          const k = 2 / (maPeriod + 1);
-          emaValue = equityValues[equityValues.length - 1] * k + emaValue * (1 - k);
-          maValue = emaValue;
-        }
-      }
+    if (usesMa) {
+      const maValue = ma[i];
       if (maValue !== null && equity < maValue) {
         passes = false;
       }
     }
 
     if (type === "drawdown" || type === "combined") {
-      const dd = getDrawdownAt(equityValues, equityValues.length - 1);
-      if (dd > maxDrawdown) {
+      if (depthPercent(peak, equity) > maxDrawdown) {
         passes = false;
       }
     }
@@ -365,17 +349,10 @@ export function applyEquityCurveFilter(
 
     if (passes) {
       filteredTrades.push(trade);
-      equity += trade.return;
-    } else if (filteredSizeFactor > 0) {
-      const scaled = scaleTrade(trade, filteredSizeFactor);
-      filteredTrades.push(scaled);
-      equity += scaled.return;
-      skipped++;
     } else {
       skipped++;
+      if (filteredSizeFactor > 0) filteredTrades.push(scaleTrade(trade, filteredSizeFactor));
     }
-
-    equityValues.push(equity);
   }
 
   const filtered = rebuildResult(filteredTrades, result);

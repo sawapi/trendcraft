@@ -8,6 +8,7 @@
  * @packageDocumentation
  */
 
+import { profitFactorFromReturns } from "../analysis/return-metrics";
 import type { BacktestResult } from "../types";
 
 // ---------------------------------------------------------------------------
@@ -41,7 +42,12 @@ export type StrategyAllocation = {
   strategyIndex: number;
   /** Allocation weight (0-1) */
   weight: number;
-  /** Metric value used for ranking */
+  /**
+   * Metric value used for ranking. `Infinity` for a profit factor with no
+   * losing trade in the lookback; `NaN` when the metric cannot be computed
+   * (non-finite returns, an overflowing intermediate). Both serialize to
+   * `null` in JSON.
+   */
   metricValue: number;
 };
 
@@ -49,7 +55,7 @@ export type StrategyAllocation = {
 export type StrategyRotationResult = {
   /** Current allocation */
   allocations: StrategyAllocation[];
-  /** Number of active strategies */
+  /** Number of strategies with `weight > 0` (can be fewer than `allocations.length`) */
   activeCount: number;
   /** Strategy rankings (best first, by index) */
   rankings: number[];
@@ -73,10 +79,7 @@ function computeMetric(
       return trades.filter((t) => t.return > 0).length / trades.length;
     }
     case "profitFactor": {
-      const gross = trades.filter((t) => t.return > 0).reduce((s, t) => s + t.return, 0);
-      const loss = Math.abs(trades.filter((t) => t.return <= 0).reduce((s, t) => s + t.return, 0));
-      if (loss > 0) return gross / loss;
-      return gross > 0 ? Number.POSITIVE_INFINITY : 0;
+      return profitFactorFromReturns(trades.map((t) => t.return));
     }
     case "sharpeRatio": {
       const rets = trades.map((t) => t.returnPercent / 100);
@@ -139,8 +142,17 @@ export function rotateStrategies(
     return { index, value: computeMetric(recent, rankingMetric) };
   });
 
-  // Sort by metric descending
-  metrics.sort((a, b) => b.value - a.value);
+  // Sort by metric descending with an explicit comparison rather than
+  // subtraction: `Infinity - Infinity` is NaN, which the sort treats as a tie
+  // (input order kept, sort is stable), but a NaN *metric* (non-finite
+  // returns, or an intermediate that overflowed) would then tie with
+  // everything and land anywhere; it ranks last instead.
+  const rank = (v: number) => (Number.isNaN(v) ? Number.NEGATIVE_INFINITY : v);
+  metrics.sort((a, b) => {
+    const av = rank(a.value);
+    const bv = rank(b.value);
+    return bv > av ? 1 : bv < av ? -1 : 0;
+  });
 
   const rankings = metrics.map((m) => m.index);
   const activeCount = Math.min(maxActiveStrategies, results.length);
@@ -174,10 +186,27 @@ export function rotateStrategies(
           metricValue: m.value,
         }));
       } else {
-        const totalMetric = positiveActive.reduce((s, m) => s + m.value, 0);
+        // Scale every positive metric by the largest one before summing, so
+        // the total is finite (in [1, count]) even when the raw sum would
+        // overflow. An infinite metric (a profit factor with no losing trade)
+        // scales to 1 and every finite metric beside it to 0 — the limit of
+        // "proportional": it takes everything, several share equally. Summing
+        // the raw values instead gave `Infinity / Infinity = NaN` for the
+        // leader and 0 for everyone else, which no downstream guard caught.
+        // `metrics` is sorted descending and `positiveActive` keeps that
+        // order, so the first entry is the largest (no spread: a spread over
+        // a huge strategy list hits the engine's argument limit).
+        const largest = positiveActive[0].value;
+        const scaled = (v: number) =>
+          v === Number.POSITIVE_INFINITY
+            ? 1
+            : v > 0 && largest < Number.POSITIVE_INFINITY
+              ? v / largest
+              : 0;
+        const total = positiveActive.reduce((s, m) => s + scaled(m.value), 0);
         allocations = active.map((m) => ({
           strategyIndex: m.index,
-          weight: m.value > 0 ? m.value / totalMetric : 0,
+          weight: scaled(m.value) / total,
           metricValue: m.value,
         }));
       }
@@ -185,24 +214,22 @@ export function rotateStrategies(
     }
   }
 
-  // Enforce minimum allocation: remove strategies below minimum and redistribute
+  // Enforce minimum allocation: zero out strategies below the minimum and
+  // hand their weight to the rest, pro rata. Mapped in place so that a
+  // strategy which already had weight 0 keeps its row — rebuilding the array
+  // from the two partitions dropped those rows whenever this branch fired.
   if (minAllocation > 0 && allocations.length > 1) {
-    const aboveMin = allocations.filter((a) => a.weight >= minAllocation);
-    const belowMin = allocations.filter((a) => a.weight < minAllocation && a.weight > 0);
+    const isAbove = (a: StrategyAllocation) => a.weight >= minAllocation;
+    const redistributed = allocations.reduce((s, a) => (isAbove(a) ? s : s + a.weight), 0);
+    const aboveTotal = allocations.reduce((s, a) => (isAbove(a) ? s + a.weight : s), 0);
 
-    if (belowMin.length > 0 && aboveMin.length > 0) {
-      const redistributed = belowMin.reduce((s, a) => s + a.weight, 0);
-      const aboveTotal = aboveMin.reduce((s, a) => s + a.weight, 0);
-
-      allocations = aboveMin.map((a) => ({
-        ...a,
-        weight: a.weight + (a.weight / aboveTotal) * redistributed,
-      }));
-
-      // Add zero-weight entries for removed strategies
-      for (const b of belowMin) {
-        allocations.push({ ...b, weight: 0 });
-      }
+    if (redistributed > 0 && aboveTotal > 0) {
+      // `Math.min(1, …)`: the pro-rata sum can land 1 ulp above 1.
+      allocations = allocations.map((a) =>
+        isAbove(a)
+          ? { ...a, weight: Math.min(1, a.weight + (a.weight / aboveTotal) * redistributed) }
+          : { ...a, weight: 0 },
+      );
     }
   }
 

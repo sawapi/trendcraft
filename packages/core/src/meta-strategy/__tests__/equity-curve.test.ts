@@ -53,6 +53,115 @@ function makeResult(trades: Trade[]): BacktestResult {
   };
 }
 
+/** Deterministic PRNG so the reference comparisons below are reproducible. */
+function lcg(seed: number): () => number {
+  let s = seed >>> 0;
+  return () => {
+    s = (Math.imul(s, 1664525) + 1013904223) >>> 0;
+    return s / 2 ** 32;
+  };
+}
+
+describe("filters read the strategy's own equity curve, not the filtered one", () => {
+  // 5 × +200 → equity 11000 (peak); 3 × −400 → 9800, a 10.9% drawdown;
+  // then 40 × +500. The strategy itself recovers on the very next trade.
+  const recovering = [
+    ...Array.from({ length: 5 }, (_, i) => makeTrade(i, 200)),
+    ...Array.from({ length: 3 }, (_, i) => makeTrade(5 + i, -400)),
+    ...Array.from({ length: 40 }, (_, i) => makeTrade(8 + i, 500)),
+  ];
+
+  it("drawdown filter pauses on the trip and resumes when the strategy recovers", () => {
+    const result = makeResult(recovering);
+    const analysis = applyEquityCurveFilter(result, { type: "drawdown", maxDrawdown: 10 });
+    const kept = analysis.filtered.trades.map((t) => t.entryTime);
+    // Stimulus: the pause fired — the first trade after the trip is skipped…
+    expect(kept).not.toContain(recovering[8].entryTime);
+    // …and only that one: trade 9 lifts the strategy's curve back to 6.4% DD.
+    // Before the fix the filtered curve froze at 9800 and every one of the 40
+    // recovery trades was skipped (kept 8, final 9800 vs 29800).
+    expect(analysis.tradesSkipped).toBe(1);
+    expect(analysis.filtered.tradeCount).toBe(47);
+    expect(analysis.filtered.finalCapital).toBe(29300);
+  });
+
+  it("combined filter is not absorbing either", () => {
+    const result = makeResult(recovering);
+    const analysis = applyEquityCurveFilter(result, { type: "combined", maxDrawdown: 10 });
+    const kept = analysis.filtered.trades.map((t) => t.entryTime);
+    expect(analysis.tradesSkipped).toBeGreaterThan(0);
+    expect(kept).toContain(recovering[recovering.length - 1].entryTime);
+    expect(analysis.tradesSkipped).toBeLessThan(10);
+  });
+
+  it("filteredSizeFactor changes the size of a filtered trade, never which trades are filtered", () => {
+    const result = makeResult(recovering);
+    const skip = applyEquityCurveFilter(result, { type: "drawdown", maxDrawdown: 10 });
+    const half = applyEquityCurveFilter(result, {
+      type: "drawdown",
+      maxDrawdown: 10,
+      filteredSizeFactor: 0.5,
+    });
+    const skippedTimes = recovering
+      .map((t) => t.entryTime)
+      .filter((t) => !skip.filtered.trades.some((k) => k.entryTime === t));
+    const reducedTimes = half.filtered.trades
+      .filter((t, i) => t.return !== recovering[i].return)
+      .map((t) => t.entryTime);
+    expect(skippedTimes).toEqual([recovering[8].entryTime]);
+    expect(reducedTimes).toEqual(skippedTimes);
+    expect(half.tradesSkipped).toBe(skip.tradesSkipped);
+  });
+
+  it("ma / ema decisions match a reference computed on the full-size curve", () => {
+    const rnd = lcg(20260910);
+    let runsWithSkips = 0;
+    let totalSkips = 0;
+    for (let run = 0; run < 300; run++) {
+      const n = 20 + Math.floor(rnd() * 60);
+      const trades = Array.from({ length: n }, (_, i) =>
+        makeTrade(i, Math.round((rnd() - 0.45) * 800)),
+      );
+      const maPeriod = 2 + Math.floor(rnd() * 9);
+      const maType = rnd() < 0.5 ? "sma" : "ema";
+      const result = makeResult(trades);
+      const analysis = applyEquityCurveFilter(result, { type: "ma", maPeriod, maType });
+
+      // Reference: the strategy's own curve (every trade at full size) and a
+      // causal MA over it; trade i is skipped iff curve[i] < ma[i].
+      const curve = [10000];
+      for (const t of trades) curve.push(curve[curve.length - 1] + t.return);
+      const expectedSkipped: number[] = [];
+      let ema: number | null = null;
+      for (let i = 0; i < n; i++) {
+        let ma: number | null = null;
+        if (i >= maPeriod - 1) {
+          const window = curve.slice(i - maPeriod + 1, i + 1);
+          const sma = window.reduce((a, b) => a + b, 0) / maPeriod;
+          if (maType === "sma") ma = sma;
+          else {
+            ema =
+              ema === null ? sma : curve[i] * (2 / (maPeriod + 1)) + ema * (1 - 2 / (maPeriod + 1));
+            ma = ema;
+          }
+        }
+        if (ma !== null && curve[i] < ma) expectedSkipped.push(i);
+      }
+      const keptTimes = new Set(analysis.filtered.trades.map((t) => t.entryTime));
+      const actualSkipped = trades
+        .map((t, i) => (keptTimes.has(t.entryTime) ? -1 : i))
+        .filter((i) => i >= 0);
+      expect(actualSkipped).toEqual(expectedSkipped);
+      expect(analysis.tradesSkipped).toBe(expectedSkipped.length);
+      if (expectedSkipped.length > 0) runsWithSkips++;
+      totalSkips += expectedSkipped.length;
+    }
+    // The invariant is only non-trivial when the filter actually trips.
+    expect(runsWithSkips).toBeGreaterThan(200);
+    expect(totalSkips).toBeGreaterThan(1000);
+  });
+});
+
 describe("applyEquityCurveFilter", () => {
   it("returns original when no trades", () => {
     const result = makeResult([]);

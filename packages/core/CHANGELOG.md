@@ -2,6 +2,67 @@
 
 ## [Unreleased]
 
+### Fixed — equity-curve filters read the strategy's own curve, not the filtered one
+
+`applyEquityCurveFilter` evaluated the `ma` and `drawdown` checks on the
+equity curve it was itself producing. In skip mode (`filteredSizeFactor: 0`)
+that curve stops moving the moment a trade is skipped, so a drawdown pause
+could never end: the peak and the current value were both frozen above the
+threshold, and every later trade was skipped. An SMA pause ended, but only
+because the MA window filled up with the frozen value — not because anything
+recovered — and an EMA pause, which only decays toward that value, effectively
+never ended (on a 220-trade series that recovers, 208 trades were skipped).
+The `winRate` check already read the unfiltered trades.
+
+Five +200 trades, three −400 trades (a 10.9% drawdown), then forty +500 trades,
+with `{ type: 'drawdown', maxDrawdown: 10 }`:
+
+```
+before → 8 trades kept, 40 skipped, filtered final capital  9,800 (original 29,800)
+after  → 47 trades kept, 1 skipped, filtered final capital 29,300
+```
+
+All checks now read the strategy's own curve — every trade at full size,
+including the ones the filter declines, reconstructed from `result.trades`
+(the mark-to-market `result.equityCurve` is not used) — so a pause ends when
+the strategy recovers. Which trades are filtered no longer depends on
+`filteredSizeFactor`; it only scales them. `ma`/`ema` decisions can differ
+from before only after the first filtered trade, where the two curves diverge.
+The profit factor of the rebuilt result is now computed by
+`profitFactorFromReturns` (same rule; a `NaN` trade return now yields `NaN`
+instead of `Infinity` or `0`).
+
+### Fixed — `rotateStrategies` returned NaN weights for an infinite profit factor
+
+A strategy with no losing trade in the lookback has a `profitFactor` of
+`Infinity`. Under `allocationMethod: 'proportional'` the weights were computed
+as `metric / total` with an infinite total, giving `NaN` for that strategy and
+`0` for every other, and neither the minimum-allocation step nor the
+normalization step caught a `NaN` — the result reported `activeCount: 0` with
+the best strategy holding a `NaN` weight.
+
+Proportional weights are now computed from metrics scaled by the largest one,
+so the total is always finite: an infinite metric is the limit of
+"proportional" — it takes the whole allocation, several share it equally,
+finite metrics beside it get 0 — and two huge but finite metrics whose raw sum
+overflows (previously all-zero weights) split it normally. Ranking ties keep
+input order, a `NaN` metric ranks last, and a weight can no longer land one
+ulp above 1 after the minimum-allocation redistribution. `metricValue` still
+reports `Infinity` for a profit factor with no losing trade — the value
+`profitFactorFromReturns`, which now computes it, gives — and `null` in JSON.
+Note that the backtest engine's `BacktestResult.profitFactor` reports 999.99
+instead of `Infinity` for the no-loss case only (a finite ratio can exceed
+it), while the portfolio backtest caps the ratio itself at 999.99.
+
+### Fixed — `rotateStrategies` dropped zero-weight rows when redistributing below-minimum weights
+
+When a strategy fell below `minAllocation`, the redistribution rebuilt
+`allocations` from the above-minimum and below-minimum rows only, so a strategy
+that already had `weight: 0` (a non-positive metric under `'proportional'`)
+vanished from the output — but stayed in it when no strategy happened to fall
+below the minimum. The array now keeps every strategy within
+`maxActiveStrategies`, at `weight: 0` when it receives nothing.
+
 ### Fixed — risk functions aligned unequal-length return series from the oldest bar
 
 `riskParityAllocation`, `correlationAdjustedSize` and the covariance matrix
