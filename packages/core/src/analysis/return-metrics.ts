@@ -159,11 +159,14 @@ export function gainToPainRatio(returns: number[]): number {
  * `Infinity` when there are gains but no losses, and `0` when every return is
  * zero.
  *
- * This is the returns-based profit factor used by `commonSenseRatio` and
- * `cpcIndex`. It is distinct from the trade-based profit factor on
- * `BacktestResult`, which divides winning trade P&L by losing trade P&L.
+ * This is the profit factor used by `commonSenseRatio` and `cpcIndex` on
+ * periodic returns, and by the meta-strategy module on per-trade P&L — the
+ * arithmetic is the same for any signed series. The backtest engine's
+ * `BacktestResult.profitFactor` reports 999.99 instead of `Infinity` for the
+ * no-loss case only (a finite ratio can exceed it); the portfolio backtest
+ * caps the ratio itself at 999.99.
  *
- * @param returns - Periodic returns as fractions
+ * @param returns - Signed values (periodic returns as fractions, or trade P&L)
  * @returns Returns-based profit factor
  */
 export function profitFactorFromReturns(returns: number[]): number {

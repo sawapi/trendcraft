@@ -34,6 +34,17 @@ export type DrawdownTracker = {
 };
 
 /**
+ * Peak-to-trough decline as a percentage of the peak. A non-positive peak
+ * (a wiped-out or negative account) has no meaningful percentage, so it
+ * reports 0 rather than a sign-flipped or infinite figure. Single owner of
+ * the formula — the equity-curve filter reads it too.
+ */
+export function depthPercent(peakEquity: number, troughEquity: number): number {
+  if (peakEquity <= 0) return 0;
+  return ((peakEquity - troughEquity) / peakEquity) * 100;
+}
+
+/**
  * Create a drawdown tracker to monitor equity drawdown periods
  *
  * @param initialCapital - Starting capital
@@ -66,16 +77,6 @@ export function createDrawdownTracker(initialCapital: number): DrawdownTracker {
 
   const periods: DrawdownPeriod[] = [];
   let maxDepthPercent = 0;
-
-  /**
-   * Peak-to-trough decline as a percentage of the peak. A non-positive peak
-   * (a wiped-out or negative account) has no meaningful percentage, so it
-   * reports 0 rather than a sign-flipped or infinite figure.
-   */
-  function depthPercent(peakEquity: number, troughEquity: number): number {
-    if (peakEquity <= 0) return 0;
-    return ((peakEquity - troughEquity) / peakEquity) * 100;
-  }
 
   function update(equity: number, time: number, barIndex: number): void {
     if (equity >= peak) {

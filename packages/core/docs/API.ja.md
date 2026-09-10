@@ -6882,6 +6882,8 @@ console.log(analysis.improvement.maxDrawdown); // 正の値 = 改善
 | `minWinRate` | `40` | 継続に必要な最小勝率（%、40 = 40%） |
 | `filteredSizeFactor` | `0` | フィルター時のサイズ係数（0 = スキップ） |
 
+健全性の判定は戦略自身のエクイティカーブ（フィルターが見送ったものも含む全トレードを等倍で積み上げた曲線。`result.trades` から 1 トレード 1 点で再構成し、時価評価の `result.equityCurve` は使いません）に対して行い、フィルター後の曲線は使いません。したがってドローダウンや MA による一時停止は戦略自身が回復した時点で解除され、`filteredSizeFactor` はフィルターされたトレードのサイズだけを変え、どのトレードがフィルターされるかは変えません。
+
 ### `equityCurveHealth(result, options?)`
 
 戦略のエクイティカーブの現在の健全性を評価します。
@@ -6919,6 +6921,8 @@ const rotation = rotateStrategies([resultA, resultB, resultC], {
 | `maxActiveStrategies` | 全戦略 | 配分する最大戦略数 |
 | `minAllocation` | `0.05` | 戦略あたりの最小配分 |
 | `allocationMethod` | `'proportional'` | `'equal'`、`'proportional'`、`'topN'` |
+
+ウェイトは常に有限で `[0, 1]` に収まり、合計 1 になります（`maxActiveStrategies` が正の整数の場合）。ルックバック内に負けトレードがない `profitFactor` は `Infinity` で、`'proportional'` ではその戦略が配分の全部を受け取り（複数あれば等分）、`metricValue` は `Infinity` のまま返ります（JSON では `null` になります）。`maxActiveStrategies` 内の戦略は配分がなくても `weight: 0` の行として `allocations` に残り、`activeCount` は `weight > 0` の行数です。
 
 ---
 

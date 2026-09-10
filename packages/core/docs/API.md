@@ -6938,6 +6938,8 @@ console.log(analysis.improvement.maxDrawdown); // positive = improvement
 | `minWinRate` | `40` | Minimum win rate (percent, 40 = 40%) to continue |
 | `filteredSizeFactor` | `0` | Size factor when filtered (0 = skip) |
 
+The health checks read the strategy's own equity curve — every trade at full size, including the ones the filter declines, reconstructed from `result.trades` (one point per trade; the mark-to-market `result.equityCurve` is not used) — never the filtered curve. A drawdown or MA pause therefore ends as soon as the strategy itself recovers, and `filteredSizeFactor` only changes the size of a filtered trade, not which trades are filtered.
+
 ### `equityCurveHealth(result, options?)`
 
 Assess the current health of a strategy's equity curve.
@@ -6975,6 +6977,8 @@ const rotation = rotateStrategies([resultA, resultB, resultC], {
 | `maxActiveStrategies` | all | Max strategies to allocate to |
 | `minAllocation` | `0.05` | Minimum allocation per strategy |
 | `allocationMethod` | `'proportional'` | `'equal'`, `'proportional'`, `'topN'` |
+
+Weights are always finite, within `[0, 1]`, and sum to 1 (for a positive integer `maxActiveStrategies`). A `profitFactor` with no losing trade in the lookback is `Infinity`; under `'proportional'` such a strategy takes the whole allocation (several share it equally) and its `metricValue` is reported as `Infinity`, which JSON serializes as `null`. Every strategy within `maxActiveStrategies` keeps a row in `allocations`, at `weight: 0` when it receives nothing; `activeCount` counts the rows with `weight > 0`.
 
 ---
 
