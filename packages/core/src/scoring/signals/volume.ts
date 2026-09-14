@@ -156,8 +156,10 @@ export function createBullishVolumeTrendEvaluator(maPeriod = 20): SignalDefiniti
       return 1;
     }
 
-    // Price up with high confidence
-    if (current.priceTrend === "up" && current.confidence > 70) {
+    // Price up with volume rising, high confidence. The volume gate matters:
+    // price up + volume down is the bearish divergence (weak rally), which
+    // the bearish evaluator scores and this one must not.
+    if (current.priceTrend === "up" && current.volumeTrend === "up" && current.confidence > 70) {
       return current.confidence / 100;
     }
 
@@ -257,8 +259,8 @@ export function createCmfPositiveEvaluator(
     if (current === null || current === undefined) return 0;
 
     if (current >= threshold) {
-      // Scale: 0.1 = 0.5, 0.2+ = 1
-      return Math.min(1, current / (threshold * 2) + 0.5);
+      // Scale between threshold and 2x threshold: threshold = 0.5, 2x threshold+ = 1
+      return Math.min(1, 0.5 + (current - threshold) / (threshold * 2));
     }
 
     if (current > 0) {
@@ -303,7 +305,9 @@ export function createCmfNegativeEvaluator(
     if (current === null || current === undefined) return 0;
 
     if (current <= threshold) {
-      return Math.min(1, Math.abs(current) / (Math.abs(threshold) * 2) + 0.5);
+      // Scale between threshold and 2x threshold: threshold = 0.5, 2x threshold+ = 1
+      const magnitude = Math.abs(threshold);
+      return Math.min(1, 0.5 + (Math.abs(current) - magnitude) / (magnitude * 2));
     }
 
     if (current < 0) {
