@@ -210,7 +210,7 @@ describe("createBullishVolumeTrendEvaluator", () => {
     expect(evaluate(candles, 22, undefined, precomputed)).toBe(1);
   });
 
-  it("should return confidence/100 when price up with high confidence", () => {
+  it("should return confidence/100 for a precomputed up/up state with high confidence that is not flagged confirmed", () => {
     const evaluate = createBullishVolumeTrendEvaluator(20);
     const candles = createTestCandles(25);
     const precomputed: PrecomputedIndicators = {
@@ -221,7 +221,7 @@ describe("createBullishVolumeTrendEvaluator", () => {
             ? {
                 isConfirmed: false,
                 priceTrend: "up",
-                volumeTrend: "down",
+                volumeTrend: "up",
                 confidence: 85,
                 hasDivergence: false,
               }
@@ -230,6 +230,29 @@ describe("createBullishVolumeTrendEvaluator", () => {
     };
     const score = evaluate(candles, 22, undefined, precomputed);
     expect(score).toBeCloseTo(0.85, 5);
+  });
+
+  it("should return 0 when price up but volume down (bearish divergence), whatever the confidence", () => {
+    const evaluate = createBullishVolumeTrendEvaluator(20);
+    const candles = createTestCandles(25);
+    for (const confidence of [71, 79, 80, 85, 100]) {
+      const precomputed: PrecomputedIndicators = {
+        volumeTrend: Array(25)
+          .fill(null)
+          .map((_, i) =>
+            i >= 20
+              ? {
+                  isConfirmed: false,
+                  priceTrend: "up",
+                  volumeTrend: "down",
+                  confidence,
+                  hasDivergence: true,
+                }
+              : null,
+          ),
+      };
+      expect(evaluate(candles, 22, undefined, precomputed)).toBe(0);
+    }
   });
 
   it("should return 0 when confidence <= 70", () => {
@@ -295,8 +318,25 @@ describe("createCmfPositiveEvaluator", () => {
         .map((_, i) => (i >= 20 ? 0.1 : null)),
     };
     const score = evaluate(candles, 22, undefined, precomputed);
-    // CMF=0.1, threshold=0.1: min(1, 0.1/(0.2) + 0.5) = min(1, 1.0)
-    expect(score).toBe(1);
+    // CMF=0.1, threshold=0.1: 0.5 + (0.1 - 0.1)/(0.2) = 0.5 — the ramp starts at the threshold
+    expect(score).toBeCloseTo(0.5, 10);
+  });
+
+  it("should reach 1 at 2x threshold and stay capped above it", () => {
+    const evaluate = createCmfPositiveEvaluator(0.1, 20);
+    const candles = createTestCandles(25);
+    for (const [value, expected] of [
+      [0.15, 0.75],
+      [0.2, 1],
+      [0.35, 1],
+    ] as const) {
+      const precomputed: PrecomputedIndicators = {
+        cmf20: Array(25)
+          .fill(null)
+          .map((_, i) => (i >= 20 ? value : null)),
+      };
+      expect(evaluate(candles, 22, undefined, precomputed)).toBeCloseTo(expected, 10);
+    }
   });
 
   it("should return partial score for positive CMF below threshold", () => {
@@ -347,8 +387,25 @@ describe("createCmfNegativeEvaluator", () => {
         .map((_, i) => (i >= 20 ? -0.1 : null)),
     };
     const score = evaluate(candles, 22, undefined, precomputed);
-    // CMF=-0.1, threshold=-0.1: min(1, |-0.1|/(|-0.1|*2) + 0.5) = min(1, 1.0)
-    expect(score).toBe(1);
+    // CMF=-0.1, threshold=-0.1: 0.5 + (|-0.1| - |-0.1|)/(0.2) = 0.5 — the ramp starts at the threshold
+    expect(score).toBeCloseTo(0.5, 10);
+  });
+
+  it("should reach 1 at 2x threshold and stay capped beyond it", () => {
+    const evaluate = createCmfNegativeEvaluator(-0.1, 20);
+    const candles = createTestCandles(25);
+    for (const [value, expected] of [
+      [-0.15, 0.75],
+      [-0.2, 1],
+      [-0.35, 1],
+    ] as const) {
+      const precomputed: PrecomputedIndicators = {
+        cmf20: Array(25)
+          .fill(null)
+          .map((_, i) => (i >= 20 ? value : null)),
+      };
+      expect(evaluate(candles, 22, undefined, precomputed)).toBeCloseTo(expected, 10);
+    }
   });
 
   it("should return partial score for negative CMF above threshold", () => {

@@ -2,6 +2,50 @@
 
 ## [Unreleased]
 
+### Fixed — scoring: the bullish volume-trend signal scored the bearish divergence
+
+`createBullishVolumeTrendEvaluator` (behind `addBullishVolumeTrend`, used by the
+`createTrendFollowingPreset` and `createBalancedPreset` presets) had a second
+branch paying `confidence / 100` for any "price up" bar with confidence above
+70 without looking at the volume side. Through the real `volumeTrend`
+indicator that branch is reachable only when volume is falling — price up with
+volume up is the confirmed case the first branch already scores as 1 — so the
+only bars it ever scored were the weak rally (price up, volume down), which is
+the bearish divergence and the very state `createBearishVolumeTrendEvaluator`
+scores. A 40-bar rally at +2%/bar whose volume drops from 5000 to 100 halfway:
+
+```
+bar 24: volumeTrend = { priceTrend: "up", volumeTrend: "down", hasDivergence: true, confidence: 79 }
+before → bullish 0.79, bearish 0.79
+after  → bullish 0,    bearish 0.79
+```
+
+The bullish evaluator now also requires `volumeTrend === "up"`, so a rally on
+collapsing volume scores 0 on the bullish signal. Bars with rising volume are
+unchanged. In the trend-following preset such bars lose up to 0.80 × 1.5 raw
+points (about 7.7 normalized points).
+
+### Fixed — scoring: CMF evaluators jumped from 0.5 to 1 at the threshold
+
+`createCmfPositiveEvaluator` and `createCmfNegativeEvaluator` (behind
+`addCmfPositive`, used by the mean-reversion, trend-following, balanced and
+conservative presets) were meant to ramp from 0.5 at the threshold to 1 at
+twice the threshold, but the formula omitted the `- threshold` term: every
+CMF at or beyond the threshold scored exactly 1, and the score jumped from
+0.4995 to 1 across it. With the default threshold 0.1:
+
+```
+CMF   0.05   0.0999   0.10   0.15   0.20   0.50
+before 0.25   0.4995   1      1      1      1
+after  0.25   0.4995   0.5    0.75   1      1
+```
+
+The negative evaluator mirrors this on |CMF|. The 0 → 0.5 ramp below the
+threshold is unchanged, so the score is now continuous and non-decreasing in
+|CMF|. Presets score mildly positive money flow lower than before — for
+example `createMeanReversionPreset` (threshold 0.05, weight 1.5) now credits a
+CMF of 0.05 with 0.75 raw points instead of 1.5.
+
 ### Fixed — equity-curve filters read the strategy's own curve, not the filtered one
 
 `applyEquityCurveFilter` evaluated the `ma` and `drawdown` checks on the
