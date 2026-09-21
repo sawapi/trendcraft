@@ -31,6 +31,9 @@ export type MfiOptions = {
  * 5. Money Flow Ratio = Positive Money Flow / Negative Money Flow
  * 6. MFI = 100 - (100 / (1 + Money Flow Ratio))
  *
+ * A window with no money flow on either side (flat typical price, or zero
+ * volume) reads 50 (neutral); only positive flow reads 100, only negative 0.
+ *
  * Trading signals:
  * - MFI > 80: Overbought
  * - MFI < 20: Oversold
@@ -93,7 +96,13 @@ export function mfi(
 
     let mfiValue: number;
 
-    if (negativeFlow === 0) {
+    if (positiveFlow === 0 && negativeFlow === 0) {
+      // No money flow either way (flat typical price or zero volume): the
+      // window carries no information, so read neutral — the same rule this
+      // library's RSI applies to a window without movement. Reading 0 instead
+      // would flag a halted symbol as maximally oversold.
+      mfiValue = 50;
+    } else if (negativeFlow === 0) {
       // All positive flow
       mfiValue = 100;
     } else if (positiveFlow === 0) {

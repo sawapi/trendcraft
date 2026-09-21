@@ -314,6 +314,7 @@ function initializeModel(
  * ```
  */
 export function baumWelch(observations: number[][], options?: HmmOptions): HmmModel {
+  if (observations.length === 0) throw new Error("baumWelch: observations must not be empty");
   const numStates = options?.numStates ?? 3;
   const maxIterations = options?.maxIterations ?? 100;
   const tolerance = options?.tolerance ?? 1e-6;

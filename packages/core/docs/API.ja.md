@@ -828,7 +828,7 @@ const result = mfi(candles, { period: 14 });
 |------------|------|---------|------|
 | `period` | `number` | `14` | MFI期間 |
 
-**戻り値:** `Series<number | null>` (0-100スケール)
+**戻り値:** `Series<number | null>` (0-100スケール)。ウィンドウ内にどちら向きのマネーフローも無い場合（典型価格が横ばい、または出来高ゼロ）は `50`（中立）を返す。正のフローのみなら `100`、負のみなら `0`。
 
 ---
 
@@ -918,7 +918,7 @@ const custom = volumeProfile(candles, { period: 20, levels: 24, valueAreaPercent
 | オプション | 型 | デフォルト | 説明 |
 |------------|------|---------|------|
 | `period` | `number` | 全期間（省略時は全キャンドル対象） | 参照期間（末尾からのキャンドル数） |
-| `levels` | `number` | `24` | 価格レベル数 |
+| `levels` | `number` | `24` | 価格レベル数（2 以上の整数） |
 | `valueAreaPercent` | `number` | `0.7` | Value Area計算の割合（0-1の小数） |
 
 **戻り値:** `VolumeProfileValue`
@@ -932,7 +932,11 @@ interface VolumeProfileValue {
   periodHigh: number;          // 期間高値
   periodLow: number;           // 期間安値
 }
+```
 
+`val <= poc <= vah` は常に `[periodLow, periodHigh]` の範囲内で成立する。出来高が全く無いウィンドウは一様に取引されたものとして扱い、`val = periodLow`、`vah = periodHigh`、`poc` はその中点になる。Value Area / POC 系のバックテスト条件（`inValueArea`、`nearPoc`、`priceAbovePoc`、`priceBelowPoc`、`breakoutVah`、`breakdownVal`）はそのようなウィンドウでは発火しない。
+
+```typescript
 interface VolumePriceLevel {
   priceLow: number;      // 価格レベル下限
   priceHigh: number;     // 価格レベル上限
@@ -2141,7 +2145,7 @@ console.log(`対数尤度: ${model.logLikelihood}`);
 console.log(`収束: ${model.converged}`);
 ```
 
-**戻り値:** `HmmModel`
+**戻り値:** `HmmModel`。空の入力では throw する（返すべき空のモデルが無いため）。`hmmRegimes([])` は他の指標と同様に `[]` を返す。
 
 ```typescript
 interface HmmModel {

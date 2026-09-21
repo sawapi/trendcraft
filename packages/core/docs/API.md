@@ -829,7 +829,7 @@ const result = mfi(candles, { period: 14 });
 |--------|------|---------|-------------|
 | `period` | `number` | `14` | MFI period |
 
-**Returns:** `Series<number | null>` (0-100 scale)
+**Returns:** `Series<number | null>` (0-100 scale). A window with no money flow on either side — flat typical price, or zero volume — reads `50` (neutral); only positive flow reads `100`, only negative `0`.
 
 ---
 
@@ -919,7 +919,7 @@ const custom = volumeProfile(candles, { period: 20, levels: 24, valueAreaPercent
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `period` | `number` | all candles | Lookback period (last N candles; omit to use the entire array) |
-| `levels` | `number` | `24` | Number of price levels |
+| `levels` | `number` | `24` | Number of price levels (integer, at least 2) |
 | `valueAreaPercent` | `number` | `0.7` | Value Area fraction (0-1) |
 
 **Returns:** `VolumeProfileValue`
@@ -933,7 +933,11 @@ interface VolumeProfileValue {
   periodHigh: number;          // Period high price
   periodLow: number;           // Period low price
 }
+```
 
+`val <= poc <= vah` always holds within `[periodLow, periodHigh]`. A window with no volume at all is read as uniformly traded: `val = periodLow`, `vah = periodHigh`, `poc` at the midpoint. The value-area and POC backtest conditions (`inValueArea`, `nearPoc`, `priceAbovePoc`, `priceBelowPoc`, `breakoutVah`, `breakdownVal`) do not fire on such a window.
+
+```typescript
 interface VolumePriceLevel {
   priceLow: number;   // Price level lower bound
   priceHigh: number;  // Price level upper bound
@@ -2165,7 +2169,7 @@ console.log(`Log-likelihood: ${model.logLikelihood}`);
 console.log(`Converged: ${model.converged}`);
 ```
 
-**Returns:** `HmmModel`
+**Returns:** `HmmModel`. Throws on empty input (there is no empty model to return); `hmmRegimes([])` returns `[]` like every other indicator.
 
 ```typescript
 interface HmmModel {

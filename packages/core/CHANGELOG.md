@@ -2,6 +2,53 @@
 
 ## [Unreleased]
 
+### Fixed — MFI read 100 (maximum overbought) for a window with no money flow
+
+`mfi` checked "no negative flow" first, so a window whose typical price never
+moved, or whose volume was zero throughout, scored 100 — a halted symbol
+tripped every "MFI > 80" screen for as long as it stayed halted. The same
+window now reads 50 (neutral), the rule this library's RSI already applies to
+a window without movement; only positive flow still reads 100, only negative 0.
+
+The incremental `createMfi` follows the same rule and now rebuilds both flow
+sums from the flows in its window on every bar instead of keeping running
+sums with eviction. The running sums left floating-point residue behind once
+the bars that produced it were gone, so on a window with no flow the old
+incremental read 100, 0, an arbitrary value in between, or even `-Infinity`
+(two residues of opposite sign), and on ordinary windows it drifted from the
+batch `mfi` by up to ~1e-13. It is now bit-identical to the batch form on
+every bar. The snapshot schema is unchanged; a snapshot taken by the previous
+version resumes correctly (its stored sums are rebuilt on the first bar).
+
+### Fixed — `volumeProfile` returned `vah = 0` / `val = 0` for a window with no volume
+
+With zero total volume the value area came back as the sentinel prices 0 / 0
+while `poc` was the midpoint of the lowest bin, so `val <= poc <= vah` did not
+hold and every price classified as "above the value area" — per window in
+`volumeProfileSeries` on feeds without volume (FX/CFD/index) or during halts.
+Such a window is now read as uniformly traded: `val = periodLow`,
+`vah = periodHigh`, `poc` at the midpoint. Windows with volume are unchanged;
+for a binned profile the POC and value area are now derived by one helper
+shared by the single profile and the rolling series.
+
+Because a uniform reading would put every close "inside the value area", the
+backtest conditions `inValueArea`, `nearPoc`, `priceAbovePoc`,
+`priceBelowPoc`, `breakoutVah` and `breakdownVal` now return
+`false` for a window without volume (previously `inValueArea` never fired on
+such a window and the POC conditions compared against the lowest bin).
+
+`levels` must now be an integer of at least 2 for both entry points, with one
+error message. `volumeProfile` already rejected values below 2 but accepted
+non-integers, which built a top bin above `periodHigh`; `volumeProfileSeries`
+did not validate at all — it accepted `levels: 1` (a one-bin profile) and
+failed with a TypeError or RangeError on 0, negative or non-numeric values.
+
+### Fixed — `hmmRegimes([])` and `fitHmm([])` threw a TypeError from inside the fitter
+
+`hmmRegimes([])` now returns `[]` like every other indicator, and `fitHmm([])`
+(and `baumWelch([])`) throw a descriptive error instead of
+"Cannot read properties of undefined".
+
 ### Fixed — scoring: the bullish volume-trend signal scored the bearish divergence
 
 `createBullishVolumeTrendEvaluator` (behind `addBullishVolumeTrend`, used by the
