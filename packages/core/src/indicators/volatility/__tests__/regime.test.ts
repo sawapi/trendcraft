@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { mulberry32 } from "../../../core/random";
 import type { NormalizedCandle } from "../../../types";
 import { volatilityRegime } from "../regime";
 
@@ -14,6 +15,10 @@ function generateTestCandles(
   } = {},
 ): NormalizedCandle[] {
   const { basePrice = 100, volatilityMultiplier = 1, trend = "flat" } = options;
+  // Seeded so the fixture is the same on every run: an unseeded draw made assertions on the generated data flaky.
+  const random = mulberry32(
+    count + Math.round(volatilityMultiplier * 100) + { up: 1, down: 2, flat: 3 }[trend],
+  );
   const candles: NormalizedCandle[] = [];
 
   let price = basePrice;
@@ -29,11 +34,11 @@ function generateTestCandles(
 
     // Daily volatility scaled by multiplier
     const dailyRange = price * 0.02 * volatilityMultiplier;
-    const open = price + (Math.random() - 0.5) * dailyRange * 0.5;
-    const close = price + (Math.random() - 0.5) * dailyRange * 0.5;
-    const high = Math.max(open, close) + Math.random() * dailyRange * 0.5;
-    const low = Math.min(open, close) - Math.random() * dailyRange * 0.5;
-    const volume = 1000000 + Math.random() * 500000;
+    const open = price + (random() - 0.5) * dailyRange * 0.5;
+    const close = price + (random() - 0.5) * dailyRange * 0.5;
+    const high = Math.max(open, close) + random() * dailyRange * 0.5;
+    const low = Math.min(open, close) - random() * dailyRange * 0.5;
+    const volume = 1000000 + random() * 500000;
 
     candles.push({
       time: baseTime + i * 24 * 60 * 60 * 1000,
@@ -87,9 +92,13 @@ describe("Volatility Regime", () => {
     });
 
     it("should detect low volatility regime", () => {
-      // Generate data with decreasing volatility at the end
+      // Generate data with decreasing volatility at the end. As in the
+      // high-volatility test below, the tail is kept shorter than the 50-bar
+      // lookback window so the window straddles the shift; a 50-bar tail read
+      // "normal" for a third of the generator seeds, 20 bars read "low" for
+      // 199 of 200.
       const normalVolatility = generateTestCandles(100, { volatilityMultiplier: 1 });
-      const lowVolatility = generateTestCandles(50, {
+      const lowVolatility = generateTestCandles(20, {
         volatilityMultiplier: 0.3,
         basePrice: normalVolatility[normalVolatility.length - 1].close,
       });
@@ -103,16 +112,18 @@ describe("Volatility Regime", () => {
       const candles = [...normalVolatility, ...lowVolatility];
       const result = volatilityRegime(candles, { lookbackPeriod: 50 });
 
-      // The last few values should tend toward low volatility
       const lastValue = result[result.length - 1].value;
-      // Either low or at least not high/extreme
-      expect(["low", "normal"]).toContain(lastValue.regime);
+      expect(lastValue.regime).toBe("low");
     });
 
     it("should detect high volatility regime", () => {
-      // Generate data with increasing volatility at the end
+      // Generate data with increasing volatility at the end. The high-volatility
+      // tail must be shorter than the lookback window: the regime is a percentile
+      // within that window, so a window filled entirely with high-volatility bars
+      // reads "normal" (or even "low") relative to itself. 20 bars in a 50-bar
+      // window read high/extreme for every one of 500 generator seeds.
       const normalVolatility = generateTestCandles(100, { volatilityMultiplier: 0.5 });
-      const highVolatility = generateTestCandles(50, {
+      const highVolatility = generateTestCandles(20, {
         volatilityMultiplier: 3,
         basePrice: normalVolatility[normalVolatility.length - 1].close,
       });
@@ -126,10 +137,8 @@ describe("Volatility Regime", () => {
       const candles = [...normalVolatility, ...highVolatility];
       const result = volatilityRegime(candles, { lookbackPeriod: 50 });
 
-      // The last few values should tend toward high volatility
       const lastValue = result[result.length - 1].value;
-      // Either high, extreme, or at least not low
-      expect(["high", "extreme", "normal"]).toContain(lastValue.regime);
+      expect(["high", "extreme"]).toContain(lastValue.regime);
     });
 
     it("should use custom thresholds", () => {

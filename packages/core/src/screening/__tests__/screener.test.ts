@@ -1,6 +1,7 @@
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { and, goldenCross, rsiBelow } from "../../backtest/conditions";
+import { mulberry32 } from "../../core/random";
 import type { NormalizedCandle } from "../../types";
 import { getCsvFiles } from "../csv-loader";
 import { parseCsv } from "../csv-parser";
@@ -19,6 +20,8 @@ function generateMockCandles(
   options: { trend?: "up" | "down" | "flat" } = {},
 ): NormalizedCandle[] {
   const { trend = "flat" } = options;
+  // Seeded so the fixture is the same on every run: an unseeded draw made assertions on the generated data flaky.
+  const random = mulberry32(count + { up: 1, down: 2, flat: 3 }[trend]);
   const candles: NormalizedCandle[] = [];
   let price = 1000;
 
@@ -28,18 +31,18 @@ function generateMockCandles(
 
     // Apply trend
     if (trend === "up") {
-      price *= 1 + Math.random() * 0.02;
+      price *= 1 + random() * 0.02;
     } else if (trend === "down") {
-      price *= 1 - Math.random() * 0.02;
+      price *= 1 - random() * 0.02;
     } else {
-      price *= 1 + (Math.random() - 0.5) * 0.02;
+      price *= 1 + (random() - 0.5) * 0.02;
     }
 
     const volatility = price * 0.02;
-    const open = price + (Math.random() - 0.5) * volatility;
-    const close = price + (Math.random() - 0.5) * volatility;
-    const high = Math.max(open, close) + Math.random() * volatility;
-    const low = Math.min(open, close) - Math.random() * volatility;
+    const open = price + (random() - 0.5) * volatility;
+    const close = price + (random() - 0.5) * volatility;
+    const high = Math.max(open, close) + random() * volatility;
+    const low = Math.min(open, close) - random() * volatility;
 
     candles.push({
       time: date.getTime(),
@@ -47,7 +50,7 @@ function generateMockCandles(
       high,
       low,
       close,
-      volume: Math.floor(1000000 + Math.random() * 500000),
+      volume: Math.floor(1000000 + random() * 500000),
     });
   }
 

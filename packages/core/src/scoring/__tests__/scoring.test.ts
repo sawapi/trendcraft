@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { runBacktest } from "../../backtest/engine";
+import { mulberry32 } from "../../core/random";
 import type {
   NormalizedCandle,
   PresetCondition,
@@ -50,6 +51,8 @@ function createTestCandles(
   } = {},
 ): NormalizedCandle[] {
   const { startPrice = 100, trend = "sideways", volatility = 1, baseVolume = 1000000 } = options;
+  // Seeded so the fixture is the same on every run: an unseeded draw made assertions on the generated data flaky.
+  const random = mulberry32(count + startPrice + Math.round(volatility * 100));
 
   const candles: NormalizedCandle[] = [];
   let price = startPrice;
@@ -78,7 +81,7 @@ function createTestCandles(
       high,
       low,
       close,
-      volume: baseVolume * (0.8 + Math.random() * 0.4),
+      volume: baseVolume * (0.8 + random() * 0.4),
     });
   }
 

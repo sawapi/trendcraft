@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { normalizeCandles } from "../../core/normalize";
+import { mulberry32 } from "../../core/random";
 import type { Candle } from "../../types";
 import { detectMarketRegime } from "../market-regime";
 
@@ -15,6 +16,8 @@ function generateCandles(
   } = {},
 ): Candle[] {
   const { startPrice = 100, trendSlope = 0, volatility = 1 } = options;
+  // Seeded so the fixture is the same on every run: an unseeded draw made assertions on the generated data flaky.
+  const random = mulberry32(count + Math.round((trendSlope + volatility) * 1000));
   const candles: Candle[] = [];
   let price = startPrice;
 
@@ -28,7 +31,7 @@ function generateCandles(
       high,
       low,
       close: price,
-      volume: 1000 + Math.floor(Math.random() * 500),
+      volume: 1000 + Math.floor(random() * 500),
     });
   }
 

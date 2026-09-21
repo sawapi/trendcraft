@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { mulberry32 } from "../../core/random";
 import type { NormalizedCandle } from "../../types";
 import { aroon } from "../momentum/aroon";
 
@@ -106,10 +107,12 @@ describe("aroon", () => {
   });
 
   it("should keep values in range [0, 100] for up and down", () => {
+    // Seeded so the fixture is the same on every run: an unseeded draw made assertions on the generated data flaky.
+    const random = mulberry32(1);
     const candles = makeCandles(
       Array.from({ length: 50 }, (_, _i) => ({
-        high: 100 + Math.random() * 20,
-        low: 80 + Math.random() * 10,
+        high: 100 + random() * 20,
+        low: 80 + random() * 10,
       })),
     );
 
@@ -125,10 +128,12 @@ describe("aroon", () => {
   });
 
   it("should keep oscillator in range [-100, 100]", () => {
+    // Seeded so the fixture is the same on every run: an unseeded draw made assertions on the generated data flaky.
+    const random = mulberry32(2);
     const candles = makeCandles(
       Array.from({ length: 50 }, (_, _i) => ({
-        high: 100 + Math.random() * 20,
-        low: 80 + Math.random() * 10,
+        high: 100 + random() * 20,
+        low: 80 + random() * 10,
       })),
     );
 

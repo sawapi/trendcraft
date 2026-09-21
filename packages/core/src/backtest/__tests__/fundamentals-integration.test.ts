@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { mulberry32 } from "../../core/random";
 import type { FundamentalMetrics, NormalizedCandle } from "../../types";
 import { and, or } from "../conditions/core";
 import { pbrBelow, perAbove, perBelow } from "../conditions/fundamentals";
@@ -9,6 +10,8 @@ import { runBacktest } from "../engine";
  * Generate test candles with trending data
  */
 function generateTrendingCandles(count: number, startPrice = 100): NormalizedCandle[] {
+  // Seeded so the fixture is the same on every run: an unseeded draw made assertions on the generated data flaky.
+  const random = mulberry32(count + startPrice);
   const candles: NormalizedCandle[] = [];
   const baseTime = new Date("2024-01-01T00:00:00Z").getTime();
   const dayMs = 24 * 60 * 60 * 1000;
@@ -26,7 +29,7 @@ function generateTrendingCandles(count: number, startPrice = 100): NormalizedCan
       high: price + 1,
       low: price - change - 0.5,
       close: price,
-      volume: 1000000 + Math.random() * 500000,
+      volume: 1000000 + random() * 500000,
     });
   }
 

@@ -11,6 +11,7 @@
  */
 
 import { describe, expect, it } from "vitest";
+import { mulberry32 } from "../../../core/random";
 import type { NormalizedCandle } from "../../../types";
 import { detectChannel } from "../channel";
 import { cupWithHandle } from "../cup-handle";
@@ -1144,6 +1145,8 @@ function buildDoubleBottomNoBrk(): number[] {
 // --- Channel generators ---
 
 function makeAscendingChannel(len: number): NormalizedCandle[] {
+  // Seeded so the fixture is the same on every run: an unseeded draw made assertions on the generated data flaky.
+  const random = mulberry32(len + 11);
   const candles: NormalizedCandle[] = [];
   for (let i = 0; i < len; i++) {
     const trend = i * 0.5;
@@ -1155,7 +1158,7 @@ function makeAscendingChannel(len: number): NormalizedCandle[] {
       high: price + 1.5,
       low: price - 1.5,
       close: price,
-      volume: 1000 + Math.random() * 200,
+      volume: 1000 + random() * 200,
     });
   }
   return candles;
@@ -1217,6 +1220,8 @@ function makeSymmetricalTriangle(len: number): NormalizedCandle[] {
 }
 
 function makeAscendingTriangle(len: number): NormalizedCandle[] {
+  // Seeded so the fixture is the same on every run: an unseeded draw made assertions on the generated data flaky.
+  const random = mulberry32(len + 12);
   const candles: NormalizedCandle[] = [];
   for (let i = 0; i < len; i++) {
     const risingBottom = i * 0.15;
@@ -1226,7 +1231,7 @@ function makeAscendingTriangle(len: number): NormalizedCandle[] {
     candles.push({
       time: 1_000_000_000 + i * DAY,
       open: price - 0.3,
-      high: 105 + Math.random() * 0.2,
+      high: 105 + random() * 0.2,
       low,
       close: price,
       volume: 1000 - i * 8,
@@ -1236,6 +1241,8 @@ function makeAscendingTriangle(len: number): NormalizedCandle[] {
 }
 
 function makeDescendingTriangle(len: number): NormalizedCandle[] {
+  // Seeded so the fixture is the same on every run: an unseeded draw made assertions on the generated data flaky.
+  const random = mulberry32(len + 13);
   const candles: NormalizedCandle[] = [];
   for (let i = 0; i < len; i++) {
     const fallingTop = -i * 0.15;
@@ -1245,7 +1252,7 @@ function makeDescendingTriangle(len: number): NormalizedCandle[] {
       time: 1_000_000_000 + i * DAY,
       open: price + 0.3,
       high: price + Math.abs(cycle) * 0.5,
-      low: 95 - Math.random() * 0.2,
+      low: 95 - random() * 0.2,
       close: price,
       volume: 1000 - i * 8,
     });
