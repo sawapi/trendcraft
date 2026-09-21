@@ -103,6 +103,7 @@ export const VOLUME_MANIFESTS: IndicatorManifest[] = [
     signals: [
       "MFI < 20 = oversold with volume confirmation",
       "MFI > 80 = overbought with volume confirmation",
+      "MFI = 50 with no money flow either way (flat typical price or zero volume, e.g. a halted symbol) — neutral, not a signal",
       "Bullish divergence (price LL, MFI HL) — stronger than plain RSI divergence due to volume weighting",
     ],
     pitfalls: [

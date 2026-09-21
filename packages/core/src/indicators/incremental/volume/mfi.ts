@@ -9,6 +9,7 @@
  * 3. Positive MF = sum over period where TP > prev TP
  * 4. Negative MF = sum over period where TP < prev TP
  * 5. MFI = 100 - 100 / (1 + Positive MF / Negative MF)
+ *    (no flow on either side reads 50; only positive 100; only negative 0)
  *
  * Uses CircularBuffer to store money flow direction/amount for the lookback window.
  *
@@ -128,25 +129,29 @@ export function createMfi(
     }
     prevTp = tp;
 
-    // Update sums: evict oldest if buffer is full
-    if (flowBuffer.isFull) {
-      const evicted = flowBuffer.oldest();
-      if (evicted > 0) positiveSum -= evicted;
-      else if (evicted < 0) negativeSum -= -evicted;
-    }
-
-    // Add new flow
-    if (signedFlow > 0) positiveSum += signedFlow;
-    else if (signedFlow < 0) negativeSum += -signedFlow;
-
     flowBuffer.push(signedFlow);
+
+    // Rebuild both sums from the window, oldest first — the same terms in the
+    // same order as the batch `mfi`, so the two agree bit for bit. A running
+    // sum with eviction leaves floating-point residue behind once the flows
+    // that produced it are gone, and a residue of 1e-14 is enough to turn a
+    // window with no flow at all into a 100 or 0 reading.
+    positiveSum = 0;
+    negativeSum = 0;
+    for (let i = 0; i < flowBuffer.length; i++) {
+      const flow = flowBuffer.get(i);
+      if (flow > 0) positiveSum += flow;
+      else if (flow < 0) negativeSum -= flow;
+    }
 
     // Need period + 1 candles (period for sums + 1 for first TP comparison)
     if (count <= period) {
       return null;
     }
 
-    // Compute MFI
+    // Compute MFI. Both sums zero (flat typical price or zero volume) reads
+    // neutral, matching the batch `mfi` and this library's RSI.
+    if (positiveSum === 0 && negativeSum === 0) return 50;
     if (negativeSum === 0) return 100;
     if (positiveSum === 0) return 0;
     const ratio = positiveSum / negativeSum;

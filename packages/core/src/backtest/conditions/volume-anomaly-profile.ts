@@ -8,7 +8,29 @@
 
 import { volumeAnomaly as calcVolumeAnomaly } from "../../indicators/volume/volume-anomaly";
 import { volumeProfileSeries } from "../../indicators/volume/volume-profile";
-import type { PresetCondition, VolumeAnomalyValue, VolumeProfileValue } from "../../types";
+
+/**
+ * A window without any traded volume has no point of control or value area
+ * to speak of — the profile reads as uniform (see `volumeProfile`), so every
+ * close would sit "inside the value area". None of the conditions below fire
+ * on such a window. Decided from the candles' own volume over the same window
+ * `volumeProfileSeries` uses for `index` (the last `period` bars), not from
+ * the volume allotted to the price bins — a bar can carry volume that lands
+ * in no bin, and that must not read as "no volume".
+ */
+function windowHasVolume(candles: NormalizedCandle[], index: number, period: number): boolean {
+  for (let i = Math.max(0, index - period + 1); i <= index; i++) {
+    if (candles[i].volume > 0) return true;
+  }
+  return false;
+}
+
+import type {
+  NormalizedCandle,
+  PresetCondition,
+  VolumeAnomalyValue,
+  VolumeProfileValue,
+} from "../../types";
 
 // ============================================
 // Volume Anomaly Conditions
@@ -141,7 +163,7 @@ export function nearPoc(tolerance = 0.02, profilePeriod = 20): PresetCondition {
       }
 
       const profile = profileData[index]?.value;
-      if (!profile || profile.poc === 0) return false;
+      if (!profile || !windowHasVolume(candles, index, profilePeriod)) return false;
 
       const distance = Math.abs(candle.close - profile.poc) / profile.poc;
       return distance <= tolerance;
@@ -171,7 +193,7 @@ export function inValueArea(profilePeriod = 20): PresetCondition {
       }
 
       const profile = profileData[index]?.value;
-      if (!profile) return false;
+      if (!profile || !windowHasVolume(candles, index, profilePeriod)) return false;
 
       return candle.close >= profile.val && candle.close <= profile.vah;
     },
@@ -203,7 +225,14 @@ export function breakoutVah(profilePeriod = 20): PresetCondition {
 
       const profile = profileData[index]?.value;
       const prevProfile = profileData[index - 1]?.value;
-      if (!profile || !prevProfile) return false;
+      if (
+        !profile ||
+        !prevProfile ||
+        !windowHasVolume(candles, index, profilePeriod) ||
+        !windowHasVolume(candles, index - 1, profilePeriod)
+      ) {
+        return false;
+      }
 
       // Previous close was at or below VAH, current close is above
       return candles[index - 1].close <= prevProfile.vah && candle.close > profile.vah;
@@ -236,7 +265,14 @@ export function breakdownVal(profilePeriod = 20): PresetCondition {
 
       const profile = profileData[index]?.value;
       const prevProfile = profileData[index - 1]?.value;
-      if (!profile || !prevProfile) return false;
+      if (
+        !profile ||
+        !prevProfile ||
+        !windowHasVolume(candles, index, profilePeriod) ||
+        !windowHasVolume(candles, index - 1, profilePeriod)
+      ) {
+        return false;
+      }
 
       // Previous close was at or above VAL, current close is below
       return candles[index - 1].close >= prevProfile.val && candle.close < profile.val;
@@ -266,7 +302,7 @@ export function priceAbovePoc(profilePeriod = 20): PresetCondition {
       }
 
       const profile = profileData[index]?.value;
-      if (!profile || profile.poc === 0) return false;
+      if (!profile || !windowHasVolume(candles, index, profilePeriod)) return false;
 
       return candle.close > profile.poc;
     },
@@ -295,7 +331,7 @@ export function priceBelowPoc(profilePeriod = 20): PresetCondition {
       }
 
       const profile = profileData[index]?.value;
-      if (!profile || profile.poc === 0) return false;
+      if (!profile || !windowHasVolume(candles, index, profilePeriod)) return false;
 
       return candle.close < profile.poc;
     },

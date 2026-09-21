@@ -157,6 +157,8 @@ function toBaumWelchOptions(options?: HmmRegimeOptions): HmmOptions {
  */
 export function hmmRegimes(candles: Candle[], options?: HmmRegimeOptions): Series<HmmRegimeValue> {
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  // Library convention: an empty input yields an empty series, never a throw.
+  if (normalized.length === 0) return tagSeries([], HMM_REGIME_META);
   const features = extractFeatures(normalized, options?.featureOptions);
   const model = baumWelch(features, toBaumWelchOptions(options));
 
@@ -200,6 +202,8 @@ export function hmmRegimes(candles: Candle[], options?: HmmRegimeOptions): Serie
  */
 export function fitHmm(candles: Candle[], options?: HmmRegimeOptions): HmmModel {
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  // A model cannot be fitted to nothing; there is no empty-model value to return.
+  if (normalized.length === 0) throw new Error("fitHmm: candles must not be empty");
   const features = extractFeatures(normalized, options?.featureOptions);
   return baumWelch(features, toBaumWelchOptions(options));
 }

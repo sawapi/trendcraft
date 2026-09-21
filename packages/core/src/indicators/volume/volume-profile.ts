@@ -59,10 +59,7 @@ export function volumeProfile(
   options: VolumeProfileOptions = {},
 ): VolumeProfileValue {
   const { levels = 24, valueAreaPercent = 0.7, period } = options;
-
-  if (levels < 2) {
-    throw new Error("Volume profile must have at least 2 levels");
-  }
+  assertLevels(levels);
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
 
@@ -159,17 +156,13 @@ export function volumeProfile(
     }
   }
 
-  // Find POC (Point of Control) - level with highest volume
-  let maxVolumeLevel = volumeLevels[0];
-  for (const level of volumeLevels) {
-    if (level.volume > maxVolumeLevel.volume) {
-      maxVolumeLevel = level;
-    }
-  }
-  const poc = maxVolumeLevel.priceMid;
-
-  // Calculate Value Area (70% of volume centered around POC)
-  const { vah, val } = calculateValueArea(volumeLevels, valueAreaPercent, totalVolume);
+  const { poc, vah, val } = summarizeLevels(
+    volumeLevels,
+    totalVolume,
+    valueAreaPercent,
+    periodLow,
+    periodHigh,
+  );
 
   return {
     levels: volumeLevels,
@@ -204,6 +197,7 @@ export function volumeProfileSeries(
   options: VolumeProfileOptions = {},
 ): Series<VolumeProfileValue | null> {
   const { period = 20, levels = 24, valueAreaPercent = 0.7 } = options;
+  assertLevels(levels);
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
   const len = normalized.length;
@@ -337,19 +331,17 @@ function computeProfileWindow(
     }
   }
 
-  // Find POC
-  let maxVolumeLevel = volumeLevels[0];
-  for (let i = 1; i < levels; i++) {
-    if (volumeLevels[i].volume > maxVolumeLevel.volume) {
-      maxVolumeLevel = volumeLevels[i];
-    }
-  }
-
-  const { vah, val } = calculateValueArea(volumeLevels, valueAreaPercent, totalVolume);
+  const { poc, vah, val } = summarizeLevels(
+    volumeLevels,
+    totalVolume,
+    valueAreaPercent,
+    periodLow,
+    periodHigh,
+  );
 
   return {
     levels: volumeLevels,
-    poc: maxVolumeLevel.priceMid,
+    poc,
     vah,
     val,
     periodHigh,
@@ -357,30 +349,41 @@ function computeProfileWindow(
   };
 }
 
+/** Both entry points require an integer number of price levels, at least 2 (one owner for the rule). */
+function assertLevels(levels: number): void {
+  if (!Number.isInteger(levels) || levels < 2) {
+    throw new Error("Volume profile must have at least 2 levels (integer)");
+  }
+}
+
 /**
- * Calculate Value Area High and Low
- * Value Area contains a specified percentage of total volume centered around POC
+ * Point of Control and Value Area for a set of price levels — the one place
+ * both the single profile and the rolling series derive them from.
+ *
+ * With no volume in the window there is no POC to speak of: the levels are
+ * read as uniformly traded, so the value area spans the whole window and the
+ * POC sits at its midpoint. That keeps `val <= poc <= vah` within
+ * `[periodLow, periodHigh]` — the invariant callers rely on when they
+ * classify a price as above / inside / below the value area.
  */
-function calculateValueArea(
+function summarizeLevels(
   levels: VolumePriceLevel[],
-  valueAreaPercent: number,
   totalVolume: number,
-): { vah: number; val: number } {
-  if (levels.length === 0 || totalVolume === 0) {
-    return { vah: 0, val: 0 };
+  valueAreaPercent: number,
+  periodLow: number,
+  periodHigh: number,
+): { poc: number; vah: number; val: number } {
+  if (totalVolume === 0) {
+    return { poc: (periodLow + periodHigh) / 2, vah: periodHigh, val: periodLow };
   }
 
-  // Find POC index
+  // POC: the level with the most volume (first one wins a tie)
   let pocIndex = 0;
-  let maxVolume = levels[0].volume;
   for (let i = 1; i < levels.length; i++) {
-    if (levels[i].volume > maxVolume) {
-      maxVolume = levels[i].volume;
-      pocIndex = i;
-    }
+    if (levels[i].volume > levels[pocIndex].volume) pocIndex = i;
   }
 
-  // Start with POC and expand outward
+  // Value area: start with POC and expand outward
   let areaVolume = levels[pocIndex].volume;
   let lowIndex = pocIndex;
   let highIndex = pocIndex;
@@ -405,6 +408,7 @@ function calculateValueArea(
   }
 
   return {
+    poc: levels[pocIndex].priceMid,
     val: levels[lowIndex].priceLow,
     vah: levels[highIndex].priceHigh,
   };
