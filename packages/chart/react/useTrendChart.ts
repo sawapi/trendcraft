@@ -184,8 +184,7 @@ export function useTrendChart(opts: UseTrendChartOptions): UseTrendChartResult {
 
   // Options — forward only the fields that changed since the chart consumed
   // them (at creation, or on the previous change). Replaying the whole object
-  // would re-dispatch every setter and warn for creation-only fields such as
-  // `locale` that the consumer never changed.
+  // would re-dispatch every setter and redraw on every render.
   useEffect(() => {
     if (!chart) return;
     const changed = optionsTracker.current?.diff(options);

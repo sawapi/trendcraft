@@ -17,7 +17,7 @@ export function attachWheelHandlers(
   ctx: InteractionContext,
   inertia: InertiaController,
 ): () => void {
-  const { el, timeScale, sens, wheelInertiaEnabled } = ctx;
+  const { el, timeScale } = ctx;
 
   const onWheel = (e: WheelEvent) => {
     e.preventDefault();
@@ -67,7 +67,7 @@ export function attachWheelHandlers(
       if (ctx.wheel.viewportMutated) {
         // Hand residual wheel velocity to the pan-inertia loop. Falls back
         // to bounce-back when overscrolled but not actively flicking.
-        const flick = wheelInertiaEnabled && Math.abs(ctx.wheel.panVelocity) > 3;
+        const flick = ctx.settings.wheelInertiaEnabled && Math.abs(ctx.wheel.panVelocity) > 3;
         if (flick || Math.abs(timeScale.overscroll) > 0.1) {
           inertia.stopPan();
           ctx.pan.velocity = flick ? ctx.wheel.panVelocity : 0;
@@ -97,7 +97,7 @@ export function attachWheelHandlers(
         const dt = now - ctx.wheel.lastPanTime;
         // pan.velocity convention: positive = reveal past (content moves right),
         // so invert deltaX which is positive when scrolling forward in time.
-        const sample = dt > 0 && dt < 100 ? (-e.deltaX / dt) * 16 * sens : 0;
+        const sample = dt > 0 && dt < 100 ? (-e.deltaX / dt) * 16 * ctx.settings.sens : 0;
         if (dt > 0 && dt < 100) {
           ctx.wheel.panVelocity = ctx.wheel.panVelocity * 0.5 + sample * 0.5;
         } else {
@@ -120,7 +120,7 @@ export function attachWheelHandlers(
     } else {
       // Zoom: proportional to deltaY magnitude for smooth trackpad support
       const clampedDelta = Math.max(-50, Math.min(50, e.deltaY));
-      const zoomDelta = e.ctrlKey ? clampedDelta * 0.01 : (clampedDelta / 500) * sens;
+      const zoomDelta = e.ctrlKey ? clampedDelta * 0.01 : (clampedDelta / 500) * ctx.settings.sens;
       const factor = 1 - zoomDelta;
 
       const rect = el.getBoundingClientRect();
@@ -154,7 +154,7 @@ export function attachWheelHandlers(
       // event (zoom cap): arming inertia with velocity that cannot act now
       // would leave a loop idling until something ELSE moves the spacing
       // off the cap, then fire the stale velocity into it.
-      if (wheelInertiaEnabled && eventChanged) {
+      if (ctx.settings.wheelInertiaEnabled && eventChanged) {
         inertia.startZoom();
       }
     }

@@ -113,11 +113,12 @@ describe("applyOptions", () => {
     const errors: Array<{ message: string; detail: unknown }> = [];
     chart.on("error", (d) => errors.push(d as { message: string; detail: unknown }));
 
-    chart.applyOptions({ pixelRatio: 2, scrollSensitivity: 0.5 });
+    chart.applyOptions({ pixelRatio: 2, formatInfoOverlay: () => "x", scrollSensitivity: 0.5 });
 
+    // scrollSensitivity is applied at runtime now, so it is not in the list
     expect(errors).toHaveLength(1);
-    expect(errors[0]?.message).toContain("pixelRatio");
-    expect(errors[0]?.message).toContain("scrollSensitivity");
+    expect(errors[0]?.message).toContain("[pixelRatio, formatInfoOverlay]");
+    expect(errors[0]?.message).not.toContain("scrollSensitivity");
     chart.destroy();
   });
 

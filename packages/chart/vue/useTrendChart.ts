@@ -183,8 +183,8 @@ export function useTrendChart(opts: UseTrendChartOptions): UseTrendChartResult {
 
   // Reactive bindings — only fire after mount because `chart.value` is null until then.
   // Options are forwarded as a diff against what the chart last consumed:
-  // replaying the whole object would re-dispatch every setter and warn for
-  // creation-only fields such as `locale` that the consumer never changed.
+  // replaying the whole object would re-dispatch every setter and redraw on
+  // every change.
   watch(
     () => toValue(opts.options),
     (val) => {

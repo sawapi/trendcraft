@@ -16,6 +16,7 @@ import { attachTouchHandlers } from "./interaction/touch-handler";
 import type {
   DragState,
   InteractionContext,
+  InteractionSettings,
   PaneResizeState,
   PanInertiaState,
   ScrollbarRect,
@@ -31,13 +32,36 @@ import type { HotkeyAction, PaneRect } from "./types";
 
 export type { ScrollbarRect, ViewportState } from "./interaction/types";
 
-export type ViewportAttachOptions = {
-  /** Enable long-press crosshair lock on touch devices (default: true) */
+/**
+ * Runtime-updatable interaction settings — see {@link Viewport.setInteractionOptions}.
+ * Defaults (0.3 / true / true / built-in map) are owned by the viewport; an
+ * `undefined` field leaves the current value alone.
+ */
+export type InteractionOptionsUpdate = {
+  /** Scroll/pan sensitivity multiplier (clamped to a minimum of 0.1). */
+  scrollSensitivity?: number;
+  /** Long-press crosshair lock on touch devices. */
   lockOnLongPress?: boolean;
-  /** Enable wheel pan inertia (default: true) */
+  /** Inertia tail after a wheel/trackpad gesture (pan and zoom). */
   wheelInertia?: boolean;
-  /** Hotkey map override; pass `false` to disable keyboard shortcuts entirely. */
+  /** Custom bindings, or `false` to disable every keyboard binding. */
   hotkeys?: HotkeyMap | false;
+};
+
+/**
+ * Options for {@link Viewport.attach}: the interaction settings (initial values
+ * for what `setInteractionOptions` can later change) plus the host callbacks.
+ */
+/** Interaction defaults — the single owner of 0.3 / true / true / built-in map. */
+export const DEFAULT_INTERACTION_SETTINGS: Readonly<InteractionSettings> = {
+  sens: 0.3,
+  longPressEnabled: true,
+  wheelInertiaEnabled: true,
+  hotkeyMap: undefined,
+  hotkeyDisabled: false,
+};
+
+export type ViewportAttachOptions = Omit<InteractionOptionsUpdate, "scrollSensitivity"> & {
   /** Called when a hotkey fires (drawing tool, 'cancel', 'toggleOverlays'). */
   onAction?: (action: HotkeyAction) => void;
   /**
@@ -166,7 +190,47 @@ export class Viewport {
     this._state.crosshairIndex = index;
   }
 
-  /** Attach DOM event listeners to the canvas container. */
+  /**
+   * Interaction settings shared by reference with the attached handlers, so
+   * an update here is seen by the next event. `attach()` starts from
+   * {@link DEFAULT_INTERACTION_SETTINGS} and applies its arguments through
+   * `setInteractionOptions()`, the one place that clamps and maps values.
+   */
+  private readonly _settings: InteractionSettings = { ...DEFAULT_INTERACTION_SETTINGS };
+
+  /**
+   * Update interaction settings at runtime. Only the provided fields change:
+   * `undefined` (or `null` from an untyped caller) leaves a field alone, and a
+   * non-finite `scrollSensitivity` is ignored. Handlers read the settings per
+   * event, so a change applies from the next gesture on; an inertia tail that
+   * is already running is not interrupted.
+   *
+   * @example
+   * ```ts
+   * import { Viewport } from "@trendcraft/chart/headless";
+   *
+   * const viewport = new Viewport();
+   * viewport.setInteractionOptions({ hotkeys: false }); // host takes over the keyboard
+   * viewport.setInteractionOptions({ scrollSensitivity: 1 });
+   * ```
+   */
+  setInteractionOptions(update: InteractionOptionsUpdate): void {
+    const s = this._settings;
+    const { scrollSensitivity, lockOnLongPress, wheelInertia, hotkeys } = update;
+    if (Number.isFinite(scrollSensitivity)) s.sens = Math.max(0.1, scrollSensitivity as number);
+    if (lockOnLongPress != null) s.longPressEnabled = lockOnLongPress;
+    if (wheelInertia != null) s.wheelInertiaEnabled = wheelInertia;
+    if (hotkeys != null) {
+      s.hotkeyDisabled = hotkeys === false;
+      s.hotkeyMap = hotkeys === false ? undefined : hotkeys;
+    }
+  }
+
+  /**
+   * Attach DOM event listeners to the canvas container. Interaction settings
+   * start from the defaults on every attach; the arguments override them and
+   * `setInteractionOptions()` changes them later.
+   */
   attach(
     el: HTMLElement,
     timeScale: TimeScale,
@@ -174,14 +238,20 @@ export class Viewport {
     scrollbar: () => ScrollbarRect | null,
     gapAtY?: (y: number) => number | null,
     resizePanes?: (gapIndex: number, deltaY: number) => void,
-    scrollSensitivity = 0.3,
+    scrollSensitivity?: number,
     opts?: ViewportAttachOptions,
   ): () => void {
     // Make focusable for keyboard events
     el.tabIndex = 0;
     el.style.outline = "none";
 
-    const hotkeyMap = opts?.hotkeys;
+    Object.assign(this._settings, DEFAULT_INTERACTION_SETTINGS);
+    this.setInteractionOptions({
+      scrollSensitivity,
+      lockOnLongPress: opts?.lockOnLongPress,
+      wheelInertia: opts?.wheelInertia,
+      hotkeys: opts?.hotkeys,
+    });
     const ctx: InteractionContext = {
       el,
       timeScale,
@@ -189,11 +259,7 @@ export class Viewport {
       scrollbar,
       gapAtY,
       resizePanes,
-      sens: Math.max(0.1, scrollSensitivity),
-      longPressEnabled: opts?.lockOnLongPress ?? true,
-      wheelInertiaEnabled: opts?.wheelInertia ?? true,
-      hotkeyMap: hotkeyMap === false ? undefined : hotkeyMap,
-      hotkeyDisabled: hotkeyMap === false,
+      settings: this._settings,
       dispatch: opts?.onAction,
       onUpdate: () => this._onUpdate?.(),
       onViewportMutation: () => {

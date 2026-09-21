@@ -11,7 +11,7 @@ export function attachTouchHandlers(
   ctx: InteractionContext,
   inertia: InertiaController,
 ): () => void {
-  const { el, timeScale, scrollbar, sens, longPressEnabled } = ctx;
+  const { el, timeScale, scrollbar } = ctx;
 
   const onTouchStart = (e: TouchEvent) => {
     inertia.stopPan();
@@ -53,7 +53,8 @@ export function attachTouchHandlers(
       ctx.touch.lastTapTime = drawingActive ? 0 : now;
 
       // Long-press detection (disabled when option is off, or while drawing).
-      if (longPressEnabled && !drawingActive) {
+      // Read per event: `crosshair.lockOnLongPress` can change via applyOptions.
+      if (ctx.settings.longPressEnabled && !drawingActive) {
         ctx.touch.longPressTimer = setTimeout(() => {
           ctx.touch.longPressCrosshairLocked = true;
           const r = el.getBoundingClientRect();
@@ -115,7 +116,7 @@ export function attachTouchHandlers(
 
       const dt = now - ctx.pan.lastTouchMoveTime;
       if (dt > 0) {
-        ctx.pan.velocity = ((currentX - ctx.pan.lastTouchX) / dt) * 16 * sens;
+        ctx.pan.velocity = ((currentX - ctx.pan.lastTouchX) / dt) * 16 * ctx.settings.sens;
       }
       ctx.pan.lastTouchX = currentX;
       ctx.pan.lastTouchMoveTime = now;
