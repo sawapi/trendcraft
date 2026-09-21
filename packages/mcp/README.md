@@ -18,6 +18,7 @@ The package ships a stdio binary, `trendcraft-mcp`.
 
 Add the server to your MCP client config. For Claude Desktop, edit `claude_desktop_config.json`:
 
+<!-- doctest-example-skip: MCP client configuration, not a tool payload -->
 ```json
 {
   "mcpServers": {
