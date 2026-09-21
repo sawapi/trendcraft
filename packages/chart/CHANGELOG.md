@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — `applyOptions` now applies `hotkeys`, `interaction.wheelInertia`, `crosshair.lockOnLongPress` and `scrollSensitivity`
+
+These four were read once, at construction, into the viewport's interaction
+handlers. Passing them to `applyOptions` later did nothing and emitted no
+warning — `hotkeys` and `interaction` were documented as silently ignored,
+`scrollSensitivity` warned, and `crosshair.lockOnLongPress` was accepted and
+stored while its two siblings (`mode`, `snapThreshold`) took effect, so a
+crosshair block was applied only in part. After
+`applyOptions({ hotkeys: false })` the chart kept handling Alt+letter
+shortcuts and swallowing Escape; after
+`applyOptions({ crosshair: { lockOnLongPress: false } })` a 500 ms touch-hold
+still locked the crosshair.
+
+The interaction handlers now read these settings per event, so a change
+applies from the next gesture on (a wheel-inertia tail that is already running
+is not interrupted). `scrollSensitivity` is no longer creation-only; a finite
+value applies (clamped to a minimum of 0.1 as before) and a non-finite one is
+ignored with a warning. The headless `Viewport` gains `setInteractionOptions()`
+for the same purpose; `attach()` keeps starting from the defaults and applying
+its own arguments, as before.
+
+### Fixed — creation-only options warn only when the value actually changes
+
+`applyOptions({ pixelRatio, locale, formatInfoOverlay })` warned whenever one of
+those keys was *present*, even with the exact value the chart was created
+with, so replaying an options object from a settings panel logged
+"cannot be changed at runtime" on every call. The three fields are now
+compared against the value in effect (`locale` field-by-field, structurally;
+`formatInfoOverlay` by identity; `pixelRatio` against the pinned creation
+value — pinning a chart that follows `devicePixelRatio` still warns) and only a
+different value warns, naming just the fields that differ.
+
+Bundle-size limits ratcheted for the runtime interaction settings: Main
+42.5 → 43 kB, Headless 11.9 → 12 kB, React wrapper 34 → 34.5 kB.
+
 ### Breaking — React/Vue wrapper event callbacks are typed as the chart's own payloads
 
 `onError` was declared as `(data: { source: string; error: unknown }) => void`

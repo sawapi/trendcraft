@@ -128,9 +128,13 @@ export type ChartInstance = {
    *
    * Accepts the same shape as `createChart`'s options, but applies only the
    * provided fields. Use this from reactive wrappers to propagate option
-   * changes after chart creation. Fields that cannot be changed at runtime
-   * (e.g. `pixelRatio`, `scrollSensitivity`, `locale`, `formatInfoOverlay`)
-   * emit a warning via the `error` event and are ignored.
+   * changes after chart creation. The creation-only fields (`pixelRatio`,
+   * `locale`, `formatInfoOverlay`) are compared against the value in
+   * effect: a different value emits a warning via the `error` event and is
+   * ignored, the same value (for `formatInfoOverlay`, the same function
+   * identity) is silent. Interaction options (`hotkeys`,
+   * `interaction.wheelInertia`, `crosshair.lockOnLongPress`,
+   * `scrollSensitivity`) apply from the next gesture on.
    */
   applyOptions(options: Partial<ChartOptions>): void;
 

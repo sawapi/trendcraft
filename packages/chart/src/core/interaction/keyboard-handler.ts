@@ -16,15 +16,16 @@ export function attachKeyboardHandlers(
   ctx: InteractionContext,
   inertia: InertiaController,
 ): () => void {
-  const { el, timeScale, hotkeyMap, hotkeyDisabled, dispatch } = ctx;
+  const { el, timeScale, dispatch } = ctx;
 
+  // Settings are read per event: `hotkeys` can change via applyOptions.
   const resolveAction = (e: KeyboardEvent): HotkeyAction | undefined => {
-    if (hotkeyDisabled) return undefined;
-    return resolveHotkey(e, hotkeyMap || undefined);
+    if (ctx.settings.hotkeyDisabled) return undefined;
+    return resolveHotkey(e, ctx.settings.hotkeyMap);
   };
 
   const onKeyDown = (e: KeyboardEvent) => {
-    if (hotkeyDisabled) return;
+    if (ctx.settings.hotkeyDisabled) return;
 
     const action = resolveAction(e);
     if (action === "cancel") {

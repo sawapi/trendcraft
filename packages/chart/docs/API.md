@@ -68,7 +68,7 @@ All fields optional.
 | `width` | `number` | container width | Chart width (px) |
 | `height` | `number` | `400` | Chart height (px) |
 | `theme` | `'dark' \| 'light' \| ThemeColors` | `'dark'` | Color theme |
-| `pixelRatio` | `number` | `window.devicePixelRatio` | Canvas backing-store ratio (one-time; not runtime-mutable) |
+| `pixelRatio` | `number` | `window.devicePixelRatio` | Canvas backing-store ratio (one-time) |
 | `priceAxisWidth` | `number` | `60` | Right axis width (px) |
 | `timeAxisHeight` | `number` | `32` | Bottom axis height (px) |
 | `fontFamily` | `string` | system UI stack | Font family for canvas axis/crosshair/overlay text and DOM legend/info overlays. Runtime-updatable via `applyOptions` |
@@ -78,20 +78,20 @@ All fields optional.
 | `watermark` | `string` | — | Background watermark text |
 | `legend` | `boolean` | `true` | Show series legend |
 | `volume` | `boolean` | `true` | Show volume pane |
-| `scrollSensitivity` | `number` | `0.3` | Scroll/pan sensitivity multiplier (one-time; clamped to a minimum of 0.1) |
+| `scrollSensitivity` | `number` | `0.3` | Scroll/pan sensitivity multiplier (clamped to a minimum of 0.1). Runtime-updatable via `applyOptions`; applies from the next gesture |
 | `chartType` | `'candlestick' \| 'line' \| 'mountain' \| 'ohlc'` | `'candlestick'` | Base chart type |
 | `formatInfoOverlay` | `(data: InfoOverlayData) => string \| null` | — | Custom info overlay HTML (one-time). Return `null` to use default. |
 | `animationDuration` | `number` | `300` | Range transition duration (ms). `0` disables |
 | `locale` | `Partial<ChartLocale>` | — | i18n string overrides (one-time) |
 | `maxCandles` | `number` | — | Cap on retained candles in live mode |
 | `crosshair` | `CrosshairOptions` | `{ mode: 'normal' }` | Crosshair snap behavior — see [Crosshair](#crosshair) |
-| `hotkeys` | `HotkeyMap \| false` | built-in defaults | Keyboard shortcut bindings — see [Hotkeys](#hotkeys). Pass `false` to disable **all** keyboard handling (including viewport nav keys). (one-time) |
-| `interaction` | `{ wheelInertia?: boolean }` | `{ wheelInertia: true }` | Trackpad/wheel inertia for pan + zoom. Disable to stop the synthetic deceleration tail (macOS OS-level momentum is independent and always processed). (one-time) |
+| `hotkeys` | `HotkeyMap \| false` | built-in defaults | Keyboard shortcut bindings — see [Hotkeys](#hotkeys). Pass `false` to disable **all** keyboard handling (including viewport nav keys). Runtime-updatable via `applyOptions` |
+| `interaction` | `{ wheelInertia?: boolean }` | `{ wheelInertia: true }` | Trackpad/wheel inertia for pan + zoom. Disable to stop the synthetic deceleration tail (macOS OS-level momentum is independent and always processed). Runtime-updatable via `applyOptions`; applies from the next gesture (a tail already running is not interrupted) |
 | `showSeriesBadges` | `boolean` | `false` | Render a colored pill on the right price axis for each labeled series, mirroring the candle current-price badge. Multi-channel series get one pill per channel. |
 | `seriesBadgeMode` | `'absolute' \| 'visible'` | `'absolute'` | `'absolute'` shows the latest non-null value in the data array (live "current" value). `'visible'` shows the latest non-null value within the current visible range. |
 | `timeScale` | `TimeScaleOptions` | — | Time-scale behavior — see [Time scale](#time-scale). Runtime-updatable via `applyOptions` |
 
-Options marked "one-time" cannot be changed via `applyOptions()` — a warning is emitted via the `error` event if you try, except `hotkeys` and `interaction`, which are currently ignored silently (no warning).
+Options marked "one-time" (`pixelRatio`, `formatInfoOverlay`, `locale`) cannot be changed via `applyOptions()`. Passing one is compared against the value in effect: a different value emits a warning via the `error` event and is ignored; the same value is silent, so re-passing a whole options object is safe. Every other option, including `crosshair.lockOnLongPress`, applies at runtime.
 
 ### Time scale
 
@@ -283,7 +283,7 @@ setShowVolume(show: boolean): void
 applyOptions(options: Partial<ChartOptions>): void
 ```
 
-`applyOptions()` is the runtime equivalent of re-passing options to `createChart`. Fields that can't be changed after construction are ignored (see the option table above) and a warning fires via the `error` event.
+`applyOptions()` is the runtime equivalent of re-passing options to `createChart`. Fields that can't be changed after construction (see the option table above) are ignored, and a warning fires via the `error` event when the value you pass differs from the one in effect.
 
 ### Plugin methods
 

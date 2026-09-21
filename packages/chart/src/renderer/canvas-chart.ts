@@ -11,6 +11,7 @@ import { DEFAULT_FONT_FAMILY } from "../core/font";
 import { autoFormatPrice, setMonthNames } from "../core/format";
 import { type ChartLocale, mergeLocale } from "../core/i18n";
 import { DEFAULT_LAYOUT_NO_VOLUME, LayoutEngine } from "../core/layout";
+import { optionsEqual } from "../core/options-equal";
 import type { PrimitivePlugin, SeriesRendererPlugin } from "../core/plugin-types";
 import { onDoubleTap, onTap } from "../core/pointer";
 import { resolveRangeDuration } from "../core/range-utils";
@@ -45,7 +46,7 @@ import type {
 import { DARK_THEME, LIGHT_THEME } from "../core/types";
 import type { ShapeCheck } from "../core/validation";
 import { checkBacktest, checkSignals, checkTrades, summarizeIssues } from "../core/validation";
-import { Viewport } from "../core/viewport";
+import { type InteractionOptionsUpdate, Viewport } from "../core/viewport";
 import { APPLY_WITH_ORIGIN, attachViewportOrigin } from "../core/viewport-origin";
 import { INDICATOR_PRESETS, type IndicatorPreset } from "../integration/indicator-presets";
 import { introspect } from "../integration/series-introspector";
@@ -90,6 +91,20 @@ const DEFAULT_OPTIONS: Required<
 // ============================================
 // CanvasChart Class
 // ============================================
+
+/**
+ * The one place that maps `ChartOptions` fields onto the viewport's interaction
+ * settings — used at construction and by `applyOptions`. Absent fields stay
+ * `undefined`, which the viewport treats as "leave as is".
+ */
+function interactionOptionsOf(opts: Partial<ChartOptions>): InteractionOptionsUpdate {
+  return {
+    scrollSensitivity: opts.scrollSensitivity,
+    hotkeys: opts.hotkeys,
+    wheelInertia: opts.interaction?.wheelInertia,
+    lockOnLongPress: opts.crosshair?.lockOnLongPress,
+  };
+}
 
 export class CanvasChart implements ChartInstance {
   private _container: HTMLElement;
@@ -163,6 +178,8 @@ export class CanvasChart implements ChartInstance {
   private _transition = new ViewTransition();
   private _animationDuration: number;
   private _locale: ChartLocale;
+  /** Raw creation value, kept so applyOptions can tell a re-supplied value from a change. */
+  private _formatInfoOverlay: ChartOptions["formatInfoOverlay"];
   private _crosshairOpts: import("../core/types").CrosshairOptions;
   private _sessionGapsOpts: ResolvedSessionGapsOptions;
   private _overlaysHidden = false;
@@ -329,10 +346,10 @@ export class CanvasChart implements ChartInstance {
     this._priceFormatter = options?.priceFormatter ?? autoFormatPrice;
     this._timeFormatter = options?.timeFormatter;
     this._animationDuration = options?.animationDuration ?? 300;
+    // lockOnLongPress is not kept here: the viewport owns it (see interactionOptionsOf).
     this._crosshairOpts = {
       mode: options?.crosshair?.mode ?? "normal",
       snapThreshold: options?.crosshair?.snapThreshold ?? 12,
-      lockOnLongPress: options?.crosshair?.lockOnLongPress ?? true,
     };
     this._sessionGapsOpts = resolveSessionGapsOptions(options?.timeScale?.sessionGaps);
     if (options?.timeScale?.rightOffset !== undefined) {
@@ -440,6 +457,7 @@ export class CanvasChart implements ChartInstance {
       // same frame — no visible 1-frame lag on the mirrored crosshair.
       this._maybeEmitCrosshair();
     });
+    const interaction = interactionOptionsOf(options ?? {});
     this._detachViewport = this._viewport.attach(
       this._canvas,
       this._timeScale,
@@ -468,11 +486,9 @@ export class CanvasChart implements ChartInstance {
         }
         this._needsRender = true;
       },
-      options?.scrollSensitivity,
+      interaction.scrollSensitivity,
       {
-        lockOnLongPress: this._crosshairOpts.lockOnLongPress,
-        wheelInertia: options?.interaction?.wheelInertia ?? true,
-        hotkeys: options?.hotkeys,
+        ...interaction,
         onAction: (action) => this._handleHotkeyAction(action),
         isDrawingActive: () => this._drawingTool?.isActive() ?? false,
       },
@@ -493,11 +509,12 @@ export class CanvasChart implements ChartInstance {
     }
 
     // Info overlay (DOM-based OHLCV + indicator values)
+    this._formatInfoOverlay = options?.formatInfoOverlay;
     this._infoOverlay = new InfoOverlay(
       container,
       this._theme,
       this._priceFormatter,
-      options?.formatInfoOverlay,
+      this._formatInfoOverlay,
       this._locale,
       this._fontFamily,
     );
@@ -1141,16 +1158,21 @@ export class CanvasChart implements ChartInstance {
   /**
    * Apply a partial options update at runtime.
    *
-   * Diffs each provided field against the chart's current state and routes to
-   * the appropriate internal setter. Fields not listed in `opts` are left alone.
+   * Every provided field is routed to its internal setter; re-supplying a
+   * value that is already in effect is harmless. Fields not listed in `opts`
+   * are left alone.
    *
    * Runtime-capable fields: theme, chartType, volume, fontSize, fontFamily,
-   * watermark, animationDuration, maxCandles, legend, priceFormatter,
-   * timeFormatter, width, height, priceAxisWidth, timeAxisHeight,
-   * timeScale.sessionGaps, timeScale.rightOffset.
+   * watermark, showSeriesBadges, seriesBadgeMode, animationDuration,
+   * maxCandles, legend, priceFormatter, timeFormatter, width, height,
+   * priceAxisWidth, timeAxisHeight, crosshair, hotkeys, interaction,
+   * scrollSensitivity, timeScale.sessionGaps, timeScale.rightOffset.
    *
-   * Fields that require re-creating the chart emit a warning and are ignored:
-   * pixelRatio, scrollSensitivity, locale, formatInfoOverlay.
+   * Creation-only fields — pixelRatio, locale, formatInfoOverlay — cannot be
+   * changed after construction. They are compared against the value in
+   * effect: a different value emits a warning via the `error` event and is
+   * ignored; the same value (for `formatInfoOverlay`, the same function
+   * identity) is silent, so a wrapper may replay its whole options object.
    */
   applyOptions(opts: Partial<ChartOptions>): void {
     if (opts.theme !== undefined) this.setTheme(opts.theme);
@@ -1198,10 +1220,20 @@ export class CanvasChart implements ChartInstance {
       this._crosshairOpts = {
         mode: opts.crosshair.mode ?? this._crosshairOpts.mode,
         snapThreshold: opts.crosshair.snapThreshold ?? this._crosshairOpts.snapThreshold,
-        lockOnLongPress: opts.crosshair.lockOnLongPress ?? this._crosshairOpts.lockOnLongPress,
       };
       this._needsRender = true;
     }
+
+    // Interaction settings live in the viewport; the handlers read them per
+    // event, so these take effect from the next gesture on. Absent fields
+    // are skipped by the setter; a non-finite sensitivity is ignored there
+    // and must not pass silently here.
+    if (opts.scrollSensitivity !== undefined && !Number.isFinite(opts.scrollSensitivity)) {
+      this._warn(`applyOptions: scrollSensitivity must be a finite number; ignored`, {
+        scrollSensitivity: opts.scrollSensitivity,
+      });
+    }
+    this._viewport.setInteractionOptions(interactionOptionsOf(opts));
 
     if (opts.timeScale !== undefined) {
       if (opts.timeScale.sessionGaps !== undefined) {
@@ -1257,17 +1289,37 @@ export class CanvasChart implements ChartInstance {
       this._needsRender = true;
     }
 
-    // Unsupported at runtime — these bind to sub-components at construction
+    // Creation-only — these bind to sub-components at construction. Warn only
+    // when the value differs from the one in effect, so replaying an unchanged
+    // options object (a wrapper re-render, a settings panel) stays silent.
     const unsupported: (keyof ChartOptions)[] = [];
-    if (opts.pixelRatio !== undefined) unsupported.push("pixelRatio");
-    if (opts.scrollSensitivity !== undefined) unsupported.push("scrollSensitivity");
-    if (opts.locale !== undefined) unsupported.push("locale");
-    if (opts.formatInfoOverlay !== undefined) unsupported.push("formatInfoOverlay");
+    if (
+      opts.pixelRatio !== undefined &&
+      !Object.is(opts.pixelRatio, this._pixelRatioPinned ? this._pixelRatio : undefined)
+    ) {
+      unsupported.push("pixelRatio");
+    }
+    if (opts.locale !== undefined && !this._localeMatches(opts.locale)) unsupported.push("locale");
+    if (
+      opts.formatInfoOverlay !== undefined &&
+      opts.formatInfoOverlay !== this._formatInfoOverlay
+    ) {
+      unsupported.push("formatInfoOverlay");
+    }
     if (unsupported.length > 0) {
       this._warn(
         `applyOptions: [${unsupported.join(", ")}] cannot be changed at runtime; re-create the chart to update them`,
       );
     }
+  }
+
+  /** True when every provided (non-undefined) locale field equals the one in effect. */
+  private _localeMatches(partial: Partial<ChartLocale>): boolean {
+    const live = this._locale as unknown as Record<string, unknown>;
+    // `?? {}`: an untyped caller may pass null, which createChart also accepts.
+    return Object.entries(partial ?? {}).every(
+      ([k, v]) => v === undefined || optionsEqual(v, live[k]),
+    );
   }
 
   // ---- Public API: Series Query ----

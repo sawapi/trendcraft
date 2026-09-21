@@ -99,6 +99,23 @@ export type TouchHandlerState = {
 };
 
 /**
+ * Interaction settings the host can change while the handlers are attached
+ * (`applyOptions`). Handlers read these at use-site on every event — never
+ * cache a field at attach time, or a runtime update becomes a silent no-op.
+ * Owned and mutated by `Viewport.setInteractionOptions()`.
+ */
+export type InteractionSettings = {
+  /** Scroll/pan sensitivity multiplier (clamped to ≥ 0.1). */
+  sens: number;
+  longPressEnabled: boolean;
+  wheelInertiaEnabled: boolean;
+  /** Custom bindings; `undefined` means the default map. */
+  hotkeyMap: HotkeyMap | undefined;
+  /** `hotkeys: false` — every keyboard binding, built-in nav included, is off. */
+  hotkeyDisabled: boolean;
+};
+
+/**
  * Bundle handed to each interaction handler. References are shared — handlers
  * mutate the contained state objects directly so changes are visible to other
  * handlers and to the inertia loops.
@@ -111,11 +128,8 @@ export type InteractionContext = {
   scrollbar: () => ScrollbarRect | null;
   gapAtY?: (y: number) => number | null;
   resizePanes?: (gap: number, dy: number) => void;
-  sens: number;
-  longPressEnabled: boolean;
-  wheelInertiaEnabled: boolean;
-  hotkeyMap: HotkeyMap | undefined;
-  hotkeyDisabled: boolean;
+  /** Live settings — read per event, see {@link InteractionSettings}. */
+  settings: InteractionSettings;
   dispatch?: (action: HotkeyAction) => void;
   /** Something needs a repaint (crosshair, pane resize, drawing preview…). */
   onUpdate: () => void;
