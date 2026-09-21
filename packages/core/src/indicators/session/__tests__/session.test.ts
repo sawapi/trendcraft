@@ -24,26 +24,6 @@ function makeCandle(
   return { time: base, open, high, low, close, volume };
 }
 
-/**
- * Helper: generate candles at 30-min intervals spanning hours [startHour, endHour).
- */
-function _generateCandles(
-  startHour: number,
-  endHour: number,
-  basePrice: number,
-  volume = 100,
-  dayOffset = 0,
-): Candle[] {
-  const candles: Candle[] = [];
-  for (let h = startHour; h < endHour; h++) {
-    for (const m of [0, 30]) {
-      const price = basePrice + Math.random() * 2 - 1;
-      candles.push(makeCandle(h, m, price, price + 1, price - 1, price + 0.5, volume, dayOffset));
-    }
-  }
-  return candles;
-}
-
 describe("defineSession", () => {
   it("creates correct session definition", () => {
     const session = defineSession("Pre-Market", 8, 0, 9, 30);

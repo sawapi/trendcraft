@@ -8,6 +8,7 @@ import {
   rsiBelow,
 } from "../backtest/conditions";
 import { batchBacktest, portfolioBacktest } from "../backtest/portfolio";
+import { mulberry32 } from "../core/random";
 import type { NormalizedCandle, SymbolData } from "../types";
 
 /** Generate synthetic candle data with a trend */
@@ -17,6 +18,8 @@ function generateCandles(
   trend: "up" | "down" | "flat",
   startTime: number = Date.UTC(2024, 0, 1),
 ): NormalizedCandle[] {
+  // Seeded so the fixture is the same on every run: an unseeded draw made assertions on the generated data flaky.
+  const random = mulberry32(count + startPrice * 7 + { up: 1, down: 2, flat: 3 }[trend]);
   const candles: NormalizedCandle[] = [];
   let price = startPrice;
   const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -24,16 +27,16 @@ function generateCandles(
   for (let i = 0; i < count; i++) {
     const change =
       trend === "up"
-        ? Math.random() * 3 - 0.5 // Bias up
+        ? random() * 3 - 0.5 // Bias up
         : trend === "down"
-          ? Math.random() * 3 - 2.5 // Bias down
-          : Math.random() * 2 - 1; // Flat
+          ? random() * 3 - 2.5 // Bias down
+          : random() * 2 - 1; // Flat
 
     price = Math.max(1, price + change);
-    const high = price + Math.random() * 2;
-    const low = price - Math.random() * 2;
-    const open = price + (Math.random() - 0.5);
-    const volume = 1000000 + Math.random() * 500000;
+    const high = price + random() * 2;
+    const low = price - random() * 2;
+    const open = price + (random() - 0.5);
+    const volume = 1000000 + random() * 500000;
 
     candles.push({
       time: startTime + i * MS_PER_DAY,

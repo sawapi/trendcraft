@@ -2,12 +2,15 @@
  * Common test helpers for condition tests
  */
 
+import { mulberry32 } from "../../../core/random";
 import type { NormalizedCandle } from "../../../types";
 
 /**
  * Generate test candles with sine wave pattern
  */
 export function generateCandles(count: number, basePrice = 100): NormalizedCandle[] {
+  // Seeded so the fixture is the same on every run: an unseeded draw made assertions on the generated data flaky.
+  const random = mulberry32(count + basePrice);
   const candles: NormalizedCandle[] = [];
   const baseTime = Date.now() - count * 24 * 60 * 60 * 1000;
 
@@ -19,7 +22,7 @@ export function generateCandles(count: number, basePrice = 100): NormalizedCandl
       high: price + 1,
       low: price - 1,
       close: price,
-      volume: 1000000 + Math.random() * 100000,
+      volume: 1000000 + random() * 100000,
     });
   }
 

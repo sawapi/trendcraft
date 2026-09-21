@@ -9,33 +9,6 @@ import {
 } from "../monte-carlo";
 
 /**
- * Create mock trades for testing
- */
-function _createMockTrades(count: number, winRate = 0.6): Trade[] {
-  const trades: Trade[] = [];
-  const baseTime = Date.now() - count * 7 * 24 * 60 * 60 * 1000;
-
-  for (let i = 0; i < count; i++) {
-    const isWin = Math.random() < winRate;
-    const returnPercent = isWin
-      ? 5 + Math.random() * 10 // 5-15% win
-      : -(3 + Math.random() * 7); // -3 to -10% loss
-
-    trades.push({
-      entryTime: baseTime + i * 7 * 24 * 60 * 60 * 1000,
-      entryPrice: 100,
-      exitTime: baseTime + (i + 1) * 7 * 24 * 60 * 60 * 1000,
-      exitPrice: 100 * (1 + returnPercent / 100),
-      return: 1000 * (returnPercent / 100),
-      returnPercent,
-      holdingDays: 7,
-    });
-  }
-
-  return trades;
-}
-
-/**
  * Create deterministic trades for reproducible tests
  */
 function createDeterministicTrades(): Trade[] {

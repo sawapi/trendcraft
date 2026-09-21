@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { mulberry32 } from "../../../core/random";
 import type { NormalizedCandle } from "../../../types";
 import {
   atrPercentSeries,
@@ -17,6 +18,8 @@ function createCandles(
   } = {},
 ): NormalizedCandle[] {
   const { basePrice = 1000, volatility = 2 } = options;
+  // Seeded so the fixture is the same on every run: an unseeded draw made assertions on the generated data flaky.
+  const random = mulberry32(count + Math.round(volatility * 100) + basePrice);
   const candles: NormalizedCandle[] = [];
 
   for (let i = 0; i < count; i++) {
@@ -28,7 +31,7 @@ function createCandles(
       open: price,
       high: price + range / 2,
       low: price - range / 2,
-      close: price + (Math.random() - 0.5) * range * 0.5,
+      close: price + (random() - 0.5) * range * 0.5,
       volume: 1000000,
     });
   }

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { mulberry32 } from "../../core/random";
 import type { NormalizedCandle } from "../../types";
 import {
   anchoredWalkForwardAnalysis,
@@ -20,12 +21,14 @@ function generateTestCandles(
   startPrice = 100,
   dailyReturn = 0.001,
 ): NormalizedCandle[] {
+  // Seeded so the fixture is the same on every run: an unseeded draw made assertions on the generated data flaky.
+  const random = mulberry32(count + startPrice + Math.round(dailyReturn * 1e6));
   const candles: NormalizedCandle[] = [];
   const baseTime = new Date("2015-01-01").getTime();
   let price = startPrice;
 
   for (let i = 0; i < count; i++) {
-    price *= 1 + dailyReturn + (Math.random() - 0.5) * 0.02;
+    price *= 1 + dailyReturn + (random() - 0.5) * 0.02;
     const dailyRange = price * 0.02;
 
     candles.push({
@@ -34,7 +37,7 @@ function generateTestCandles(
       high: price + dailyRange * 0.5,
       low: price - dailyRange * 0.5,
       close: price,
-      volume: 1000000 + Math.random() * 500000,
+      volume: 1000000 + random() * 500000,
     });
   }
 
@@ -638,18 +641,9 @@ describe("Anchored Walk-Forward Analysis", () => {
 });
 
 /**
- * Deterministic price series — these tests assert exact period bookkeeping,
- * so they cannot share the Math.random() generator above.
+ * Deterministic price series with an explicit seed — these tests assert exact
+ * period bookkeeping against a series they choose themselves.
  */
-function mulberry32(seed: number): () => number {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
 
 function seededCandles(count: number, seed = 7, drift = 0.001): NormalizedCandle[] {
   const rnd = mulberry32(seed);
