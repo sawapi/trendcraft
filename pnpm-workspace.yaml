@@ -6,3 +6,8 @@ packages:
 # 10080 minutes = 7 days. Blocks packages published less than 7 days ago,
 # giving time for compromised releases to be reported and yanked.
 minimumReleaseAge: 10080
+
+overrides:
+  # GHSA-r5fr-rjxr-66jc / GHSA-f23m-r3pf-42rh: lodash <= 4.17.23 is vulnerable.
+  # Pulled in transitively (build-time only) via vite-plugin-dts -> @microsoft/api-extractor.
+  lodash: ^4.18.0
