@@ -72,10 +72,19 @@ describe("calcIndicatorHandler", () => {
     "vwma",
     "volumeMa",
     "highestLowest",
-    "volatilityRegime",
   ])("rewraps missing-params for %s", (kind) => {
     const candles = makeCandles(50);
     expect(() => calcIndicatorHandler({ kind, candles })).toThrow(/INVALID_PARAMETER/);
+  });
+
+  it("computes volatilityRegime with default options when params are omitted", () => {
+    // Every volatilityRegime option has a default, so omitting params must
+    // succeed. This runs against the built `trendcraft/safe` bundle, and
+    // guards a bundler regression in which the module's DEFAULT_OPTIONS were
+    // never initialized and the call threw instead.
+    const candles = makeCandles(50);
+    const result = calcIndicatorHandler({ kind: "volatilityRegime", candles });
+    expect(result.count).toBe(50);
   });
 
   it("rejects empty candles with canonical INVALID_INPUT", () => {
