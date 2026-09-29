@@ -156,17 +156,17 @@ describe("Williams %R", () => {
   it.each([
     { period: 14, decimals: 6 },
     { period: 7, decimals: 6 },
-  ])("williamsR(period=$period) matches TA-Lib within $decimals decimals", ({
-    period,
-    decimals,
-  }) => {
-    const fixture = loadFixture("williams-r");
-    const tc = fixture.test_cases.find((t) => t.params.period === period);
-    if (!tc || !isSingleTestCase(tc)) throw new Error("Expected single test case");
+  ])(
+    "williamsR(period=$period) matches TA-Lib within $decimals decimals",
+    ({ period, decimals }) => {
+      const fixture = loadFixture("williams-r");
+      const tc = fixture.test_cases.find((t) => t.params.period === period);
+      if (!tc || !isSingleTestCase(tc)) throw new Error("Expected single test case");
 
-    const result = williamsR(candles, { period });
-    assertSeriesMatch(result, tc.values, decimals, `WilliamsR(${period})`);
-  });
+      const result = williamsR(candles, { period });
+      assertSeriesMatch(result, tc.values, decimals, `WilliamsR(${period})`);
+    },
+  );
 });
 
 describe("ROC", () => {
@@ -258,17 +258,17 @@ describe("Standard Deviation", () => {
   it.each([
     { period: 20, decimals: 9 },
     { period: 10, decimals: 9 },
-  ])("standardDeviation(period=$period) matches TA-Lib within $decimals decimals", ({
-    period,
-    decimals,
-  }) => {
-    const fixture = loadFixture("stddev");
-    const tc = fixture.test_cases.find((t) => t.params.period === period);
-    if (!tc || !isSingleTestCase(tc)) throw new Error("Expected single test case");
+  ])(
+    "standardDeviation(period=$period) matches TA-Lib within $decimals decimals",
+    ({ period, decimals }) => {
+      const fixture = loadFixture("stddev");
+      const tc = fixture.test_cases.find((t) => t.params.period === period);
+      if (!tc || !isSingleTestCase(tc)) throw new Error("Expected single test case");
 
-    const result = standardDeviation(candles, { period });
-    assertSeriesMatch(result, tc.values, decimals, `StdDev(${period})`);
-  });
+      const result = standardDeviation(candles, { period });
+      assertSeriesMatch(result, tc.values, decimals, `StdDev(${period})`);
+    },
+  );
 });
 
 describe("Median Price", () => {

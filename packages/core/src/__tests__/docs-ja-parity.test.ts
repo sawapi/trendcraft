@@ -198,68 +198,70 @@ describe("doc snippets — EN/JA parity", () => {
     }
   });
 
-  it.each(
-    extracted.map((e) => [`${e.pair.en} ↔ ${e.pair.ja}`, e] as const),
-  )("fence count parity: %s", (_label, { pair, en, ja }) => {
-    const enA = active(en);
-    const jaA = active(ja);
-    if (enA.length === jaA.length) return;
+  it.each(extracted.map((e) => [`${e.pair.en} ↔ ${e.pair.ja}`, e] as const))(
+    "fence count parity: %s",
+    (_label, { pair, en, ja }) => {
+      const enA = active(en);
+      const jaA = active(ja);
+      if (enA.length === jaA.length) return;
 
-    // Locate the first index where normalized content diverges — the extra
-    // fence(s) are at or after this point — and report the longer side's
-    // tail from there for orientation.
-    let firstDiff = Math.min(enA.length, jaA.length);
-    for (let k = 0; k < firstDiff; k++) {
-      const a = normalizeFence(enA[k].code).join("\n");
-      const b = normalizeFence(jaA[k].code).join("\n");
-      if (a !== b) {
-        firstDiff = k;
-        break;
+      // Locate the first index where normalized content diverges — the extra
+      // fence(s) are at or after this point — and report the longer side's
+      // tail from there for orientation.
+      let firstDiff = Math.min(enA.length, jaA.length);
+      for (let k = 0; k < firstDiff; k++) {
+        const a = normalizeFence(enA[k].code).join("\n");
+        const b = normalizeFence(jaA[k].code).join("\n");
+        if (a !== b) {
+          firstDiff = k;
+          break;
+        }
       }
-    }
-    const [longSide, longFile] = enA.length > jaA.length ? [enA, pair.en] : [jaA, pair.ja];
-    const tail = longSide
-      .slice(firstDiff)
-      .map((f) => `  ${describeFence(longFile, f)}`)
-      .join("\n");
-    expect.fail(
-      `Fence count mismatch: ${pair.en} has ${enA.length} ts fences, ${pair.ja} has ${jaA.length} ` +
-        `(after excluding ${SKIP_MARKER}).\n` +
-        `Sequences first diverge at fence pair #${firstDiff + 1}. ` +
-        `Fences on the longer side (${longFile}) from that point:\n${tail}`,
-    );
-  });
-
-  it.each(
-    extracted.map((e) => [`${e.pair.en} ↔ ${e.pair.ja}`, e] as const),
-  )("fence content parity (normalized): %s", (_label, { pair, en, ja }) => {
-    const enA = active(en);
-    const jaA = active(ja);
-    const len = Math.min(enA.length, jaA.length);
-    const reports: string[] = [];
-    for (let k = 0; k < len; k++) {
-      const a = normalizeFence(enA[k].code);
-      const b = normalizeFence(jaA[k].code);
-      if (a.join("\n") === b.join("\n")) continue;
-      let d = 0;
-      while (d < a.length && d < b.length && a[d] === b[d]) d++;
-      reports.push(
-        [
-          `Pair #${k + 1}:`,
-          `  EN ${describeFence(pair.en, enA[k])}`,
-          `  JA ${describeFence(pair.ja, jaA[k])}`,
-          `  first differing normalized line (#${d + 1}):`,
-          `    EN: ${a[d] ?? "(no line — fence ends here)"}`,
-          `    JA: ${b[d] ?? "(no line — fence ends here)"}`,
-        ].join("\n"),
+      const [longSide, longFile] = enA.length > jaA.length ? [enA, pair.en] : [jaA, pair.ja];
+      const tail = longSide
+        .slice(firstDiff)
+        .map((f) => `  ${describeFence(longFile, f)}`)
+        .join("\n");
+      expect.fail(
+        `Fence count mismatch: ${pair.en} has ${enA.length} ts fences, ${pair.ja} has ${jaA.length} ` +
+          `(after excluding ${SKIP_MARKER}).\n` +
+          `Sequences first diverge at fence pair #${firstDiff + 1}. ` +
+          `Fences on the longer side (${longFile}) from that point:\n${tail}`,
       );
-    }
-    expect(
-      reports.length,
-      `Normalized fence divergence in ${pair.en} ↔ ${pair.ja} — the twins must show ` +
-        `identical code (comments/string contents may be translated):\n${reports.join("\n")}`,
-    ).toBe(0);
-  });
+    },
+  );
+
+  it.each(extracted.map((e) => [`${e.pair.en} ↔ ${e.pair.ja}`, e] as const))(
+    "fence content parity (normalized): %s",
+    (_label, { pair, en, ja }) => {
+      const enA = active(en);
+      const jaA = active(ja);
+      const len = Math.min(enA.length, jaA.length);
+      const reports: string[] = [];
+      for (let k = 0; k < len; k++) {
+        const a = normalizeFence(enA[k].code);
+        const b = normalizeFence(jaA[k].code);
+        if (a.join("\n") === b.join("\n")) continue;
+        let d = 0;
+        while (d < a.length && d < b.length && a[d] === b[d]) d++;
+        reports.push(
+          [
+            `Pair #${k + 1}:`,
+            `  EN ${describeFence(pair.en, enA[k])}`,
+            `  JA ${describeFence(pair.ja, jaA[k])}`,
+            `  first differing normalized line (#${d + 1}):`,
+            `    EN: ${a[d] ?? "(no line — fence ends here)"}`,
+            `    JA: ${b[d] ?? "(no line — fence ends here)"}`,
+          ].join("\n"),
+        );
+      }
+      expect(
+        reports.length,
+        `Normalized fence divergence in ${pair.en} ↔ ${pair.ja} — the twins must show ` +
+          `identical code (comments/string contents may be translated):\n${reports.join("\n")}`,
+      ).toBe(0);
+    },
+  );
 
   it(`ja-parity-skip markers are deliberate (expected: ${EXPECTED_SKIPS})`, () => {
     const skips = extracted.flatMap(({ pair, en, ja }) => [

@@ -119,34 +119,32 @@ describe("CMF evaluators ramp continuously across the threshold", () => {
     { cmfValue: 0.5, expected: 1, branch: "above" },
   ];
 
-  it.each(cases)("positive side: CMF=$cmfValue → $expected (threshold 0.1, $branch)", ({
-    cmfValue,
-    expected,
-    branch,
-  }) => {
-    const candles = constantCmfCandles(cmfValue);
-    // stimulus: the indicator produced the value and it sits on the intended side of the threshold
-    const series = cmf(candles, { period: 20 });
-    const value = series[series.length - 1].value as number;
-    expect(value).toBeCloseTo(cmfValue, 10);
-    expect(value >= 0.1).toBe(branch === "above");
-    const evaluate = createCmfPositiveEvaluator(0.1, 20);
-    expect(evaluate(candles, candles.length - 1)).toBeCloseTo(expected, 10);
-  });
+  it.each(cases)(
+    "positive side: CMF=$cmfValue → $expected (threshold 0.1, $branch)",
+    ({ cmfValue, expected, branch }) => {
+      const candles = constantCmfCandles(cmfValue);
+      // stimulus: the indicator produced the value and it sits on the intended side of the threshold
+      const series = cmf(candles, { period: 20 });
+      const value = series[series.length - 1].value as number;
+      expect(value).toBeCloseTo(cmfValue, 10);
+      expect(value >= 0.1).toBe(branch === "above");
+      const evaluate = createCmfPositiveEvaluator(0.1, 20);
+      expect(evaluate(candles, candles.length - 1)).toBeCloseTo(expected, 10);
+    },
+  );
 
-  it.each(cases)("negative side: CMF=-$cmfValue → $expected (threshold -0.1, $branch)", ({
-    cmfValue,
-    expected,
-    branch,
-  }) => {
-    const candles = constantCmfCandles(-cmfValue);
-    const series = cmf(candles, { period: 20 });
-    const value = series[series.length - 1].value as number;
-    expect(value).toBeCloseTo(-cmfValue, 10);
-    expect(value <= -0.1).toBe(branch === "above");
-    const evaluate = createCmfNegativeEvaluator(-0.1, 20);
-    expect(evaluate(candles, candles.length - 1)).toBeCloseTo(expected, 10);
-  });
+  it.each(cases)(
+    "negative side: CMF=-$cmfValue → $expected (threshold -0.1, $branch)",
+    ({ cmfValue, expected, branch }) => {
+      const candles = constantCmfCandles(-cmfValue);
+      const series = cmf(candles, { period: 20 });
+      const value = series[series.length - 1].value as number;
+      expect(value).toBeCloseTo(-cmfValue, 10);
+      expect(value <= -0.1).toBe(branch === "above");
+      const evaluate = createCmfNegativeEvaluator(-0.1, 20);
+      expect(evaluate(candles, candles.length - 1)).toBeCloseTo(expected, 10);
+    },
+  );
 
   it("is monotonic non-decreasing in |CMF| and continuous at the threshold (sampled 0 → 0.3)", () => {
     const positive = createCmfPositiveEvaluator(0.1, 20);
