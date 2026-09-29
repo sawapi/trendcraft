@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+### Fixed — the `detect_signal` response example in `EXAMPLES.md` was missing `processedBars`
+
+The recipe's sample response showed every field except `processedBars`, which
+the tool has returned since 0.2.0. The example now shows it.
+
+Every `json` / `jsonc` example in `EXAMPLES.md` and `README.md` is now
+executed against the real tool handlers in CI: each fence carries a
+`<!-- doctest-example: ... -->` marker naming the tool and kind it shows, and
+the keys in the example are compared with a real response (recursively; an
+example with an ellipsis may omit keys, one without must show them all). A
+field added to or renamed in a response now fails the build until the example
+follows — the class of drift that previously reached a release unnoticed.
+
 ## 0.3.0 (2026-07-26)
 
 ### Fixed — tool descriptions and examples now match runtime behavior

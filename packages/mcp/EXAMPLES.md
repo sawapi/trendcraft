@@ -6,6 +6,7 @@ Concrete patterns for using the eight tools together. Examples assume an MCP cli
 
 OHLCV candles look like this throughout:
 
+<!-- doctest-example: candles -->
 ```jsonc
 [
   { "time": 1700000000000, "open": 100.0, "high": 101.5, "low": 99.5, "close": 100.8, "volume": 1_200_000 },
@@ -56,6 +57,7 @@ calc_indicator({
 
 Output:
 
+<!-- doctest-example: calc_indicator rsi {"period": 14} -->
 ```jsonc
 {
   "kind": "rsi",
@@ -91,6 +93,7 @@ detect_signal({
 
 Read just `firedAt`:
 
+<!-- doctest-example: detect_signal goldenCross -->
 ```jsonc
 {
   "kind": "goldenCross",
@@ -99,7 +102,8 @@ Read just `firedAt`:
   "count": 10,
   "truncated": true,
   "output": [/* the underlying Series<boolean> for the 10-bar window */],
-  "firedAt": []    // ← non-empty = signal fired in window
+  "firedAt": [],   // ← non-empty = signal fired in window
+  "processedBars": 80
 }
 ```
 
@@ -141,6 +145,7 @@ The two shapes carry different output structure.
 
 `goldenCross`, `deadCross`, `perfectOrder`, `candlestickPatterns`. The `output` array is parallel to the input candles (same length, same `time` values).
 
+<!-- doctest-example: detect_signal elements -->
 ```jsonc
 // goldenCross output element
 { "time": 1768259200000, "value": false }
@@ -162,6 +167,7 @@ The two shapes carry different output structure.
 
 `bollingerSqueeze`, `rsiDivergence`, `macdDivergence`, `obvDivergence`, `volumeBreakout`, `volumeAccumulation`, `volumeMaCross`, `volumeAboveAverage`. The `output` array contains only the bars where the signal fired, each with a kind-specific payload.
 
+<!-- doctest-example: detect_signal elements -->
 ```jsonc
 // bollingerSqueeze output element
 { "time": 1768259200000, "bandwidth": 0.034, "percentile": 3.2, /* ... */ }
