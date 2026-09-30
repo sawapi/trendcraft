@@ -66,16 +66,13 @@ describe("calcIndicatorHandler", () => {
     );
   });
 
-  it.each([
-    "ema",
-    "wma",
-    "vwma",
-    "volumeMa",
-    "highestLowest",
-  ])("rewraps missing-params for %s", (kind) => {
-    const candles = makeCandles(50);
-    expect(() => calcIndicatorHandler({ kind, candles })).toThrow(/INVALID_PARAMETER/);
-  });
+  it.each(["ema", "wma", "vwma", "volumeMa", "highestLowest"])(
+    "rewraps missing-params for %s",
+    (kind) => {
+      const candles = makeCandles(50);
+      expect(() => calcIndicatorHandler({ kind, candles })).toThrow(/INVALID_PARAMETER/);
+    },
+  );
 
   it("computes volatilityRegime with default options when params are omitted", () => {
     // Every volatilityRegime option has a default, so omitting params must

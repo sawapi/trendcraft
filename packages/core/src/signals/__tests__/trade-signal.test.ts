@@ -284,21 +284,22 @@ describe("fromPatternSignal", () => {
     }
   });
 
-  it.each(
-    (Object.keys(EXPECTED_BIAS) as PatternType[]).map((t) => [t, EXPECTED_BIAS[t]] as const),
-  )("maps %s (%s) to the matching action", (type, bias) => {
-    const result = fromPatternSignal(patternOf(type), 100);
+  it.each((Object.keys(EXPECTED_BIAS) as PatternType[]).map((t) => [t, EXPECTED_BIAS[t]] as const))(
+    "maps %s (%s) to the matching action",
+    (type, bias) => {
+      const result = fromPatternSignal(patternOf(type), 100);
 
-    if (bias === "neutral") {
-      expect(result).toBeNull();
-      return;
-    }
+      if (bias === "neutral") {
+        expect(result).toBeNull();
+        return;
+      }
 
-    expect(result).not.toBeNull();
-    if (result === null) return;
-    expect(result.action).toBe(bias === "bullish" ? "BUY" : "SELL");
-    expect(result.direction).toBe(bias === "bullish" ? "LONG" : "SHORT");
-  });
+      expect(result).not.toBeNull();
+      if (result === null) return;
+      expect(result.action).toBe(bias === "bullish" ? "BUY" : "SELL");
+      expect(result.direction).toBe(bias === "bullish" ? "LONG" : "SHORT");
+    },
+  );
 
   it("does not classify a bullish pattern as a short", () => {
     // The specific shape of the old bug: named-bullish types fell through the
@@ -339,12 +340,15 @@ describe("fromPatternSignal", () => {
     ["triangle_symmetrical", "down", "SELL"],
     ["channel_horizontal", "up", "BUY"],
     ["channel_ascending", "down", "SELL"],
-  ] as const)("a confirmed %s that broke %s becomes a %s instead of null", (type, breakoutDirection, action) => {
-    const signal = { ...patternOf(type as PatternType), breakoutDirection };
-    expect(fromPatternSignal(signal, 100)?.action).toBe(action);
-    // Without the breakout there is still nothing to trade.
-    expect(fromPatternSignal(patternOf(type as PatternType), 100)).toBeNull();
-  });
+  ] as const)(
+    "a confirmed %s that broke %s becomes a %s instead of null",
+    (type, breakoutDirection, action) => {
+      const signal = { ...patternOf(type as PatternType), breakoutDirection };
+      expect(fromPatternSignal(signal, 100)?.action).toBe(action);
+      // Without the breakout there is still nothing to trade.
+      expect(fromPatternSignal(patternOf(type as PatternType), 100)).toBeNull();
+    },
+  );
 
   // `confirmed` and `breakoutDirection` are set together by every detector, but
   // the public type lets a hand-built or deserialized signal carry one without

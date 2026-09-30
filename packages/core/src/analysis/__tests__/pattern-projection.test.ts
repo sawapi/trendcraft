@@ -247,38 +247,34 @@ describe("projectFromPatterns", () => {
     confirmed: true,
   });
 
-  it.each([
-    "bear_flag",
-    "rising_wedge",
-    "triangle_descending",
-    "gartley_bearish",
-  ] as const)("measures %s downward", (type) => {
-    // Price falls 5% then 10% — a bearish pattern that worked.
-    const candles = makeCandles([100, 95, 90]);
-    const result = projectFromPatterns(candles, [patternOf(type, candles[0].time)], {
-      horizon: 2,
-    });
+  it.each(["bear_flag", "rising_wedge", "triangle_descending", "gartley_bearish"] as const)(
+    "measures %s downward",
+    (type) => {
+      // Price falls 5% then 10% — a bearish pattern that worked.
+      const candles = makeCandles([100, 95, 90]);
+      const result = projectFromPatterns(candles, [patternOf(type, candles[0].time)], {
+        horizon: 2,
+      });
 
-    expect(result.validCount).toBe(1);
-    expect(result.avgReturnByBar[0]).toBe(5);
-    expect(result.avgReturnByBar[1]).toBe(10);
-  });
+      expect(result.validCount).toBe(1);
+      expect(result.avgReturnByBar[0]).toBe(5);
+      expect(result.avgReturnByBar[1]).toBe(10);
+    },
+  );
 
-  it.each([
-    "bull_flag",
-    "falling_wedge",
-    "cup_handle",
-    "crab_bullish",
-  ] as const)("measures %s upward", (type) => {
-    const candles = makeCandles([100, 105, 110]);
-    const result = projectFromPatterns(candles, [patternOf(type, candles[0].time)], {
-      horizon: 2,
-    });
+  it.each(["bull_flag", "falling_wedge", "cup_handle", "crab_bullish"] as const)(
+    "measures %s upward",
+    (type) => {
+      const candles = makeCandles([100, 105, 110]);
+      const result = projectFromPatterns(candles, [patternOf(type, candles[0].time)], {
+        horizon: 2,
+      });
 
-    expect(result.validCount).toBe(1);
-    expect(result.avgReturnByBar[0]).toBe(5);
-    expect(result.avgReturnByBar[1]).toBe(10);
-  });
+      expect(result.validCount).toBe(1);
+      expect(result.avgReturnByBar[0]).toBe(5);
+      expect(result.avgReturnByBar[1]).toBe(10);
+    },
+  );
 
   it("measures a counter-bias breakout the way it actually resolved", () => {
     // An ascending channel — a bullish shape — that broke DOWN, followed by a
