@@ -174,7 +174,7 @@
     "@testing-library/react": "^16.3.2",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
-    "@vue/test-utils": "^2.4.10",
+    "@vue/test-utils": "^2.5.1",
     "happy-dom": "^20.9.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
