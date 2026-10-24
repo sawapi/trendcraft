@@ -20,6 +20,8 @@
  * ```
  */
 
+import { assertSameLength } from "../utils/align";
+
 /**
  * Centred moments of one series, computed in two passes: the mean first,
  * then the sum of squared deviations from it.
@@ -71,8 +73,11 @@ export function centeredMoments(values: readonly number[]): {
  * levels — enough to flip the sign of a hedge ratio — which is why nothing
  * in core derives them that way.
  *
- * The series are compared over their common prefix; extra trailing values in
- * the longer one are ignored. Returns zeros when that prefix is empty.
+ * The two series must have the same length: they are paired by index, so
+ * any other length means the caller has not paired them. Returns zeros when
+ * both are empty.
+ *
+ * @throws Error if `x` and `y` differ in length
  */
 export function centeredCrossMoments(
   x: readonly number[],
@@ -85,7 +90,8 @@ export function centeredCrossMoments(
   syy: number;
   sxy: number;
 } {
-  const n = Math.min(x.length, y.length);
+  assertSameLength("centeredCrossMoments", { x, y });
+  const n = x.length;
   if (n === 0) return { n: 0, meanX: 0, meanY: 0, sxx: 0, syy: 0, sxy: 0 };
   let sumX = 0;
   let sumY = 0;

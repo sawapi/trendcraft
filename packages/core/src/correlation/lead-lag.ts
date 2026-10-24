@@ -7,6 +7,10 @@ import { pearsonCorrelation } from "./rolling";
  * Tests correlations at various lags to determine if one asset leads
  * the other. A positive optimal lag means A leads B; negative means B leads A.
  *
+ * Series of unequal length are compared over their common trailing window:
+ * the arrays carry no timestamps, so they are taken to share a cadence and to
+ * end at the same bar, and the longer history's extra start is dropped.
+ *
  * @param returnsA - Returns for asset A
  * @param returnsB - Returns for asset B
  * @param options - Analysis options (maxLag)
@@ -20,18 +24,23 @@ import { pearsonCorrelation } from "./rolling";
  * ```
  */
 export function analyzeLeadLag(
-  returnsA: number[],
-  returnsB: number[],
+  rawA: number[],
+  rawB: number[],
   options: CorrelationAnalysisOptions = {},
 ): LeadLagResult {
   const maxLag = options.maxLag ?? 10;
-  const n = Math.min(returnsA.length, returnsB.length);
+  const n = Math.min(rawA.length, rawB.length);
+  const returnsA = rawA.slice(rawA.length - n);
+  const returnsB = rawB.slice(rawB.length - n);
 
   const crossCorrelation: Array<{ lag: number; correlation: number }> = [];
   let maxAbsCorr = 0;
   let optimalLag = 0;
 
-  for (let lag = -maxLag; lag <= maxLag; lag++) {
+  // Each lag needs at least 5 overlapping pairs; beyond that the slices
+  // below would run past the arrays' ends. `0 - lagBound` keeps lag 0 at +0.
+  const lagBound = Math.min(maxLag, n - 5);
+  for (let lag = 0 - lagBound; lag <= lagBound; lag++) {
     let a: number[];
     let b: number[];
 
@@ -44,8 +53,6 @@ export function analyzeLeadLag(
       a = returnsA.slice(-lag, n);
       b = returnsB.slice(0, n + lag);
     }
-
-    if (a.length < 5) continue;
 
     const corr = pearsonCorrelation(a, b);
     crossCorrelation.push({ lag, correlation: corr });

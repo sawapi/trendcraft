@@ -6292,7 +6292,7 @@ const decay = analyzeAlphaDecay(observations);
 
 ### `spearmanCorrelation(x, y)`
 
-Spearman rank correlation coefficient with p-value.
+Spearman rank correlation coefficient with p-value. Throws if `x` and `y` differ in length.
 
 **Returns:** `{ rho: number, pValue: number }`
 
@@ -6453,6 +6453,8 @@ Grade scale: A+ (90+), A (80+), B+ (70+), B (60+), C+ (50+), C (40+), D (25+), F
 
 Statistical arbitrage tools for pairs trading. Includes cointegration testing (Engle-Granger method), spread calculation, mean reversion analysis, and signal generation.
 
+**Series alignment.** `analyzePair` joins its two `{ time, value }` series on `time` and uses only the timestamps present in both. `calculateSpread` and `olsRegression` take arrays already paired bar by bar, and throw if their lengths differ (including `times`).
+
 ### `analyzePair(seriesA, seriesB, options?)`
 
 Full pairs trading analysis between two instruments.
@@ -6520,6 +6522,8 @@ Ordinary Least Squares regression.
 ## Cross-Asset Correlation
 
 Analyzes correlation dynamics between two assets, including rolling correlation, regime detection, lead-lag relationships, and intermarket divergence.
+
+**Series alignment.** `analyzeCorrelation` joins its two `{ time, value }` series on `time` and uses only the timestamps present in both. `rollingCorrelation`, `pearsonCorrelation`, `spearmanRankCorrelation` and `detectIntermarketDivergence` take arrays already paired bar by bar, and throw if their lengths differ (including `times`). `analyzeLeadLag` takes bare return arrays: when their lengths differ it compares their common trailing window, assuming both share a cadence and end on the same bar.
 
 ### `analyzeCorrelation(seriesA, seriesB, options?)`
 

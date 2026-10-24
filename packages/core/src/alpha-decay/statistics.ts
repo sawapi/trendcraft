@@ -7,6 +7,7 @@
  */
 
 import { centeredCrossMoments, normalCdf } from "../core/statistics";
+import { assertSameLength } from "../utils/align";
 import { computeRanks } from "../utils/statistics";
 
 /**
@@ -117,6 +118,7 @@ function approximateTCdf(t: number, df: number): number {
  * ```
  */
 export function spearmanCorrelation(x: number[], y: number[]): { rho: number; pValue: number } {
+  assertSameLength("spearmanCorrelation", { x, y });
   const n = x.length;
   if (n < 3) return { rho: 0, pValue: 1 };
 
@@ -167,6 +169,7 @@ export function spearmanCorrelation(x: number[], y: number[]): { rho: number; pV
  * ```
  */
 export function linearRegression(x: number[], y: number[]): { slope: number; intercept: number } {
+  assertSameLength("linearRegression", { x, y });
   const n = x.length;
   if (n < 2) return { slope: 0, intercept: y[0] ?? 0 };
 

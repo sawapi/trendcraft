@@ -3,6 +3,7 @@ import type {
   CorrelationAnalysisResult,
   CorrelationRegime,
 } from "../types/correlation";
+import { joinOnTime } from "../utils/align";
 import { detectIntermarketDivergence } from "./divergence";
 import { analyzeLeadLag } from "./lead-lag";
 import { detectCorrelationRegimes } from "./regime";
@@ -15,7 +16,8 @@ import { rollingCorrelation } from "./rolling";
  * and intermarket divergence detection into a single comprehensive result.
  *
  * @param seriesA - Price series for asset A (time, value pairs)
- * @param seriesB - Price series for asset B (time, value pairs)
+ * @param seriesB - Price series for asset B (time, value pairs). The two
+ *   series are joined on `time`; only timestamps present in both are used.
  * @param options - Analysis options
  * @returns Complete correlation analysis
  *
@@ -36,17 +38,18 @@ export function analyzeCorrelation(
   options: CorrelationAnalysisOptions = {},
 ): CorrelationAnalysisResult {
   const window = options.window ?? 60;
-  const len = Math.min(seriesA.length, seriesB.length);
+  // Pair prices observed at the same time, not at the same array index.
+  const { times: allTimes, a: pricesA, b: pricesB } = joinOnTime(seriesA, seriesB);
 
   // Calculate returns
   const returnsA: number[] = [];
   const returnsB: number[] = [];
   const times: number[] = [];
 
-  for (let i = 1; i < len; i++) {
-    returnsA.push((seriesA[i].value - seriesA[i - 1].value) / seriesA[i - 1].value);
-    returnsB.push((seriesB[i].value - seriesB[i - 1].value) / seriesB[i - 1].value);
-    times.push(seriesA[i].time);
+  for (let i = 1; i < allTimes.length; i++) {
+    returnsA.push((pricesA[i] - pricesA[i - 1]) / pricesA[i - 1]);
+    returnsB.push((pricesB[i] - pricesB[i - 1]) / pricesB[i - 1]);
+    times.push(allTimes[i]);
   }
 
   // Rolling correlation
@@ -59,9 +62,6 @@ export function analyzeCorrelation(
   const leadLag = analyzeLeadLag(returnsA, returnsB, options);
 
   // Intermarket divergence
-  const pricesA = seriesA.slice(0, len).map((s) => s.value);
-  const pricesB = seriesB.slice(0, len).map((s) => s.value);
-  const allTimes = seriesA.slice(0, len).map((s) => s.time);
   const divergences = detectIntermarketDivergence(pricesA, pricesB, allTimes, options);
 
   // Summary

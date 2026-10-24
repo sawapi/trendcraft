@@ -1,4 +1,5 @@
 import type { CorrelationAnalysisOptions, DivergencePoint } from "../types/correlation";
+import { assertSameLength } from "../utils/align";
 
 /**
  * Detect intermarket divergences (one asset moves up while correlated asset moves down)
@@ -28,7 +29,8 @@ export function detectIntermarketDivergence(
 ): DivergencePoint[] {
   const lookback = options.divergenceLookback ?? 20;
   const threshold = options.divergenceThreshold ?? 2.0;
-  const n = Math.min(pricesA.length, pricesB.length, times.length);
+  assertSameLength("detectIntermarketDivergence", { pricesA, pricesB, times });
+  const n = times.length;
 
   const divergences: DivergencePoint[] = [];
 

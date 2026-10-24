@@ -1,5 +1,6 @@
 import { centeredCrossMoments } from "../core/statistics";
 import type { CorrelationPoint } from "../types/correlation";
+import { assertSameLength } from "../utils/align";
 import { computeRanks } from "../utils/statistics";
 
 /**
@@ -16,6 +17,7 @@ import { computeRanks } from "../utils/statistics";
  * ```
  */
 export function pearsonCorrelation(x: number[], y: number[]): number {
+  assertSameLength("pearsonCorrelation", { x, y });
   if (x.length < 2) return 0;
 
   const { sxx, syy, sxy } = centeredCrossMoments(x, y);
@@ -41,6 +43,7 @@ export function pearsonCorrelation(x: number[], y: number[]): number {
  * ```
  */
 export function spearmanRankCorrelation(x: number[], y: number[]): number {
+  assertSameLength("spearmanRankCorrelation", { x, y });
   const n = x.length;
   if (n < 2) return 0;
 
@@ -70,7 +73,8 @@ export function rollingCorrelation(
   times: number[],
   window = 60,
 ): CorrelationPoint[] {
-  const n = Math.min(returnsA.length, returnsB.length, times.length);
+  assertSameLength("rollingCorrelation", { returnsA, returnsB, times });
+  const n = times.length;
   const result: CorrelationPoint[] = [];
 
   for (let i = window - 1; i < n; i++) {

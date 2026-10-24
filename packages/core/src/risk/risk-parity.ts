@@ -125,12 +125,10 @@ function commonTrailingLength(series: readonly number[][]): number {
  * functions cannot do because they accept bare `number[]`. It is only correct
  * when the caller supplies same-cadence series that all end at the same time.
  *
- * Note that `centeredCrossMoments` in `core/statistics.ts` documents the
- * opposite convention ("compared over their common prefix") for the same
- * abstract operation. That is deliberate for a least-squares fit over two
- * series a caller has already paired up; it is wrong here, where the two
- * histories are independent and the question is anchored at the present.
- * Reconciling the two is a package-wide decision, so this helper stays local.
+ * `analyzeLeadLag` follows the same rule for the same reason. Functions whose
+ * arrays a caller has already paired bar by bar (`centeredCrossMoments`,
+ * `pearsonCorrelation`, `olsRegression`, ...) reject unequal lengths instead,
+ * and those that receive timestamps join on them (see `utils/align.ts`).
  */
 function alignTrailing(series: readonly number[][]): number[][] {
   const len = commonTrailingLength(series);

@@ -10,6 +10,7 @@
 
 import { depthPercent } from "../backtest/drawdown-tracker";
 import { type AnnualizationOptions, annualizationFactor } from "../calendar";
+import { assertSameLength } from "../utils/align";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -181,7 +182,8 @@ export function conditionalDrawdown(
   drawdownDepths: number[],
   volatilities: number[],
 ): ConditionalDrawdownResult {
-  const len = Math.min(returns.length, drawdownDepths.length, volatilities.length);
+  assertSameLength("conditionalDrawdown", { returns, drawdownDepths, volatilities });
+  const len = returns.length;
 
   if (len === 0) {
     const empty = { avgDepth: 0, count: 0, maxDepth: 0 };
@@ -194,10 +196,10 @@ export function conditionalDrawdown(
   }
 
   // Compute medians for classification
-  const sortedVol = [...volatilities.slice(0, len)].sort((a, b) => a - b);
+  const sortedVol = [...volatilities].sort((a, b) => a - b);
   const medianVol = median(sortedVol);
 
-  const absReturns = returns.slice(0, len).map(Math.abs);
+  const absReturns = returns.map(Math.abs);
   const sortedAbsRet = [...absReturns].sort((a, b) => a - b);
   const medianAbsRet = median(sortedAbsRet);
 

@@ -55,12 +55,16 @@ describe("calculateSpread (unit)", () => {
     }
   });
 
-  it("uses the shorter series length when lengths differ", () => {
+  it("rejects series that are not the same length as each other and as times", () => {
+    // Truncating to the shorter series paired seriesY's first bars with
+    // whichever bars seriesX happened to start at.
     const seriesY = [100, 102, 104, 106, 108, 110];
     const seriesX = [50, 51, 52];
     const times = [1, 2, 3, 4, 5, 6];
 
-    const result = calculateSpread(seriesY, seriesX, 1, 0, times);
-    expect(result).toHaveLength(3);
+    expect(() => calculateSpread(seriesY, seriesX, 1, 0, times)).toThrow(
+      /calculateSpread: seriesY, seriesX and times must have the same length/,
+    );
+    expect(() => calculateSpread(seriesY, seriesY, 1, 0, times.slice(1))).toThrow(/times: 5/);
   });
 });

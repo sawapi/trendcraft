@@ -13,6 +13,7 @@ import type {
   PairsSignal,
   SpreadPoint,
 } from "../types/pairs";
+import { joinOnTime } from "../utils/align";
 import { adfTest } from "./adf";
 import { analyzeMeanReversion } from "./mean-reversion";
 import { olsRegression } from "./regression";
@@ -74,7 +75,8 @@ function generatePairsSignals(
  * trading signals based on z-score thresholds.
  *
  * @param seriesA - Price series for instrument A (dependent variable)
- * @param seriesB - Price series for instrument B (independent variable)
+ * @param seriesB - Price series for instrument B (independent variable).
+ *   The two series are joined on `time`; only timestamps present in both are used.
  * @param options - Analysis options
  * @returns Complete pairs analysis result
  *
@@ -101,10 +103,8 @@ export function analyzePair(
   const exitThreshold = options.exitThreshold ?? 0.5;
   const maxHalfLife = options.maxHalfLife ?? 100;
 
-  const len = Math.min(seriesA.length, seriesB.length);
-  const pricesA = seriesA.slice(0, len).map((s) => s.value);
-  const pricesB = seriesB.slice(0, len).map((s) => s.value);
-  const times = seriesA.slice(0, len).map((s) => s.time);
+  // Pair prices observed at the same time, not at the same array index.
+  const { times, a: pricesA, b: pricesB } = joinOnTime(seriesA, seriesB);
 
   // 1. OLS regression: A = beta * B + intercept + residuals
   const { beta: hedgeRatio, intercept, rSquared, residuals } = olsRegression(pricesB, pricesA);
