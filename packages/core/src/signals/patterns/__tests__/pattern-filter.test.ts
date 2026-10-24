@@ -103,4 +103,41 @@ describe("filterPatterns", () => {
     // Volume confirm only applies to confirmed patterns, so unconfirmed passes
     expect(result.length).toBe(1);
   });
+
+  describe("volume confirmation is read on the breakout bar", () => {
+    // Volume is 1M everywhere except the pivot (bar 30, 0.1x) and the
+    // breakout (bar 45, 5x). The pattern's `time` is the pivot; the check
+    // used to read the pivot's volume and penalise a well-confirmed breakout.
+    const vols = makeCandles(60).map((c, i) => ({
+      ...c,
+      high: c.close + 1,
+      low: c.close - 1,
+      volume: i === 30 ? 100_000 : i === 45 ? 5_000_000 : 1_000_000,
+    }));
+    const base = { trendContext: false, minConfidence: 0 };
+
+    it("uses breakoutTime", () => {
+      const pattern = makePattern({
+        time: vols[30].time,
+        confirmTime: vols[45].time,
+        breakoutTime: vols[45].time,
+        pattern: { startTime: vols[10].time, endTime: vols[30].time, keyPoints: [], height: 20 },
+      });
+      const without = filterPatterns([pattern], vols, { ...base, volumeConfirm: false });
+      const withVolume = filterPatterns([pattern], vols, { ...base, volumeConfirm: true });
+      // 5x volume on the breakout: a +5 bonus, not the pivot's -10 penalty.
+      expect(withVolume[0].confidence).toBe(without[0].confidence + 5);
+    });
+
+    it("falls back to confirmTime when breakoutTime is absent", () => {
+      const pattern = makePattern({
+        time: vols[30].time,
+        confirmTime: vols[45].time,
+        pattern: { startTime: vols[10].time, endTime: vols[30].time, keyPoints: [], height: 20 },
+      });
+      const without = filterPatterns([pattern], vols, { ...base, volumeConfirm: false });
+      const withVolume = filterPatterns([pattern], vols, { ...base, volumeConfirm: true });
+      expect(withVolume[0].confidence).toBe(without[0].confidence + 5);
+    });
+  });
 });

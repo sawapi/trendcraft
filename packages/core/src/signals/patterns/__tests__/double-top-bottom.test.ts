@@ -580,6 +580,15 @@ describe("double bottom: which second trough is allowed to differ", () => {
     expect(doubleBottom(w(98.5))).toHaveLength(0);
   });
 
+  it("reports the breakout bar as breakoutTime", () => {
+    const [pattern] = doubleBottom(w(100));
+    expect(pattern.confirmed).toBe(true);
+    const breakout = w(100).find((c) => c.time === pattern.breakoutTime);
+    // The first close above the 115 neckline, no later than confirmTime.
+    expect(breakout?.close).toBeGreaterThan(115);
+    expect(pattern.breakoutTime).toBeLessThanOrEqual(pattern.confirmTime as number);
+  });
+
   it("keeps a second trough within half the tolerance either side", () => {
     expect(doubleBottom(w(99.5))).toHaveLength(1);
     expect(doubleBottom(w(100.5))).toHaveLength(1);

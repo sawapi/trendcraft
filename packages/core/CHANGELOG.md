@@ -36,6 +36,19 @@ TradingView's `ta.supertrend` does), so in an uptrend the first reported
 flip — bullish, a few bars after warm-up (bar 14 on a steady +1%/bar
 trend) — is that seed correcting itself rather than a reversal.
 
+### Fixed — `filterPatterns` read breakout volume on the pivot bar
+
+With `volumeConfirm`, a confirmed pattern's volume was checked at
+`pattern.time` — the final pivot for most detectors, often many bars before
+the breakout — so a breakout on 5× volume could be penalised (−10) for a
+quiet pivot instead of rewarded (+5). It is now read on the breakout bar.
+
+### Added — `PatternSignal.breakoutTime`
+
+Confirmed patterns now carry `breakoutTime`, the breakout bar itself (point
+D for harmonics). Unlike `confirmTime` it can precede `detectableTime`, so it
+is for locating bar-level evidence such as breakout volume, not for entries.
+
 ### Breaking — walk-forward windows open with warm indicators
 
 `walkForwardAnalysis` and `anchoredWalkForwardAnalysis` sliced each training

@@ -2800,7 +2800,7 @@ const filtered = filterPatterns(raw, candles, {
 | オプション | 型 | デフォルト | 説明 |
 |-----------|-----|----------|------|
 | `minATRRatio` | `number` | `1.5` | パターン高さ/ATRの最小比率 |
-| `volumeConfirm` | `boolean` | `true` | ボリューム確認を要求 |
+| `volumeConfirm` | `boolean` | `true` | ボリューム確認を要求（ブレイクアウト足 `breakoutTime` の出来高で判定） |
 | `trendContext` | `boolean` | `true` | トレンド方向の整合性チェック |
 | `minConfidence` | `number` | `50` | フィルタ後の最低信頼度 |
 
@@ -2816,6 +2816,7 @@ interface PatternSignal {
   detectableTime: number;    // リアルタイムで形成が判明する最初のバー
                              // （最終ピボット + swingLookback 確定バー）
   confirmTime?: number;      // ブレイクアウト確認が判明する最初のバー
+  breakoutTime?: number;     // ブレイクアウトが起きたバー自体（detectableTime より前のことがある。出来高などの根拠の参照用で、エントリー時刻ではない）
                              // （confirmed が true の場合のみ設定）
   type: PatternType;         // 'double_top' | 'double_bottom' | 'head_shoulders' など
   pattern: {

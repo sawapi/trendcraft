@@ -167,6 +167,13 @@ export interface PatternSignal {
    * `confirmed` is true.
    */
   confirmTime?: number;
+  /**
+   * Time of the breakout bar itself (the neckline / boundary break; for
+   * harmonics, point D). Unlike `confirmTime` it may precede `detectableTime`,
+   * so it is not a causal entry time — it locates bar-level evidence such as
+   * breakout volume. Only set when `confirmed` is true.
+   */
+  breakoutTime?: number;
   /** Pattern type */
   type: PatternType;
   /** Pattern details */

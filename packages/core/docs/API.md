@@ -2822,7 +2822,7 @@ const filtered = filterPatterns(raw, candles, {
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `minATRRatio` | `number` | `1.5` | Minimum pattern height / ATR ratio |
-| `volumeConfirm` | `boolean` | `true` | Require volume confirmation |
+| `volumeConfirm` | `boolean` | `true` | Require volume confirmation, read on the breakout bar (`breakoutTime`) |
 | `trendContext` | `boolean` | `true` | Check trend direction alignment |
 | `minConfidence` | `number` | `50` | Minimum confidence after filtering |
 
@@ -2838,6 +2838,7 @@ interface PatternSignal {
   detectableTime: number;    // First bar where the formation is knowable in real time
                              // (final pivot + swingLookback confirmation bars)
   confirmTime?: number;      // First bar where the breakout confirmation is knowable
+  breakoutTime?: number;     // Breakout bar itself (may precede detectableTime; for evidence such as breakout volume, not for entries)
                              // (only set when confirmed is true)
   type: PatternType;         // 'double_top' | 'double_bottom' | 'head_shoulders' | etc.
   pattern: {
