@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+### Fixed — risk guards let a wiped-out account keep trading
+
+`createRiskGuard`'s `maxDrawdownPercent` and `createPortfolioGuard`'s
+`maxPortfolioDrawdown` were checked only while equity was above zero, so
+once an account fell to zero or below — a drawdown of 100% or more — the
+check was skipped and new entries were allowed. The same applied to
+`maxPositionPercent` and the exposure limits, which compare against equity.
+Once equity has been reported, the drawdown limits now apply at any
+equity, and the position and exposure limits refuse new positions when
+there is no equity left. Before any equity is reported, nothing changes.
+
+A managed session (`createManagedSession`) also reported equity to its risk
+guard only on candles while a position was open, so after an exit-signal,
+force or manual close the drawdown check kept reading the mark before the
+exit fill. Each close now reports the equity it left.
+
 ### Breaking — multi-series functions no longer pair different dates
 
 Functions that take two or more series truncated them to the shortest length

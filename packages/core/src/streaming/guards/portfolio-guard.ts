@@ -19,13 +19,14 @@
  * });
  *
  * guard.updateEquity(100_000);
- * if (guard.canOpenPosition("AAPL", 20_000)) {
+ * if (guard.canOpenPosition("AAPL", 20_000).allowed) {
  *   guard.reportPositionOpen("AAPL", 20_000);
  * }
  * guard.reportPositionClose("AAPL", 20_000, 500);
  * ```
  */
 
+import { depthPercent } from "../../backtest/drawdown-tracker";
 import type {
   PortfolioGuard,
   PortfolioGuardCheckResult,
@@ -98,9 +99,11 @@ export function createPortfolioGuard(
         };
       }
 
-      // Check portfolio drawdown
-      if (options.maxPortfolioDrawdown !== undefined && peakEquity > 0 && totalEquity > 0) {
-        const drawdownPercent = ((peakEquity - totalEquity) / peakEquity) * 100;
+      // Check portfolio drawdown. A positive peak means equity has been
+      // reported; from then on the current equity counts even at or below
+      // zero, where the drawdown is 100% or more.
+      if (options.maxPortfolioDrawdown !== undefined && peakEquity > 0) {
+        const drawdownPercent = depthPercent(peakEquity, totalEquity);
         if (drawdownPercent >= options.maxPortfolioDrawdown) {
           return {
             allowed: false,
@@ -110,6 +113,15 @@ export function createPortfolioGuard(
       }
 
       if (totalEquity <= 0) {
+        // Never reported: exposure limits have nothing to measure against yet.
+        // Reported and gone: any new exposure is unbounded relative to it.
+        const hasExposureLimit =
+          options.maxTotalExposure !== undefined ||
+          options.maxSymbolExposure !== undefined ||
+          options.maxCorrelatedExposure !== undefined;
+        if (peakEquity > 0 && hasExposureLimit) {
+          return { allowed: false, reason: `No equity to size against (equity ${totalEquity})` };
+        }
         return { allowed: true };
       }
 

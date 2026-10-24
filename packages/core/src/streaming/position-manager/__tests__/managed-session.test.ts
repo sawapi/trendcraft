@@ -601,3 +601,36 @@ describe("createManagedSession", () => {
     });
   });
 });
+
+describe("risk guard equity after a close", () => {
+  it("reports the post-exit equity, so the drawdown check does not read the pre-exit mark", () => {
+    let shouldExit = false;
+    const session = createManagedSession(
+      {
+        intervalMs: 1000,
+        pipeline: {
+          indicators: [createDummyIndicator("price")],
+          entry: alwaysEnter,
+          exit: { type: "preset", name: "conditional-exit", evaluate: () => shouldExit },
+        },
+      },
+      { riskGuard: { maxDrawdownPercent: 50 } },
+      { capital: 100_000, commissionRate: 1 },
+    );
+
+    feedTrades(session, [
+      { time: 0, price: 100, volume: 10 },
+      { time: 1000, price: 100, volume: 10 }, // opens position
+      { time: 1500, price: 90, volume: 10 },
+      { time: 2000, price: 90, volume: 10 }, // marks equity at 90
+    ]);
+    shouldExit = true;
+    feedTrades(session, [
+      { time: 2500, price: 80, volume: 10 },
+      { time: 3000, price: 80, volume: 10 }, // exit-signal close at 80
+    ]);
+
+    expect(session.getPosition()).toBeNull();
+    expect(session.riskGuard?.getState().currentEquity).toBe(session.getAccount().equity);
+  });
+});
