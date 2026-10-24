@@ -522,6 +522,12 @@ function detectSupertrendSignals(
   const stCurr = series[curr]?.value;
   const stPrev = series[prev]?.value;
   if (!stCurr || !stPrev) return;
+  // direction 0 means "still warming up", not a trend: the first defined
+  // bar after warm-up is the indicator becoming defined, not a flip. (The
+  // first defined direction is seeded down unless price is already above
+  // the upper band, so an early bullish flip in an uptrend is the seed
+  // correcting itself — see supertrendFlip.)
+  if (stCurr.direction === 0 || stPrev.direction === 0) return;
 
   if (stCurr.direction !== stPrev.direction) {
     if (stCurr.direction === 1) {

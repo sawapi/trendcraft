@@ -188,4 +188,17 @@ describe("detectCoachingSignals", () => {
     expect(engulfingSignal).toBeDefined();
     expect(engulfingSignal?.direction).toBe("bullish");
   });
+
+  it("does not report a Supertrend flip when the indicator first becomes defined", () => {
+    // Supertrend is 0 ("undefined") through its 10-bar ATR warm-up. Bar 10
+    // is its first defined direction, not a flip — in an unbroken uptrend
+    // this used to emit a high-severity SUPERTREND_BEARISH sell signal.
+    const candles = Array.from({ length: 40 }, (_, i) => {
+      const close = 100 + i * 2;
+      return makeCandle(i, close, { open: close - 0.5, high: close + 1, low: close - 1 });
+    });
+    const types = detectCoachingSignals(candles, 10).map((s) => s.type);
+    expect(types).not.toContain("SUPERTREND_BEARISH");
+    expect(types).not.toContain("SUPERTREND_BULLISH");
+  });
 });

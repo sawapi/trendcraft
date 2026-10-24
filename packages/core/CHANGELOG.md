@@ -23,6 +23,19 @@ downtrend-continuation form. The guard is now mirrored: a second trough
 more than half the tolerance below the first is rejected. Detection results
 change for double bottoms whose troughs differ.
 
+### Fixed — phantom Supertrend / SAR flips at the end of warm-up
+
+Supertrend reports `direction: 0` while it warms up (Parabolic SAR on its
+first bar). `detectCoachingSignals` and the streaming conditions
+`supertrendFlip` and `sarFlip` compared that `0` with the first defined
+direction and reported a flip — on an unbroken uptrend, a high-severity
+`SUPERTREND_BEARISH` sell signal at bar 10. Only a change between two
+defined directions now counts. Supertrend still seeds its first defined
+direction as down unless the close is already above the upper band (as
+TradingView's `ta.supertrend` does), so in an uptrend the first reported
+flip — bullish, a few bars after warm-up (bar 14 on a steady +1%/bar
+trend) — is that seed correcting itself rather than a reversal.
+
 ### Breaking — walk-forward windows open with warm indicators
 
 `walkForwardAnalysis` and `anchoredWalkForwardAnalysis` sliced each training
