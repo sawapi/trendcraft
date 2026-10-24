@@ -79,7 +79,7 @@ describe("centeredMoments / centeredCrossMoments", () => {
     expect(shifted.mean - 1e8).toBeCloseTo(base.mean, 6);
   });
 
-  it("returns zeros for empty input and compares over the common prefix", () => {
+  it("returns zeros for empty input and rejects series of different lengths", () => {
     expect(centeredMoments([])).toEqual({ n: 0, mean: 0, sumSqDev: 0 });
     expect(centeredCrossMoments([], [])).toEqual({
       n: 0,
@@ -89,8 +89,10 @@ describe("centeredMoments / centeredCrossMoments", () => {
       syy: 0,
       sxy: 0,
     });
-    // Extra trailing values in the longer series are ignored.
-    expect(centeredCrossMoments([1, 2, 3], [1, 2, 3, 99]).n).toBe(3);
+    // Pairing by index is only meaningful when the series are already paired.
+    expect(() => centeredCrossMoments([1, 2, 3], [1, 2, 3, 99])).toThrow(
+      /x and y must have the same length \(x: 3, y: 4\)/,
+    );
   });
 
   it("cross moments are invariant to constant offsets in either series", () => {

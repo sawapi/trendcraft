@@ -2,6 +2,26 @@
 
 ## [Unreleased]
 
+### Breaking — multi-series functions no longer pair different dates
+
+Functions that take two or more series truncated them to the shortest length
+and read from index 0, so histories that start on different dates were
+compared bar 0 with bar 0: a pair whose prices match exactly on every shared
+date could report a hedge ratio far from the true one and a correlation well
+below 1. Each function now follows a stated rule:
+
+- `analyzePair` and `analyzeCorrelation` take `{ time, value }` series and
+  now join them on `time`, using only timestamps present in both.
+- `pearsonCorrelation`, `spearmanRankCorrelation`, `olsRegression`,
+  `spearmanCorrelation`, `rollingCorrelation`, `calculateSpread`,
+  `detectIntermarketDivergence` and `conditionalDrawdown`
+  take arrays that must describe the same bars, and now throw when their
+  lengths differ (including `times`, where one is passed).
+- `analyzeLeadLag` takes bare return arrays with no timestamps, so it now
+  compares their common trailing window, like `riskParityAllocation` and
+  `correlationAdjustedSize`. The arrays are assumed to share a cadence and to
+  end on the same bar.
+
 ### Fixed — batch indicators tagged with metadata that disagreed with their preset
 
 A chart places a series by its `__meta.overlay` before its own rules, so a

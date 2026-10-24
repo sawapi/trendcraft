@@ -5,6 +5,7 @@
  */
 
 import type { PairsAnalysisOptions, SpreadPoint } from "../types/pairs";
+import { assertSameLength } from "../utils/align";
 
 /**
  * Calculate spread between two price series given a hedge ratio
@@ -35,7 +36,8 @@ export function calculateSpread(
   times: number[],
   options: PairsAnalysisOptions = {},
 ): SpreadPoint[] {
-  const n = Math.min(seriesY.length, seriesX.length);
+  assertSameLength("calculateSpread", { seriesY, seriesX, times });
+  const n = seriesY.length;
   const window = options.rollingWindow ?? 0;
 
   // Calculate raw spread

@@ -5,6 +5,7 @@
  */
 
 import { centeredCrossMoments } from "../core/statistics";
+import { assertSameLength } from "../utils/align";
 
 /**
  * Ordinary Least Squares regression
@@ -29,6 +30,7 @@ export function olsRegression(
   rSquared: number;
   residuals: number[];
 } {
+  assertSameLength("olsRegression", { x, y });
   const n = x.length;
   const { meanX, meanY, sxx, sxy } = centeredCrossMoments(x, y);
 

@@ -6239,7 +6239,7 @@ const decay = analyzeAlphaDecay(observations);
 
 ### `spearmanCorrelation(x, y)`
 
-Spearman順位相関係数（p値付き）。
+Spearman順位相関係数（p値付き）。`x` と `y` の長さが違うとエラーにします。
 
 **戻り値:** `{ rho: number, pValue: number }`
 
@@ -6400,6 +6400,8 @@ scoreToGrade(30); // "D"
 
 ペアトレーディングのための統計的裁定ツール。共和分検定（Engle-Granger法）、スプレッド計算、平均回帰分析、シグナル生成を含みます。
 
+**系列の揃え方。** `analyzePair` は2つの `{ time, value }` 系列を `time` で突き合わせ、両方にある時刻だけを使います。`calculateSpread` と `olsRegression` は足ごとに対応済みの配列を受け取り、長さ（`times` を含む）が違うとエラーにします。
+
 ### `analyzePair(seriesA, seriesB, options?)`
 
 2つの銘柄間の完全なペアトレーディング分析。
@@ -6467,6 +6469,8 @@ AR(1)半減期とHurst指数（R/S分析）を使用した平均回帰特性の�
 ## クロスアセット相関分析
 
 2つのアセット間の相関ダイナミクスを分析します。ローリング相関、レジーム検出、リードラグ関係、インターマーケットダイバージェンスを含みます。
+
+**系列の揃え方。** `analyzeCorrelation` は2つの `{ time, value }` 系列を `time` で突き合わせ、両方にある時刻だけを使います。`rollingCorrelation`、`pearsonCorrelation`、`spearmanRankCorrelation`、`detectIntermarketDivergence` は足ごとに対応済みの配列を受け取り、長さ（`times` を含む）が違うとエラーにします。`analyzeLeadLag` は時刻のないリターン配列を受け取り、長さが違う場合は末尾の共通部分で比較します（同じ間隔で、同じ足で終わっていることが前提）。
 
 ### `analyzeCorrelation(seriesA, seriesB, options?)`
 
