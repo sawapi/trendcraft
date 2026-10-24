@@ -14,6 +14,15 @@ too). Gaps are no longer mutated: a fill emits a filled copy in
 `filledFvgs`, and every bar's value holds its own copies, so editing one
 bar's value cannot change another's or the indicator's live state.
 
+### Fixed — `doubleBottom` rejected the stronger second trough
+
+`doubleBottom` carried `doubleTop`'s guard verbatim, so it rejected a second
+trough more than half the tolerance *above* the first — the textbook-strong,
+sellers-exhausted form — and accepted a materially *lower* one, the
+downtrend-continuation form. The guard is now mirrored: a second trough
+more than half the tolerance below the first is rejected. Detection results
+change for double bottoms whose troughs differ.
+
 ### Breaking — walk-forward windows open with warm indicators
 
 `walkForwardAnalysis` and `anchoredWalkForwardAnalysis` sliced each training
