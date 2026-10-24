@@ -16,6 +16,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { LIQUIDITY_SWEEP_META } from "../indicator-meta";
 import { swingPoints } from "../price/swing-points";
 
 /**
@@ -286,7 +287,7 @@ export function liquiditySweep(
     });
   }
 
-  return tagSeries(result, { kind: "liquiditySweep", overlay: true, label: "Liq Sweep" });
+  return tagSeries(result, LIQUIDITY_SWEEP_META);
 }
 
 /**

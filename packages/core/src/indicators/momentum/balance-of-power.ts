@@ -8,6 +8,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { BOP_META } from "../indicator-meta";
 
 /**
  * BOP options
@@ -72,10 +73,5 @@ export function balanceOfPower(
     result.push({ time: normalized[i].time, value: sum / smoothPeriod });
   }
 
-  return tagSeries(
-    result,
-    withLabelParams({ overlay: false, label: "BOP", yRange: [-1, 1], referenceLines: [0] }, [
-      smoothPeriod,
-    ]),
-  );
+  return tagSeries(result, withLabelParams(BOP_META, [smoothPeriod]));
 }

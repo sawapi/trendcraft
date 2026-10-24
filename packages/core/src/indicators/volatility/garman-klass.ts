@@ -8,6 +8,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { GARMAN_KLASS_META } from "../indicator-meta";
 
 /**
  * Garman-Klass options
@@ -83,5 +84,5 @@ export function garmanKlass(
     result.push({ time: normalized[i].time, value: gk });
   }
 
-  return tagSeries(result, withLabelParams({ overlay: false, label: "GK Vol" }, [period]));
+  return tagSeries(result, withLabelParams(GARMAN_KLASS_META, [period]));
 }

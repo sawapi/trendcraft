@@ -8,6 +8,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { EMV_META } from "../indicator-meta";
 
 /**
  * Ease of Movement options
@@ -122,8 +123,5 @@ export function easeOfMovement(
     });
   }
 
-  return tagSeries(
-    result,
-    withLabelParams({ overlay: false, label: "EMV", referenceLines: [0] }, [period]),
-  );
+  return tagSeries(result, withLabelParams(EMV_META, [period]));
 }

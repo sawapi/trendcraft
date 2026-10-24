@@ -2,6 +2,27 @@
 
 ## [Unreleased]
 
+### Fixed — batch indicators tagged with metadata that disagreed with their preset
+
+A chart places a series by its `__meta.overlay` before its own rules, so a
+batch function and its live preset must describe the series the same way.
+Several did not:
+
+- `gapAnalysis()` and `liquiditySweep()` claimed `overlay: true`, so
+  `chart.addIndicator(gapAnalysis(candles))` drew gap percentages on the
+  price pane and stretched the price axis down to 0, while
+  `connectIndicators(...).add("gapAnalysis")` gave it its own pane. Both now
+  report `overlay: false`, like their presets.
+- `awesomeOscillator`, `balanceOfPower`, `qstick`, `ppo`, `coppockCurve`,
+  `massIndex`, `ultimateOscillator`, `tsi`, `kst`, `hurst`, `schaffTrendCycle`,
+  `garmanKlass`, `historicalVolatility`, `ulcerIndex`, `easeOfMovement`, `dpo`
+  and `linearRegression` omitted `__meta.kind`. They now carry it.
+- `twap`, `standardDeviation`, `returns` and `fibonacciExtension` returned
+  untagged series. They are now tagged.
+
+Each of these now uses the exported `*_META` constant, and a test checks
+every live preset against its batch function.
+
 ### Fixed — a later FVG fill reached back into earlier bars (look-ahead)
 
 `fairValueGap()` (and the incremental `createFairValueGap`) marked a gap

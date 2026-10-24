@@ -8,6 +8,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { MASS_INDEX_META } from "../indicator-meta";
 
 /**
  * Mass Index options
@@ -121,11 +122,5 @@ export function massIndex(
     result.push({ time: normalized[i].time, value: valid ? sum : null });
   }
 
-  return tagSeries(
-    result,
-    withLabelParams({ overlay: false, label: "Mass Index", referenceLines: [27, 26.5] }, [
-      emaPeriod,
-      sumPeriod,
-    ]),
-  );
+  return tagSeries(result, withLabelParams(MASS_INDEX_META, [emaPeriod, sumPeriod]));
 }

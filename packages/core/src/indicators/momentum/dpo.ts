@@ -10,6 +10,7 @@ import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 import { assertPeriod } from "../../utils/validate-period";
+import { DPO_META } from "../indicator-meta";
 
 /**
  * DPO options
@@ -85,8 +86,5 @@ export function dpo(
     }
   }
 
-  return tagSeries(
-    result,
-    withLabelParams({ overlay: false, label: "DPO", referenceLines: [0] }, [period]),
-  );
+  return tagSeries(result, withLabelParams(DPO_META, [period]));
 }

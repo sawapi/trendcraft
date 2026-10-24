@@ -8,6 +8,7 @@
 import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
+import { KST_META } from "../indicator-meta";
 
 /**
  * KST options
@@ -151,8 +152,5 @@ export function kst(
     });
   }
 
-  return tagSeries(
-    result,
-    withLabelParams({ overlay: false, label: "KST", referenceLines: [0] }, [signalPeriod]),
-  );
+  return tagSeries(result, withLabelParams(KST_META, [signalPeriod]));
 }

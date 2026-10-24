@@ -9,6 +9,7 @@ import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 import { assertPeriod } from "../../utils/validate-period";
+import { HV_META } from "../indicator-meta";
 
 /**
  * Historical Volatility options
@@ -106,5 +107,5 @@ export function historicalVolatility(
     result.push({ time: normalized[i].time, value: hv });
   }
 
-  return tagSeries(result, withLabelParams({ overlay: false, label: "HV" }, [period]));
+  return tagSeries(result, withLabelParams(HV_META, [period]));
 }
