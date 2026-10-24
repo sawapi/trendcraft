@@ -2952,7 +2952,8 @@ All sized methods compute their risk on current (compounding) cash equity
 and are clamped to available buying power — with `margin` configured,
 `risk-based` / `atr-based` entries can deploy leveraged notional up to the
 buying-power cap. Shares stay fractional, and sizing composes with
-`volumeConstraint` (the tighter limit wins). The full sizing config is
+`volumeConstraint` (the tighter limit wins; `runBacktest` throws unless its
+`maxVolumePercent` is a finite number above 0). The full sizing config is
 recorded in `result.settings.sizing`. In strategy JSON, set `backtest.sizing`
 with any method except `custom` (callbacks are not serializable).
 

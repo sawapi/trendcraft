@@ -9,6 +9,7 @@
  * the drawdown table come straight from the engine result.
  */
 
+import { depthPercent } from "../backtest/drawdown-tracker";
 import { calculateDailyReturns } from "../optimization/metrics";
 import type { BacktestResult, NormalizedCandle } from "../types";
 import { analyzeDrawdowns, type DrawdownSummary } from "./drawdown-analysis";
@@ -17,6 +18,7 @@ import {
   gainToPainRatio,
   omegaRatio,
   payoffRatioFromReturns,
+  periodsPerYearFromSpan,
   profitFactorFromReturns,
   rollingSharpe,
   rollingVolatility,
@@ -91,7 +93,12 @@ export type ReportOptions = {
   initialCapital?: number;
   /** Annual risk-free rate as a fraction (default 0). */
   riskFree?: number;
-  /** Periods per year for annualisation (default 252). */
+  /**
+   * Periods per year for annualisation. Defaults to the rate implied by the
+   * candles' span (`periodsPerYearFromSpan`), the same rule the engine uses
+   * for `result.sharpeRatio`: about 252 for daily bars, far more for intraday
+   * bars. Pass a number to override it.
+   */
   periodsPerYear?: number;
   /** Rolling-window length in periods (default 126). */
   rollingWindow?: number;
@@ -126,7 +133,7 @@ export function report(result: BacktestResult, options: ReportOptions): Tearshee
     candles,
     initialCapital = result.initialCapital,
     riskFree = 0,
-    periodsPerYear = 252,
+    periodsPerYear: periodsPerYearOption,
     rollingWindow = 126,
     requiredReturn = 0,
     benchmarkReturns,
@@ -141,6 +148,12 @@ export function report(result: BacktestResult, options: ReportOptions): Tearshee
       ? new Array<number>(candles.length - 1).fill(0)
       : rawReturns;
 
+  // The returns are candle-to-candle, so annualise at the candles' own rate,
+  // as the engine does for the headline sharpeRatio this report sits beside.
+  const periodsPerYear =
+    periodsPerYearOption ??
+    periodsPerYearFromSpan(returns.length, candles[0]?.time, candles[candles.length - 1]?.time);
+
   // Reconstruct the equity curve and underwater curve from the daily returns.
   const equity: number[] = new Array(returns.length + 1);
   equity[0] = initialCapital;
@@ -151,7 +164,8 @@ export function report(result: BacktestResult, options: ReportOptions): Tearshee
   let sumSqDd = 0;
   for (let i = 0; i < equity.length; i++) {
     if (equity[i] > peak) peak = equity[i];
-    const dd = peak > 0 ? ((equity[i] - peak) / peak) * 100 : 0;
+    // Underwater is the negated depth; `0 - depth` keeps a flat point at +0.
+    const dd = 0 - depthPercent(peak, equity[i]);
     underwaterPercent[i] = dd;
     sumSqDd += dd * dd;
   }

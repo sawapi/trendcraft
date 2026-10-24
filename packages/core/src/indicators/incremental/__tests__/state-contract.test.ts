@@ -787,3 +787,30 @@ describe("composite param comparison (arrays / objects)", () => {
     expect(result.params.levels).toEqual([0.5, 0.618]);
   });
 });
+
+describe("resolveResume with hostile snapshot params", () => {
+  it("ignores __proto__, constructor and prototype keys from a JSON snapshot", () => {
+    // JSON.parse makes these own data properties, as a stored snapshot would.
+    const hostile = `{"__proto__":{"polluted":1},"constructor":{"x":1},"prototype":{"y":1},${JSON.stringify(
+      ALMA_DEFAULTS,
+    ).slice(1)}`;
+    const fromState = JSON.parse(
+      `{"meta":{"indicator":"alma","version":1,"params":${hostile}},"state":{}}`,
+    );
+    expect(Object.keys(fromState.meta.params)).toContain("__proto__");
+
+    const { params } = resolveResume<AlmaParams, AlmaState>({
+      indicator: "alma",
+      version: 1,
+      category: "windowed",
+      options: {},
+      fromState,
+      defaults: ALMA_DEFAULTS,
+    });
+
+    expect(Object.getPrototypeOf(params)).toBe(Object.prototype);
+    expect((params as Record<string, unknown>).polluted).toBeUndefined();
+    expect(params).toEqual(ALMA_DEFAULTS);
+    expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+  });
+});

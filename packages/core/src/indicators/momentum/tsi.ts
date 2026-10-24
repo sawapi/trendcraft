@@ -8,6 +8,7 @@
 import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
+import { TSI_META } from "../indicator-meta";
 
 /**
  * TSI options
@@ -149,12 +150,5 @@ export function tsi(
     }
   }
 
-  return tagSeries(
-    result,
-    withLabelParams({ overlay: false, label: "TSI", referenceLines: [0] }, [
-      longPeriod,
-      shortPeriod,
-      signalPeriod,
-    ]),
-  );
+  return tagSeries(result, withLabelParams(TSI_META, [longPeriod, shortPeriod, signalPeriod]));
 }

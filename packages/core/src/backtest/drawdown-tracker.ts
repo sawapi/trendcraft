@@ -45,6 +45,33 @@ export function depthPercent(peakEquity: number, troughEquity: number): number {
 }
 
 /**
+ * Deepest peak-to-trough decline of an equity curve, in percent, measured
+ * with {@link depthPercent}. Use it when only the figure is needed;
+ * {@link drawdownFromEquityCurve} also builds the drawdown periods.
+ *
+ * @param curve - Equity values in time order
+ * @param startPeak - Peak to measure from before the first point (default:
+ *   the first point). Pass the starting capital when the curve does not
+ *   begin with it.
+ * @returns The maximum drawdown in percent (0 for an empty or rising curve)
+ *
+ * @example
+ * ```ts
+ * maxDrawdownPercent([100, 120, 90, 130]); // 25
+ * ```
+ */
+export function maxDrawdownPercent(curve: readonly number[], startPeak = curve[0]): number {
+  let peak = startPeak;
+  let max = 0;
+  for (const equity of curve) {
+    if (equity > peak) peak = equity;
+    const depth = depthPercent(peak, equity);
+    if (depth > max) max = depth;
+  }
+  return max;
+}
+
+/**
  * Create a drawdown tracker to monitor equity drawdown periods
  *
  * @param initialCapital - Starting capital

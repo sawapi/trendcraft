@@ -7,6 +7,7 @@
  * @packageDocumentation
  */
 
+import { depthPercent } from "../backtest/drawdown-tracker";
 import { type AnnualizationOptions, annualizationFactor } from "../calendar";
 
 // ---------------------------------------------------------------------------
@@ -232,7 +233,7 @@ export function calculateMetricsFromReturns(
   for (const r of returns) {
     equity *= 1 + r;
     if (equity > peak) peak = equity;
-    const dd = (peak - equity) / peak;
+    const dd = depthPercent(peak, equity) / 100;
     if (dd > maxDd) maxDd = dd;
   }
 
@@ -303,7 +304,7 @@ export function stressTest(
       peak = equityCurve[i];
       peakIdx = i;
     }
-    const dd = (peak - equityCurve[i]) / peak;
+    const dd = depthPercent(peak, equityCurve[i]) / 100;
     if (dd > worstDd) {
       worstDd = dd;
       worstDdStart = peakIdx;

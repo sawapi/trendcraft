@@ -8,6 +8,7 @@
 import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
+import { PPO_META } from "../indicator-meta";
 
 /**
  * PPO options
@@ -133,12 +134,5 @@ export function ppo(
     }
   }
 
-  return tagSeries(
-    result,
-    withLabelParams({ overlay: false, label: "PPO", referenceLines: [0] }, [
-      fastPeriod,
-      slowPeriod,
-      signalPeriod,
-    ]),
-  );
+  return tagSeries(result, withLabelParams(PPO_META, [fastPeriod, slowPeriod, signalPeriod]));
 }

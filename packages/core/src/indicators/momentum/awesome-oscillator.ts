@@ -8,6 +8,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { AO_META } from "../indicator-meta";
 
 /**
  * Awesome Oscillator options
@@ -82,8 +83,5 @@ export function awesomeOscillator(
     result.push({ time: normalized[i].time, value: fastSma - slowSma });
   }
 
-  return tagSeries(
-    result,
-    withLabelParams({ overlay: false, label: "AO", referenceLines: [0] }, [fastPeriod, slowPeriod]),
-  );
+  return tagSeries(result, withLabelParams(AO_META, [fastPeriod, slowPeriod]));
 }

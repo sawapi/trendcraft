@@ -6,7 +6,9 @@
  */
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { TWAP_META } from "../indicator-meta";
 import {
   assertSessionResetCompatible,
   resolveSessionMembership,
@@ -114,7 +116,7 @@ export function twap(
       result.push({ time: c.time, value: cumTp / count });
     }
 
-    return result;
+    return tagSeries(result, TWAP_META);
   }
 
   for (let i = 0; i < normalized.length; i++) {
@@ -146,5 +148,5 @@ export function twap(
     });
   }
 
-  return result;
+  return tagSeries(result, TWAP_META);
 }

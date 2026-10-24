@@ -14,6 +14,7 @@ import type {
   VolumePriceLevel,
   VolumeProfileValue,
 } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 
 /**
  * Volume Profile options
@@ -23,7 +24,10 @@ export type VolumeProfileOptions = {
   levels?: number;
   /** Percentage of volume that defines the Value Area (default: 0.70 = 70%) */
   valueAreaPercent?: number;
-  /** Number of candles to include in the profile (default: all) */
+  /**
+   * Number of candles to include in the profile, a positive integer
+   * (`volumeProfile` default: all; `volumeProfileSeries` default: 20)
+   */
   period?: number;
 };
 
@@ -60,6 +64,7 @@ export function volumeProfile(
 ): VolumeProfileValue {
   const { levels = 24, valueAreaPercent = 0.7, period } = options;
   assertLevels(levels);
+  if (period !== undefined) assertPeriod("Volume profile period", period);
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
 
@@ -67,111 +72,10 @@ export function volumeProfile(
     return createEmptyProfile();
   }
 
-  // Use only the specified period (from the end)
-  const periodCandles =
-    period && period < normalized.length ? normalized.slice(-period) : normalized;
-
-  if (periodCandles.length === 0) {
-    return createEmptyProfile();
-  }
-
-  // Find price range
-  let periodHigh = Number.NEGATIVE_INFINITY;
-  let periodLow = Number.POSITIVE_INFINITY;
-
-  for (const candle of periodCandles) {
-    if (candle.high > periodHigh) periodHigh = candle.high;
-    if (candle.low < periodLow) periodLow = candle.low;
-  }
-
-  // Handle edge case where all prices are the same
-  if (periodHigh === periodLow) {
-    const singleLevel: VolumePriceLevel = {
-      priceLow: periodLow,
-      priceHigh: periodHigh,
-      priceMid: periodLow,
-      volume: periodCandles.reduce((sum, c) => sum + c.volume, 0),
-      volumePercent: 100,
-    };
-
-    return {
-      levels: [singleLevel],
-      poc: periodLow,
-      vah: periodHigh,
-      val: periodLow,
-      periodHigh,
-      periodLow,
-    };
-  }
-
-  // Create price levels
-  const priceRange = periodHigh - periodLow;
-  const levelHeight = priceRange / levels;
-  const volumeLevels: VolumePriceLevel[] = [];
-
-  for (let i = 0; i < levels; i++) {
-    volumeLevels.push({
-      priceLow: periodLow + i * levelHeight,
-      priceHigh: periodLow + (i + 1) * levelHeight,
-      priceMid: periodLow + (i + 0.5) * levelHeight,
-      volume: 0,
-      volumePercent: 0,
-    });
-  }
-
-  // Distribute volume to price levels
-  // For each candle, distribute its volume across the price levels it touches
-  let totalVolume = 0;
-
-  for (const candle of periodCandles) {
-    const candleVolume = candle.volume;
-    totalVolume += candleVolume;
-
-    // Find which levels this candle touches (from low to high)
-    const candleLow = Math.min(candle.low, candle.high);
-    const candleHigh = Math.max(candle.low, candle.high);
-    const candleRange = candleHigh - candleLow;
-
-    for (let i = 0; i < levels; i++) {
-      const level = volumeLevels[i];
-
-      // Check if candle overlaps with this level
-      const overlapLow = Math.max(candleLow, level.priceLow);
-      const overlapHigh = Math.min(candleHigh, level.priceHigh);
-
-      if (overlapHigh > overlapLow) {
-        // Calculate proportion of candle in this level
-        const overlapRange = overlapHigh - overlapLow;
-        const proportion = candleRange > 0 ? overlapRange / candleRange : 1 / levels;
-
-        level.volume += candleVolume * proportion;
-      }
-    }
-  }
-
-  // Calculate volume percentages
-  if (totalVolume > 0) {
-    for (const level of volumeLevels) {
-      level.volumePercent = (level.volume / totalVolume) * 100;
-    }
-  }
-
-  const { poc, vah, val } = summarizeLevels(
-    volumeLevels,
-    totalVolume,
-    valueAreaPercent,
-    periodLow,
-    periodHigh,
-  );
-
-  return {
-    levels: volumeLevels,
-    poc,
-    vah,
-    val,
-    periodHigh,
-    periodLow,
-  };
+  // Use only the specified period (from the end). The rolling series computes
+  // each window with the same function, so the two agree on any window.
+  const start = period !== undefined && period < normalized.length ? normalized.length - period : 0;
+  return computeProfileWindow(normalized, start, normalized.length, levels, valueAreaPercent);
 }
 
 /**
@@ -198,6 +102,7 @@ export function volumeProfileSeries(
 ): Series<VolumeProfileValue | null> {
   const { period = 20, levels = 24, valueAreaPercent = 0.7 } = options;
   assertLevels(levels);
+  assertPeriod("Volume profile period", period);
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
   const len = normalized.length;
@@ -291,7 +196,6 @@ function computeProfileWindow(
 
   // Distribute volume to price levels
   let totalVolume = 0;
-  const invLevels = 1 / levels;
 
   for (let ci = start; ci < end; ci++) {
     const candle = candles[ci];
@@ -302,9 +206,10 @@ function computeProfileWindow(
     const candleHigh = Math.max(candle.low, candle.high);
     const candleRange = candleHigh - candleLow;
 
-    // Narrow search to only levels that could overlap
-    const firstLevel = Math.max(0, Math.floor((candleLow - periodLow) / levelHeight));
-    const lastLevel = Math.min(levels - 1, Math.floor((candleHigh - periodLow) / levelHeight));
+    // Narrow search to only levels that could overlap. Both ends are clamped:
+    // a price at periodHigh falls on the boundary past the last level.
+    const firstLevel = levelIndex(candleLow, periodLow, levelHeight, levels);
+    const lastLevel = levelIndex(candleHigh, periodLow, levelHeight, levels);
 
     if (candleRange > 0) {
       const invCandleRange = 1 / candleRange;
@@ -317,9 +222,8 @@ function computeProfileWindow(
         }
       }
     } else {
-      for (let li = firstLevel; li <= lastLevel; li++) {
-        volumeLevels[li].volume += candleVolume * invLevels;
-      }
+      // A zero-range bar traded at one price: all of its volume is at that level.
+      volumeLevels[firstLevel].volume += candleVolume;
     }
   }
 
@@ -347,6 +251,11 @@ function computeProfileWindow(
     periodHigh,
     periodLow,
   };
+}
+
+/** Index of the price level containing `price`, clamped to the levels. */
+function levelIndex(price: number, periodLow: number, levelHeight: number, levels: number): number {
+  return Math.min(levels - 1, Math.max(0, Math.floor((price - periodLow) / levelHeight)));
 }
 
 /** Both entry points require an integer number of price levels, at least 2 (one owner for the rule). */

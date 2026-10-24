@@ -33,6 +33,7 @@ import {
   applySlippage,
   applyVolumeConstraint,
   assertValidPartialExits,
+  assertValidVolumeConstraint,
   calculateStats,
   calculateTradeClose,
   checkProfitTriggerDirectional,
@@ -187,6 +188,7 @@ export function runBacktest(
   }
 
   if (marginConfig) assertValidMarginConfig(marginConfig);
+  if (volumeConstraint) assertValidVolumeConstraint(volumeConstraint);
 
   // The evaluated window needs two bars, like a plain run does.
   if (candles.length - warmupBars < 2) {

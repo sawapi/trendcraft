@@ -14,7 +14,7 @@
  */
 
 import { profitFactorFromReturns } from "../analysis/return-metrics";
-import { depthPercent } from "../backtest/drawdown-tracker";
+import { depthPercent, maxDrawdownPercent } from "../backtest/drawdown-tracker";
 import {
   annualizedRatios,
   computeExtendedMetrics,
@@ -181,14 +181,7 @@ function rebuildResult(trades: Trade[], original: BacktestResult): BacktestResul
   const wins = trades.filter((t) => t.return > 0);
 
   // Max drawdown from equity curve
-  const curve = buildEquityCurve(trades, initialCapital);
-  let peak = curve[0];
-  let maxDrawdownPercent = 0;
-  for (const e of curve) {
-    if (e > peak) peak = e;
-    const dd = depthPercent(peak, e);
-    if (dd > maxDrawdownPercent) maxDrawdownPercent = dd;
-  }
+  const maxDrawdown = maxDrawdownPercent(buildEquityCurve(trades, initialCapital));
 
   // Sharpe from the trade returns, annualised by the frequency those trades
   // actually occurred at — the shared owner the unfiltered backtest uses, so
@@ -204,7 +197,7 @@ function rebuildResult(trades: Trade[], original: BacktestResult): BacktestResul
     tradeReturns,
     initialCapital,
     finalCapital,
-    maxDrawdownPercent,
+    maxDrawdown,
     span,
   );
 
@@ -218,7 +211,7 @@ function rebuildResult(trades: Trade[], original: BacktestResult): BacktestResul
     // (0-100), not fraction (0-1). Aligning with runBacktest so callers can
     // compare both shapes directly (e.g. applyEquityCurveFilter.improvement).
     winRate: (wins.length / trades.length) * 100,
-    maxDrawdown: maxDrawdownPercent,
+    maxDrawdown,
     sharpeRatio: sharpe,
     ...extended,
     firstBarTime: original.firstBarTime,

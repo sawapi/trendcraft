@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { at, never, stepCandles } from "../../backtest/__tests__/step-candles";
+import { deadCross, goldenCross } from "../../backtest/conditions/ma-cross";
 import { runBacktest } from "../../backtest/engine";
 import { hmmRegimes } from "../../indicators/regime";
 import type { NormalizedCandle, Series } from "../../types";
@@ -218,5 +219,30 @@ describe("backtestByRegime — integration with hmmRegimes", () => {
 
     // Trade attribution stays within the realised trades.
     expect(table.reduce((a, r) => a + r.tradeCount, 0)).toBeLessThanOrEqual(result.trades.length);
+  });
+});
+
+describe("backtestByRegime on intraday bars", () => {
+  it("annualises at the candles' rate, so a single regime matches the engine's Sharpe", () => {
+    const FIVE_MIN = 5 * 60_000;
+    const candles: NormalizedCandle[] = Array.from({ length: 600 }, (_, i) => {
+      const close = 100 + 4 * Math.sin(i / 9) + i * 0.01;
+      return {
+        time: 1_700_000_000_000 + i * FIVE_MIN,
+        open: close,
+        high: close + 0.2,
+        low: close - 0.2,
+        close,
+        volume: 1000,
+      };
+    });
+    const result = runBacktest(candles, goldenCross(3, 8), deadCross(3, 8), { capital: 100_000 });
+    const regimes = regimesFrom(candles, new Array(candles.length).fill(0));
+
+    const { regimes: table } = backtestByRegime(result, { candles, regimes });
+
+    expect(result.sharpeRatio).not.toBe(0);
+    // The engine rounds its ratio to the cent.
+    expect(table[0].sharpeRatio).toBeCloseTo(result.sharpeRatio, 2);
   });
 });

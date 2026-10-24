@@ -8,6 +8,7 @@
 import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
+import { STC_META } from "../indicator-meta";
 
 /**
  * Schaff Trend Cycle options
@@ -167,11 +168,6 @@ export function schaffTrendCycle(
 
   return tagSeries(
     result,
-    withLabelParams({ overlay: false, label: "STC", yRange: [0, 100], referenceLines: [25, 75] }, [
-      fastPeriod,
-      slowPeriod,
-      cyclePeriod,
-      factor,
-    ]),
+    withLabelParams(STC_META, [fastPeriod, slowPeriod, cyclePeriod, factor]),
   );
 }

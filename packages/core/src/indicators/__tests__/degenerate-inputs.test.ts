@@ -174,10 +174,11 @@ describe("volumeProfile over a zero-volume window", () => {
     expect(inArea).toBeGreaterThan(0);
   });
 
-  it("a window whose volume lands in no price bin still counts as traded (conditions unchanged)", () => {
-    // Flat bars alternating 100 / 110 with volume only on the 110 bars: the
-    // 110 bar sits exactly at periodHigh and the bin allocation assigns it no
-    // level, so every bin reads 0 while the window's own volume is 1000.
+  it("a flat bar at periodHigh puts its volume in the top bin (conditions read it there)", () => {
+    // Flat bars alternating 100 / 110 with volume only on the 110 bars. The
+    // 110 bar sits exactly at periodHigh, one past the last bin's index; it
+    // used to land in no bin, leaving every bin at 0 while the window traded
+    // 1000.
     const px = [100, 110, 100, 110];
     const vol = [0, 1000, 0, 1000];
     const bars: NormalizedCandle[] = px.map((p, i) => ({
@@ -192,14 +193,15 @@ describe("volumeProfile over a zero-volume window", () => {
     for (let i = 1; i < bars.length; i++) {
       const profile = profiles[i].value;
       if (!profile) throw new Error("profile expected");
-      expect(profile.levels.every((l) => l.volume === 0)).toBe(true); // stimulus: the allocation gap
-      // the conditions must read the profile exactly as they would without the guard
+      const volumes = profile.levels.map((l) => l.volume);
+      expect(volumes.at(-1)).toBe(1000);
+      expect(volumes.reduce((a, v) => a + v, 0)).toBe(1000);
+      expect(profile.poc).toBe(profile.levels[profile.levels.length - 1].priceMid);
       expect(priceAbovePoc(2).evaluate({}, bars[i], i, bars)).toBe(bars[i].close > profile.poc);
       expect(inValueArea(2).evaluate({}, bars[i], i, bars)).toBe(
         bars[i].close >= profile.val && bars[i].close <= profile.vah,
       );
     }
-    // and at least one of them actually fires on this window
     expect(priceAbovePoc(2).evaluate({}, bars[3], 3, bars)).toBe(true);
   });
 

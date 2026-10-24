@@ -27,10 +27,12 @@
  * returned alongside the probabilities for the same reason.
  */
 
+import { maxDrawdownPercent } from "../backtest/drawdown-tracker";
 import { calculateDailyReturns } from "../optimization/metrics";
 import type { BacktestResult, NormalizedCandle, Series } from "../types";
 import {
   annualizedReturnFraction,
+  periodsPerYearFromSpan,
   sampleStd,
   sharpeFromReturns,
   winRateFromReturns,
@@ -57,7 +59,12 @@ export type RegimeAttributionOptions = {
   initialCapital?: number;
   /** Annual risk-free rate as a fraction (default 0). */
   riskFree?: number;
-  /** Periods per year for annualisation (default 252). */
+  /**
+   * Periods per year for annualisation. Defaults to the rate implied by the
+   * candles' span (`periodsPerYearFromSpan`), the same rule the engine uses
+   * for `result.sharpeRatio`: about 252 for daily bars, far more for intraday
+   * bars. Pass a number to override it.
+   */
   periodsPerYear?: number;
 };
 
@@ -113,16 +120,10 @@ export type RegimeAttributionReport = {
 
 /** Regime-local max drawdown (percent, ≤ 0) of an equity curve built from `returns`. */
 function maxDrawdownPercentFromReturns(returns: number[]): number {
-  let equity = 1;
-  let peak = 1;
-  let maxDd = 0;
-  for (const r of returns) {
-    equity *= 1 + r;
-    if (equity > peak) peak = equity;
-    const dd = peak > 0 ? (equity - peak) / peak : 0;
-    if (dd < maxDd) maxDd = dd;
-  }
-  return maxDd * 100;
+  const curve = [1];
+  for (const r of returns) curve.push(curve[curve.length - 1] * (1 + r));
+  // Reported as a negative percentage; `0 - depth` keeps no drawdown at +0.
+  return 0 - maxDrawdownPercent(curve);
 }
 
 /**
@@ -154,7 +155,7 @@ export function backtestByRegime(
     regimes,
     initialCapital = result.initialCapital,
     riskFree = 0,
-    periodsPerYear = 252,
+    periodsPerYear: periodsPerYearOption,
   } = options;
 
   if (regimes.length !== candles.length) {
@@ -196,6 +197,12 @@ export function backtestByRegime(
     rawReturns.length === 0 && candles.length >= 2
       ? new Array<number>(candles.length - 1).fill(0)
       : rawReturns;
+
+  // The returns are candle-to-candle, so annualise at the candles' own rate,
+  // as the engine does for result.sharpeRatio.
+  const periodsPerYear =
+    periodsPerYearOption ??
+    periodsPerYearFromSpan(returns.length, candles[0]?.time, candles[candles.length - 1]?.time);
 
   // Bar/return-level bucketing: returns[i] is realised on candle i+1, so it is
   // attributed to that bar's regime.

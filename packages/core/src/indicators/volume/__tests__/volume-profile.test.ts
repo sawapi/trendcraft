@@ -348,3 +348,60 @@ describe("volumeProfileSeries", () => {
     });
   });
 });
+
+describe("zero-range bars", () => {
+  const flat = (prices: number[], volumes: number[]) =>
+    createCandles(prices.map((p, i) => ({ high: p, low: p, close: p, volume: volumes[i] })));
+  const binVolumes = (candles: NormalizedCandle[]) =>
+    volumeProfile(candles, { levels: 4 }).levels.map((l) => l.volume);
+
+  it("puts all of a flat bar's volume in the level at its price", () => {
+    // Bins of 2.5 from 100: [100,102.5) [102.5,105) [105,107.5) [107.5,110].
+    // These flat bars used to reach no bin at all.
+    expect(binVolumes(flat([100, 110, 100, 110], [0, 1000, 0, 1000]))).toEqual([0, 0, 0, 2000]);
+    expect(binVolumes(flat([100, 105, 110], [0, 1000, 0]))).toEqual([0, 0, 1000, 0]);
+  });
+
+  it("keeps every unit of window volume when flat and ranged bars mix", () => {
+    const candles = [
+      ...createCandles([{ high: 102, low: 98, close: 100, volume: 500 }]),
+      ...flat([110], [1000]).map((c) => ({ ...c, time: c.time + 86_400_000 })),
+    ];
+    const levels = volumeProfile(candles, { levels: 4 }).levels;
+    expect(levels.reduce((sum, l) => sum + l.volume, 0)).toBeCloseTo(1500, 9);
+    expect(levels[3].volume).toBe(1000);
+  });
+
+  it("gives the single profile and the rolling series the same answer on a window", () => {
+    const candles = createCandles(
+      [100, 103, 110, 103, 106, 101, 110, 104].map((p, i) => ({
+        // every other bar is flat
+        high: i % 2 === 0 ? p : p + 2,
+        low: i % 2 === 0 ? p : p - 2,
+        close: p,
+        volume: 100 * (i + 1),
+      })),
+    );
+    const period = 4;
+    const series = volumeProfileSeries(candles, { period, levels: 6 });
+    for (let end = period; end <= candles.length; end++) {
+      const single = volumeProfile(candles.slice(0, end), { period, levels: 6 });
+      expect(series[end - 1].value).toEqual(single);
+    }
+  });
+});
+
+describe("period validation", () => {
+  const candles = createUniformCandles(10);
+
+  it("rejects a period that is not a positive integer in both entry points", () => {
+    for (const period of [2.5, 0, -3, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(() => volumeProfile(candles, { period }), String(period)).toThrow(/period/);
+      expect(() => volumeProfileSeries(candles, { period }), String(period)).toThrow(/period/);
+    }
+  });
+
+  it("still reads an omitted period as all candles", () => {
+    expect(volumeProfile(candles).levels.reduce((s, l) => s + l.volume, 0)).toBeCloseTo(1000, 9);
+  });
+});

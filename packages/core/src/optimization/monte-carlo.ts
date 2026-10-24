@@ -11,6 +11,7 @@
  */
 
 import { periodsPerYearFromSpan, sharpeFromReturns } from "../analysis/return-metrics";
+import { depthPercent } from "../backtest/drawdown-tracker";
 import { mulberry32 } from "../core/random";
 import type { BacktestResult, Trade } from "../types";
 import type { MetricStatistics, MonteCarloOptions, MonteCarloResult } from "../types/optimization";
@@ -134,9 +135,9 @@ type ResampleTrade = {
  * move it actually was instead of re-applying the per-share return per slice.
  *
  * Equity is reconstructed as `initialCapital` plus the realised P&L of the
- * preceding trades, in the order the backtest closed them. Entry fees and
- * margin interest are not part of `Trade.return`, so they are not part of
- * this path either: with them set, it runs slightly above the engine's own.
+ * preceding trades, in the order the backtest closed them. `Trade.return`
+ * carries every cost of the round trip (both commissions, tax and margin
+ * interest), so the unshuffled path ends at the engine's own final capital.
  */
 function toAccountReturns(trades: Trade[], initialCapital: number): ResampleTrade[] {
   let equity = initialCapital;
@@ -180,7 +181,7 @@ function recalculateMetricsFromTrades(
     if (capital > peakCapital) {
       peakCapital = capital;
     }
-    const drawdown = ((peakCapital - capital) / peakCapital) * 100;
+    const drawdown = depthPercent(peakCapital, capital);
     if (drawdown > maxDrawdown) {
       maxDrawdown = drawdown;
     }

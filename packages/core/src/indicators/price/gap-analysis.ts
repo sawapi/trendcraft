@@ -8,6 +8,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { GAP_ANALYSIS_META } from "../indicator-meta";
 
 /**
  * Gap Analysis options
@@ -146,5 +147,5 @@ export function gapAnalysis(
     }
   }
 
-  return tagSeries(result, { kind: "gapAnalysis", overlay: true, label: "Gap" });
+  return tagSeries(result, GAP_ANALYSIS_META);
 }

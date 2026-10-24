@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { at, never, stepCandles } from "../../backtest/__tests__/step-candles";
+import { deadCross, goldenCross } from "../../backtest/conditions/ma-cross";
 import { runBacktest } from "../../backtest/engine";
-import { omegaRatio } from "../return-metrics";
+import type { NormalizedCandle } from "../../types";
+import { omegaRatio, sampleStd } from "../return-metrics";
 import { report } from "../tearsheet";
 
 // Up, then a drawdown, then recovery — produces winning and losing trades
@@ -113,5 +115,42 @@ describe("report", () => {
     // A candle-length benchmark still aligns for the capture ratios.
     const benchmark = new Array(n).fill(0.001);
     expect(() => report(flat, { candles: CANDLES, benchmarkReturns: benchmark })).not.toThrow();
+  });
+});
+
+describe("report on intraday bars", () => {
+  // Five-minute bars: about 100x more periods per year than daily bars.
+  const FIVE_MIN = 5 * 60_000;
+  const intraday: NormalizedCandle[] = Array.from({ length: 600 }, (_, i) => {
+    const close = 100 + 4 * Math.sin(i / 9) + i * 0.01;
+    return {
+      time: 1_700_000_000_000 + i * FIVE_MIN,
+      open: close,
+      high: close + 0.2,
+      low: close - 0.2,
+      close,
+      volume: 1000,
+    };
+  });
+  const intradayResult = runBacktest(intraday, goldenCross(3, 8), deadCross(3, 8), {
+    capital: CAPITAL,
+  });
+
+  it("annualises at the candles' rate, so its Sharpe agrees with the engine's", () => {
+    // A rolling window spanning every return is the whole-period Sharpe, which
+    // the engine reports as result.sharpeRatio. With 252 assumed for 5-minute
+    // bars it read about sqrt(105_000 / 252) ≈ 20x lower.
+    const sheet = report(intradayResult, { candles: intraday, rollingWindow: intraday.length - 1 });
+    expect(intradayResult.sharpeRatio).not.toBe(0);
+    // The engine rounds its ratio to the cent.
+    expect(sheet.series.rollingSharpe.at(-1)).toBeCloseTo(intradayResult.sharpeRatio, 2);
+  });
+
+  it("still honours an explicit periodsPerYear", () => {
+    const sheet = report(intradayResult, { candles: intraday, periodsPerYear: 252 });
+    expect(sheet.annualizedVolatilityPercent).toBeCloseTo(
+      sampleStd(sheet.series.returns) * Math.sqrt(252) * 100,
+      10,
+    );
   });
 });

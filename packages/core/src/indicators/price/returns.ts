@@ -3,7 +3,9 @@
  */
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, ReturnsOptions, Series } from "../../types";
+import { RETURNS_META } from "../indicator-meta";
 
 /**
  * Calculate price returns
@@ -59,7 +61,7 @@ export function returns(
     }
   }
 
-  return result;
+  return tagSeries(result, RETURNS_META);
 }
 
 /**

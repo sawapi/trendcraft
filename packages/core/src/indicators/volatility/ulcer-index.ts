@@ -9,6 +9,7 @@ import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 import { assertPeriod } from "../../utils/validate-period";
+import { ULCER_META } from "../indicator-meta";
 
 /**
  * Ulcer Index options
@@ -90,5 +91,5 @@ export function ulcerIndex(
     result.push({ time: normalized[i].time, value: Math.sqrt(sumSquared / period) });
   }
 
-  return tagSeries(result, withLabelParams({ overlay: false, label: "Ulcer" }, [period]));
+  return tagSeries(result, withLabelParams(ULCER_META, [period]));
 }

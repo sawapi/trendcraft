@@ -9,6 +9,7 @@ import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
 import { slopeOverIndex } from "../../core/statistics";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
+import { LINEAR_REG_META } from "../indicator-meta";
 
 /**
  * Linear Regression options
@@ -115,5 +116,5 @@ export function linearRegression(
     });
   }
 
-  return tagSeries(result, withLabelParams({ overlay: true, label: "LinReg" }, [period]));
+  return tagSeries(result, withLabelParams(LINEAR_REG_META, [period]));
 }

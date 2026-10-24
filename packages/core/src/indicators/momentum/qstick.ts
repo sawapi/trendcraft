@@ -8,6 +8,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { QSTICK_META } from "../indicator-meta";
 
 /**
  * QStick options
@@ -67,8 +68,5 @@ export function qstick(
     result.push({ time: normalized[i].time, value: sum / period });
   }
 
-  return tagSeries(
-    result,
-    withLabelParams({ overlay: false, label: "QStick", referenceLines: [0] }, [period]),
-  );
+  return tagSeries(result, withLabelParams(QSTICK_META, [period]));
 }

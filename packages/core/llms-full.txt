@@ -228,7 +228,7 @@ Volume spike detection. Defaults: 20/2.0/3.0.
 
 Returns `Series<{ volume, avgVolume, ratio, isAnomaly: boolean, level: 'normal' | 'high' | 'extreme' | null, zScore }>`.
 
-### `volumeProfile(candles, { period?, numLevels?, valueAreaPercent? })`
+### `volumeProfile(candles, { period?, levels?, valueAreaPercent? })`
 Volume Profile. Returns `{ levels: VolumePriceLevel[], poc, vah, val, periodHigh, periodLow }`.
 
 ### `volumeProfileSeries(candles, options?)`

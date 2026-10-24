@@ -6,8 +6,10 @@
  */
 
 import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
+import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 import { assertPeriod } from "../../utils/validate-period";
+import { STD_DEV_META } from "../indicator-meta";
 
 /**
  * Standard Deviation options
@@ -78,5 +80,5 @@ export function standardDeviation(
     result.push({ time: normalized[i].time, value: stdDev });
   }
 
-  return result;
+  return tagSeries(result, STD_DEV_META);
 }

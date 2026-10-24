@@ -8,6 +8,7 @@
 import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
+import { COPPOCK_META } from "../indicator-meta";
 
 /**
  * Coppock Curve options
@@ -113,10 +114,6 @@ export function coppockCurve(
 
   return tagSeries(
     result,
-    withLabelParams({ overlay: false, label: "Coppock", referenceLines: [0] }, [
-      wmaPeriod,
-      longRocPeriod,
-      shortRocPeriod,
-    ]),
+    withLabelParams(COPPOCK_META, [wmaPeriod, longRocPeriod, shortRocPeriod]),
   );
 }

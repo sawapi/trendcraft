@@ -2,6 +2,62 @@
 
 ## [Unreleased]
 
+### Fixed — batch indicators tagged with metadata that disagreed with their preset
+
+A chart places a series by its `__meta.overlay` before its own rules, so a
+batch function and its live preset must describe the series the same way.
+Several did not:
+
+- `gapAnalysis()` and `liquiditySweep()` claimed `overlay: true`, so
+  `chart.addIndicator(gapAnalysis(candles))` drew gap percentages on the
+  price pane and stretched the price axis down to 0, while
+  `connectIndicators(...).add("gapAnalysis")` gave it its own pane. Both now
+  report `overlay: false`, like their presets.
+- `awesomeOscillator`, `balanceOfPower`, `qstick`, `ppo`, `coppockCurve`,
+  `massIndex`, `ultimateOscillator`, `tsi`, `kst`, `hurst`, `schaffTrendCycle`,
+  `garmanKlass`, `historicalVolatility`, `ulcerIndex`, `easeOfMovement`, `dpo`
+  and `linearRegression` omitted `__meta.kind`. They now carry it.
+- `twap`, `standardDeviation`, `returns` and `fibonacciExtension` returned
+  untagged series. They are now tagged.
+
+Each of these now uses the exported `*_META` constant, and a test checks
+every live preset against its batch function.
+
+### Fixed — `report()` and `backtestByRegime()` annualised every bar size as daily
+
+Both annualised candle-to-candle returns with a fixed 252 periods per year,
+while the engine's `sharpeRatio` (which `report()` copies into the same
+object) uses the rate implied by the candles' span. On five-minute bars one
+report carried a headline Sharpe and a rolling Sharpe about 20x apart, and
+understated annualised volatility by the same factor. `periodsPerYear` now
+defaults to that span-derived rate (`periodsPerYearFromSpan`), which covers
+`annualizedVolatilityPercent`, the rolling series, Omega, the capture ratios
+and every per-regime statistic. Trading-day daily bars still get about 252;
+bars on every calendar day (crypto) now get about 365. Pass
+`periodsPerYear` to keep a fixed rate.
+
+### Fixed — Volume Profile dropped the volume of zero-range bars
+
+A bar with `high === low` traded all its volume at one price, but the
+profile lost it: `volumeProfile()` put it in no level at all, and
+`volumeProfileSeries()` dropped it at the window high and otherwise booked
+only `1 / levels` of it. POC and Value Area were computed without that
+volume (common on minute bars, thin markets and bars after a halt), and the
+two functions disagreed on the same window. A zero-range bar now puts all of
+its volume in the level containing its price, and `volumeProfile()` computes
+its window with the same code as the series.
+
+### Breaking — Volume Profile rejects a `period` that is not a positive integer
+
+`volumeProfile()` and `volumeProfileSeries()` now require `period` to be a
+positive integer. A fractional `period` was silently truncated by
+`volumeProfile()` (2.5 profiled the last 2 candles) and made
+`volumeProfileSeries()` throw a `TypeError`; `0`, negative and `NaN` values
+were silently read as "all candles" or as a nonsense window
+(`volumeProfile(candles, { period: 0 })` meant all candles). Each of these
+now throws. Omitting `period` still profiles all candles in
+`volumeProfile()` (the series defaults to 20).
+
 ### Fixed — a later FVG fill reached back into earlier bars (look-ahead)
 
 `fairValueGap()` (and the incremental `createFairValueGap`) marked a gap
@@ -144,6 +200,16 @@ unless `leverage` is at least 1, `maintenanceMargin` lies in [0, 1) (a
 percentage such as `30` used to margin-call every bar; `0`, leverage without
 maintenance calls, is still accepted), and `interestRate`, when set, is
 non-negative.
+
+### Breaking — `runBacktest` rejects an invalid `volumeConstraint`
+
+A `volumeConstraint` without a usable `maxVolumePercent` failed silently:
+a missing or `NaN` value filled `NaN` shares and returned a `NaN`
+`finalCapital`, and a value at or below 0 cancelled every entry. This
+happens only from JavaScript or a JSON-loaded strategy, since TypeScript
+requires the key. `runBacktest` now throws unless `maxVolumePercent` is a
+finite number above 0. Values above 100 are still accepted; they cap the
+order at that multiple of the bar's volume.
 
 ### Breaking — combination search and anchored walk-forward default to 100,000 capital
 
