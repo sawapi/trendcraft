@@ -12,6 +12,7 @@ import {
 } from "../anchored-walkforward";
 import type { ConditionDefinition } from "../combination-search";
 import { combinationSearch } from "../combination-search";
+import { DEFAULT_BACKTEST_CAPITAL } from "../constants";
 
 /**
  * Generate test candles with an upward trend
@@ -465,6 +466,26 @@ describe("Anchored Walk-Forward Analysis", () => {
         expect(typeof point.equity).toBe("number");
         expect(typeof point.periodNumber).toBe("number");
       }
+    });
+
+    it("starts from DEFAULT_BACKTEST_CAPITAL by default", () => {
+      const candles = generateTestCandles(1000);
+      const result = anchoredWalkForwardAnalysis(
+        candles,
+        createSimpleEntryConditions(),
+        createSimpleExitConditions(),
+        {
+          anchorDate: candles[0].time,
+          initialTrainSize: 252,
+          expansionStep: 252,
+          testSize: 126,
+        },
+        { maxEntryConditions: 1, maxExitConditions: 1 },
+      );
+      const curve = getAWFEquityCurve(result);
+      expect(curve.length).toBeGreaterThan(0);
+      const first = result.periods[0].outOfSampleMetrics.returns;
+      expect(curve[0].equity).toBeCloseTo(DEFAULT_BACKTEST_CAPITAL * (1 + first / 100), 6);
     });
 
     it("should use custom initial capital", () => {

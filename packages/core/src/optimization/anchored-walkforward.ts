@@ -30,6 +30,7 @@ import {
   type ConditionDefinition,
   combinationSearch,
 } from "./combination-search";
+import { DEFAULT_BACKTEST_CAPITAL } from "./constants";
 import { calculateAllMetrics } from "./metrics";
 import { validatePurgeBars } from "./walkforward";
 import { assertNoOwnWarmup, validateWarmupBars, warmWindow } from "./walkforward-shared";
@@ -184,7 +185,7 @@ export function anchoredWalkForwardAnalysis(
 
   // Backtest options
   const backtestOpts: BacktestOptions = combinationOptions.backtestOptions ?? {
-    capital: 1000000,
+    capital: DEFAULT_BACKTEST_CAPITAL,
   };
   assertNoOwnWarmup(backtestOpts);
 
@@ -276,7 +277,7 @@ export function anchoredWalkForwardAnalysis(
       warmupBars: test.warmupBars,
     });
     const outOfSampleMetrics = calculateAllMetrics(testBacktest, test.window, {
-      initialCapital: backtestOpts.capital ?? 1000000,
+      initialCapital: backtestOpts.capital ?? DEFAULT_BACKTEST_CAPITAL,
     });
 
     periods.push({

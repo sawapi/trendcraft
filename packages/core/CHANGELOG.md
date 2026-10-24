@@ -98,6 +98,16 @@ percentage such as `30` used to margin-call every bar; `0`, leverage without
 maintenance calls, is still accepted), and `interestRate`, when set, is
 non-negative.
 
+### Breaking — combination search and anchored walk-forward default to 100,000 capital
+
+`combinationSearch`, `anchoredWalkForwardAnalysis` and `getAWFEquityCurve`
+defaulted to 1,000,000 while `gridSearch`, `walkForwardAnalysis` and
+`paretoOptimization` used `DEFAULT_BACKTEST_CAPITAL` (100,000). With a fixed
+commission, a sizing callback that returns share counts, or a volume
+constraint, their scores were not comparable. All now default to
+`DEFAULT_BACKTEST_CAPITAL`; pass `backtestOptions.capital` (or
+`getAWFEquityCurve`'s `initialCapital`) to keep 1,000,000.
+
 ### Fixed — risk-based sizing put a wide-stop short at full capital
 
 `sizing: { method: "risk-based" }` fell back to a full-capital entry whenever

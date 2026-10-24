@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { NormalizedCandle, PresetCondition } from "../../types";
 import type { ConditionDefinition } from "../combination-search";
 import { combinationSearch } from "../combination-search";
+import { DEFAULT_BACKTEST_CAPITAL } from "../constants";
 
 /**
  * Generate trending candles with alternating up/down cycles
@@ -285,5 +286,20 @@ describe("combinationSearch — non-finite scores and the winning entry", () => 
     expect(result.bestResult).not.toBeNull();
     expect(result.bestScore).not.toBeNull();
     expect(result.validCombinations).toBe(1);
+  });
+
+  it("backtests on DEFAULT_BACKTEST_CAPITAL when no backtestOptions are given", () => {
+    // Same default as gridSearch / walk-forward / Pareto, so fixed-amount
+    // costs weigh the same in every optimiser's scores.
+    const result = combinationSearch(
+      generateTrendingCandles(120),
+      [{ name: "always", displayName: "Always", create: () => alwaysTrue() }],
+      [{ name: "below105", displayName: "Price < 105", create: () => priceBelow(105) }],
+      { metric: "returns", keepAllResults: true },
+    );
+    expect(result.results.length).toBeGreaterThan(0);
+    for (const entry of result.results) {
+      expect(entry.backtest.initialCapital).toBe(DEFAULT_BACKTEST_CAPITAL);
+    }
   });
 });

@@ -5,6 +5,7 @@
  */
 
 import type { AWFPeriod, AWFResult, OptimizationMetric } from "../types/optimization";
+import { DEFAULT_BACKTEST_CAPITAL } from "./constants";
 import { aggregateInOutMetrics } from "./walkforward-shared";
 
 /**
@@ -235,7 +236,7 @@ export function formatAWFResult(result: AWFResult): string {
  */
 export function getAWFEquityCurve(
   result: AWFResult,
-  initialCapital = 1000000,
+  initialCapital = DEFAULT_BACKTEST_CAPITAL,
 ): Array<{ time: number; equity: number; periodNumber: number }> {
   const curve: Array<{ time: number; equity: number; periodNumber: number }> = [];
   let equity = initialCapital;
