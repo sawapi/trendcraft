@@ -2929,7 +2929,8 @@ const result = runBacktest(candles, entry, exit, {
 リスク量は常に現在の（複利の）現金資金を基準に計算され、結果は買付余力に
 クランプされます。`margin` 設定時は `risk-based` / `atr-based` が買付余力
 上限までレバレッジを使えます。株数は端数のまま扱われ、`volumeConstraint`
-とも併用可能（より厳しい制限が優先）。使用したサイジング設定は再現性のため
+とも併用可能（より厳しい制限が優先。`maxVolumePercent` が 0 より大きい有限値でないと
+`runBacktest` はエラーにします）。使用したサイジング設定は再現性のため
 `result.settings.sizing` に丸ごと記録されます（`custom` はメソッド名のみ）。
 Strategy JSON では `backtest.sizing` に `custom` 以外のメソッドを指定
 できます（コールバックはシリアライズ不可のため）。

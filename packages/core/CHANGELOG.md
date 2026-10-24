@@ -201,6 +201,16 @@ percentage such as `30` used to margin-call every bar; `0`, leverage without
 maintenance calls, is still accepted), and `interestRate`, when set, is
 non-negative.
 
+### Breaking — `runBacktest` rejects an invalid `volumeConstraint`
+
+A `volumeConstraint` without a usable `maxVolumePercent` failed silently:
+a missing or `NaN` value filled `NaN` shares and returned a `NaN`
+`finalCapital`, and a value at or below 0 cancelled every entry. This
+happens only from JavaScript or a JSON-loaded strategy, since TypeScript
+requires the key. `runBacktest` now throws unless `maxVolumePercent` is a
+finite number above 0. Values above 100 are still accepted; they cap the
+order at that multiple of the bar's volume.
+
 ### Breaking — combination search and anchored walk-forward default to 100,000 capital
 
 `combinationSearch`, `anchoredWalkForwardAnalysis` and `getAWFEquityCurve`

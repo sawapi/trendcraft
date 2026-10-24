@@ -586,6 +586,29 @@ export function calculateStats(
 }
 
 /**
+ * Reject a volume constraint the engine cannot honour.
+ *
+ * `maxVolumePercent` must be a finite number above 0. A missing or `NaN`
+ * value made every limit comparison false and the fill `NaN` shares, which
+ * turned `finalCapital` into `NaN`; a value at or below 0 cancelled every
+ * entry without a word. Values above 100 are accepted; they cap the order at
+ * that multiple of the bar's volume.
+ *
+ * @example
+ * ```ts
+ * assertValidVolumeConstraint({ maxVolumePercent: 10 });
+ * ```
+ */
+export function assertValidVolumeConstraint(constraint: VolumeConstraint): void {
+  // Negated range so NaN and undefined are rejected rather than slipping through.
+  if (!(constraint.maxVolumePercent > 0 && Number.isFinite(constraint.maxVolumePercent))) {
+    throw new Error(
+      `volumeConstraint.maxVolumePercent must be a finite number > 0 (e.g. 10 for 10%), got ${constraint.maxVolumePercent}`,
+    );
+  }
+}
+
+/**
  * Apply volume constraint to limit position size based on bar volume.
  * Returns adjusted shares (may be less than requested, or 0 if partialFill is false).
  *

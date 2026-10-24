@@ -86,3 +86,26 @@ describe("backtest volumeConstraint capital conservation", () => {
     expect(result.finalCapital).toBe(1_000_000);
   });
 });
+
+describe("volumeConstraint validation", () => {
+  const candles = flatCandles(30);
+  const run = (maxVolumePercent: unknown) =>
+    runBacktest(candles, enterAt(2), never, {
+      capital: 100_000,
+      volumeConstraint: { maxVolumePercent } as { maxVolumePercent: number },
+    });
+
+  it("rejects a missing, non-finite or non-positive maxVolumePercent", () => {
+    // A missing or NaN value used to produce NaN shares and a NaN finalCapital;
+    // a negative one cancelled every entry without a word.
+    for (const bad of [undefined, Number.NaN, Number.POSITIVE_INFINITY, 0, -5]) {
+      expect(() => run(bad), String(bad)).toThrow(/maxVolumePercent must be a finite number > 0/);
+    }
+  });
+
+  it("accepts any finite positive value, including one that never binds", () => {
+    for (const ok of [0.01, 10, 100, 1_000_000]) {
+      expect(Number.isFinite(run(ok).finalCapital)).toBe(true);
+    }
+  });
+});
