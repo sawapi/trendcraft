@@ -9,8 +9,7 @@
  */
 
 import { runBacktest } from "../backtest";
-import { and } from "../backtest/conditions";
-import type { BacktestOptions, NormalizedCandle } from "../types";
+import type { BacktestOptions, Condition, NormalizedCandle } from "../types";
 import type {
   AnchoredWalkForwardOptions,
   AWFPeriod,
@@ -26,6 +25,7 @@ import {
   generateAWFRecommendation,
 } from "./anchored-walkforward-utils";
 import {
+  buildCombinationCondition,
   type CombinationSearchOptions,
   type ConditionDefinition,
   combinationSearch,
@@ -117,6 +117,24 @@ export function calculateAWFPeriodCount(
   if (availableCandles < minRequired) return 0;
 
   return Math.floor((availableCandles - minRequired) / expansionStep) + 1;
+}
+
+/**
+ * Turn a selected combination's names back into its condition, splitting
+ * them into required and searched the same way `combinationSearch` did.
+ */
+function rebuildCombination(
+  pool: ConditionDefinition[],
+  selected: string[],
+  requiredNames: string[],
+  useOr: boolean,
+): Condition {
+  const defs = pool.filter((c) => selected.includes(c.name));
+  return buildCombinationCondition(
+    defs.filter((c) => requiredNames.includes(c.name)),
+    defs.filter((c) => !requiredNames.includes(c.name)),
+    useOr,
+  );
 }
 
 /**
@@ -227,15 +245,20 @@ export function anchoredWalkForwardAnalysis(
       progressCallback(i + 1, boundaries.length, "test");
     }
 
-    // Build combined conditions for test
-    const entryDefs = entryConditions.filter((c) => bestEntry.includes(c.name));
-    const exitDefs = exitConditions.filter((c) => bestExit.includes(c.name));
-
-    const entryCondition =
-      entryDefs.length === 1 ? entryDefs[0].create() : and(...entryDefs.map((d) => d.create()));
-
-    const exitCondition =
-      exitDefs.length === 1 ? exitDefs[0].create() : and(...exitDefs.map((d) => d.create()));
+    // Rebuild the selected combination exactly as the search scored it:
+    // required conditions ANDed, searched ones joined per `useOr`.
+    const entryCondition = rebuildCombination(
+      entryConditions,
+      bestEntry,
+      combinationOptions.requiredEntryConditions ?? [],
+      combinationOptions.useOr ?? false,
+    );
+    const exitCondition = rebuildCombination(
+      exitConditions,
+      bestExit,
+      combinationOptions.requiredExitConditions ?? [],
+      combinationOptions.useOr ?? false,
+    );
 
     // In-sample metrics come from the winning entry itself, not from a
     // name-based lookup back into `results`.

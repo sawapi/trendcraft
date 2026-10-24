@@ -29,6 +29,45 @@ export type ConditionDefinition = {
 };
 
 /**
+ * Build the condition one combination stands for: the searched conditions
+ * joined with AND (or OR when `useOr`), ANDed with the required conditions,
+ * which are always ANDed.
+ *
+ * This is the single owner of that structure. Anything that re-runs a
+ * selected combination — the walk-forward out-of-sample step — must build it
+ * here, or it tests a different rule from the one the search scored.
+ *
+ * @example
+ * ```ts
+ * const trend: ConditionDefinition = { name: "trend", displayName: "Trend", create: () => rsiAbove(50) };
+ * const dip: ConditionDefinition = { name: "dip", displayName: "Dip", create: () => rsiBelow(30) };
+ * const breakout: ConditionDefinition = { name: "vol", displayName: "Volume", create: () => volumeAboveAvg(1.5) };
+ * // trend AND (dip OR breakout)
+ * const entry = buildCombinationCondition([trend], [dip, breakout], true);
+ * ```
+ */
+export function buildCombinationCondition(
+  required: ConditionDefinition[],
+  searched: ConditionDefinition[],
+  useOr: boolean,
+): Condition {
+  const requiredConditions = required.map((c) => c.create());
+  const searchedConditions = searched.map((c) => c.create());
+
+  const searchedCondition =
+    searchedConditions.length === 0
+      ? null
+      : searchedConditions.length === 1
+        ? searchedConditions[0]
+        : (useOr ? or : and)(...searchedConditions);
+
+  if (searchedCondition === null) return and(...requiredConditions);
+  return requiredConditions.length > 0
+    ? and(...requiredConditions, searchedCondition)
+    : searchedCondition;
+}
+
+/**
  * Combination search result entry
  */
 export type CombinationResultEntry = {
@@ -270,8 +309,6 @@ export function combinationSearch(
   let validCombinations = 0;
   let current = 0;
 
-  const combiner = useOr ? or : and;
-
   // Test all combinations
   for (const entryCombo of entryCombos) {
     for (const exitCombo of exitCombos) {
@@ -292,41 +329,8 @@ export function combinationSearch(
       }
 
       try {
-        // Search conditions: combine with useOr setting (and/or)
-        const searchEntryConditions = entryCombo.map((c) => c.create());
-        const searchExitConditions = exitCombo.map((c) => c.create());
-
-        const searchEntry =
-          searchEntryConditions.length === 0
-            ? null
-            : searchEntryConditions.length === 1
-              ? searchEntryConditions[0]
-              : combiner(...searchEntryConditions);
-        const searchExit =
-          searchExitConditions.length === 0
-            ? null
-            : searchExitConditions.length === 1
-              ? searchExitConditions[0]
-              : combiner(...searchExitConditions);
-
-        // Required conditions: always AND
-        const requiredEntry = requiredEntryDefs.map((c) => c.create());
-        const requiredExit = requiredExitDefs.map((c) => c.create());
-
-        // Final: required AND search
-        const entryCondition =
-          searchEntry === null
-            ? and(...requiredEntry)
-            : requiredEntry.length > 0
-              ? and(...requiredEntry, searchEntry)
-              : searchEntry;
-
-        const exitCondition =
-          searchExit === null
-            ? and(...requiredExit)
-            : requiredExit.length > 0
-              ? and(...requiredExit, searchExit)
-              : searchExit;
+        const entryCondition = buildCombinationCondition(requiredEntryDefs, entryCombo, useOr);
+        const exitCondition = buildCombinationCondition(requiredExitDefs, exitCombo, useOr);
 
         // Run backtest with shared cache
         const backtest = runBacktest(

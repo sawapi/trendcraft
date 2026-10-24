@@ -33,6 +33,24 @@ backtest result itself uses for trade-based Sharpe, and computed by the shared
 `sharpeFromReturns` kernel. `statistics.sharpe`, `confidenceInterval.sharpe`
 and `summarizeMonteCarloResult().expectedSharpe` change accordingly.
 
+### Fixed — anchored walk-forward re-tested an OR combination as AND
+
+With `useOr: true`, `combinationSearch` scored the searched conditions joined
+by OR, but `anchoredWalkForwardAnalysis` rebuilt the winner for the
+out-of-sample test with a hard-coded AND (entries and exits alike), so the
+test ran a different — often never-firing — rule. Both now build a
+combination through one function, keeping required conditions ANDed and the
+searched ones joined as searched.
+
+### Fixed — anchored walk-forward lost `mar` from its aggregate
+
+`aggregateMetrics.avgInSample.mar` / `avgOutOfSample.mar` were `undefined`,
+so a run optimised on `metric: "mar"` always reported `stabilityRatio = 0` and
+the pessimistic recommendation. The anchored aggregate also averaged a
+period's undefined (NaN) metric as 0. Rolling and anchored walk-forward now
+share one aggregation that covers every `OptimizationMetric` and averages
+only the periods where a metric was defined.
+
 ### Fixed — MFI read 100 (maximum overbought) for a window with no money flow
 
 `mfi` checked "no negative flow" first, so a window whose typical price never

@@ -5,6 +5,7 @@
  */
 
 import type { AWFPeriod, AWFResult, OptimizationMetric } from "../types/optimization";
+import { aggregateInOutMetrics } from "./walkforward-shared";
 
 /**
  * Calculate aggregate metrics across all AWF periods
@@ -13,46 +14,11 @@ export function calculateAggregateAWFMetrics(
   periods: AWFPeriod[],
   primaryMetric: OptimizationMetric,
 ): AWFResult["aggregateMetrics"] {
-  const metricKeys: OptimizationMetric[] = [
-    "sharpe",
-    "calmar",
-    "profitFactor",
-    "recoveryFactor",
-    "returns",
-    "winRate",
-    "tradeCount",
-    "maxDrawdown",
-  ];
-
-  const avgInSample = {} as Record<OptimizationMetric, number>;
-  const avgOutOfSample = {} as Record<OptimizationMetric, number>;
-
-  for (const key of metricKeys) {
-    avgInSample[key] =
-      periods.reduce((sum, p) => {
-        const val = p.inSampleMetrics[key];
-        return sum + (Number.isFinite(val) ? val : 0);
-      }, 0) / periods.length;
-    avgOutOfSample[key] =
-      periods.reduce((sum, p) => {
-        const val = p.outOfSampleMetrics[key];
-        return sum + (Number.isFinite(val) ? val : 0);
-      }, 0) / periods.length;
-  }
-
-  // Stability ratio
-  const avgIn = avgInSample[primaryMetric];
-  const avgOut = avgOutOfSample[primaryMetric];
-  let stabilityRatio: number;
-  if (avgIn > 0 && avgOut > 0) {
-    stabilityRatio = Math.min(avgOut / avgIn, 1);
-  } else if (avgIn < 0 && avgOut < 0) {
-    stabilityRatio = Math.min(avgOut / avgIn, 1);
-  } else if (avgIn === 0) {
-    stabilityRatio = avgOut >= 0 ? 1 : 0;
-  } else {
-    stabilityRatio = 0;
-  }
+  const { avgInSample, avgOutOfSample, stabilityRatio } = aggregateInOutMetrics(
+    periods.map((p) => p.inSampleMetrics),
+    periods.map((p) => p.outOfSampleMetrics),
+    primaryMetric,
+  );
 
   // OOS return standard deviation
   const oosReturns = periods.map((p) => p.outOfSampleMetrics.returns);

@@ -889,3 +889,72 @@ describe("Anchored Walk-Forward — periods that select nothing", () => {
     expect(text).toContain("Skipped Periods (no combination selected, not tested)");
   });
 });
+
+describe("Anchored Walk-Forward — out-of-sample tests what the search scored", () => {
+  // Mutually exclusive by construction: AND of the two never fires, OR of
+  // them fires every bar.
+  const parityEntries: ConditionDefinition[] = [
+    { name: "even", displayName: "Even bar", create: () => (_i, _c, index) => index % 2 === 0 },
+    { name: "odd", displayName: "Odd bar", create: () => (_i, _c, index) => index % 2 === 1 },
+  ];
+
+  it("rebuilds an OR-selected combination with OR, not AND", () => {
+    const candles = seededCandles(800);
+    const result = anchoredWalkForwardAnalysis(
+      candles,
+      parityEntries,
+      seededExitConditions(),
+      { anchorDate: candles[0].time, ...SEEDED_AWF_OPTIONS, metric: "returns" },
+      { useOr: true, minEntryConditions: 2, maxEntryConditions: 2 },
+    );
+
+    expect(result.periods.length).toBeGreaterThan(0);
+    for (const period of result.periods) {
+      expect(period.bestEntryConditions.sort()).toEqual(["even", "odd"]);
+      expect(period.outOfSampleMetrics.tradeCount).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe("Anchored Walk-Forward — aggregate covers every metric", () => {
+  it("averages mar when optimising on it, skipping undefined periods", () => {
+    const candles = seededCandles(800);
+    const result = anchoredWalkForwardAnalysis(
+      candles,
+      seededEntryConditions(),
+      seededExitConditions(),
+      { anchorDate: candles[0].time, ...SEEDED_AWF_OPTIONS, metric: "mar" },
+      { maxEntryConditions: 1, maxExitConditions: 1 },
+    );
+
+    const { avgInSample, avgOutOfSample } = result.aggregateMetrics;
+    const finiteMean = (values: number[]) => {
+      const finite = values.filter(Number.isFinite);
+      return finite.length > 0 ? finite.reduce((s, v) => s + v, 0) / finite.length : 0;
+    };
+
+    expect(avgInSample.mar).toBeCloseTo(
+      finiteMean(result.periods.map((p) => p.inSampleMetrics.mar)),
+      10,
+    );
+    expect(avgOutOfSample.mar).toBeCloseTo(
+      finiteMean(result.periods.map((p) => p.outOfSampleMetrics.mar)),
+      10,
+    );
+    // Every OptimizationMetric is present and numeric.
+    for (const key of [
+      "sharpe",
+      "calmar",
+      "mar",
+      "profitFactor",
+      "recoveryFactor",
+      "returns",
+      "winRate",
+      "tradeCount",
+      "maxDrawdown",
+    ] as const) {
+      expect(typeof avgInSample[key]).toBe("number");
+      expect(typeof avgOutOfSample[key]).toBe("number");
+    }
+  });
+});

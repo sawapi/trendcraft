@@ -19,6 +19,7 @@ import { err, ok, type Result, tcError } from "../types/result";
 import { DEFAULT_BACKTEST_CAPITAL } from "./constants";
 import { generateParameterCombinations, gridSearch, type StrategyFactory } from "./grid-search";
 import { calculateAllMetrics } from "./metrics";
+import { aggregateInOutMetrics } from "./walkforward-shared";
 
 /**
  * Default options for walk-forward analysis
@@ -266,11 +267,7 @@ export function walkForwardAnalysis(
   }
 
   // Calculate aggregate metrics
-  const aggregateMetrics = calculateAggregateMetrics(
-    allInSampleMetrics,
-    allOutOfSampleMetrics,
-    metric,
-  );
+  const aggregateMetrics = aggregateInOutMetrics(allInSampleMetrics, allOutOfSampleMetrics, metric);
 
   // Generate recommendation
   const recommendation = generateRecommendation(periods, aggregateMetrics, metric);
@@ -279,106 +276,6 @@ export function walkForwardAnalysis(
     periods,
     aggregateMetrics,
     recommendation,
-  };
-}
-
-/**
- * Mean across only the finite entries; returns 0 when no finite
- * value exists. This is the right behavior for averaging optimization
- * metrics where NaN means "undefined for this period" (e.g. Calmar
- * with maxDD=0): treating NaN as 0 would silently bias the average,
- * dropping the period from the denominator preserves "no data" semantics.
- */
-function averageFinite(values: number[]): number {
-  let sum = 0;
-  let count = 0;
-  for (const v of values) {
-    if (Number.isFinite(v)) {
-      sum += v;
-      count++;
-    }
-  }
-  return count > 0 ? sum / count : 0;
-}
-
-/**
- * Calculate aggregate metrics across all periods
- */
-function calculateAggregateMetrics(
-  inSampleMetrics: Record<OptimizationMetric, number>[],
-  outOfSampleMetrics: Record<OptimizationMetric, number>[],
-  primaryMetric: OptimizationMetric,
-): WalkForwardResult["aggregateMetrics"] {
-  // Must list every OptimizationMetric: a key omitted here is never averaged,
-  // so aggregateMetrics[key] stays undefined and any run optimized on that
-  // metric (e.g. "mar") silently collapses stabilityRatio to 0 and the
-  // recommendation to the pessimistic branch.
-  const metricKeys: OptimizationMetric[] = [
-    "sharpe",
-    "calmar",
-    "mar",
-    "profitFactor",
-    "recoveryFactor",
-    "returns",
-    "winRate",
-    "tradeCount",
-    "maxDrawdown",
-  ];
-
-  // Calculate averages
-  const avgInSample: Record<OptimizationMetric, number> = {} as Record<OptimizationMetric, number>;
-  const avgOutOfSample: Record<OptimizationMetric, number> = {} as Record<
-    OptimizationMetric,
-    number
-  >;
-
-  // Average only across periods where the metric was actually
-  // defined. Calmar / MAR / Recovery return NaN when a period had
-  // maxDD <= 0; coercing those to 0 collapses the average toward 0
-  // and makes `stabilityRatio` look perfect (avgIn === avgOut === 0
-  // → branch returns 1), letting `generateRecommendation` endorse
-  // params whose primary metric was never measurable. Excluding NaN
-  // periods from the denominator preserves "no data" semantics.
-  for (const key of metricKeys) {
-    avgInSample[key] = averageFinite(inSampleMetrics.map((m) => m[key]));
-    avgOutOfSample[key] = averageFinite(outOfSampleMetrics.map((m) => m[key]));
-  }
-
-  // Calculate stability ratio for primary metric. If the primary
-  // metric was undefined (NaN) on every in-sample or out-of-sample
-  // period, `avgIn` / `avgOut` will be 0 (the "no data" sentinel
-  // from `averageFinite`) — but that 0 has different meaning from a
-  // measured 0. Distinguish by counting finite samples explicitly so
-  // the absence-of-data case yields stabilityRatio = 0 (no claim of
-  // stability) rather than the spurious 1 produced by the avgIn===0
-  // branch below.
-  const inFiniteCount = inSampleMetrics.filter((m) => Number.isFinite(m[primaryMetric])).length;
-  const outFiniteCount = outOfSampleMetrics.filter((m) => Number.isFinite(m[primaryMetric])).length;
-  const avgIn = avgInSample[primaryMetric];
-  const avgOut = avgOutOfSample[primaryMetric];
-
-  let stabilityRatio: number;
-  if (inFiniteCount === 0 || outFiniteCount === 0) {
-    // Primary metric never measurable on at least one side — cannot
-    // make a stability claim either way.
-    stabilityRatio = 0;
-  } else if (avgIn === 0) {
-    stabilityRatio = avgOut >= 0 ? 1 : 0;
-  } else if (avgIn < 0 && avgOut < 0) {
-    // Both negative: higher ratio is worse overfitting
-    stabilityRatio = Math.min(avgOut / avgIn, 1);
-  } else if (avgIn > 0 && avgOut > 0) {
-    // Both positive: closer to 1 is better
-    stabilityRatio = Math.min(avgOut / avgIn, 1);
-  } else {
-    // Mixed signs: low stability
-    stabilityRatio = 0;
-  }
-
-  return {
-    avgInSample,
-    avgOutOfSample,
-    stabilityRatio,
   };
 }
 
