@@ -27,6 +27,7 @@
  * returned alongside the probabilities for the same reason.
  */
 
+import { maxDrawdownPercent } from "../backtest/drawdown-tracker";
 import { calculateDailyReturns } from "../optimization/metrics";
 import type { BacktestResult, NormalizedCandle, Series } from "../types";
 import {
@@ -119,16 +120,10 @@ export type RegimeAttributionReport = {
 
 /** Regime-local max drawdown (percent, ≤ 0) of an equity curve built from `returns`. */
 function maxDrawdownPercentFromReturns(returns: number[]): number {
-  let equity = 1;
-  let peak = 1;
-  let maxDd = 0;
-  for (const r of returns) {
-    equity *= 1 + r;
-    if (equity > peak) peak = equity;
-    const dd = peak > 0 ? (equity - peak) / peak : 0;
-    if (dd < maxDd) maxDd = dd;
-  }
-  return maxDd * 100;
+  const curve = [1];
+  for (const r of returns) curve.push(curve[curve.length - 1] * (1 + r));
+  // Reported as a negative percentage; `0 - depth` keeps no drawdown at +0.
+  return 0 - maxDrawdownPercent(curve);
 }
 
 /**

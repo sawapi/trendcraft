@@ -21,6 +21,7 @@ import type {
   Trade,
 } from "../types";
 import type { ExtendedCondition } from "./conditions";
+import { maxDrawdownPercent } from "./drawdown-tracker";
 import type { MtfBacktestOptions } from "./engine";
 import { runBacktest } from "./engine";
 
@@ -507,14 +508,10 @@ function calculatePortfolioMetrics(
   const avgHoldingDays =
     tradeCount > 0 ? allTrades.reduce((s, t) => s + t.holdingDays, 0) / tradeCount : 0;
 
-  // Calculate max drawdown from equity curve
-  let peakEquity = totalCapital;
-  let maxDrawdown = 0;
-  for (const point of equityCurve) {
-    if (point.equity > peakEquity) peakEquity = point.equity;
-    const dd = ((peakEquity - point.equity) / peakEquity) * 100;
-    if (dd > maxDrawdown) maxDrawdown = dd;
-  }
+  const maxDrawdown = maxDrawdownPercent(
+    equityCurve.map((point) => point.equity),
+    totalCapital,
+  );
 
   // Portfolio Sharpe from the merged mark-to-market equity curve. Pooling
   // per-trade returns across symbols measured cross-sectional trade dispersion

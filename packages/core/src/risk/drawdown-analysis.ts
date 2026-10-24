@@ -8,6 +8,7 @@
  * - Ulcer Performance Index (risk-adjusted return metric)
  */
 
+import { depthPercent } from "../backtest/drawdown-tracker";
 import { type AnnualizationOptions, annualizationFactor } from "../calendar";
 
 // ---------------------------------------------------------------------------
@@ -328,7 +329,7 @@ export function ulcerPerformanceIndex(
 
   for (let i = 0; i < equityCurve.length; i++) {
     if (equityCurve[i] > peak) peak = equityCurve[i];
-    const dd = peak > 0 ? ((peak - equityCurve[i]) / peak) * 100 : 0;
+    const dd = depthPercent(peak, equityCurve[i]);
     sumSqDD += dd * dd;
   }
 

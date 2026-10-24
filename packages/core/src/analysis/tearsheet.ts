@@ -9,6 +9,7 @@
  * the drawdown table come straight from the engine result.
  */
 
+import { depthPercent } from "../backtest/drawdown-tracker";
 import { calculateDailyReturns } from "../optimization/metrics";
 import type { BacktestResult, NormalizedCandle } from "../types";
 import { analyzeDrawdowns, type DrawdownSummary } from "./drawdown-analysis";
@@ -163,7 +164,8 @@ export function report(result: BacktestResult, options: ReportOptions): Tearshee
   let sumSqDd = 0;
   for (let i = 0; i < equity.length; i++) {
     if (equity[i] > peak) peak = equity[i];
-    const dd = peak > 0 ? ((equity[i] - peak) / peak) * 100 : 0;
+    // Underwater is the negated depth; `0 - depth` keeps a flat point at +0.
+    const dd = 0 - depthPercent(peak, equity[i]);
     underwaterPercent[i] = dd;
     sumSqDd += dd * dd;
   }

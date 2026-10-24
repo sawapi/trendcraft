@@ -19,6 +19,7 @@
  * ```
  */
 
+import { depthPercent } from "../backtest/drawdown-tracker";
 import type { Trade } from "../types";
 import { calculateTradeStats } from "./edge-analysis";
 import type { TradeStats } from "./edge-analysis-types";
@@ -128,7 +129,7 @@ export function calculateRuntimeMetrics(
     const dd = peakEquity - equity;
     if (dd > maxDrawdown) {
       maxDrawdown = dd;
-      maxDrawdownPercent = peakEquity > 0 ? (dd / peakEquity) * 100 : 0;
+      maxDrawdownPercent = depthPercent(peakEquity, equity);
     }
   }
 

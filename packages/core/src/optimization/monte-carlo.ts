@@ -11,6 +11,7 @@
  */
 
 import { periodsPerYearFromSpan, sharpeFromReturns } from "../analysis/return-metrics";
+import { depthPercent } from "../backtest/drawdown-tracker";
 import { mulberry32 } from "../core/random";
 import type { BacktestResult, Trade } from "../types";
 import type { MetricStatistics, MonteCarloOptions, MonteCarloResult } from "../types/optimization";
@@ -180,7 +181,7 @@ function recalculateMetricsFromTrades(
     if (capital > peakCapital) {
       peakCapital = capital;
     }
-    const drawdown = ((peakCapital - capital) / peakCapital) * 100;
+    const drawdown = depthPercent(peakCapital, capital);
     if (drawdown > maxDrawdown) {
       maxDrawdown = drawdown;
     }
