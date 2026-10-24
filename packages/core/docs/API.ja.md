@@ -2920,7 +2920,7 @@ const result = runBacktest(candles, entry, exit, {
 |----------|------|------|
 | `'full-capital'` | — | 全額投入（デフォルト、従来動作） |
 | `'fixed-fractional'` | `fractionPercent` | 現在資金の固定割合を投入 |
-| `'risk-based'` | `riskPercent` | 設定済みストップ（`stopLoss` または `atrRisk.atrStopMultiplier`）に対して資金の一定割合をリスクに取る。ストップ未設定時は full-capital にフォールバック |
+| `'risk-based'` | `riskPercent` | 設定済みストップ（`stopLoss` または `atrRisk.atrStopMultiplier`）に対して資金の一定割合をリスクに取る。ストップ未設定時は full-capital にフォールバック。ロングのストップが 0 以下になる場合（`stopLoss >= 100`）は、ストップを 0 とみなしてサイジングする |
 | `'atr-based'` | `riskPercent`, `atrMultiplier?` (2), `atrPeriod?` (14) | ATR由来のストップ距離に対してリスクを取る。ATRウォームアップ中のエントリーはスキップ |
 | `'kelly'` | `winRate`, `winLossRatio`, `kellyFraction?` (0.5), `maxKellyPercent?` (25) | ユーザー指定の統計値によるケリー基準。エッジがない場合はエントリーをスキップ |
 | `'custom'` | `calculate(ctx)` | エントリーごとのコールバック。`BacktestSizingContext`（現在資金、エントリー価格、全額投入時の株数、ATR、約定済みトレード）を受け取り株数を返す。0を返すとスキップ |

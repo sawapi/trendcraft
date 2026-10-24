@@ -98,6 +98,16 @@ percentage such as `30` used to margin-call every bar; `0`, leverage without
 maintenance calls, is still accepted), and `interestRate`, when set, is
 non-negative.
 
+### Fixed — risk-based sizing put a wide-stop short at full capital
+
+`sizing: { method: "risk-based" }` fell back to a full-capital entry whenever
+the stop distance reached the entry price. For a short that is an ordinary
+stop (it sits above entry), so a short with `stopLoss: 150` — easily reached
+by a grid search — took 120× the risk asked for. Shorts now size on their
+stop at any distance, and a long whose stop would sit at or below zero is
+sized as a stop at 0 (a share can lose its whole price) rather than at full
+capital.
+
 ### Fixed — MFE/MAE were 0 for a limit or stop fill that exited on its fill bar
 
 With `fillMode: "same-bar-close"`, a pending limit/stop order that filled

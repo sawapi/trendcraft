@@ -45,14 +45,21 @@ export function calculateSizedShares(
       }).shares;
 
     case "risk-based": {
-      if (stopDistance === null || stopDistance <= 0 || stopDistance >= ctx.entryPrice) {
+      if (stopDistance === null || stopDistance <= 0) {
         // No usable stop configured — risk per trade is unbounded, so fall
-        // back to a full-capital entry (same fallback as the streaming
-        // position manager).
+        // back to a full-capital entry (the documented fallback).
         return ctx.proposedShares;
       }
+      // A short's stop sits above entry, so any distance is a real stop. A
+      // long's stop at or below zero can never trigger, and the most a share
+      // can then lose is its whole price, so the stop is floored at 0 and the
+      // position sized on that. (Falling back to a full-capital entry here
+      // turned the widest stops — the ones asking for the smallest position —
+      // into the largest one the engine allows.)
       const stopLossPrice =
-        ctx.direction === "short" ? ctx.entryPrice + stopDistance : ctx.entryPrice - stopDistance;
+        ctx.direction === "short"
+          ? ctx.entryPrice + stopDistance
+          : Math.max(0, ctx.entryPrice - stopDistance);
       return riskBasedSize({
         accountSize: ctx.equity,
         entryPrice: ctx.entryPrice,

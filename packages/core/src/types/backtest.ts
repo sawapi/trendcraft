@@ -260,6 +260,8 @@ export type BacktestSizingContext = {
  * - `risk-based`: risk `riskPercent` of equity against the configured stop
  *   (`stopLoss` percent, or `atrRisk.atrStopMultiplier` when set). Falls back
  *   to full-capital when no stop is configured, like the streaming manager.
+ *   A long stop at or below zero (`stopLoss >= 100`) is sized as a stop at 0,
+ *   i.e. a share can lose its whole price.
  * - `atr-based`: risk `riskPercent` of equity against an ATR-derived stop
  *   distance (`atrValue × atrMultiplier`). Entries are skipped while ATR is
  *   still warming up.

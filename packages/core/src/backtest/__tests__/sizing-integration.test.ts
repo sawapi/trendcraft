@@ -229,4 +229,36 @@ describe("backtest position sizing", () => {
     expect(result.trades.length).toBe(1);
     expect(result.finalCapital).toBeCloseTo(1_020_000, 6);
   });
+
+  it("risk-based sizes a short whose stop is wider than its price", () => {
+    // A 150% short stop sits at 250 — an ordinary stop for a short, not a
+    // missing one. Risk 1% of 1M = 10k against 150 a share → 66.67 shares.
+    // This used to fall back to a full-capital entry (10,000 shares).
+    const down20 = stepCandles([
+      { price: 100, bars: 30 },
+      { price: 80, bars: 10 },
+    ]);
+    const result = runBacktest(down20, ENTRY, EXIT, {
+      capital: CAPITAL,
+      direction: "short",
+      stopLoss: 150,
+      sizing: { method: "risk-based", riskPercent: 1 },
+    });
+    expect(result.trades.length).toBe(1);
+    // 66.67 shares × +20 = +1,333.33
+    expect(result.finalCapital).toBeCloseTo(CAPITAL + 10_000 * (20 / 150), 1);
+  });
+
+  it("risk-based sizes a long with an unreachable stop as if the stop were at 0", () => {
+    // A 150% long stop would sit below zero; the most a share can lose is
+    // its whole price, so 10k of risk buys 100 shares — not full capital.
+    const result = runBacktest(UP_20, ENTRY, EXIT, {
+      capital: CAPITAL,
+      stopLoss: 150,
+      sizing: { method: "risk-based", riskPercent: 1 },
+    });
+    expect(result.trades.length).toBe(1);
+    // 100 shares × +20 = +2,000
+    expect(result.finalCapital).toBeCloseTo(CAPITAL + 2_000, 6);
+  });
 });

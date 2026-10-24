@@ -2942,7 +2942,7 @@ const result = runBacktest(candles, entry, exit, {
 |--------|--------|----------|
 | `'full-capital'` | — | Deploy all available capital (default, legacy behavior) |
 | `'fixed-fractional'` | `fractionPercent` | Deploy a fixed percentage of current equity |
-| `'risk-based'` | `riskPercent` | Risk a percentage of equity against the configured stop (`stopLoss`, or `atrRisk.atrStopMultiplier`). Falls back to full-capital when no stop is configured |
+| `'risk-based'` | `riskPercent` | Risk a percentage of equity against the configured stop (`stopLoss`, or `atrRisk.atrStopMultiplier`). Falls back to full-capital when no stop is configured. A long stop at or below zero (`stopLoss >= 100`) is sized as a stop at 0 |
 | `'atr-based'` | `riskPercent`, `atrMultiplier?` (2), `atrPeriod?` (14) | Risk against an ATR-implied stop distance. Entries are skipped while ATR is warming up |
 | `'kelly'` | `winRate`, `winLossRatio`, `kellyFraction?` (0.5), `maxKellyPercent?` (25) | Kelly criterion from user-supplied statistics. Entries are skipped when there is no positive edge |
 | `'custom'` | `calculate(ctx)` | Per-entry callback receiving a `BacktestSizingContext` (current equity, entry price, proposed full-capital shares, ATR, closed trades so far). Return the share count, or 0 to skip the entry |
