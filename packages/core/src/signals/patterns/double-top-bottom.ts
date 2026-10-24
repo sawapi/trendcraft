@@ -454,9 +454,12 @@ export function doubleBottom(
       const priceDiff = Math.abs(firstTrough.price - secondTrough.price) / firstTrough.price;
       if (priceDiff > tolerance) continue;
 
-      // Double Bottom: second trough should not be significantly higher than first
-      // Allow only up to half of tolerance above first trough
-      if (secondTrough.price > firstTrough.price * (1 + tolerance * 0.5)) continue;
+      // Double Bottom: second trough should not be significantly LOWER than
+      // first — a lower low means the downtrend is still extending (the
+      // mirror of the double top's "higher high" guard). A higher second
+      // trough is the stronger, sellers-exhausted form and is kept.
+      // Allow only up to half of tolerance below first trough.
+      if (secondTrough.price < firstTrough.price * (1 - tolerance * 0.5)) continue;
 
       // Check that there's no lower swing low between the two troughs
       // A valid double bottom should have both troughs as the lowest points

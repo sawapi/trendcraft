@@ -133,11 +133,16 @@ export function filterPatterns(
       }
     }
 
-    // 3. Volume confirmation
+    // 3. Volume confirmation — on the breakout bar. `pattern.time` is the
+    // final pivot for most detectors, which can sit many bars before the
+    // breakout, so its volume says nothing about the breakout.
     if (volumeConfirm && pattern.confirmed) {
+      const breakoutTime = pattern.breakoutTime ?? pattern.confirmTime;
+      const breakoutIndex =
+        breakoutTime != null ? normalized.findIndex((c) => c.time === breakoutTime) : -1;
       const valid = validateBreakoutVolume(
         normalized,
-        patternIndex,
+        breakoutIndex >= 0 ? breakoutIndex : patternIndex,
         volumeLookback,
         minVolumeIncrease,
       );

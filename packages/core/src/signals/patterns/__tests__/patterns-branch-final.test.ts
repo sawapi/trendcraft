@@ -280,12 +280,13 @@ describe("doubleBottom – branch coverage extras", () => {
     expect(resultStrict.length).toBeLessThanOrEqual(resultNormal.length);
   });
 
-  it("covers secondTrough price too high relative to firstTrough (half-tolerance guard)", () => {
-    // Second trough is significantly higher than first -> rejected
+  it("rejects troughs further apart than the tolerance", () => {
+    // Second trough far above the first (~100 vs 92, ~8% apart) -> rejected
+    // by the price-similarity check. (The half-tolerance direction guard is
+    // covered in double-top-bottom.test.ts.)
     const prices: number[] = [];
     for (let i = 0; i < 10; i++) prices.push(110 - i * 2); // decline to 92
     for (let i = 0; i < 8; i++) prices.push(92 + i * 2); // rally to 106
-    // Second trough is much higher than first (92 vs 100)
     for (let i = 0; i < 8; i++) prices.push(106 - i * 0.75); // only to 100
     for (let i = 0; i < 10; i++) prices.push(100 + i);
 

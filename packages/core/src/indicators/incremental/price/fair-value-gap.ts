@@ -147,10 +147,9 @@ export function createFairValueGap(
     for (const g of activeBullishFvgs) {
       const isFilled = partialFill ? candle.low <= g.high : candle.low <= g.low;
       if (isFilled) {
-        g.filled = true;
-        g.filledIndex = barIndex;
-        g.filledTime = candle.time;
-        filled.push(g);
+        // A new object: the gap was handed out in earlier bars' values,
+        // which must not change after the fact (see the batch version).
+        filled.push({ ...g, filled: true, filledIndex: barIndex, filledTime: candle.time });
       } else {
         remainingBullish.push(g);
       }
@@ -162,10 +161,9 @@ export function createFairValueGap(
     for (const g of activeBearishFvgs) {
       const isFilled = partialFill ? candle.high >= g.low : candle.high >= g.high;
       if (isFilled) {
-        g.filled = true;
-        g.filledIndex = barIndex;
-        g.filledTime = candle.time;
-        filled.push(g);
+        // A new object: the gap was handed out in earlier bars' values,
+        // which must not change after the fact (see the batch version).
+        filled.push({ ...g, filled: true, filledIndex: barIndex, filledTime: candle.time });
       } else {
         remainingBearish.push(g);
       }
@@ -248,9 +246,11 @@ export function createFairValueGap(
         value: {
           newBullishFvg,
           newBearishFvg,
-          newFvg,
-          activeBullishFvgs: [...activeBullishFvgs],
-          activeBearishFvgs: [...activeBearishFvgs],
+          // Copies, so a caller holding (or editing) this value never sees
+          // or disturbs the live state.
+          newFvg: newFvg && { ...newFvg },
+          activeBullishFvgs: activeBullishFvgs.map((g) => ({ ...g })),
+          activeBearishFvgs: activeBearishFvgs.map((g) => ({ ...g })),
           filledFvgs,
         },
       };
@@ -261,10 +261,10 @@ export function createFairValueGap(
       // the original state back. A hand-maintained mirror of `next` is
       // where peek/next drift comes from (the previous mirror missed the
       // `maxActiveFvgs` cap); this keeps peek structurally identical to
-      // next. The copy must be swapped in BEFORE `next` runs: filling
-      // mutates gap objects, and the live ones are aliased into the
-      // active lists of previously returned values — a peek must not
-      // stamp those with a fill that never happened.
+      // next. The copy must be swapped in BEFORE `next` runs, because
+      // `next` reassigns the active lists and counters; `next` itself no
+      // longer mutates gap objects or hands out live ones, so this guards
+      // the state, not previously returned values.
       const original = {
         prev2,
         prev1,

@@ -2,6 +2,53 @@
 
 ## [Unreleased]
 
+### Fixed — a later FVG fill reached back into earlier bars (look-ahead)
+
+`fairValueGap()` (and the incremental `createFairValueGap`) marked a gap
+filled by mutating the gap object in place — the same object every earlier
+bar's `activeBullishFvgs` / `activeBearishFvgs` / `newFvg` held. A gap filled
+at bar j therefore read `filled: true, filledIndex: j` at every bar before j
+where it was still open, so anything walking the series bar by bar saw the
+fill before it happened (charts scrolled back to such a bar drew it filled
+too). Gaps are no longer mutated: a fill emits a filled copy in
+`filledFvgs`, and every bar's value holds its own copies, so editing one
+bar's value cannot change another's or the indicator's live state.
+
+### Fixed — `doubleBottom` rejected the stronger second trough
+
+`doubleBottom` carried `doubleTop`'s guard verbatim, so it rejected a second
+trough more than half the tolerance *above* the first — the textbook-strong,
+sellers-exhausted form — and accepted a materially *lower* one, the
+downtrend-continuation form. The guard is now mirrored: a second trough
+more than half the tolerance below the first is rejected. Detection results
+change for double bottoms whose troughs differ.
+
+### Fixed — phantom Supertrend / SAR flips at the end of warm-up
+
+Supertrend reports `direction: 0` while it warms up (Parabolic SAR on its
+first bar). `detectCoachingSignals` and the streaming conditions
+`supertrendFlip` and `sarFlip` compared that `0` with the first defined
+direction and reported a flip — on an unbroken uptrend, a high-severity
+`SUPERTREND_BEARISH` sell signal at bar 10. Only a change between two
+defined directions now counts. Supertrend still seeds its first defined
+direction as down unless the close is already above the upper band (as
+TradingView's `ta.supertrend` does), so in an uptrend the first reported
+flip — bullish, a few bars after warm-up (bar 14 on a steady +1%/bar
+trend) — is that seed correcting itself rather than a reversal.
+
+### Fixed — `filterPatterns` read breakout volume on the pivot bar
+
+With `volumeConfirm`, a confirmed pattern's volume was checked at
+`pattern.time` — the final pivot for most detectors, often many bars before
+the breakout — so a breakout on 5× volume could be penalised (−10) for a
+quiet pivot instead of rewarded (+5). It is now read on the breakout bar.
+
+### Added — `PatternSignal.breakoutTime`
+
+Confirmed patterns now carry `breakoutTime`, the breakout bar itself (point
+D for harmonics). Unlike `confirmTime` it can precede `detectableTime`, so it
+is for locating bar-level evidence such as breakout volume, not for entries.
+
 ### Breaking — walk-forward windows open with warm indicators
 
 `walkForwardAnalysis` and `anchoredWalkForwardAnalysis` sliced each training

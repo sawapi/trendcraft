@@ -61,6 +61,14 @@ describe("supertrendFlip", () => {
     expect(cond.evaluate({ supertrend: { direction: -1 } }, candle)).toBe(true);
   });
 
+  it("does not count the first defined direction after warm-up as a flip", () => {
+    // Supertrend reports direction 0 while warming up.
+    const cond = supertrendFlip();
+    cond.evaluate({ supertrend: { direction: 0 } }, candle);
+    expect(cond.evaluate({ supertrend: { direction: -1 } }, candle)).toBe(false);
+    expect(cond.evaluate({ supertrend: { direction: 1 } }, candle)).toBe(true);
+  });
+
   it("returns false when direction unchanged", () => {
     const cond = supertrendFlip();
     cond.evaluate({ supertrend: { direction: 1 } }, candle);
@@ -84,6 +92,14 @@ describe("ichimokuBullish / ichimokuBearish", () => {
 });
 
 describe("sarFlip", () => {
+  it("does not count the first defined direction after warm-up as a flip", () => {
+    // Parabolic SAR reports direction 0 on its first bar.
+    const cond = sarFlip();
+    cond.evaluate({ parabolicSar: { direction: 0 } }, candle);
+    expect(cond.evaluate({ parabolicSar: { direction: 1 } }, candle)).toBe(false);
+    expect(cond.evaluate({ parabolicSar: { direction: -1 } }, candle)).toBe(true);
+  });
+
   it("detects SAR direction change", () => {
     const cond = sarFlip();
     cond.evaluate({ parabolicSar: { direction: 1, sar: 98 } }, candle);

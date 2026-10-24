@@ -536,3 +536,61 @@ describe("double-top-bottom neckline violation validation", () => {
     expect(patternsLenient.length).toBeGreaterThanOrEqual(patternsStrict.length);
   });
 });
+
+describe("double bottom: which second trough is allowed to differ", () => {
+  // A W: trough at bar 20 (100), neckline peak at bar 35 (115), second
+  // trough at bar 50, breakout above the neckline by bar 62. Only the second
+  // trough's price changes between cases; every other gate passes.
+  function w(secondTrough: number): NormalizedCandle[] {
+    const knots: [number, number][] = [
+      [0, 120],
+      [20, 100],
+      [35, 115],
+      [50, secondTrough],
+      [62, 117],
+      [75, 122],
+    ];
+    const out: NormalizedCandle[] = [];
+    for (let i = 0; i <= 75; i++) {
+      let k = 0;
+      while (knots[k + 1][0] < i) k++;
+      const [x0, y0] = knots[k];
+      const [x1, y1] = knots[k + 1];
+      const close = y0 + ((y1 - y0) * (i - x0)) / (x1 - x0);
+      out.push({
+        time: 1_700_000_000_000 + i * 86_400_000,
+        open: close,
+        high: close + 0.2,
+        low: close - 0.2,
+        close,
+        volume: 1000,
+      });
+    }
+    return out;
+  }
+
+  it("keeps a higher second trough (sellers exhausted)", () => {
+    // +1.5%: within the 2% tolerance. The guard copied from doubleTop used
+    // to reject anything more than 1% above the first trough.
+    expect(doubleBottom(w(101.5))).toHaveLength(1);
+  });
+
+  it("rejects a materially lower second trough (downtrend continuing)", () => {
+    // −1.5%: a lower low, the mirror of a double top's higher high.
+    expect(doubleBottom(w(98.5))).toHaveLength(0);
+  });
+
+  it("reports the breakout bar as breakoutTime", () => {
+    const [pattern] = doubleBottom(w(100));
+    expect(pattern.confirmed).toBe(true);
+    const breakout = w(100).find((c) => c.time === pattern.breakoutTime);
+    // The first close above the 115 neckline, no later than confirmTime.
+    expect(breakout?.close).toBeGreaterThan(115);
+    expect(pattern.breakoutTime).toBeLessThanOrEqual(pattern.confirmTime as number);
+  });
+
+  it("keeps a second trough within half the tolerance either side", () => {
+    expect(doubleBottom(w(99.5))).toHaveLength(1);
+    expect(doubleBottom(w(100.5))).toHaveLength(1);
+  });
+});

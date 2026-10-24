@@ -25,17 +25,25 @@ export interface SwingPoint {
  * `detectableIndex` is clamped to the last bar for detectors whose final
  * anchor is not a swing pivot (e.g. cup-with-handle's fallback handle low)
  * and may point past the end of data; for swing pivots the clamp is a no-op.
+ *
+ * `breakoutTime` is the breakout bar itself, for measurements that belong to
+ * that bar (its volume) rather than to when it became actionable.
  */
 export function causalPatternTimes(
   candles: NormalizedCandle[],
   detectableIndex: number,
   breakoutIndex: number | null | undefined,
-): { detectableTime: number; confirmTime: number | undefined } {
+): {
+  detectableTime: number;
+  confirmTime: number | undefined;
+  breakoutTime: number | undefined;
+} {
   const knowableIndex = Math.min(detectableIndex, candles.length - 1);
   return {
     detectableTime: candles[knowableIndex].time,
     confirmTime:
       breakoutIndex != null ? candles[Math.max(breakoutIndex, knowableIndex)].time : undefined,
+    breakoutTime: breakoutIndex != null ? candles[breakoutIndex].time : undefined,
   };
 }
 
