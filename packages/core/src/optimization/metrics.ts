@@ -172,7 +172,17 @@ export function calculateDailyReturns(
   // which the from-trades reconstruction below can recover. Fall back to that
   // reconstruction only for hand-built results that omit the curve.
   const curve = result.equityCurve;
-  if (curve && curve.length === candles.length) {
+  if (curve && curve.length !== candles.length) {
+    // A curve that does not line up with the candles is a caller error —
+    // typically a `warmupBars` run scored against the full array instead of
+    // `candles.slice(warmupBars)`. Falling back to the trade reconstruction
+    // would hide it behind a quietly different Sharpe.
+    throw new Error(
+      `equityCurve has ${curve.length} points but ${candles.length} candles were given; ` +
+        "pass the candles the backtest was evaluated on (after any warmupBars).",
+    );
+  }
+  if (curve) {
     const dailyReturns: number[] = [];
     for (let i = 1; i < curve.length; i++) {
       dailyReturns.push(curve[i - 1] > 0 ? (curve[i] - curve[i - 1]) / curve[i - 1] : 0);

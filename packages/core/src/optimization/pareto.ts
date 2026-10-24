@@ -257,7 +257,8 @@ export function paretoOptimization(
       };
       const result = runBacktest(candles, entry, exit, backtestOptions, cache);
 
-      const metrics = calculateAllMetrics(result, candles, {
+      // A warm-up prefix is history, not part of the scored run.
+      const metrics = calculateAllMetrics(result, candles.slice(backtestOptions.warmupBars ?? 0), {
         initialCapital: backtestOptions.capital,
       });
 

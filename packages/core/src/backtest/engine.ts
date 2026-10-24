@@ -132,6 +132,7 @@ export function runBacktest(
     volumeConstraint,
     margin: marginConfig,
     sizing,
+    warmupBars = 0,
   } = options;
 
   const isShort = dir === "short";
@@ -180,7 +181,12 @@ export function runBacktest(
     }
   }
 
-  if (candles.length < 2) {
+  if (!Number.isInteger(warmupBars) || warmupBars < 0) {
+    throw new Error(`warmupBars must be a non-negative integer, got ${warmupBars}`);
+  }
+
+  // The evaluated window needs two bars, like a plain run does.
+  if (candles.length - warmupBars < 2) {
     return emptyResult(capital, settings);
   }
 
@@ -254,11 +260,13 @@ export function runBacktest(
   let currentCapital = capital;
   const returns: number[] = [];
 
-  // Mark-to-market equity at each candle's close, aligned to `candles`. Bar 0
-  // is never traded (the loop starts at index 1), so it holds the starting
-  // capital; every later bar is filled at the end of its iteration. Drawdown
-  // is derived from this curve once the run finishes, so the two can never
-  // describe different paths.
+  // Mark-to-market equity at each candle's close, aligned to `candles`. The
+  // first evaluated bar (`warmupBars`, 0 by default) is never traded — the
+  // loop starts one past it — so it holds the starting capital; every later
+  // bar is filled at the end of its iteration. Warm-up bars before it are
+  // never visited and are cut off before stats are taken. Drawdown is derived
+  // from this curve once the run finishes, so the two can never describe
+  // different paths.
   const equityCurve: number[] = new Array(candles.length).fill(capital);
 
   // Margin state tracking
@@ -571,7 +579,10 @@ export function runBacktest(
     return pos;
   }
 
-  for (let i = 1; i < candles.length; i++) {
+  // The first evaluated bar plays bar 0's part in a plain run: it is the
+  // opening mark at the starting capital and is never traded, so the
+  // equity curve, drawdown and first return all start from `capital`.
+  for (let i = warmupBars + 1; i < candles.length; i++) {
     // True only on a bar where a pending order filled mid-bar; same-bar
     // management then runs against a clamped view (see mgmtCandle below).
     let filledMidBarThisBar = false;
@@ -1167,7 +1178,12 @@ export function runBacktest(
   // Cancel any unfilled pending order at end of data
   pendingOrder = null;
 
-  const drawdown = drawdownFromEquityCurve(equityCurve, candles);
+  // Everything below describes the evaluated window only; the warm-up bars
+  // were history, never part of the run.
+  const evalCandles = warmupBars > 0 ? candles.slice(warmupBars) : candles;
+  const evalEquity = warmupBars > 0 ? equityCurve.slice(warmupBars) : equityCurve;
+
+  const drawdown = drawdownFromEquityCurve(evalEquity, evalCandles);
 
   const result = calculateStats(
     trades,
@@ -1177,11 +1193,9 @@ export function runBacktest(
     drawdown.maxDrawdown,
     settings,
     drawdown.periods,
-    candles.length >= 2
-      ? { firstTime: candles[0].time, lastTime: candles[candles.length - 1].time }
-      : undefined,
-    equityCurve,
+    { firstTime: evalCandles[0].time, lastTime: evalCandles[evalCandles.length - 1].time },
+    evalEquity,
   );
-  result.equityCurve = equityCurve;
+  result.equityCurve = evalEquity;
   return result;
 }

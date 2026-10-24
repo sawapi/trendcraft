@@ -366,6 +366,26 @@ export type BacktestOptions = {
    * `candles`. When omitted, RS conditions evaluate to `false`.
    */
   benchmark?: (Candle | NormalizedCandle)[];
+  /**
+   * Leading candles that are history only (default: 0).
+   *
+   * Indicators are computed over every candle, but the first `warmupBars`
+   * are never traded: no signal is evaluated, no order fills, and the run
+   * starts flat at `candles[warmupBars]`. The result — trades, equity curve,
+   * drawdown, span and every derived metric — covers only
+   * `candles.slice(warmupBars)`, so it reads like a backtest of that window
+   * whose indicators were already warm when it opened. As with bar 0 of a
+   * plain run, `candles[warmupBars]` is the opening mark and is never traded.
+   *
+   * Because `equityCurve` then aligns with `candles.slice(warmupBars)`, pass
+   * that slice — not the full array — to anything that reads the curve
+   * against candles (`calculateAllMetrics`, `calculateDailyReturns`).
+   * `batchBacktest` and `portfolioBacktest` reject this option.
+   *
+   * Use it to test a window (e.g. a walk-forward fold) without its first
+   * `lookback - 1` bars going dark. Must be a non-negative integer.
+   */
+  warmupBars?: number;
 };
 
 /**
@@ -510,9 +530,9 @@ export type BacktestResult = {
   drawdownPeriods: DrawdownPeriod[];
   /**
    * Mark-to-market account equity at each candle's close, aligned
-   * index-for-index with the candles the backtest ran on (so
+   * index-for-index with the candles the backtest was evaluated on (so
    * `equityCurve[0]` is the starting capital and `equityCurve.length ===
-   * candles.length`). Equity is `cash + position claim − loan`, signed by
+   * candles.length`; with `warmupBars`, the candles after the warm-up). Equity is `cash + position claim − loan`, signed by
    * direction, so it tracks unrealized P&L of an open position and realizes
    * each partial exit faithfully — unlike a from-trades reconstruction, which
    * cannot recover the open fraction after a partial exit. Under

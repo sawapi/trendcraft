@@ -6,7 +6,7 @@
  */
 
 import { runBacktest } from "../backtest";
-import type { NormalizedCandle } from "../types";
+import type { BacktestOptions, NormalizedCandle } from "../types";
 import type {
   OptimizationConstraint,
   OptimizationMetric,
@@ -19,6 +19,12 @@ import { err, ok, type Result, tcError } from "../types/result";
 import { DEFAULT_BACKTEST_CAPITAL } from "./constants";
 import { generateParameterCombinations, gridSearch, type StrategyFactory } from "./grid-search";
 import { calculateAllMetrics } from "./metrics";
+import {
+  aggregateInOutMetrics,
+  assertNoOwnWarmup,
+  validateWarmupBars,
+  warmWindow,
+} from "./walkforward-shared";
 
 /**
  * Default options for walk-forward analysis
@@ -31,6 +37,7 @@ const DEFAULT_OPTIONS: Required<
   testSize: 63, // ~1 quarter
   purgeBars: 0, // adjacent train/test windows (no purge gap)
   metric: "sharpe",
+  warmupBars: Number.POSITIVE_INFINITY, // all preceding history
 };
 
 /**
@@ -109,6 +116,23 @@ export function generatePeriodBoundaries(
 }
 
 /**
+ * Wrap a strategy factory so every backtest it feeds treats the first
+ * `warmupBars` candles as history only. The walk-forward owns the warm-up of
+ * each window, so a factory that sets its own is rejected rather than
+ * silently overridden.
+ */
+function withWarmup(createStrategy: StrategyFactory, warmupBars: number): StrategyFactory {
+  return (params) => {
+    const strategy = createStrategy(params);
+    assertNoOwnWarmup(strategy.options);
+    return {
+      ...strategy,
+      options: { capital: DEFAULT_BACKTEST_CAPITAL, ...strategy.options, warmupBars },
+    };
+  };
+}
+
+/**
  * Run walk-forward analysis
  * @param candles Candle data
  * @param createStrategy Strategy factory function
@@ -131,6 +155,7 @@ export function walkForwardAnalysis(
     constraints,
     progressCallback,
     paramFilter,
+    warmupBars,
   } = {
     ...DEFAULT_OPTIONS,
     constraints: [] as OptimizationConstraint[],
@@ -144,6 +169,8 @@ export function walkForwardAnalysis(
     testSize,
     purgeBars,
   });
+
+  validateWarmupBars(warmupBars);
 
   if (boundaries.length === 0) {
     throw new Error(
@@ -179,6 +206,19 @@ export function walkForwardAnalysis(
     },
     {} as Record<string, number>,
   );
+  // Probe the factory once up front. gridSearch catches factory errors per
+  // combination and only warns, so a factory that sets its own warmupBars
+  // would otherwise log a warning for every combination and burn a full grid
+  // before the error surfaced. A factory that throws on the minima for its
+  // own reasons is left to gridSearch, which handles that per combination.
+  let probeOptions: BacktestOptions | undefined;
+  try {
+    probeOptions = createStrategy(minimaParams).options;
+  } catch {
+    probeOptions = undefined;
+  }
+  assertNoOwnWarmup(probeOptions);
+
   let resolvedFallback: Record<string, number> | null = null;
   const fallbackParams = (): Record<string, number> => {
     if (resolvedFallback === null) {
@@ -212,17 +252,23 @@ export function walkForwardAnalysis(
       progressCallback(i + 1, boundaries.length);
     }
 
-    // Extract train and test data
-    const trainCandles = candles.slice(boundary.trainStart, boundary.trainEnd + 1);
-    const testCandles = candles.slice(boundary.testStart, boundary.testEnd + 1);
+    // Cut each window with the history in front of it, so indicators open
+    // warm instead of going dark for their first lookback bars.
+    const train = warmWindow(candles, boundary.trainStart, boundary.trainEnd, warmupBars);
+    const test = warmWindow(candles, boundary.testStart, boundary.testEnd, warmupBars);
 
     // Optimize on training data
-    const gridResult = gridSearch(trainCandles, createStrategy, parameterRanges, {
-      metric,
-      constraints,
-      maxCombinations: 10000,
-      paramFilter,
-    });
+    const gridResult = gridSearch(
+      train.candles,
+      withWarmup(createStrategy, train.warmupBars),
+      parameterRanges,
+      {
+        metric,
+        constraints,
+        maxCombinations: 10000,
+        paramFilter,
+      },
+    );
 
     // Use best parameters or fall back to the lazily-resolved fallback (a
     // filter-valid combo when a paramFilter is set, else range minima).
@@ -235,19 +281,22 @@ export function walkForwardAnalysis(
 
     // Run backtest on training data with best params
     const trainStrategy = createStrategy(bestParams);
-    const trainBacktest = runBacktest(trainCandles, trainStrategy.entry, trainStrategy.exit, {
+    assertNoOwnWarmup(trainStrategy.options);
+    const trainBacktest = runBacktest(train.candles, trainStrategy.entry, trainStrategy.exit, {
       capital: DEFAULT_BACKTEST_CAPITAL,
       ...trainStrategy.options,
+      warmupBars: train.warmupBars,
     });
-    const inSampleMetrics = calculateAllMetrics(trainBacktest, trainCandles);
+    const inSampleMetrics = calculateAllMetrics(trainBacktest, train.window);
 
     // Run backtest on test data with same params
     const testStrategy = createStrategy(bestParams);
-    const testBacktest = runBacktest(testCandles, testStrategy.entry, testStrategy.exit, {
+    const testBacktest = runBacktest(test.candles, testStrategy.entry, testStrategy.exit, {
       capital: DEFAULT_BACKTEST_CAPITAL,
       ...testStrategy.options,
+      warmupBars: test.warmupBars,
     });
-    const outOfSampleMetrics = calculateAllMetrics(testBacktest, testCandles);
+    const outOfSampleMetrics = calculateAllMetrics(testBacktest, test.window);
 
     // Record period result
     periods.push({
@@ -266,11 +315,7 @@ export function walkForwardAnalysis(
   }
 
   // Calculate aggregate metrics
-  const aggregateMetrics = calculateAggregateMetrics(
-    allInSampleMetrics,
-    allOutOfSampleMetrics,
-    metric,
-  );
+  const aggregateMetrics = aggregateInOutMetrics(allInSampleMetrics, allOutOfSampleMetrics, metric);
 
   // Generate recommendation
   const recommendation = generateRecommendation(periods, aggregateMetrics, metric);
@@ -279,106 +324,6 @@ export function walkForwardAnalysis(
     periods,
     aggregateMetrics,
     recommendation,
-  };
-}
-
-/**
- * Mean across only the finite entries; returns 0 when no finite
- * value exists. This is the right behavior for averaging optimization
- * metrics where NaN means "undefined for this period" (e.g. Calmar
- * with maxDD=0): treating NaN as 0 would silently bias the average,
- * dropping the period from the denominator preserves "no data" semantics.
- */
-function averageFinite(values: number[]): number {
-  let sum = 0;
-  let count = 0;
-  for (const v of values) {
-    if (Number.isFinite(v)) {
-      sum += v;
-      count++;
-    }
-  }
-  return count > 0 ? sum / count : 0;
-}
-
-/**
- * Calculate aggregate metrics across all periods
- */
-function calculateAggregateMetrics(
-  inSampleMetrics: Record<OptimizationMetric, number>[],
-  outOfSampleMetrics: Record<OptimizationMetric, number>[],
-  primaryMetric: OptimizationMetric,
-): WalkForwardResult["aggregateMetrics"] {
-  // Must list every OptimizationMetric: a key omitted here is never averaged,
-  // so aggregateMetrics[key] stays undefined and any run optimized on that
-  // metric (e.g. "mar") silently collapses stabilityRatio to 0 and the
-  // recommendation to the pessimistic branch.
-  const metricKeys: OptimizationMetric[] = [
-    "sharpe",
-    "calmar",
-    "mar",
-    "profitFactor",
-    "recoveryFactor",
-    "returns",
-    "winRate",
-    "tradeCount",
-    "maxDrawdown",
-  ];
-
-  // Calculate averages
-  const avgInSample: Record<OptimizationMetric, number> = {} as Record<OptimizationMetric, number>;
-  const avgOutOfSample: Record<OptimizationMetric, number> = {} as Record<
-    OptimizationMetric,
-    number
-  >;
-
-  // Average only across periods where the metric was actually
-  // defined. Calmar / MAR / Recovery return NaN when a period had
-  // maxDD <= 0; coercing those to 0 collapses the average toward 0
-  // and makes `stabilityRatio` look perfect (avgIn === avgOut === 0
-  // → branch returns 1), letting `generateRecommendation` endorse
-  // params whose primary metric was never measurable. Excluding NaN
-  // periods from the denominator preserves "no data" semantics.
-  for (const key of metricKeys) {
-    avgInSample[key] = averageFinite(inSampleMetrics.map((m) => m[key]));
-    avgOutOfSample[key] = averageFinite(outOfSampleMetrics.map((m) => m[key]));
-  }
-
-  // Calculate stability ratio for primary metric. If the primary
-  // metric was undefined (NaN) on every in-sample or out-of-sample
-  // period, `avgIn` / `avgOut` will be 0 (the "no data" sentinel
-  // from `averageFinite`) — but that 0 has different meaning from a
-  // measured 0. Distinguish by counting finite samples explicitly so
-  // the absence-of-data case yields stabilityRatio = 0 (no claim of
-  // stability) rather than the spurious 1 produced by the avgIn===0
-  // branch below.
-  const inFiniteCount = inSampleMetrics.filter((m) => Number.isFinite(m[primaryMetric])).length;
-  const outFiniteCount = outOfSampleMetrics.filter((m) => Number.isFinite(m[primaryMetric])).length;
-  const avgIn = avgInSample[primaryMetric];
-  const avgOut = avgOutOfSample[primaryMetric];
-
-  let stabilityRatio: number;
-  if (inFiniteCount === 0 || outFiniteCount === 0) {
-    // Primary metric never measurable on at least one side — cannot
-    // make a stability claim either way.
-    stabilityRatio = 0;
-  } else if (avgIn === 0) {
-    stabilityRatio = avgOut >= 0 ? 1 : 0;
-  } else if (avgIn < 0 && avgOut < 0) {
-    // Both negative: higher ratio is worse overfitting
-    stabilityRatio = Math.min(avgOut / avgIn, 1);
-  } else if (avgIn > 0 && avgOut > 0) {
-    // Both positive: closer to 1 is better
-    stabilityRatio = Math.min(avgOut / avgIn, 1);
-  } else {
-    // Mixed signs: low stability
-    stabilityRatio = 0;
-  }
-
-  return {
-    avgInSample,
-    avgOutOfSample,
-    stabilityRatio,
   };
 }
 

@@ -889,3 +889,128 @@ describe("Anchored Walk-Forward — periods that select nothing", () => {
     expect(text).toContain("Skipped Periods (no combination selected, not tested)");
   });
 });
+
+describe("Anchored Walk-Forward — out-of-sample tests what the search scored", () => {
+  // Mutually exclusive by construction: AND of the two never fires, OR of
+  // them fires every bar.
+  const parityEntries: ConditionDefinition[] = [
+    { name: "even", displayName: "Even bar", create: () => (_i, _c, index) => index % 2 === 0 },
+    { name: "odd", displayName: "Odd bar", create: () => (_i, _c, index) => index % 2 === 1 },
+  ];
+
+  it("rebuilds an OR-selected combination with OR, not AND", () => {
+    const candles = seededCandles(800);
+    const result = anchoredWalkForwardAnalysis(
+      candles,
+      parityEntries,
+      seededExitConditions(),
+      { anchorDate: candles[0].time, ...SEEDED_AWF_OPTIONS, metric: "returns" },
+      { useOr: true, minEntryConditions: 2, maxEntryConditions: 2 },
+    );
+
+    expect(result.periods.length).toBeGreaterThan(0);
+    for (const period of result.periods) {
+      expect(period.bestEntryConditions.sort()).toEqual(["even", "odd"]);
+      expect(period.outOfSampleMetrics.tradeCount).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe("Anchored Walk-Forward — aggregate covers every metric", () => {
+  it("averages mar when optimising on it, skipping undefined periods", () => {
+    const candles = seededCandles(800);
+    const result = anchoredWalkForwardAnalysis(
+      candles,
+      seededEntryConditions(),
+      seededExitConditions(),
+      { anchorDate: candles[0].time, ...SEEDED_AWF_OPTIONS, metric: "mar" },
+      { maxEntryConditions: 1, maxExitConditions: 1 },
+    );
+
+    const { avgInSample, avgOutOfSample } = result.aggregateMetrics;
+    const finiteMean = (values: number[]) => {
+      const finite = values.filter(Number.isFinite);
+      return finite.length > 0 ? finite.reduce((s, v) => s + v, 0) / finite.length : 0;
+    };
+
+    expect(avgInSample.mar).toBeCloseTo(
+      finiteMean(result.periods.map((p) => p.inSampleMetrics.mar)),
+      10,
+    );
+    expect(avgOutOfSample.mar).toBeCloseTo(
+      finiteMean(result.periods.map((p) => p.outOfSampleMetrics.mar)),
+      10,
+    );
+    // Every OptimizationMetric is present and numeric.
+    for (const key of [
+      "sharpe",
+      "calmar",
+      "mar",
+      "profitFactor",
+      "recoveryFactor",
+      "returns",
+      "winRate",
+      "tradeCount",
+      "maxDrawdown",
+    ] as const) {
+      expect(typeof avgInSample[key]).toBe("number");
+      expect(typeof avgOutOfSample[key]).toBe("number");
+    }
+  });
+});
+
+describe("Anchored Walk-Forward — indicator warm-up", () => {
+  // A 60-bar SMA filter: cold, a 100-bar test window spends 59 bars dark.
+  const smaAbove = (period: number): ConditionDefinition => ({
+    name: `above${period}`,
+    displayName: `Close > SMA(${period})`,
+    create: () => (_i, _c, index, candles) => {
+      if (index < period - 1) return false;
+      let sum = 0;
+      for (let k = index - period + 1; k <= index; k++) sum += candles[k].close;
+      return candles[index].close > sum / period;
+    },
+  });
+  const smaBelow = (period: number): ConditionDefinition => ({
+    name: `below${period}`,
+    displayName: `Close < SMA(${period})`,
+    create: () => (_i, _c, index, candles) => {
+      if (index < period - 1) return false;
+      let sum = 0;
+      for (let k = index - period + 1; k <= index; k++) sum += candles[k].close;
+      return candles[index].close < sum / period;
+    },
+  });
+  const awfOptions = { initialTrainSize: 300, expansionStep: 100, testSize: 100 } as const;
+
+  it("lets the out-of-sample window trade from its first bars", () => {
+    const candles = seededCandles(800);
+    const run = (warmupBars?: number) =>
+      anchoredWalkForwardAnalysis(
+        candles,
+        [smaAbove(60)],
+        [smaBelow(60)],
+        { anchorDate: candles[0].time, ...awfOptions, warmupBars },
+        { maxEntryConditions: 1, maxExitConditions: 1 },
+      );
+
+    const firstEntryOffset = (r: ReturnType<typeof run>) =>
+      r.periods.map((p) => {
+        const first = p.testBacktest.trades[0];
+        return first ? (first.entryTime - p.testStart) / 86400000 : Number.POSITIVE_INFINITY;
+      });
+
+    // Cold, no fold can enter before its 60th bar.
+    for (const offset of firstEntryOffset(run(0))) expect(offset).toBeGreaterThanOrEqual(59);
+    // Warm, at least one fold enters well before that.
+    expect(Math.min(...firstEntryOffset(run()))).toBeLessThan(30);
+
+    for (const period of run().periods) {
+      expect(period.testCandleCount).toBe(awfOptions.testSize);
+      expect(period.testBacktest.equityCurve).toHaveLength(awfOptions.testSize);
+      for (const trade of period.testBacktest.trades) {
+        expect(trade.entryTime).toBeGreaterThanOrEqual(period.testStart);
+      }
+    }
+  });
+});

@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { periodsPerYearFromSpan } from "../../analysis/return-metrics";
+import { runBacktest } from "../../backtest";
 import { EMPTY_EXTENDED_METRICS_FIXTURE } from "../../backtest/__tests__/backtest-result-fixture";
-import type { BacktestResult, Trade } from "../../types";
+import { deadCross, goldenCross } from "../../backtest/conditions/ma-cross";
+import type { BacktestResult, NormalizedCandle, Trade } from "../../types";
 import {
   calculateStatistics,
   formatMonteCarloResult,
@@ -475,14 +478,16 @@ describe("Monte Carlo Simulation", () => {
         entryPrice: 100,
         exitTime: Date.now() + (i + 1) * 86400000,
         exitPrice: 110,
-        return: 100,
+        // 10% of the 10,000 starting account: the resampler compounds the
+        // dollar P&L as a share of equity, not the trade's notional return.
+        return: 1000,
         returnPercent: 10,
         holdingDays: 1,
       }));
       const allLosses: Trade[] = allWins.map((t) => ({
         ...t,
         exitPrice: 90,
-        return: -100,
+        return: -1000,
         returnPercent: -10,
       }));
 
@@ -525,6 +530,88 @@ describe("Monte Carlo Simulation", () => {
       expect(shuffle.assessment.reason).not.toMatch(/profitable/i);
       // Bootstrap keeps the profitability framing.
       expect(bootstrap.assessment.reason).toMatch(/profitable/i);
+    });
+  });
+
+  describe("account-level reconstruction", () => {
+    // Oscillating closes with a slight downward drift, so the MA cross
+    // trades often enough for sizing to matter.
+    function sawtooth(n: number): NormalizedCandle[] {
+      const start = Date.UTC(2024, 0, 1);
+      return Array.from({ length: n }, (_, i) => {
+        const close = 100 - i * 0.05 + 6 * Math.sin(i / 3);
+        return {
+          time: start + i * 86400000,
+          open: close,
+          high: close + 0.5,
+          low: close - 0.5,
+          close,
+          volume: 1000,
+        };
+      });
+    }
+
+    it("shuffle reproduces the engine's return under fractional sizing", () => {
+      const candles = sawtooth(200);
+      const result = runBacktest(candles, goldenCross(2, 5), deadCross(2, 5), {
+        capital: 100_000,
+        sizing: { method: "fixed-fractional", fractionPercent: 20 },
+      });
+      expect(result.tradeCount).toBeGreaterThan(5);
+
+      const mc = runMonteCarloSimulation(result, { simulations: 200, method: "shuffle", seed: 7 });
+
+      // Total return is order-invariant under shuffle, so every simulation
+      // must land on the engine's own figure — not the 100%-of-equity one.
+      // (`totalReturnPercent` is rounded to 2 dp and `finalCapital` to the
+      // cent, so compare from the latter at a matching tolerance.)
+      const engineReturn =
+        ((result.finalCapital - result.initialCapital) / result.initialCapital) * 100;
+      expect(mc.statistics.totalReturnPercent.mean).toBeCloseTo(engineReturn, 3);
+      expect(mc.statistics.totalReturnPercent.stdDev).toBeLessThan(1e-9);
+      // Drawdown can only differ by ordering, and is bounded by the engine's
+      // closed-trade scale rather than inflated fivefold.
+      expect(mc.statistics.maxDrawdown.max).toBeLessThan(result.maxDrawdown * 2);
+    });
+
+    it("annualises Sharpe by trade frequency, not by 1/trade count", () => {
+      // The same per-trade return pattern at a daily cadence, at three
+      // lengths. The per-trade Sharpe is identical, so the annualised one
+      // must scale with sqrt(trades per year) — not shrink as sqrt(252/n).
+      const build = (n: number): Trade[] =>
+        Array.from({ length: n }, (_, i) => {
+          const pct = i % 3 === 0 ? -2 : 2;
+          return {
+            entryTime: Date.UTC(2024, 0, 1) + i * 86400000,
+            entryPrice: 100,
+            exitTime: Date.UTC(2024, 0, 1) + (i + 1) * 86400000,
+            exitPrice: 100 + pct,
+            return: pct * 100,
+            returnPercent: pct,
+            holdingDays: 1,
+          };
+        });
+
+      const sharpes = [6, 60, 600].map((n) => {
+        const trades = build(n);
+        const mc = runMonteCarloSimulation(createMockBacktestResult(trades), {
+          simulations: 50,
+          method: "shuffle",
+          seed: 1,
+        });
+        const ppy = periodsPerYearFromSpan(
+          n,
+          trades[0].entryTime,
+          trades[trades.length - 1].exitTime,
+        );
+        return mc.statistics.sharpe.mean / Math.sqrt(ppy);
+      });
+
+      // De-annualised, all three are the same per-trade Sharpe (within the
+      // small drift that compounding a fixed-dollar P&L introduces).
+      expect(sharpes[1]).toBeCloseTo(sharpes[0], 1);
+      expect(sharpes[2]).toBeCloseTo(sharpes[0], 1);
+      expect(sharpes[0]).toBeGreaterThan(0.2);
     });
   });
 });

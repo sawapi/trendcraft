@@ -2898,6 +2898,7 @@ const result = runBacktest(
 | `slTpMode` | `SlTpMode` | `'close-only'` | SL/TP判定方法（下記参照） |
 | `direction` | `PositionDirection` | `'long'` | ポジション方向（`'long'` or `'short'`）。[ショートセリング](#ショートセリング)参照 |
 | `sizing` | `BacktestSizingConfig` | `{ method: 'full-capital' }` | エントリーごとのポジションサイジング（下記参照） |
+| `warmupBars` | `number` | `0` | 指標のウォームアップ専用の先頭本数。この区間では売買せず、トレード・エクイティカーブ・評価メトリクスからも除外する。`candles[warmupBars]` からノーポジションで開始し、この足自体は（通常実行の0本目と同じく）売買しない。結果の評価には `candles.slice(warmupBars)` を渡す。`batchBacktest` / `portfolioBacktest` では指定不可 |
 
 #### ポジションサイジング
 
@@ -4008,7 +4009,8 @@ console.log('安定性:', result.aggregateMetrics.stabilityRatio);
 | `windowSize` | `number` | `252` | 学習ウィンドウのサイズ（ローソク足本数） |
 | `stepSize` | `number` | `63` | ウィンドウ間のステップサイズ（ローソク足本数） |
 | `testSize` | `number` | `63` | アウト・オブ・サンプル検証期間のサイズ（ローソク足本数） |
-| `purgeBars` | `number` | `0` | 学習とテストの間のパージギャップ（両ウィンドウから除外）。指標のlookbackや複数バーにまたがる出口ラベルが境界越しにリークするのを防ぐ。最長の指標期間/保有期間に合わせる。`anchoredWalkForwardAnalysis` でも利用可 |
+| `purgeBars` | `number` | `0` | 学習とテストの間のパージギャップ。学習ウィンドウはテストウィンドウの開始よりこの本数だけ手前で終わる。指標の lookback 対策には不要（`warmupBars` 参照）。パージした足もテストウィンドウのウォームアップには使われる。`anchoredWalkForwardAnalysis` でも利用可 |
+| `warmupBars` | `number` | `Infinity` | 学習・テスト各ウィンドウの前に指標のウォームアップとして渡す足の上限（既定は利用可能な全履歴）。ウォームアップ区間では売買せず、各ウィンドウはノーポジションで始まり、評価メトリクスはウィンドウ内だけで集計する。`0` で従来のコールドスタートを再現。既定では各ウィンドウの指標計算がそれまでの全履歴に及ぶため、後の期間ほど計算量が増える（必要な lookback 程度に制限すると速くなる）。ストラテジー側の `options.warmupBars` は指定不可（エラー）。`anchoredWalkForwardAnalysis` でも利用可 |
 | `metric` | `OptimizationMetric` | `'sharpe'` | 最適化する指標 |
 
 ---
@@ -4257,6 +4259,10 @@ console.log('破産リスク:', mcResult.downside.riskOfRuin);
 
 各シミュレーションはリサンプリングしたトレードからエクイティカーブを再構築し、Sharpe・最大ドローダウン・トータルリターン・プロフィットファクターを再計算します。結果はこれらのメトリクスの分布に加え、`downside` サマリー（利益/損失確率、破産リスク）を返します。二値の有意性フラグはありません — `downside` の数値が判定結果です。
 
+各トレードは `Trade.returnPercent`（建玉自体のコストに対するリターン）ではなく、**口座資産に対するリターン**（損益額 ÷ そのトレード直前の確定済み資産）としてリサンプリングされるため、固定比率やリスクベースのサイジングも実際の規模でシミュレーションされます。このリターンを複利で積み上げるのは、建玉の大きさが資産に比例すると仮定することにあたり、`full-capital` と `fixed-fractional` では正確、株数固定や金額固定のように複利にならないサイジングでは近似になります。エントリー手数料と信用取引の金利は `Trade.return` に含まれないため、どちらかを設定すると再構築した経路はエンジン自身の経路より上振れします。あるテストでは、手数料率 0.5%・固定比率 20% で 3.5 ポイント（エンジン −15.6%、Monte Carlo −12.0%）、full-capital で 13.6 ポイント（−57.5% 対 −43.9%）の差が出ました。手数料も信用取引の金利もなければ、`"shuffle"` でエンジンのトータルリターンを正確に再現します。
+
+Sharpe はトレードごとのリターンから計算し、観測されたトレード頻度（元のトレード列の期間あたりの年間トレード数）で年率化します。バックテスト結果がトレードベースの Sharpe に使うのと同じ規則で、バー単位のエクイティリターンから求める `result.sharpeRatio` の近似値です。
+
 **オプション:**
 | オプション | 型 | デフォルト | 説明 |
 |--------|------|---------|-------------|
@@ -4380,8 +4386,12 @@ Period 3: Train 2015-01-01〜2019-12-31 → Test 2020
 | `initialTrainSize` | `number` | `504` | 初期訓練期間（バー数、約2年） |
 | `expansionStep` | `number` | `252` | 拡張ステップ（バー数） |
 | `testSize` | `number` | `252` | テスト期間（バー数） |
+| `purgeBars` | `number` | `0` | 学習とテストの間のパージギャップ（`walkForwardAnalysis` 参照） |
+| `warmupBars` | `number` | `Infinity` | 各ウィンドウの前に指標のウォームアップとして渡す足の上限（`walkForwardAnalysis` 参照）。`anchorDate` より前の足も含む |
 | `metric` | `OptimizationMetric` | `'sharpe'` | 最適化する指標 |
 | `constraints` | `OptimizationConstraint[]` | `[]` | 制約条件 |
+
+**ウォームアップと `anchorDate`:** `anchorDate` が固定するのは最初の学習ウィンドウの*開始位置*で、指標が読めるデータの範囲ではありません。既定では最初の学習ウィンドウを含むすべてのウィンドウが手前の全ローソク足でウォームアップされるため、`anchorDate` より前の足も最初のウィンドウの指標計算に使われます（売買や評価メトリクスには使われません）。それより前のデータを完全に除外したい場合は、`anchorDate` 以降のローソク足だけを渡すか、`warmupBars: 0` を指定してください。ウォームアップはここで指定し、`combinationOptions.backtestOptions` には指定しないでください（指定するとエラーになります）。
 
 **戻り値:** `AWFResult`
 

@@ -2,6 +2,117 @@
 
 ## [Unreleased]
 
+### Breaking — walk-forward windows open with warm indicators
+
+`walkForwardAnalysis` and `anchoredWalkForwardAnalysis` sliced each training
+and test window bare, so every indicator restarted inside it and a lookback-L
+rule could not signal for the first L − 1 bars of every window. The default
+63-bar test window lost almost all of itself to a 60-bar cross, and a 200-day
+trend filter sat out 200 of a 252-bar test year — walk-forward systematically
+scored long lookbacks down, and the training-window search was biased toward
+short ones for the same reason.
+
+Each window is now fed the candles in front of it as history: indicators are
+computed over them, but no trade is taken there, every window starts flat,
+and trades, equity and metrics cover the window alone. The history is
+strictly earlier data, so this adds no look-ahead. Out-of-sample (and
+in-sample) figures change for any strategy whose indicators have a lookback;
+`stabilityRatio`, the recommendation and the walk-forward dimension of
+`calculateRobustnessScore` change with them.
+
+The new `warmupBars` option on both caps the history (default `Infinity`, all
+available bars, including bars before `anchorDate`); `warmupBars: 0` restores
+the previous cold start. With the default, each window's indicators run over
+everything before it, so later periods cost more; capping the option at the
+strategy's longest lookback is faster. A strategy that keys off an absolute
+bar `index` sees the index within the history-plus-window array, not within
+the window. The walk-forward sets each window's warm-up itself, so a
+`warmupBars` in a strategy factory's options (rolling) or in
+`combinationOptions.backtestOptions` (anchored) now throws instead of being
+overridden.
+
+The `purgeBars` documentation said the gap prevents indicator lookback from
+leaking into the test period. It never could — each window computed its own
+indicators — and the real problem was the opposite. It now describes what the
+gap does.
+
+### Added — `warmupBars` backtest option
+
+`runBacktest(candles, entry, exit, { capital, warmupBars })` treats the first
+`warmupBars` candles as history only: indicators see them, nothing trades in
+them, and the result (trades, `equityCurve`, drawdown, `firstBarTime`, every
+metric) covers `candles.slice(warmupBars)`. Like bar 0 of a plain run,
+`candles[warmupBars]` is the opening mark at the starting capital and is
+never traded.
+
+Where it is honoured: `gridSearch`, `combinationSearch` and
+`paretoOptimization` score on the evaluated window when the option is in the
+backtest options, and both walk-forwards set it per window. Where it is not:
+`batchBacktest` and `portfolioBacktest` reject it (their merged equity curve
+needs every candle), and `runBacktestScaled` rejects it for multi-tranche
+runs. Anything else that reads a result against candles — `calculateAllMetrics`,
+`calculateDailyReturns`, tearsheets and reports — must be given
+`candles.slice(warmupBars)`.
+
+### Breaking — `calculateDailyReturns` rejects an equity curve that does not match the candles
+
+When a result carried an `equityCurve` of a different length from the candles
+passed in, `calculateDailyReturns` silently fell back to rebuilding returns
+from trades, producing a different Sharpe with no sign of the mismatch. It
+now throws, naming both lengths — and so do the entry points built on it:
+`calculateAllMetrics`, `report` (tearsheet), `backtestByRegime`, and
+`scoreBacktestResult` when given `options.candles`. Results
+without an `equityCurve` still use the trade reconstruction.
+
+### Fixed — Monte Carlo levered every position up to 100% of equity
+
+`runMonteCarloSimulation` rebuilt each simulated path by compounding
+`Trade.returnPercent` — the return on the position's own cost — against the
+whole account. That is only right for `full-capital` sizing. With
+`fixed-fractional` 20%, a run whose engine result was −33.9% (max drawdown
+32.3%) came back from Monte Carlo as a mean of −89.1% and a 100% risk of a
+50% drawdown. Trades are now resampled as their return on account equity
+(dollar P&L over the realised equity before the trade), so `totalReturnPercent`,
+`maxDrawdown`, the confidence intervals, `probLoss`, `riskOfRuin` and the
+robustness scores built on them are on the account's scale. With no
+commission and no margin interest, `shuffle` now reproduces the engine's total return exactly for
+any sizing. Entry commissions and margin interest are not recorded in
+`Trade.return`, so with either one set the simulated path still runs
+above the engine's — on one 600-bar test with a 0.5% commission rate, by 3.5
+points at 20% fractional sizing (engine −15.6% vs Monte Carlo −12.0%) and by
+13.6 points at full capital (−57.5% vs −43.9%). That gap closes
+once trades carry their entry fee (tracked separately). Compounding account
+returns assumes position size scales with equity — exact for `full-capital`
+and `fixed-fractional`, an approximation for sizing that does not compound.
+
+### Fixed — Monte Carlo Sharpe shrank as the trade count grew
+
+The resampled Sharpe was annualised by `sqrt(252 / tradeCount)`, which moves
+the wrong way: the same per-trade edge scored 2.29 over 6 trades and 0.23
+over 600. It is now annualised by the observed trade frequency
+(`periodsPerYearFromSpan` over the original trade list's span), the rule the
+backtest result itself uses for trade-based Sharpe, and computed by the shared
+`sharpeFromReturns` kernel. `statistics.sharpe`, `confidenceInterval.sharpe`
+and `summarizeMonteCarloResult().expectedSharpe` change accordingly.
+
+### Fixed — anchored walk-forward re-tested an OR combination as AND
+
+With `useOr: true`, `combinationSearch` scored the searched conditions joined
+by OR, but `anchoredWalkForwardAnalysis` rebuilt the winner for the
+out-of-sample test with a hard-coded AND (entries and exits alike), so the
+test ran a different — often never-firing — rule. Both now build a
+combination through one function, keeping required conditions ANDed and the
+searched ones joined as searched.
+
+### Fixed — anchored walk-forward lost `mar` from its aggregate
+
+`aggregateMetrics.avgInSample.mar` / `avgOutOfSample.mar` were `undefined`,
+so a run optimised on `metric: "mar"` always reported `stabilityRatio = 0` and
+the pessimistic recommendation. The anchored aggregate also averaged a
+period's undefined (NaN) metric as 0. Rolling and anchored walk-forward now
+share one aggregation that covers every `OptimizationMetric` and averages
+only the periods where a metric was defined.
+
 ### Fixed — MFI read 100 (maximum overbought) for a window with no money flow
 
 `mfi` checked "no negative flow" first, so a window whose typical price never
