@@ -2,6 +2,37 @@
 
 ## [Unreleased]
 
+### Fixed — Monte Carlo levered every position up to 100% of equity
+
+`runMonteCarloSimulation` rebuilt each simulated path by compounding
+`Trade.returnPercent` — the return on the position's own cost — against the
+whole account. That is only right for `full-capital` sizing. With
+`fixed-fractional` 20%, a run whose engine result was −33.9% (max drawdown
+32.3%) came back from Monte Carlo as a mean of −89.1% and a 100% risk of a
+50% drawdown. Trades are now resampled as their return on account equity
+(dollar P&L over the realised equity before the trade), so `totalReturnPercent`,
+`maxDrawdown`, the confidence intervals, `probLoss`, `riskOfRuin` and the
+robustness scores built on them are on the account's scale. With no
+commission and no margin interest, `shuffle` now reproduces the engine's total return exactly for
+any sizing. Entry commissions and margin interest are not recorded in
+`Trade.return`, so with either one set the simulated path still runs
+above the engine's — on one 600-bar test with a 0.5% commission rate, by 3.5
+points at 20% fractional sizing (engine −15.6% vs Monte Carlo −12.0%) and by
+13.6 points at full capital (−57.5% vs −43.9%). That gap closes
+once trades carry their entry fee (tracked separately). Compounding account
+returns assumes position size scales with equity — exact for `full-capital`
+and `fixed-fractional`, an approximation for sizing that does not compound.
+
+### Fixed — Monte Carlo Sharpe shrank as the trade count grew
+
+The resampled Sharpe was annualised by `sqrt(252 / tradeCount)`, which moves
+the wrong way: the same per-trade edge scored 2.29 over 6 trades and 0.23
+over 600. It is now annualised by the observed trade frequency
+(`periodsPerYearFromSpan` over the original trade list's span), the rule the
+backtest result itself uses for trade-based Sharpe, and computed by the shared
+`sharpeFromReturns` kernel. `statistics.sharpe`, `confidenceInterval.sharpe`
+and `summarizeMonteCarloResult().expectedSharpe` change accordingly.
+
 ### Fixed — MFI read 100 (maximum overbought) for a window with no money flow
 
 `mfi` checked "no negative flow" first, so a window whose typical price never

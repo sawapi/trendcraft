@@ -10,6 +10,7 @@
  *   drawdown varies — used for sequence-risk analysis.
  */
 
+import { periodsPerYearFromSpan, sharpeFromReturns } from "../analysis/return-metrics";
 import { mulberry32 } from "../core/random";
 import type { BacktestResult, Trade } from "../types";
 import type { MetricStatistics, MonteCarloOptions, MonteCarloResult } from "../types/optimization";
@@ -111,11 +112,50 @@ export function calculateStatistics(values: number[]): MetricStatistics {
 }
 
 /**
- * Recalculate metrics from shuffled trades
+ * A trade reduced to what the resampler needs: its dollar P&L and its
+ * return on account equity at the time it was taken.
+ */
+type ResampleTrade = {
+  pnl: number;
+  accountReturn: number;
+};
+
+/**
+ * Express each trade as a return on account equity rather than on its own
+ * notional.
+ *
+ * `Trade.returnPercent` is P&L over the position's cost basis, so it only
+ * equals the account's return when the whole account is in the trade
+ * (`full-capital` sizing, no scale-outs). Compounding it against full equity
+ * levers every other sizing up to 100% — a 20%-of-equity position that lost
+ * 6.87% on its notional moved the account by -1.37%, not -6.87%. Dividing
+ * the dollar P&L by the realised equity before the trade gives the account
+ * return for any sizing, and treats each scale-out slice as the account
+ * move it actually was instead of re-applying the per-share return per slice.
+ *
+ * Equity is reconstructed as `initialCapital` plus the realised P&L of the
+ * preceding trades, in the order the backtest closed them. Entry fees and
+ * margin interest are not part of `Trade.return`, so they are not part of
+ * this path either: with them set, it runs slightly above the engine's own.
+ */
+function toAccountReturns(trades: Trade[], initialCapital: number): ResampleTrade[] {
+  let equity = initialCapital;
+  return trades.map((trade) => {
+    // An account at or below zero has nothing left to return on; any further
+    // trade is recorded as a total loss rather than a division by <= 0.
+    const accountReturn = equity > 0 ? Math.max(-1, trade.return / equity) : -1;
+    equity += trade.return;
+    return { pnl: trade.return, accountReturn };
+  });
+}
+
+/**
+ * Recalculate metrics from resampled trades
  */
 function recalculateMetricsFromTrades(
-  trades: Trade[],
+  trades: ResampleTrade[],
   initialCapital: number,
+  periodsPerYear: number,
 ): {
   sharpe: number;
   maxDrawdown: number;
@@ -126,17 +166,15 @@ function recalculateMetricsFromTrades(
     return { sharpe: 0, maxDrawdown: 0, totalReturnPercent: 0, profitFactor: 0 };
   }
 
-  // Rebuild equity curve from shuffled trades
+  // Rebuild equity curve from resampled trades
   let capital = initialCapital;
   let peakCapital = initialCapital;
   let maxDrawdown = 0;
   const returns: number[] = [];
 
   for (const trade of trades) {
-    // Apply trade return
-    const returnAmount = capital * (trade.returnPercent / 100);
-    capital += returnAmount;
-    returns.push(trade.returnPercent / 100);
+    capital += capital * trade.accountReturn;
+    returns.push(trade.accountReturn);
 
     // Track drawdown
     if (capital > peakCapital) {
@@ -148,19 +186,15 @@ function recalculateMetricsFromTrades(
     }
   }
 
-  // Calculate Sharpe ratio from trade returns
-  const meanReturn = returns.reduce((sum, r) => sum + r, 0) / returns.length;
-  const variance = returns.reduce((sum, r) => sum + (r - meanReturn) ** 2, 0) / returns.length;
-  const stdDev = Math.sqrt(variance);
-  // Annualize assuming average trade length (simplified)
-  const sharpe =
-    stdDev > 0 ? (meanReturn / stdDev) * Math.sqrt(252 / Math.max(1, trades.length)) : 0;
+  // Per-trade Sharpe annualised by the observed trade frequency — the same
+  // rule `annualizedRatios` uses for a result rebuilt from trades. An
+  // undefined ratio (flat resample) is reported as 0, as BacktestResult does.
+  const rawSharpe = sharpeFromReturns(returns, { periodsPerYear });
+  const sharpe = Number.isFinite(rawSharpe) ? rawSharpe : 0;
 
   // Calculate profit factor
-  const profits = trades.filter((t) => t.return > 0).reduce((sum, t) => sum + t.return, 0);
-  const losses = Math.abs(
-    trades.filter((t) => t.return <= 0).reduce((sum, t) => sum + t.return, 0),
-  );
+  const profits = trades.filter((t) => t.pnl > 0).reduce((sum, t) => sum + t.pnl, 0);
+  const losses = Math.abs(trades.filter((t) => t.pnl <= 0).reduce((sum, t) => sum + t.pnl, 0));
   const profitFactor = losses > 0 ? profits / losses : profits > 0 ? 999.99 : 0;
 
   const totalReturnPercent = ((capital - initialCapital) / initialCapital) * 100;
@@ -185,12 +219,24 @@ export function runMonteCarloSimulation(
   const ruinThreshold = options.ruinThreshold ?? DEFAULT_OPTIONS.ruinThreshold;
   const { progressCallback } = options;
 
-  const trades = result.trades;
   const initialCapital = result.initialCapital;
 
-  if (trades.length < 2) {
+  if (result.trades.length < 2) {
     throw new Error("Need at least 2 trades for Monte Carlo simulation");
   }
+
+  const trades = toAccountReturns(result.trades, initialCapital);
+
+  // Annualise from the original trade list's span, once: a bootstrap draw's
+  // own first-entry/last-exit is itself resampled and would jitter the
+  // factor between simulations.
+  let firstEntry = Number.POSITIVE_INFINITY;
+  let lastExit = Number.NEGATIVE_INFINITY;
+  for (const t of result.trades) {
+    if (t.entryTime < firstEntry) firstEntry = t.entryTime;
+    if (t.exitTime > lastExit) lastExit = t.exitTime;
+  }
+  const periodsPerYear = periodsPerYearFromSpan(result.trades.length, firstEntry, lastExit);
 
   // Create random generator
   const random = options.seed !== undefined ? mulberry32(options.seed) : Math.random;
@@ -212,7 +258,7 @@ export function runMonteCarloSimulation(
     const resampledTrades = resample(trades, random);
 
     // Recalculate metrics
-    const metrics = recalculateMetricsFromTrades(resampledTrades, initialCapital);
+    const metrics = recalculateMetricsFromTrades(resampledTrades, initialCapital, periodsPerYear);
 
     sharpeValues.push(metrics.sharpe);
     maxDrawdownValues.push(metrics.maxDrawdown);
@@ -230,9 +276,9 @@ export function runMonteCarloSimulation(
 
   // Original result values — the backtest's own reported metrics, kept
   // as-is for display. They are NOT used as a baseline for the downside
-  // figures: the resampler recomputes Sharpe with a per-trade formula
-  // that differs from the backtest's candle-aware annualization, so
-  // comparing the two would mix scales.
+  // figures: the resampler's Sharpe comes from per-trade returns
+  // annualised by trade frequency, an approximation of the backtest's
+  // bar-to-bar figure rather than the same number.
   const originalSharpe = result.sharpeRatio;
   const originalReturn = result.totalReturnPercent;
   const originalMaxDD = result.maxDrawdown;
