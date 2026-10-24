@@ -191,9 +191,14 @@ export function gridSearch(
       const backtest = runBacktest(candles, strategy.entry, strategy.exit, backtestOptions, cache);
 
       // Calculate metrics
-      const metrics = calculateAllMetrics(backtest, candles, {
-        initialCapital: backtestOptions.capital,
-      });
+      // A warm-up prefix is history, not part of the scored run.
+      const metrics = calculateAllMetrics(
+        backtest,
+        candles.slice(backtestOptions.warmupBars ?? 0),
+        {
+          initialCapital: backtestOptions.capital,
+        },
+      );
 
       // Check constraints
       const passedConstraints = checkAllConstraints(metrics, constraints);

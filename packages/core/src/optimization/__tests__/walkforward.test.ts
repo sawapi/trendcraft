@@ -1,4 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
+import { deadCross, goldenCross } from "../../backtest/conditions/ma-cross";
+import { mulberry32 } from "../../core/random";
 import type { BacktestOptions, NormalizedCandle, PresetCondition } from "../../types";
 import type { WalkForwardPeriod, WalkForwardResult } from "../../types/optimization";
 import { param } from "../grid-search";
@@ -544,6 +546,9 @@ describe("Walk-Forward Analysis", () => {
         windowSize: 100,
         stepSize: 50,
         testSize: 50,
+        // The fixture trades at a fixed index inside each window's slice;
+        // with warm-up history in front, that index lands in the history.
+        warmupBars: 0,
       });
 
       const perPeriod = getOutOfSampleEquityCurve(result);
@@ -609,5 +614,103 @@ describe("Walk-Forward Analysis", () => {
       expect(sharpeResult.periods.length).toBeGreaterThan(0);
       expect(returnsResult.periods.length).toBeGreaterThan(0);
     });
+  });
+});
+
+describe("Walk-Forward Analysis — indicator warm-up", () => {
+  // Seeded random walk long enough for eleven 252/63 folds.
+  function walk(n: number): NormalizedCandle[] {
+    const rnd = mulberry32(3);
+    const start = Date.UTC(2015, 0, 1);
+    let close = 100;
+    return Array.from({ length: n }, (_, i) => {
+      close *= 1 + (rnd() - 0.5) * 0.04;
+      return {
+        time: start + i * 86400000,
+        open: close,
+        high: close * 1.01,
+        low: close * 0.99,
+        close,
+        volume: 1000,
+      };
+    });
+  }
+
+  // A 60-bar cross: cold, it cannot fire in the first 60 bars of a 63-bar
+  // test window, so almost every fold scores zero trades.
+  const crossStrategy = (params: Record<string, number>) => ({
+    entry: goldenCross(10, params.period),
+    exit: deadCross(10, params.period),
+    options: { capital: 100_000 } as BacktestOptions,
+  });
+  const ranges = [param("period", 40, 60, 10)];
+  const options = { windowSize: 252, stepSize: 63, testSize: 63 };
+
+  it("feeds each window its preceding history by default", () => {
+    const candles = walk(1000);
+    const warm = walkForwardAnalysis(candles, crossStrategy, ranges, options);
+    const cold = walkForwardAnalysis(candles, crossStrategy, ranges, { ...options, warmupBars: 0 });
+
+    const tradedFolds = (r: WalkForwardResult) =>
+      r.periods.filter((p) => p.outOfSampleMetrics.tradeCount > 0).length;
+    // On this series: 2 of 11 folds trade cold, 8 of 11 warm (the rest
+    // simply have no cross inside their 63 bars).
+    expect(tradedFolds(cold)).toBeLessThanOrEqual(3);
+    expect(tradedFolds(warm)).toBeGreaterThanOrEqual(tradedFolds(cold) + 4);
+  });
+
+  it("keeps out-of-sample trades and equity inside the test window", () => {
+    const candles = walk(1000);
+    const result = walkForwardAnalysis(candles, crossStrategy, ranges, options);
+
+    for (const period of result.periods) {
+      const bt = period.testBacktest;
+      expect(bt?.equityCurve).toHaveLength(options.testSize);
+      expect(bt?.firstBarTime).toBe(period.testStart);
+      for (const trade of bt?.trades ?? []) {
+        expect(trade.entryTime).toBeGreaterThanOrEqual(period.testStart);
+        expect(trade.exitTime).toBeLessThanOrEqual(period.testEnd);
+      }
+    }
+  });
+
+  it("caps the history at warmupBars", () => {
+    const candles = walk(1000);
+    // Ten bars of history cannot warm a 40-60 bar cross, so the capped run
+    // sits between cold and fully warm.
+    const capped = walkForwardAnalysis(candles, crossStrategy, ranges, {
+      ...options,
+      warmupBars: 10,
+    });
+    const cold = walkForwardAnalysis(candles, crossStrategy, ranges, { ...options, warmupBars: 0 });
+    for (let i = 0; i < capped.periods.length; i++) {
+      expect(capped.periods[i].testBacktest?.equityCurve).toHaveLength(options.testSize);
+    }
+    expect(capped.periods.length).toBe(cold.periods.length);
+  });
+
+  it("rejects a warmupBars set by the strategy factory", () => {
+    const candles = walk(400);
+    const own = (params: Record<string, number>) => ({
+      ...crossStrategy(params),
+      options: { capital: 100_000, warmupBars: 20 } as BacktestOptions,
+    });
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      expect(() => walkForwardAnalysis(candles, own, ranges, options)).toThrow(
+        /Set warmupBars on the walk-forward options/,
+      );
+      // Rejected up front, not after gridSearch swallowed it per combination.
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("rejects an invalid warmupBars", () => {
+    const candles = walk(400);
+    expect(() =>
+      walkForwardAnalysis(candles, crossStrategy, ranges, { ...options, warmupBars: -1 }),
+    ).toThrow(/warmupBars/);
   });
 });

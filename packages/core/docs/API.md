@@ -2920,6 +2920,7 @@ const result = runBacktest(
 | `slTpMode` | `SlTpMode` | `'close-only'` | Stop loss/take profit evaluation mode (see below) |
 | `direction` | `PositionDirection` | `'long'` | Position direction (`'long'` or `'short'`). See [Short Selling](#short-selling) |
 | `sizing` | `BacktestSizingConfig` | `{ method: 'full-capital' }` | Position sizing per entry (see below) |
+| `warmupBars` | `number` | `0` | Leading candles used only to warm indicators: never traded, and excluded from trades, equity curve and every metric. The run starts flat at `candles[warmupBars]`, which (like bar 0 of a plain run) is never traded. Score the result against `candles.slice(warmupBars)`. Rejected by `batchBacktest` / `portfolioBacktest` |
 
 #### Position Sizing
 
@@ -4043,7 +4044,8 @@ console.log('Stability:', result.aggregateMetrics.stabilityRatio);
 | `windowSize` | `number` | `252` | Training window size in candles |
 | `stepSize` | `number` | `63` | Step size in candles between windows |
 | `testSize` | `number` | `63` | Out-of-sample test size in candles |
-| `purgeBars` | `number` | `0` | Purge gap between training and test windows — bars excluded from both, so indicator lookbacks and multi-bar exit labels can't leak across the boundary. Size to the longest indicator period or holding horizon. Also available on `anchoredWalkForwardAnalysis` |
+| `purgeBars` | `number` | `0` | Purge gap between training and test windows — the training window ends this many bars before the test window opens. Not needed for indicator lookback (see `warmupBars`); the purged bars still warm the test window. Also available on `anchoredWalkForwardAnalysis` |
+| `warmupBars` | `number` | `Infinity` | Preceding candles fed to each training and test window as indicator warm-up (all available history by default). Warm-up bars are never traded, every window starts flat, and metrics cover the window alone. `0` reproduces the cold start of earlier versions. With the default, each window's indicators run over all history before it, so later periods cost more; capping it at the longest lookback the strategy uses is faster. A strategy factory must not set `options.warmupBars` itself (it throws). Also available on `anchoredWalkForwardAnalysis` |
 | `metric` | `OptimizationMetric` | `'sharpe'` | Metric to optimize |
 
 ---
@@ -4417,9 +4419,13 @@ Each period:
 | `initialTrainSize` | `number` | `504` | Initial training period (~2 years) |
 | `expansionStep` | `number` | `252` | Training period expansion (~1 year) |
 | `testSize` | `number` | `252` | Test period size (~1 year) |
+| `purgeBars` | `number` | `0` | Purge gap between training and test windows (see `walkForwardAnalysis`) |
+| `warmupBars` | `number` | `Infinity` | Preceding candles fed to each window as indicator warm-up (see `walkForwardAnalysis`). Includes candles before `anchorDate` |
 | `metric` | `OptimizationMetric` | `'sharpe'` | Metric to optimize |
 | `constraints` | `OptimizationConstraint[]` | `[]` | Constraints for optimization |
 | `progressCallback` | `function` | - | Progress callback (period, total, phase) |
+
+**Warm-up and `anchorDate`:** `anchorDate` fixes where the first training window *starts*, not which data the indicators may read. By default every window — the first training window included — is warmed on all candles in front of it, so candles before `anchorDate` feed the first window's indicators (never its trades or metrics). To keep earlier data out entirely, pass only the candles from `anchorDate` onward, or set `warmupBars: 0`. Set the warm-up here, not in `combinationOptions.backtestOptions`, which rejects it.
 
 **Returns:** `AWFResult`
 

@@ -48,6 +48,7 @@ const UNSUPPORTED_OPTIONS = [
   "sizing",
   "fundamentals",
   "validateData",
+  "warmupBars",
 ] as const satisfies readonly (keyof MtfBacktestOptions)[];
 
 /**
@@ -96,6 +97,7 @@ const SAMPLE_UNSUPPORTED_VALUES: Required<
   sizing: { method: "fixed-fractional", fractionPercent: 50 },
   fundamentals: [{ time: Date.UTC(2024, 0, 1), per: 15, pbr: 1.2 }],
   validateData: true,
+  warmupBars: 50,
 };
 
 const DAY = 24 * 60 * 60 * 1000;

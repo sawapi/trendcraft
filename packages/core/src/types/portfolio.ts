@@ -47,7 +47,7 @@ export type EquityPoint = {
 /**
  * Options for batch backtest
  */
-export type BatchBacktestOptions = Omit<BacktestOptions, "capital"> & {
+export type BatchBacktestOptions = Omit<BacktestOptions, "capital" | "warmupBars"> & {
   /** Total capital to distribute equally across symbols (default: equal split) */
   capital: number;
   /**
@@ -176,7 +176,7 @@ export type PortfolioBacktestOptions = {
    */
   rebalance?: RebalanceConfig;
   /** Per-trade backtest options (SL, TP, trailing, commissions, sizing, etc.) */
-  tradeOptions?: Omit<BacktestOptions, "capital">;
+  tradeOptions?: Omit<BacktestOptions, "capital" | "warmupBars">;
   /**
    * @deprecated Was never wired into the engine. Use `tradeOptions.sizing`
    * (a `BacktestSizingConfig`), which flows into every per-symbol backtest.

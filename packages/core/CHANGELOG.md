@@ -2,6 +2,68 @@
 
 ## [Unreleased]
 
+### Breaking — walk-forward windows open with warm indicators
+
+`walkForwardAnalysis` and `anchoredWalkForwardAnalysis` sliced each training
+and test window bare, so every indicator restarted inside it and a lookback-L
+rule could not signal for the first L − 1 bars of every window. The default
+63-bar test window lost almost all of itself to a 60-bar cross, and a 200-day
+trend filter sat out 200 of a 252-bar test year — walk-forward systematically
+scored long lookbacks down, and the training-window search was biased toward
+short ones for the same reason.
+
+Each window is now fed the candles in front of it as history: indicators are
+computed over them, but no trade is taken there, every window starts flat,
+and trades, equity and metrics cover the window alone. The history is
+strictly earlier data, so this adds no look-ahead. Out-of-sample (and
+in-sample) figures change for any strategy whose indicators have a lookback;
+`stabilityRatio`, the recommendation and the walk-forward dimension of
+`calculateRobustnessScore` change with them.
+
+The new `warmupBars` option on both caps the history (default `Infinity`, all
+available bars, including bars before `anchorDate`); `warmupBars: 0` restores
+the previous cold start. With the default, each window's indicators run over
+everything before it, so later periods cost more; capping the option at the
+strategy's longest lookback is faster. A strategy that keys off an absolute
+bar `index` sees the index within the history-plus-window array, not within
+the window. The walk-forward sets each window's warm-up itself, so a
+`warmupBars` in a strategy factory's options (rolling) or in
+`combinationOptions.backtestOptions` (anchored) now throws instead of being
+overridden.
+
+The `purgeBars` documentation said the gap prevents indicator lookback from
+leaking into the test period. It never could — each window computed its own
+indicators — and the real problem was the opposite. It now describes what the
+gap does.
+
+### Added — `warmupBars` backtest option
+
+`runBacktest(candles, entry, exit, { capital, warmupBars })` treats the first
+`warmupBars` candles as history only: indicators see them, nothing trades in
+them, and the result (trades, `equityCurve`, drawdown, `firstBarTime`, every
+metric) covers `candles.slice(warmupBars)`. Like bar 0 of a plain run,
+`candles[warmupBars]` is the opening mark at the starting capital and is
+never traded.
+
+Where it is honoured: `gridSearch`, `combinationSearch` and
+`paretoOptimization` score on the evaluated window when the option is in the
+backtest options, and both walk-forwards set it per window. Where it is not:
+`batchBacktest` and `portfolioBacktest` reject it (their merged equity curve
+needs every candle), and `runBacktestScaled` rejects it for multi-tranche
+runs. Anything else that reads a result against candles — `calculateAllMetrics`,
+`calculateDailyReturns`, tearsheets and reports — must be given
+`candles.slice(warmupBars)`.
+
+### Breaking — `calculateDailyReturns` rejects an equity curve that does not match the candles
+
+When a result carried an `equityCurve` of a different length from the candles
+passed in, `calculateDailyReturns` silently fell back to rebuilding returns
+from trades, producing a different Sharpe with no sign of the mismatch. It
+now throws, naming both lengths — and so do the entry points built on it:
+`calculateAllMetrics`, `report` (tearsheet), `backtestByRegime`, and
+`scoreBacktestResult` when given `options.candles`. Results
+without an `equityCurve` still use the trade reconstruction.
+
 ### Fixed — Monte Carlo levered every position up to 100% of equity
 
 `runMonteCarloSimulation` rebuilt each simulated path by compounding

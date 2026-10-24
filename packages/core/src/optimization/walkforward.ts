@@ -6,7 +6,7 @@
  */
 
 import { runBacktest } from "../backtest";
-import type { NormalizedCandle } from "../types";
+import type { BacktestOptions, NormalizedCandle } from "../types";
 import type {
   OptimizationConstraint,
   OptimizationMetric,
@@ -19,7 +19,12 @@ import { err, ok, type Result, tcError } from "../types/result";
 import { DEFAULT_BACKTEST_CAPITAL } from "./constants";
 import { generateParameterCombinations, gridSearch, type StrategyFactory } from "./grid-search";
 import { calculateAllMetrics } from "./metrics";
-import { aggregateInOutMetrics } from "./walkforward-shared";
+import {
+  aggregateInOutMetrics,
+  assertNoOwnWarmup,
+  validateWarmupBars,
+  warmWindow,
+} from "./walkforward-shared";
 
 /**
  * Default options for walk-forward analysis
@@ -32,6 +37,7 @@ const DEFAULT_OPTIONS: Required<
   testSize: 63, // ~1 quarter
   purgeBars: 0, // adjacent train/test windows (no purge gap)
   metric: "sharpe",
+  warmupBars: Number.POSITIVE_INFINITY, // all preceding history
 };
 
 /**
@@ -110,6 +116,23 @@ export function generatePeriodBoundaries(
 }
 
 /**
+ * Wrap a strategy factory so every backtest it feeds treats the first
+ * `warmupBars` candles as history only. The walk-forward owns the warm-up of
+ * each window, so a factory that sets its own is rejected rather than
+ * silently overridden.
+ */
+function withWarmup(createStrategy: StrategyFactory, warmupBars: number): StrategyFactory {
+  return (params) => {
+    const strategy = createStrategy(params);
+    assertNoOwnWarmup(strategy.options);
+    return {
+      ...strategy,
+      options: { capital: DEFAULT_BACKTEST_CAPITAL, ...strategy.options, warmupBars },
+    };
+  };
+}
+
+/**
  * Run walk-forward analysis
  * @param candles Candle data
  * @param createStrategy Strategy factory function
@@ -132,6 +155,7 @@ export function walkForwardAnalysis(
     constraints,
     progressCallback,
     paramFilter,
+    warmupBars,
   } = {
     ...DEFAULT_OPTIONS,
     constraints: [] as OptimizationConstraint[],
@@ -145,6 +169,8 @@ export function walkForwardAnalysis(
     testSize,
     purgeBars,
   });
+
+  validateWarmupBars(warmupBars);
 
   if (boundaries.length === 0) {
     throw new Error(
@@ -180,6 +206,19 @@ export function walkForwardAnalysis(
     },
     {} as Record<string, number>,
   );
+  // Probe the factory once up front. gridSearch catches factory errors per
+  // combination and only warns, so a factory that sets its own warmupBars
+  // would otherwise log a warning for every combination and burn a full grid
+  // before the error surfaced. A factory that throws on the minima for its
+  // own reasons is left to gridSearch, which handles that per combination.
+  let probeOptions: BacktestOptions | undefined;
+  try {
+    probeOptions = createStrategy(minimaParams).options;
+  } catch {
+    probeOptions = undefined;
+  }
+  assertNoOwnWarmup(probeOptions);
+
   let resolvedFallback: Record<string, number> | null = null;
   const fallbackParams = (): Record<string, number> => {
     if (resolvedFallback === null) {
@@ -213,17 +252,23 @@ export function walkForwardAnalysis(
       progressCallback(i + 1, boundaries.length);
     }
 
-    // Extract train and test data
-    const trainCandles = candles.slice(boundary.trainStart, boundary.trainEnd + 1);
-    const testCandles = candles.slice(boundary.testStart, boundary.testEnd + 1);
+    // Cut each window with the history in front of it, so indicators open
+    // warm instead of going dark for their first lookback bars.
+    const train = warmWindow(candles, boundary.trainStart, boundary.trainEnd, warmupBars);
+    const test = warmWindow(candles, boundary.testStart, boundary.testEnd, warmupBars);
 
     // Optimize on training data
-    const gridResult = gridSearch(trainCandles, createStrategy, parameterRanges, {
-      metric,
-      constraints,
-      maxCombinations: 10000,
-      paramFilter,
-    });
+    const gridResult = gridSearch(
+      train.candles,
+      withWarmup(createStrategy, train.warmupBars),
+      parameterRanges,
+      {
+        metric,
+        constraints,
+        maxCombinations: 10000,
+        paramFilter,
+      },
+    );
 
     // Use best parameters or fall back to the lazily-resolved fallback (a
     // filter-valid combo when a paramFilter is set, else range minima).
@@ -236,19 +281,22 @@ export function walkForwardAnalysis(
 
     // Run backtest on training data with best params
     const trainStrategy = createStrategy(bestParams);
-    const trainBacktest = runBacktest(trainCandles, trainStrategy.entry, trainStrategy.exit, {
+    assertNoOwnWarmup(trainStrategy.options);
+    const trainBacktest = runBacktest(train.candles, trainStrategy.entry, trainStrategy.exit, {
       capital: DEFAULT_BACKTEST_CAPITAL,
       ...trainStrategy.options,
+      warmupBars: train.warmupBars,
     });
-    const inSampleMetrics = calculateAllMetrics(trainBacktest, trainCandles);
+    const inSampleMetrics = calculateAllMetrics(trainBacktest, train.window);
 
     // Run backtest on test data with same params
     const testStrategy = createStrategy(bestParams);
-    const testBacktest = runBacktest(testCandles, testStrategy.entry, testStrategy.exit, {
+    const testBacktest = runBacktest(test.candles, testStrategy.entry, testStrategy.exit, {
       capital: DEFAULT_BACKTEST_CAPITAL,
       ...testStrategy.options,
+      warmupBars: test.warmupBars,
     });
-    const outOfSampleMetrics = calculateAllMetrics(testBacktest, testCandles);
+    const outOfSampleMetrics = calculateAllMetrics(testBacktest, test.window);
 
     // Record period result
     periods.push({

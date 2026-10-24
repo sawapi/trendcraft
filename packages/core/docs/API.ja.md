@@ -2898,6 +2898,7 @@ const result = runBacktest(
 | `slTpMode` | `SlTpMode` | `'close-only'` | SL/TP判定方法（下記参照） |
 | `direction` | `PositionDirection` | `'long'` | ポジション方向（`'long'` or `'short'`）。[ショートセリング](#ショートセリング)参照 |
 | `sizing` | `BacktestSizingConfig` | `{ method: 'full-capital' }` | エントリーごとのポジションサイジング（下記参照） |
+| `warmupBars` | `number` | `0` | 指標のウォームアップ専用の先頭本数。この区間では売買せず、トレード・エクイティカーブ・評価メトリクスからも除外する。`candles[warmupBars]` からノーポジションで開始し、この足自体は（通常実行の0本目と同じく）売買しない。結果の評価には `candles.slice(warmupBars)` を渡す。`batchBacktest` / `portfolioBacktest` では指定不可 |
 
 #### ポジションサイジング
 
@@ -4008,7 +4009,8 @@ console.log('安定性:', result.aggregateMetrics.stabilityRatio);
 | `windowSize` | `number` | `252` | 学習ウィンドウのサイズ（ローソク足本数） |
 | `stepSize` | `number` | `63` | ウィンドウ間のステップサイズ（ローソク足本数） |
 | `testSize` | `number` | `63` | アウト・オブ・サンプル検証期間のサイズ（ローソク足本数） |
-| `purgeBars` | `number` | `0` | 学習とテストの間のパージギャップ（両ウィンドウから除外）。指標のlookbackや複数バーにまたがる出口ラベルが境界越しにリークするのを防ぐ。最長の指標期間/保有期間に合わせる。`anchoredWalkForwardAnalysis` でも利用可 |
+| `purgeBars` | `number` | `0` | 学習とテストの間のパージギャップ。学習ウィンドウはテストウィンドウの開始よりこの本数だけ手前で終わる。指標の lookback 対策には不要（`warmupBars` 参照）。パージした足もテストウィンドウのウォームアップには使われる。`anchoredWalkForwardAnalysis` でも利用可 |
+| `warmupBars` | `number` | `Infinity` | 学習・テスト各ウィンドウの前に指標のウォームアップとして渡す足の上限（既定は利用可能な全履歴）。ウォームアップ区間では売買せず、各ウィンドウはノーポジションで始まり、評価メトリクスはウィンドウ内だけで集計する。`0` で従来のコールドスタートを再現。既定では各ウィンドウの指標計算がそれまでの全履歴に及ぶため、後の期間ほど計算量が増える（必要な lookback 程度に制限すると速くなる）。ストラテジー側の `options.warmupBars` は指定不可（エラー）。`anchoredWalkForwardAnalysis` でも利用可 |
 | `metric` | `OptimizationMetric` | `'sharpe'` | 最適化する指標 |
 
 ---
@@ -4384,8 +4386,12 @@ Period 3: Train 2015-01-01〜2019-12-31 → Test 2020
 | `initialTrainSize` | `number` | `504` | 初期訓練期間（バー数、約2年） |
 | `expansionStep` | `number` | `252` | 拡張ステップ（バー数） |
 | `testSize` | `number` | `252` | テスト期間（バー数） |
+| `purgeBars` | `number` | `0` | 学習とテストの間のパージギャップ（`walkForwardAnalysis` 参照） |
+| `warmupBars` | `number` | `Infinity` | 各ウィンドウの前に指標のウォームアップとして渡す足の上限（`walkForwardAnalysis` 参照）。`anchorDate` より前の足も含む |
 | `metric` | `OptimizationMetric` | `'sharpe'` | 最適化する指標 |
 | `constraints` | `OptimizationConstraint[]` | `[]` | 制約条件 |
+
+**ウォームアップと `anchorDate`:** `anchorDate` が固定するのは最初の学習ウィンドウの*開始位置*で、指標が読めるデータの範囲ではありません。既定では最初の学習ウィンドウを含むすべてのウィンドウが手前の全ローソク足でウォームアップされるため、`anchorDate` より前の足も最初のウィンドウの指標計算に使われます（売買や評価メトリクスには使われません）。それより前のデータを完全に除外したい場合は、`anchorDate` 以降のローソク足だけを渡すか、`warmupBars: 0` を指定してください。ウォームアップはここで指定し、`combinationOptions.backtestOptions` には指定しないでください（指定するとエラーになります）。
 
 **戻り値:** `AWFResult`
 

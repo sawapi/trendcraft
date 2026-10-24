@@ -67,6 +67,7 @@ const UNSUPPORTED_MULTI_TRANCHE_OPTIONS = [
   "sizing",
   "fundamentals",
   "validateData",
+  "warmupBars",
 ] as const satisfies readonly (keyof MtfBacktestOptions)[];
 
 /**

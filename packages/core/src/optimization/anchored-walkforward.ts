@@ -32,6 +32,7 @@ import {
 } from "./combination-search";
 import { calculateAllMetrics } from "./metrics";
 import { validatePurgeBars } from "./walkforward";
+import { assertNoOwnWarmup, validateWarmupBars, warmWindow } from "./walkforward-shared";
 
 // Re-export public utility functions
 export {
@@ -162,7 +163,9 @@ export function anchoredWalkForwardAnalysis(
 ): AWFResult {
   const metric = options.metric ?? DEFAULT_OPTIONS.metric;
   const constraints = options.constraints ?? ([] as OptimizationConstraint[]);
+  const warmupBars = options.warmupBars ?? Number.POSITIVE_INFINITY;
   const { progressCallback } = options;
+  validateWarmupBars(warmupBars);
 
   // Generate period boundaries
   const boundaries = generateAWFBoundaries(candles, options);
@@ -183,6 +186,7 @@ export function anchoredWalkForwardAnalysis(
   const backtestOpts: BacktestOptions = combinationOptions.backtestOptions ?? {
     capital: 1000000,
   };
+  assertNoOwnWarmup(backtestOpts);
 
   // Process each period
   for (let i = 0; i < boundaries.length; i++) {
@@ -192,15 +196,17 @@ export function anchoredWalkForwardAnalysis(
       progressCallback(i + 1, boundaries.length, "train");
     }
 
-    // Extract training and test data
-    const trainCandles = candles.slice(boundary.trainStart, boundary.trainEnd + 1);
-    const testCandles = candles.slice(boundary.testStart, boundary.testEnd + 1);
+    // Cut each window with the history in front of it, so indicators open
+    // warm instead of going dark for their first lookback bars.
+    const train = warmWindow(candles, boundary.trainStart, boundary.trainEnd, warmupBars);
+    const test = warmWindow(candles, boundary.testStart, boundary.testEnd, warmupBars);
 
     // Run combination search on training data
-    const searchResult = combinationSearch(trainCandles, entryConditions, exitConditions, {
+    const searchResult = combinationSearch(train.candles, entryConditions, exitConditions, {
       ...combinationOptions,
       metric,
       constraints,
+      backtestOptions: { ...backtestOpts, warmupBars: train.warmupBars },
     });
 
     // The window this period covers, shared by the tested and the skipped
@@ -209,10 +215,10 @@ export function anchoredWalkForwardAnalysis(
       periodNumber: i + 1,
       trainStart: candles[boundary.trainStart].time,
       trainEnd: candles[boundary.trainEnd].time,
-      trainCandleCount: trainCandles.length,
+      trainCandleCount: train.window.length,
       testStart: candles[boundary.testStart].time,
       testEnd: candles[boundary.testEnd].time,
-      testCandleCount: testCandles.length,
+      testCandleCount: test.window.length,
     };
 
     // Get best combination. `bestResult` is the single "was anything
@@ -265,8 +271,11 @@ export function anchoredWalkForwardAnalysis(
     const inSampleMetrics = best.metrics;
 
     // Run out-of-sample test
-    const testBacktest = runBacktest(testCandles, entryCondition, exitCondition, backtestOpts);
-    const outOfSampleMetrics = calculateAllMetrics(testBacktest, testCandles, {
+    const testBacktest = runBacktest(test.candles, entryCondition, exitCondition, {
+      ...backtestOpts,
+      warmupBars: test.warmupBars,
+    });
+    const outOfSampleMetrics = calculateAllMetrics(testBacktest, test.window, {
       initialCapital: backtestOpts.capital ?? 1000000,
     });
 

@@ -1,9 +1,78 @@
 /**
- * Pieces shared by rolling and anchored walk-forward: how per-period metrics
- * are aggregated.
+ * Pieces shared by rolling and anchored walk-forward: how a window is cut
+ * from the series (with its warm-up history) and how per-period metrics are
+ * aggregated.
  */
 
+import type { NormalizedCandle } from "../types";
 import type { OptimizationMetric } from "../types/optimization";
+
+/**
+ * A walk-forward window together with the history in front of it.
+ * `candles` is `warmupBars` bars of history followed by the window itself;
+ * `window` is the window alone, the span metrics are scored on.
+ */
+export type WarmWindow = {
+  candles: NormalizedCandle[];
+  warmupBars: number;
+  window: NormalizedCandle[];
+};
+
+/**
+ * Shared input guard for the walk-forward `warmupBars` option.
+ * `Infinity` (the default) means "all available history".
+ */
+export function validateWarmupBars(warmupBars: number): void {
+  if (!(warmupBars >= 0) || (Number.isFinite(warmupBars) && !Number.isInteger(warmupBars))) {
+    throw new Error(`warmupBars must be a non-negative integer or Infinity, got ${warmupBars}`);
+  }
+}
+
+/**
+ * Walk-forward sets each window's `warmupBars` itself; a value supplied
+ * through the strategy's or search's backtest options would be overridden,
+ * so it is rejected with a pointer to the walk-forward option instead.
+ */
+export function assertNoOwnWarmup(options: { warmupBars?: number } | undefined): void {
+  if (options?.warmupBars !== undefined) {
+    throw new Error(
+      "Set warmupBars on the walk-forward options, not on the backtest options: " +
+        "walk-forward sets each window's warm-up itself.",
+    );
+  }
+}
+
+/**
+ * Cut the window `[start, end]` out of `candles` together with up to
+ * `maxWarmupBars` bars of preceding history.
+ *
+ * Slicing a window bare restarts every indicator inside it, so a lookback-L
+ * rule cannot signal for its first L - 1 bars — a 200-bar trend filter sits
+ * out 200 of a 252-bar test year, and the shorter the window the larger the
+ * share lost. The history in front is strictly earlier than the window, so
+ * using it is causal; the backtest's `warmupBars` keeps it out of trades and
+ * metrics.
+ *
+ * @example
+ * ```ts
+ * const { candles: withHistory, warmupBars, window } = warmWindow(candles, 252, 314, Infinity);
+ * const result = runBacktest(withHistory, entry, exit, { capital: 100_000, warmupBars });
+ * const metrics = calculateAllMetrics(result, window);
+ * ```
+ */
+export function warmWindow(
+  candles: NormalizedCandle[],
+  start: number,
+  end: number,
+  maxWarmupBars: number,
+): WarmWindow {
+  const from = Math.max(0, start - maxWarmupBars);
+  return {
+    candles: candles.slice(from, end + 1),
+    warmupBars: start - from,
+    window: candles.slice(start, end + 1),
+  };
+}
 
 // A Record keyed by the union makes the compiler reject a missing metric: a
 // key omitted from the averaging is never set, so aggregate[key] reads back

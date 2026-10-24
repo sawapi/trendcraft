@@ -303,6 +303,10 @@ export function combinationSearch(
   // Shared indicator cache across all backtest runs on same candle data
   const cache = new IndicatorCache();
 
+  // A warm-up prefix (`backtestOptions.warmupBars`) is history, not part of
+  // the scored run, so metrics are taken over the evaluated window only.
+  const evaluatedCandles = candles.slice(backtestOptions.warmupBars ?? 0);
+
   const results: CombinationResultEntry[] = [];
   let bestScore = Number.NEGATIVE_INFINITY;
   let bestResult: CombinationResultEntry | null = null;
@@ -345,7 +349,7 @@ export function combinationSearch(
         if (backtest.tradeCount === 0) continue;
 
         // Calculate metrics
-        const metrics = calculateAllMetrics(backtest, candles, {
+        const metrics = calculateAllMetrics(backtest, evaluatedCandles, {
           initialCapital: backtestOptions.capital,
         });
 

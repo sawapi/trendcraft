@@ -180,14 +180,31 @@ export type WalkForwardOptions = {
   /**
    * Purge gap in candles between each training window and its test window
    * (default: 0). The last `purgeBars` bars before the test window are
-   * excluded from training, so information that leaks across the boundary
-   * — indicator lookback windows, multi-bar exit labels — cannot let the
-   * optimizer peek into the test period. Size it to the longest indicator
-   * period or holding horizon the strategy uses. (An embargo after the
-   * test window is a combinatorial-split concept; in causal walk-forward
-   * the test window precedes no training data of its own period.)
+   * excluded from training, so the training window ends `purgeBars` bars
+   * before the test window opens. Use it when you want a buffer between the
+   * data a parameter set was selected on and the data it is judged on.
+   *
+   * It is not needed for indicator lookback: each window's indicators are
+   * warmed on the history in front of it (see `warmupBars`), which is
+   * strictly earlier data, and every training trade is closed at the end
+   * of its window. The purged bars still serve as warm-up history for the
+   * test window. (An embargo after the test window is a combinatorial-split
+   * concept; in causal walk-forward the test window precedes no training
+   * data of its own period.)
    */
   purgeBars?: number;
+  /**
+   * Maximum number of preceding candles fed to each training and test window
+   * as indicator warm-up (default: `Infinity` — all available history).
+   *
+   * Warm-up bars are history only: no trades are taken in them, every window
+   * starts flat, and metrics cover the window alone. Without warm-up a
+   * lookback-L rule cannot signal for the first L - 1 bars of every window,
+   * which systematically scores long lookbacks down — a 200-bar filter sits
+   * out 200 of a 252-bar test year. Set `0` to reproduce the cold-start
+   * behavior of earlier versions.
+   */
+  warmupBars?: number;
   /** Metric to optimize (default: "sharpe") */
   metric?: OptimizationMetric;
   /** Constraints to filter results */
@@ -407,6 +424,12 @@ export type AnchoredWalkForwardOptions = {
    * (default: 0). See {@link WalkForwardOptions.purgeBars}.
    */
   purgeBars?: number;
+  /**
+   * Maximum number of preceding candles fed to each training and test window
+   * as indicator warm-up (default: `Infinity` — all available history,
+   * including bars before `anchorDate`). See {@link WalkForwardOptions.warmupBars}.
+   */
+  warmupBars?: number;
   /** Metric to optimize (default: "sharpe") */
   metric?: OptimizationMetric;
   /** Constraints for optimization */

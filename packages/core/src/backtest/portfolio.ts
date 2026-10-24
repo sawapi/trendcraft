@@ -69,13 +69,16 @@ export function batchBacktest(
   datasets: SymbolData[],
   entryCondition: Condition | ExtendedCondition,
   exitCondition: Condition | ExtendedCondition,
-  options: BatchBacktestOptions | (BatchBacktestOptions & Omit<MtfBacktestOptions, "capital">),
+  options:
+    | BatchBacktestOptions
+    | (BatchBacktestOptions & Omit<MtfBacktestOptions, "capital" | "warmupBars">),
   cache?: IndicatorCache,
 ): BatchBacktestResult {
   if (datasets.length === 0) {
     throw new Error("At least one symbol dataset is required");
   }
   assertUniqueSymbols(datasets);
+  assertNoWarmup(options);
 
   // Calculate per-symbol capital allocation
   const allocations = calculateAllocations(datasets, options);
@@ -176,6 +179,7 @@ export function portfolioBacktest(
     throw new Error("At least one symbol dataset is required");
   }
   assertUniqueSymbols(datasets);
+  assertNoWarmup(options.tradeOptions ?? {});
 
   // `maxPositions`, `maxPortfolioDrawdown` and `rebalance` are documented on
   // the option type but not yet wired through the backtest loop, so they are
@@ -261,6 +265,20 @@ export function portfolioBacktest(
 // ============================================
 // Internal Helpers
 // ============================================
+
+/**
+ * Reject `warmupBars`. A warm run's equity curve covers only the bars after
+ * the warm-up, so it no longer lines up with the symbol's candles and the
+ * merged portfolio curve would silently fall back to trade-stepping.
+ */
+function assertNoWarmup(options: object): void {
+  if ((options as { warmupBars?: unknown }).warmupBars !== undefined) {
+    throw new Error(
+      "warmupBars is not supported by batchBacktest / portfolioBacktest: per-symbol equity " +
+        "curves must cover every candle to be merged.",
+    );
+  }
+}
 
 /**
  * Reject a dataset list that names the same symbol twice.
