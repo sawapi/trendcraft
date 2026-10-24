@@ -17,6 +17,7 @@ import {
   gainToPainRatio,
   omegaRatio,
   payoffRatioFromReturns,
+  periodsPerYearFromSpan,
   profitFactorFromReturns,
   rollingSharpe,
   rollingVolatility,
@@ -91,7 +92,12 @@ export type ReportOptions = {
   initialCapital?: number;
   /** Annual risk-free rate as a fraction (default 0). */
   riskFree?: number;
-  /** Periods per year for annualisation (default 252). */
+  /**
+   * Periods per year for annualisation. Defaults to the rate implied by the
+   * candles' span (`periodsPerYearFromSpan`), the same rule the engine uses
+   * for `result.sharpeRatio`: about 252 for daily bars, far more for intraday
+   * bars. Pass a number to override it.
+   */
   periodsPerYear?: number;
   /** Rolling-window length in periods (default 126). */
   rollingWindow?: number;
@@ -126,7 +132,7 @@ export function report(result: BacktestResult, options: ReportOptions): Tearshee
     candles,
     initialCapital = result.initialCapital,
     riskFree = 0,
-    periodsPerYear = 252,
+    periodsPerYear: periodsPerYearOption,
     rollingWindow = 126,
     requiredReturn = 0,
     benchmarkReturns,
@@ -140,6 +146,12 @@ export function report(result: BacktestResult, options: ReportOptions): Tearshee
     rawReturns.length === 0 && candles.length >= 2
       ? new Array<number>(candles.length - 1).fill(0)
       : rawReturns;
+
+  // The returns are candle-to-candle, so annualise at the candles' own rate,
+  // as the engine does for the headline sharpeRatio this report sits beside.
+  const periodsPerYear =
+    periodsPerYearOption ??
+    periodsPerYearFromSpan(returns.length, candles[0]?.time, candles[candles.length - 1]?.time);
 
   // Reconstruct the equity curve and underwater curve from the daily returns.
   const equity: number[] = new Array(returns.length + 1);

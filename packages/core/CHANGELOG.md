@@ -23,6 +23,19 @@ Several did not:
 Each of these now uses the exported `*_META` constant, and a test checks
 every live preset against its batch function.
 
+### Fixed — `report()` and `backtestByRegime()` annualised every bar size as daily
+
+Both annualised candle-to-candle returns with a fixed 252 periods per year,
+while the engine's `sharpeRatio` (which `report()` copies into the same
+object) uses the rate implied by the candles' span. On five-minute bars one
+report carried a headline Sharpe and a rolling Sharpe about 20x apart, and
+understated annualised volatility by the same factor. `periodsPerYear` now
+defaults to that span-derived rate (`periodsPerYearFromSpan`), which covers
+`annualizedVolatilityPercent`, the rolling series, Omega, the capture ratios
+and every per-regime statistic. Trading-day daily bars still get about 252;
+bars on every calendar day (crypto) now get about 365. Pass
+`periodsPerYear` to keep a fixed rate.
+
 ### Fixed — a later FVG fill reached back into earlier bars (look-ahead)
 
 `fairValueGap()` (and the incremental `createFairValueGap`) marked a gap
