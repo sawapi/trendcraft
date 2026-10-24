@@ -36,6 +36,28 @@ and every per-regime statistic. Trading-day daily bars still get about 252;
 bars on every calendar day (crypto) now get about 365. Pass
 `periodsPerYear` to keep a fixed rate.
 
+### Fixed — Volume Profile dropped the volume of zero-range bars
+
+A bar with `high === low` traded all its volume at one price, but the
+profile lost it: `volumeProfile()` put it in no level at all, and
+`volumeProfileSeries()` dropped it at the window high and otherwise booked
+only `1 / levels` of it. POC and Value Area were computed without that
+volume (common on minute bars, thin markets and bars after a halt), and the
+two functions disagreed on the same window. A zero-range bar now puts all of
+its volume in the level containing its price, and `volumeProfile()` computes
+its window with the same code as the series.
+
+### Breaking — Volume Profile rejects a `period` that is not a positive integer
+
+`volumeProfile()` and `volumeProfileSeries()` now require `period` to be a
+positive integer. A fractional `period` was silently truncated by
+`volumeProfile()` (2.5 profiled the last 2 candles) and made
+`volumeProfileSeries()` throw a `TypeError`; `0`, negative and `NaN` values
+were silently read as "all candles" or as a nonsense window
+(`volumeProfile(candles, { period: 0 })` meant all candles). Each of these
+now throws. Omitting `period` still profiles all candles in
+`volumeProfile()` (the series defaults to 20).
+
 ### Fixed — a later FVG fill reached back into earlier bars (look-ahead)
 
 `fairValueGap()` (and the incremental `createFairValueGap`) marked a gap
