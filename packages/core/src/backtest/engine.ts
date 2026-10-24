@@ -374,8 +374,9 @@ export function runBacktest(
   /**
    * Fold a bar's extremes into the position: peak/trough (the trailing-stop
    * anchors) plus MFE/MAE. Single owner — the fill-bar path calls this after
-   * the exit checks instead of before, and the two call sites must apply the
-   * exact same update.
+   * the exit checks instead of before (having already folded the bar into
+   * MFE/MAE alone via `updateMfeMae` before them), and the two call sites must
+   * apply the exact same update.
    */
   function foldBarIntoPosition(pos: Position, bar: NormalizedCandle): void {
     if (bar.high > pos.peakPrice) {
@@ -761,12 +762,16 @@ export function runBacktest(
         ? clampCandleToPostFill(position.entryPrice, candle)
         : candle;
 
-      // Update peak/trough and MFE/MAE. On the fill bar this is DEFERRED
-      // until after the exit checks: the only known post-fill path is
-      // fill → close, so the close must not become a "peak" that the fill
-      // price then appears to dip below — that would fire trailing stops on
-      // the entry itself.
-      if (!filledMidBarThisBar) {
+      // Update peak/trough and MFE/MAE. On the fill bar the peak/trough half
+      // is DEFERRED until after the exit checks: the only known post-fill
+      // path is fill → close, so the close must not become a "peak" that the
+      // fill price then appears to dip below — that would fire trailing stops
+      // on the entry itself. MFE/MAE only report the excursion and steer no
+      // exit, so they take the clamped bar now; a close on this same bar
+      // would otherwise record them as 0.
+      if (filledMidBarThisBar) {
+        updateMfeMae(position, mgmtCandle);
+      } else {
         foldBarIntoPosition(position, mgmtCandle);
       }
 

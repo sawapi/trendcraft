@@ -455,4 +455,51 @@ describe("MFE/MAE Tracking", () => {
       expect(trade.mae).toBeCloseTo(9.52, 1);
     });
   });
+
+  describe("a limit fill that exits on its own fill bar", () => {
+    // Same-bar-close fill mode: the limit fills mid-bar 2 and the same bar's
+    // stop or target closes it. MFE/MAE used to stay 0 because the fill bar
+    // was folded into the position only after the exit had already closed it.
+    const options = {
+      capital: 1_000_000,
+      fillMode: "same-bar-close" as const,
+      slTpMode: "intraday" as const,
+      orderType: { type: "limit" as const, price: 98 },
+      timeInForce: "gtc" as const,
+    };
+    const entryAtBar1 = (_ind: unknown, _c: NormalizedCandle, i: number) => i === 1;
+
+    it("records the adverse excursion of a same-bar stop-out", () => {
+      const candles = makeCandles([
+        { o: 100, h: 101, l: 99, c: 100 },
+        { o: 100, h: 101, l: 99, c: 100 },
+        { o: 100, h: 101, l: 90, c: 90 }, // limit fills at 98, falls to 90
+        { o: 90, h: 91, l: 89, c: 90 },
+      ]);
+      const result = runBacktest(candles, entryAtBar1, alwaysFalse, { ...options, stopLoss: 3 });
+
+      expect(result.trades.length).toBe(1);
+      const trade = result.trades[0];
+      expect(trade.exitReason).toBe("stopLoss");
+      // (98 − 90) / 98 after the fill; never below the realised loss
+      expect(trade.mae).toBeCloseTo(8.16, 2);
+      expect(trade.mae).toBeGreaterThanOrEqual(Math.abs(Math.min(0, trade.returnPercent)));
+    });
+
+    it("records the favourable excursion of a same-bar take-profit", () => {
+      const candles = makeCandles([
+        { o: 100, h: 101, l: 99, c: 100 },
+        { o: 100, h: 101, l: 99, c: 100 },
+        { o: 100, h: 110, l: 97, c: 109 }, // limit fills at 98, runs to 109
+        { o: 109, h: 110, l: 108, c: 109 },
+      ]);
+      const result = runBacktest(candles, entryAtBar1, alwaysFalse, { ...options, takeProfit: 5 });
+
+      expect(result.trades.length).toBe(1);
+      const trade = result.trades[0];
+      expect(trade.exitReason).toBe("takeProfit");
+      expect(trade.mfe).toBeGreaterThanOrEqual(trade.returnPercent);
+      expect(trade.mfeUtilization).toBeDefined();
+    });
+  });
 });

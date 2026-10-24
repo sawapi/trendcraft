@@ -88,6 +88,15 @@ interest are unaffected. `returnPercent` stays a percentage of the closed shares
 notional. A `ManagedPosition` saved by an earlier version carries no entry
 commission and is treated as having paid none.
 
+### Fixed — MFE/MAE were 0 for a limit or stop fill that exited on its fill bar
+
+With `fillMode: "same-bar-close"`, a pending limit/stop order that filled
+mid-bar and was stopped out or took profit on that same bar recorded
+`mfe: 0` and `mae: 0` (and no `mfeUtilization`) — a stop-loss exit with a
+recorded adverse excursion of zero. The fill bar's post-fill range now
+counts toward MFE/MAE before the exit checks; the trailing-stop anchors are
+still updated only after them.
+
 ### Fixed — Monte Carlo levered every position up to 100% of equity
 
 `runMonteCarloSimulation` rebuilt each simulated path by compounding
