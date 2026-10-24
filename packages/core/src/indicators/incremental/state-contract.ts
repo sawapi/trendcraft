@@ -677,12 +677,18 @@ function mergeParams<TParams extends Record<string, unknown>>(
   return merged as TParams;
 }
 
+// Keys that assignment treats as prototype access rather than data. A
+// snapshot's params come from JSON the caller may not control, and
+// `result["__proto__"] = src` would swap the merged object's prototype.
+const UNSAFE_KEYS = new Set(["__proto__", "constructor", "prototype"]);
+
 function deepMergeInto(
   target: Record<string, unknown>,
   source: Record<string, unknown>,
 ): Record<string, unknown> {
   const result: Record<string, unknown> = { ...target };
   for (const key of Object.keys(source)) {
+    if (UNSAFE_KEYS.has(key)) continue;
     const src = source[key];
     // Skip explicit `undefined` at every nesting level (top-level
     // and nested). Otherwise an override like
