@@ -135,9 +135,9 @@ type ResampleTrade = {
  * move it actually was instead of re-applying the per-share return per slice.
  *
  * Equity is reconstructed as `initialCapital` plus the realised P&L of the
- * preceding trades, in the order the backtest closed them. Entry fees and
- * margin interest are not part of `Trade.return`, so they are not part of
- * this path either: with them set, it runs slightly above the engine's own.
+ * preceding trades, in the order the backtest closed them. `Trade.return`
+ * carries every cost of the round trip (both commissions, tax and margin
+ * interest), so the unshuffled path ends at the engine's own final capital.
  */
 function toAccountReturns(trades: Trade[], initialCapital: number): ResampleTrade[] {
   let equity = initialCapital;
