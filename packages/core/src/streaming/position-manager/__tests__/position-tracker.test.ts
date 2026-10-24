@@ -302,9 +302,12 @@ describe("createPositionTracker", () => {
       // Exit at 110 with sell slippage: 110 * (1 - 0.01) = 108.9
       expect(trade.exitPrice).toBeCloseTo(108.9, 1);
       // Gross = (108.9 - 101) * 100 = 790
-      // Commission = 108.9 * 100 * 0.001 = 10.89
-      // Net = 790 - 10.89 = 779.11
-      expect(trade.return).toBeCloseTo(779.11, 1);
+      // Entry commission = 101 * 100 * 0.001 = 10.10
+      // Exit commission = 108.9 * 100 * 0.001 = 10.89
+      // Net = 790 - 10.10 - 10.89 = 769.01
+      expect(trade.return).toBeCloseTo(769.01, 1);
+      // Every cost has left the account, and the trade's return is all of it.
+      expect(tracker.getAccount().currentCapital).toBeCloseTo(100_000 + trade.return, 6);
     });
 
     it("should apply tax on profitable trades", () => {

@@ -72,7 +72,14 @@ export type Trade = {
   entryPrice: number;
   exitTime: number;
   exitPrice: number;
+  /**
+   * Realised P&L of this trade (or partial exit) in currency, net of every
+   * cost of the round trip: exit commission and tax, the pro-rata share of
+   * the entry commission, and any margin interest settled with it. The
+   * trades of a run sum to `finalCapital − initialCapital`.
+   */
   return: number;
+  /** `return` as a percentage of the closed shares' entry notional */
   returnPercent: number;
   holdingDays: number;
   /** Position direction (default: "long") */

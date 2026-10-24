@@ -52,6 +52,12 @@ export type ManagedPosition = {
   shares: number;
   /** Original shares at entry */
   originalShares: number;
+  /**
+   * Commission paid to open `originalShares`. Each close charges its pro-rata
+   * share to the trade's `return`. Absent on positions saved by earlier
+   * versions, which are treated as having paid none.
+   */
+  entryCommission?: number;
   /** Position direction (default: "long") */
   direction: PositionDirection;
   /** Stop loss price level (null if not set) */

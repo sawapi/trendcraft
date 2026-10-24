@@ -214,6 +214,7 @@ export function createPositionTracker(
       direction,
       shares: pos.shares,
       originalShares: pos.originalShares,
+      entryCommission: pos.entryCommission ?? 0,
       partialTaken: pos.partialTaken,
       breakevenActivated: pos.breakevenActivated,
       scaleOutLevelsTaken: [] as boolean[],
@@ -356,6 +357,7 @@ export function createPositionTracker(
         entryPrice,
         shares,
         originalShares: shares,
+        entryCommission: entryCost,
         direction,
         stopLossPrice:
           opts?.stopLossPrice !== undefined ? opts.stopLossPrice : levels.stopLossPrice,

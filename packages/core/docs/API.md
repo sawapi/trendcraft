@@ -3054,8 +3054,8 @@ interface Trade {
   entryPrice: number;
   exitTime: number;
   exitPrice: number;
-  return: number;
-  returnPercent: number;
+  return: number;                // Realised P&L, net of every cost (entry share too)
+  returnPercent: number;         // `return` as % of the closed shares' entry notional
   holdingDays: number;
   direction?: PositionDirection; // Position direction (default: "long")
   isPartial?: boolean;           // True when this row is a partial exit
@@ -4295,7 +4295,7 @@ Two resampling methods (`method` option):
 
 Each simulation rebuilds the equity curve from the resampled trades and recomputes Sharpe, max drawdown, total return, and profit factor. The result reports the distribution of these metrics plus a `downside` summary (probability of profit/loss, risk of ruin). There is no binary significance flag — the figures in `downside` are the verdict.
 
-Each trade enters the resampler as its **return on account equity** — its dollar P&L divided by the realised equity before it — not as `Trade.returnPercent` (the return on the position's own cost), so fractional and risk-based sizing are simulated at their real scale. Compounding those returns assumes a position's size scales with equity, which is exact for `full-capital` and `fixed-fractional` sizing and an approximation for sizing that does not compound (a fixed share count, a fixed dollar amount). Entry commissions and margin interest are not part of `Trade.return`, so with either one set the reconstructed path runs above the engine's own — in one test, by 3.5 points with a 0.5% commission rate at 20% fractional sizing (engine −15.6%, Monte Carlo −12.0%) and by 13.6 points at full capital (−57.5% vs −43.9%). With no commission and no margin interest it reproduces the engine's total return exactly under `"shuffle"`.
+Each trade enters the resampler as its **return on account equity** — its dollar P&L divided by the realised equity before it — not as `Trade.returnPercent` (the return on the position's own cost), so fractional and risk-based sizing are simulated at their real scale. Compounding those returns assumes a position's size scales with equity, which is exact for `full-capital` and `fixed-fractional` sizing and an approximation for sizing that does not compound (a fixed share count, a fixed dollar amount). `Trade.return` carries every cost of the trade — commissions on both sides, tax and margin interest — so `"shuffle"` reproduces the engine's total return exactly.
 
 Sharpe is computed from the per-trade returns and annualised by the observed trade frequency (trades per year over the original trade list's span), the same rule a backtest result uses for trade-based Sharpe — an approximation of `result.sharpeRatio`, which comes from bar-to-bar equity returns.
 
@@ -4591,7 +4591,8 @@ type MarginConfig = {
 annual rate is divided by 365 and multiplied by the *fractional* days each loan
 was outstanding, so a one-hour trade pays one hour of interest. The charge is
 deducted in cash at exit, and a partial exit bills each tranche for the balance
-outstanding while that tranche was open.
+outstanding while that tranche was open. It is part of that exit's
+`Trade.return`.
 
 This is not the convention brokers bill on. They charge on the overnight
 settled balance, so a real intraday round trip accrues nothing at all.

@@ -64,6 +64,30 @@ now throws, naming both lengths — and so do the entry points built on it:
 `scoreBacktestResult` when given `options.candles`. Results
 without an `equityCurve` still use the trade reconstruction.
 
+### Breaking — `Trade.return` carries the entry commission and margin interest
+
+A trade's `return` (and `returnPercent`) deducted the exit commission and tax
+but not the commission paid to open the position, nor the margin interest
+settled when it closed. Both left the account without appearing on any
+trade, so the trades summed to more than the account made, and `winRate`,
+`profitFactor`, average win/loss and expectancy counted a trade whose gain
+did not cover both commissions as a winner. Each close now also charges its
+pro-rata share of the entry commission and the interest it settled, so the
+trades of a run sum to `finalCapital − initialCapital`. On a 200-bar test
+with a 50 fixed commission, the trades used to overstate the account's
+gain by exactly 500 (10 trades × 50).
+
+This applies to `runBacktest`, multi-tranche `runBacktestScaled` (each
+tranche's commission) and the streaming position tracker, whose
+`totalRealizedPnl` changes with it. `finalCapital`, the equity curve and
+drawdown are unchanged — the cash always left the account; only its
+attribution moves — unless a `sizing: { method: "custom" }` callback reads
+`closedTrades`, which now sees the lower returns (and fewer wins) and may
+size later entries differently. Runs with no commission and no margin
+interest are unaffected. `returnPercent` stays a percentage of the closed shares' entry
+notional. A `ManagedPosition` saved by an earlier version carries no entry
+commission and is treated as having paid none.
+
 ### Fixed — Monte Carlo levered every position up to 100% of equity
 
 `runMonteCarloSimulation` rebuilt each simulated path by compounding
@@ -74,14 +98,9 @@ whole account. That is only right for `full-capital` sizing. With
 50% drawdown. Trades are now resampled as their return on account equity
 (dollar P&L over the realised equity before the trade), so `totalReturnPercent`,
 `maxDrawdown`, the confidence intervals, `probLoss`, `riskOfRuin` and the
-robustness scores built on them are on the account's scale. With no
-commission and no margin interest, `shuffle` now reproduces the engine's total return exactly for
-any sizing. Entry commissions and margin interest are not recorded in
-`Trade.return`, so with either one set the simulated path still runs
-above the engine's — on one 600-bar test with a 0.5% commission rate, by 3.5
-points at 20% fractional sizing (engine −15.6% vs Monte Carlo −12.0%) and by
-13.6 points at full capital (−57.5% vs −43.9%). That gap closes
-once trades carry their entry fee (tracked separately). Compounding account
+robustness scores built on them are on the account's scale, and `shuffle`
+reproduces the engine's total return exactly for any sizing, costs included
+(see the `Trade.return` entry above). Compounding account
 returns assumes position size scales with equity — exact for `full-capital`
 and `fixed-fractional`, an approximation for sizing that does not compound.
 

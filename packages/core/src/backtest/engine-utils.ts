@@ -72,6 +72,12 @@ export type Position = {
   direction: PositionDirection;
   shares: number;
   originalShares: number;
+  /**
+   * Commission paid to open `originalShares`. Each close charges its share of
+   * it to the trade's `return` (pro rata by shares closed); the cash itself
+   * left the account at entry, so it is not deducted again from proceeds.
+   */
+  entryCommission: number;
   partialTaken: boolean;
   breakevenActivated: boolean;
   scaleOutLevelsTaken: boolean[];
@@ -96,6 +102,12 @@ export type TradeCloseContext = {
   commissionRate: number;
   taxRate: number;
   slippage: number;
+  /**
+   * Margin interest settled with this close. Like the entry commission it
+   * has already been paid in cash, so it reduces the trade's `return` but
+   * not its `netProceeds`.
+   */
+  interest?: number;
 };
 
 /**
@@ -127,7 +139,17 @@ export function calculateTradeClose(ctx: TradeCloseContext): TradeCloseResult {
     tax = grossReturn * (ctx.taxRate / 100);
   }
 
-  const netReturn = grossReturn - exitCommission - tax;
+  // The trade's return carries every cost of the round trip: its pro-rata
+  // share of the entry commission and any margin interest, besides the exit
+  // costs. Both were paid in cash before this point, so they stay out of
+  // `netProceeds` below; the sum of trade returns then equals the change in
+  // account capital.
+  const entryCommission =
+    ctx.position.originalShares > 0
+      ? ctx.position.entryCommission * (ctx.sharesToClose / ctx.position.originalShares)
+      : 0;
+  const netReturn = grossReturn - entryCommission - (ctx.interest ?? 0) - exitCommission - tax;
+  // Percent of the closed shares' entry notional (not of notional plus fees).
   const returnPercent = (netReturn / (ctx.position.entryPrice * ctx.sharesToClose)) * 100;
   const holdingDays = Math.round((ctx.exitTime - ctx.position.entryTime) / MS_PER_DAY);
   const mfeUtilization = calculateMfeUtilization(returnPercent, ctx.position.maxProfitPercent);
