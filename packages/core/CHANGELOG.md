@@ -88,6 +88,16 @@ interest are unaffected. `returnPercent` stays a percentage of the closed shares
 notional. A `ManagedPosition` saved by an earlier version carries no entry
 commission and is treated as having paid none.
 
+### Breaking — `runBacktest` rejects an invalid margin configuration
+
+`margin.leverage` below 1 implied a negative loan that was never repaid, so
+the undeployed cash vanished at the first exit: a flat, zero-P&L trade at
+`leverage: 0.5` ended with half the account gone. `runBacktest` now throws
+unless `leverage` is at least 1, `maintenanceMargin` lies in [0, 1) (a
+percentage such as `30` used to margin-call every bar; `0`, leverage without
+maintenance calls, is still accepted), and `interestRate`, when set, is
+non-negative.
+
 ### Fixed — MFE/MAE were 0 for a limit or stop fill that exited on its fill bar
 
 With `fillMode: "same-bar-close"`, a pending limit/stop order that filled

@@ -189,3 +189,46 @@ describe("backtest margin loan repayment", () => {
     expect(result.finalCapital).toBeCloseTo(1_200_000, 6);
   });
 });
+
+describe("backtest margin configuration is validated", () => {
+  const run = (margin: Record<string, unknown>) => () =>
+    runBacktest(UP_20, ENTRY, EXIT, {
+      capital: CAPITAL,
+      margin: { ...MARGIN_2X, ...margin } as typeof MARGIN_2X,
+    });
+
+  it("rejects leverage below 1 instead of losing the undeployed cash", () => {
+    // leverage 0.5 used to book a negative loan that was never repaid: a
+    // flat zero-P&L trade ended with half the account gone.
+    expect(run({ leverage: 0.5 })).toThrow(/margin\.leverage/);
+    expect(run({ leverage: Number.NaN })).toThrow(/margin\.leverage/);
+    expect(run({ leverage: Number.POSITIVE_INFINITY })).toThrow(/margin\.leverage/);
+  });
+
+  it("rejects a maintenance margin outside [0, 1) — a percentage is a mistake", () => {
+    expect(run({ maintenanceMargin: 30 })).toThrow(/margin\.maintenanceMargin/);
+    expect(run({ maintenanceMargin: 1 })).toThrow(/margin\.maintenanceMargin/);
+    expect(run({ maintenanceMargin: -0.1 })).toThrow(/margin\.maintenanceMargin/);
+    expect(run({ maintenanceMargin: Number.NaN })).toThrow(/margin\.maintenanceMargin/);
+  });
+
+  it("accepts a maintenance margin of 0 (leverage without maintenance calls)", () => {
+    // 2x into a -10% move: equity 0.8M stays positive, so no call fires.
+    const result = runBacktest(DOWN_10, ENTRY, EXIT, {
+      capital: CAPITAL,
+      margin: { ...MARGIN_2X, maintenanceMargin: 0, marginCallAction: "reduceToMaintenance" },
+    });
+    expect(result.trades.map((t) => t.exitReason)).toEqual(["signal"]);
+    expect(result.finalCapital).toBeCloseTo(800_000, 6);
+  });
+
+  it("rejects a negative or non-finite interest rate", () => {
+    expect(run({ interestRate: -0.05 })).toThrow(/margin\.interestRate/);
+    expect(run({ interestRate: Number.NaN })).toThrow(/margin\.interestRate/);
+  });
+
+  it("accepts leverage 1 and an omitted interest rate", () => {
+    const result = run({ leverage: 1 })();
+    expect(result.finalCapital).toBeCloseTo(1_200_000, 6);
+  });
+});

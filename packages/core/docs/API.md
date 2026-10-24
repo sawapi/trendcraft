@@ -4587,6 +4587,12 @@ type MarginConfig = {
 };
 ```
 
+`runBacktest` rejects a configuration it cannot honour: `leverage` must be at
+least 1, `maintenanceMargin` a ratio in [0, 1) (`0.25`, not `25`; `0` means
+no maintenance calls until equity turns negative), and `interestRate`, when
+set, non-negative. A full-size entry opens at a margin ratio of
+`1 / leverage`, so a `maintenanceMargin` above that calls on the entry bar.
+
 `interestRate` is charged as **simple interest over elapsed holding time**: the
 annual rate is divided by 365 and multiplied by the *fractional* days each loan
 was outstanding, so a one-hour trade pays one hour of interest. The charge is

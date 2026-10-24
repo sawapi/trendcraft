@@ -45,6 +45,7 @@ import type { MarginState } from "./margin";
 import {
   accountEquity,
   accrueInterest,
+  assertValidMarginConfig,
   calculateBuyingPower,
   checkMarginCall,
   createMarginState,
@@ -184,6 +185,8 @@ export function runBacktest(
   if (!Number.isInteger(warmupBars) || warmupBars < 0) {
     throw new Error(`warmupBars must be a non-negative integer, got ${warmupBars}`);
   }
+
+  if (marginConfig) assertValidMarginConfig(marginConfig);
 
   // The evaluated window needs two bars, like a plain run does.
   if (candles.length - warmupBars < 2) {
