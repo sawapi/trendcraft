@@ -187,10 +187,7 @@ export function fairValueGap(
 
       if (isFilled && fvg.startIndex !== i) {
         // Don't fill on the same bar it was created
-        fvg.filled = true;
-        fvg.filledIndex = i;
-        fvg.filledTime = candle.time;
-        filledFvgs.push(fvg);
+        filledFvgs.push(asFilled(fvg, i, candle.time));
         return false; // Remove from active
       }
       return true;
@@ -204,10 +201,7 @@ export function fairValueGap(
 
       if (isFilled && fvg.startIndex !== i) {
         // Don't fill on the same bar it was created
-        fvg.filled = true;
-        fvg.filledIndex = i;
-        fvg.filledTime = candle.time;
-        filledFvgs.push(fvg);
+        filledFvgs.push(asFilled(fvg, i, candle.time));
         return false; // Remove from active
       }
       return true;
@@ -218,15 +212,26 @@ export function fairValueGap(
       value: {
         newBullishFvg,
         newBearishFvg,
-        newFvg,
-        activeBullishFvgs: [...activeBullishFvgs],
-        activeBearishFvgs: [...activeBearishFvgs],
+        newFvg: newFvg && { ...newFvg },
+        activeBullishFvgs: activeBullishFvgs.map((g) => ({ ...g })),
+        activeBearishFvgs: activeBearishFvgs.map((g) => ({ ...g })),
         filledFvgs,
       },
     });
   }
 
   return tagSeries(result, { kind: "fairValueGap", overlay: true, label: "FVG" });
+}
+
+/**
+ * The filled record of a gap, as a new object. Gaps already handed out in an
+ * earlier bar's value must never change afterwards: mutating them in place
+ * made a later fill show up in every earlier snapshot (`filled: true` on a
+ * bar where the gap was still open — look-ahead for anything that reads the
+ * series bar by bar).
+ */
+function asFilled(gap: FvgGap, index: number, time: number): FvgGap {
+  return { ...gap, filled: true, filledIndex: index, filledTime: time };
 }
 
 /**

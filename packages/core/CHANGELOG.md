@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+### Fixed — a later FVG fill reached back into earlier bars (look-ahead)
+
+`fairValueGap()` (and the incremental `createFairValueGap`) marked a gap
+filled by mutating the gap object in place — the same object every earlier
+bar's `activeBullishFvgs` / `activeBearishFvgs` / `newFvg` held. A gap filled
+at bar j therefore read `filled: true, filledIndex: j` at every bar before j
+where it was still open, so anything walking the series bar by bar saw the
+fill before it happened (charts scrolled back to such a bar drew it filled
+too). Gaps are no longer mutated: a fill emits a filled copy in
+`filledFvgs`, and every bar's value holds its own copies, so editing one
+bar's value cannot change another's or the indicator's live state.
+
 ### Breaking — walk-forward windows open with warm indicators
 
 `walkForwardAnalysis` and `anchoredWalkForwardAnalysis` sliced each training

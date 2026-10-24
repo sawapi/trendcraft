@@ -119,6 +119,44 @@ describe("fairValueGap", () => {
     expect(filledFvg?.filledIndex).toBe(4);
   });
 
+  it("does not let a later fill reach back into earlier bars", () => {
+    // The gap is open on bars 2-3 and fills on bar 4. Bars 2 and 3 must
+    // still read it as open: a value that changes after the fact is
+    // look-ahead for anything that walks the series bar by bar.
+    const candles = makeCandles([
+      { o: 100, h: 105, l: 98, c: 104 },
+      { o: 108, h: 115, l: 107, c: 114 },
+      { o: 116, h: 120, l: 110, c: 118 }, // bullish FVG (105-110)
+      { o: 118, h: 119, l: 117, c: 117 },
+      { o: 117, h: 118, l: 106, c: 107 }, // fills it
+    ]);
+    const result = fairValueGap(candles);
+
+    expect(result[4].value.filledFvgs[0].filledIndex).toBe(4);
+    expect(result[2].value.newFvg).toMatchObject({ filled: false, filledIndex: null });
+    expect(result[2].value.activeBullishFvgs[0]).toMatchObject({
+      filled: false,
+      filledIndex: null,
+    });
+    expect(result[3].value.activeBullishFvgs[0]).toMatchObject({
+      filled: false,
+      filledIndex: null,
+    });
+  });
+
+  it("does not share gap objects between bars", () => {
+    const candles = makeCandles([
+      { o: 100, h: 105, l: 98, c: 104 },
+      { o: 108, h: 115, l: 107, c: 114 },
+      { o: 116, h: 120, l: 110, c: 118 },
+      { o: 118, h: 119, l: 117, c: 117 },
+    ]);
+    const result = fairValueGap(candles);
+    // Editing one bar's value leaves every other bar alone.
+    result[2].value.activeBullishFvgs[0].high = 999;
+    expect(result[3].value.activeBullishFvgs[0].high).toBe(110);
+  });
+
   it("should respect minGapPercent", () => {
     // Small gap that should be filtered out
     const candles = makeCandles([

@@ -283,21 +283,6 @@ describe("FVG incremental", () => {
     return { time: 1700000000000 + i * 60000, open, high, low, close, volume: 1000 };
   }
 
-  // The batch series stores live gap objects in historical entries, so gap
-  // fields (`filled` etc.) mutate retroactively when a gap fills later.
-  // Project each bar down to the fields that are stable at emission time
-  // so batch-vs-incremental comparison is not polluted by that aliasing.
-  function fvgProjection(v: FvgValueShape) {
-    return {
-      newBullishFvg: v.newBullishFvg,
-      newBearishFvg: v.newBearishFvg,
-      newFvg: v.newFvg ? [v.newFvg.type, v.newFvg.startIndex, v.newFvg.high, v.newFvg.low] : null,
-      activeBullish: v.activeBullishFvgs.map((g) => g.startIndex),
-      activeBearish: v.activeBearishFvgs.map((g) => g.startIndex),
-      // full data, order-sensitive: a filled gap is never mutated again
-      filledFvgs: v.filledFvgs,
-    };
-  }
   type FvgValueShape = ReturnType<typeof fairValueGap>[number]["value"];
 
   it("peek matches next when a new FVG forms while the active list is at maxActiveFvgs", () => {
@@ -315,7 +300,7 @@ describe("FVG incremental", () => {
     for (const candle of uptrend) {
       const peeked = ind.peek(candle);
       const advanced = ind.next(candle);
-      expect(fvgProjection(peeked.value)).toEqual(fvgProjection(advanced.value));
+      expect(peeked.value).toEqual(advanced.value);
       expect(peeked.value.activeBullishFvgs.length).toBeLessThanOrEqual(cap);
       if (advanced.value.activeBullishFvgs.length === cap) capBarsSeen++;
     }
@@ -368,6 +353,23 @@ describe("FVG incremental", () => {
     expect(ind.next(filler).value.filledFvgs).toHaveLength(1);
   });
 
+  it("never changes a value it already returned when a gap fills later", () => {
+    const cs = [
+      fvgCandle(0, 100, 101, 100, 101),
+      fvgCandle(1, 103, 104, 103, 104),
+      fvgCandle(2, 106, 107, 105, 107), // bullish FVG zone 101-105
+      fvgCandle(3, 107, 108, 106, 107),
+      fvgCandle(4, 104, 105, 100, 104), // fills it
+    ];
+    const ind = createFairValueGap({});
+    const values = cs.map((c) => ind.next(c).value);
+    const atBar3 = JSON.parse(JSON.stringify(values[3]));
+    expect(values[4].filledFvgs.map((g) => g.startIndex)).toContain(2);
+    expect(values[3]).toEqual(atBar3);
+    expect(values[2].newFvg?.filled).toBe(false);
+    expect(values[3].activeBullishFvgs[0].filled).toBe(false);
+  });
+
   it("matches batch bar-by-bar across caps and fill modes (randomized)", () => {
     let seed = 123456789;
     const rnd = () => {
@@ -392,8 +394,10 @@ describe("FVG incremental", () => {
         for (let i = 0; i < walk.length; i++) {
           const peeked = ind.peek(walk[i]).value;
           const advanced = ind.next(walk[i]).value;
-          expect(fvgProjection(peeked)).toEqual(fvgProjection(advanced));
-          expect(fvgProjection(advanced)).toEqual(fvgProjection(batch[i].value));
+          // Whole values: neither side mutates a gap after emitting it, so
+          // no projection is needed to dodge retroactive "filled" fields.
+          expect(peeked).toEqual(advanced);
+          expect(advanced).toEqual(batch[i].value);
         }
       }
     }
