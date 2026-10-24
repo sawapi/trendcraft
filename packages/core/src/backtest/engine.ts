@@ -45,6 +45,7 @@ import type { MarginState } from "./margin";
 import {
   accountEquity,
   accrueInterest,
+  assertValidMarginConfig,
   calculateBuyingPower,
   checkMarginCall,
   createMarginState,
@@ -185,6 +186,8 @@ export function runBacktest(
     throw new Error(`warmupBars must be a non-negative integer, got ${warmupBars}`);
   }
 
+  if (marginConfig) assertValidMarginConfig(marginConfig);
+
   // The evaluated window needs two bars, like a plain run does.
   if (candles.length - warmupBars < 2) {
     return emptyResult(capital, settings);
@@ -304,6 +307,7 @@ export function runBacktest(
     entryAtr: number | null,
     initialHigh: number,
     initialLow: number,
+    entryCommission: number,
   ): Position {
     return {
       entryTime,
@@ -313,6 +317,7 @@ export function runBacktest(
       direction: dir,
       shares,
       originalShares: shares,
+      entryCommission,
       partialTaken: false,
       breakevenActivated: false,
       scaleOutLevelsTaken: scaleOut ? scaleOut.levels.map(() => false) : [],
@@ -370,13 +375,11 @@ export function runBacktest(
   }
 
   /**
-   * Update MFE/MAE for direction
-   */
-  /**
    * Fold a bar's extremes into the position: peak/trough (the trailing-stop
    * anchors) plus MFE/MAE. Single owner — the fill-bar path calls this after
-   * the exit checks instead of before, and the two call sites must apply the
-   * exact same update.
+   * the exit checks instead of before (having already folded the bar into
+   * MFE/MAE alone via `updateMfeMae` before them), and the two call sites must
+   * apply the exact same update.
    */
   function foldBarIntoPosition(pos: Position, bar: NormalizedCandle): void {
     if (bar.high > pos.peakPrice) {
@@ -388,6 +391,9 @@ export function runBacktest(
     updateMfeMae(pos, bar);
   }
 
+  /**
+   * Update MFE/MAE for direction
+   */
   function updateMfeMae(pos: Position, candle: NormalizedCandle): void {
     if (isShort) {
       // Short: profit when price drops, loss when price rises
@@ -462,8 +468,11 @@ export function runBacktest(
    * added to `accumulatedInterest` — the equity check subtracts that field
    * as *unpaid* interest, and recording a paid charge there would deduct
    * it from equity a second time.
+   *
+   * Returns the amount charged, which the caller passes to
+   * `calculateTradeClose` so the trade's return carries it.
    */
-  function deductMarginInterest(entryTime: number, exitTime: number, fraction = 1): void {
+  function deductMarginInterest(entryTime: number, exitTime: number, fraction = 1): number {
     if (marginConfig && marginState && marginConfig.interestRate) {
       // Fractional days, not whole ones. `Math.max(1, Math.round(...))` made
       // the charge a function of TRADE COUNT rather than time held: on
@@ -475,7 +484,9 @@ export function runBacktest(
         accrueInterest(marginState, marginConfig.interestRate / 365, holdDays) *
         Math.min(1, Math.max(0, fraction));
       currentCapital -= interest;
+      return interest;
     }
+    return 0;
   }
 
   /**
@@ -549,19 +560,29 @@ export function runBacktest(
     // deployed notional leaves.
     const deployedBelowFull = shares < fullCapitalShares;
 
-    const pos = createPosition(entryTime, entryPrice, shares, entryAtr, initialHigh, initialLow);
+    // Commission is recomputed on the FILLED notional, not the full-order
+    // `entryCommission` (which is the percentage fee on the whole available
+    // capital): charging the unfilled portion's fee would itself break
+    // capital conservation whenever a percentage commissionRate is set.
+    const filledNotional = shares * entryPrice;
+    const filledCommission = deployedBelowFull
+      ? commission + filledNotional * (commissionRate / 100)
+      : entryCommission;
+
+    const pos = createPosition(
+      entryTime,
+      entryPrice,
+      shares,
+      entryAtr,
+      initialHigh,
+      initialLow,
+      filledCommission,
+    );
     if (deployedBelowFull) {
       // Deduct only the deployed notional + commission; the un-deployed capital
       // stays as cash. Zeroing currentCapital here (as a full fill does) would
       // erase it — exit only credits back the deployed shares' value, so the
       // difference would vanish as a phantom loss on every constrained entry.
-      //
-      // Commission is recomputed on the FILLED notional, not the full-order
-      // `entryCommission` (which is the percentage fee on the whole available
-      // capital): charging the unfilled portion's fee would itself break
-      // capital conservation whenever a percentage commissionRate is set.
-      const filledNotional = shares * entryPrice;
-      const filledCommission = commission + filledNotional * (commissionRate / 100);
       const deployedCost = filledNotional + filledCommission;
       if (marginConfig && marginState) {
         // Fund from cash first; borrow only the remainder of the deployed cost.
@@ -654,6 +675,7 @@ export function runBacktest(
     // === Handle pending exit (next-bar-open mode) ===
     if (pendingExit !== null && position !== null) {
       const currentSlip = getSlippage(candle, i);
+      const interest = deductMarginInterest(position.entryTime, candle.time);
       const result = calculateTradeClose({
         position,
         exitTime: candle.time,
@@ -664,10 +686,10 @@ export function runBacktest(
         commissionRate,
         taxRate,
         slippage: currentSlip,
+        interest,
       });
 
       trades.push(result.trade);
-      deductMarginInterest(position.entryTime, candle.time);
       currentCapital += result.netProceeds - repayMarginLoan(1);
       returns.push(result.returnPercent / 100);
 
@@ -743,12 +765,16 @@ export function runBacktest(
         ? clampCandleToPostFill(position.entryPrice, candle)
         : candle;
 
-      // Update peak/trough and MFE/MAE. On the fill bar this is DEFERRED
-      // until after the exit checks: the only known post-fill path is
-      // fill → close, so the close must not become a "peak" that the fill
-      // price then appears to dip below — that would fire trailing stops on
-      // the entry itself.
-      if (!filledMidBarThisBar) {
+      // Update peak/trough and MFE/MAE. On the fill bar the peak/trough half
+      // is DEFERRED until after the exit checks: the only known post-fill
+      // path is fill → close, so the close must not become a "peak" that the
+      // fill price then appears to dip below — that would fire trailing stops
+      // on the entry itself. MFE/MAE only report the excursion and steer no
+      // exit, so they take the clamped bar now; a close on this same bar
+      // would otherwise record them as 0.
+      if (filledMidBarThisBar) {
+        updateMfeMae(position, mgmtCandle);
+      } else {
         foldBarIntoPosition(position, mgmtCandle);
       }
 
@@ -787,6 +813,7 @@ export function runBacktest(
             // it, a one-ulp shortfall fires a second, dust-sized close.
             const reduceShares = position.shares * reduceFraction;
             const reduceSlip = getSlippage(candle, i);
+            const interest = deductMarginInterest(position.entryTime, candle.time, reduceFraction);
             const result = calculateTradeClose({
               position,
               exitTime: candle.time,
@@ -799,10 +826,10 @@ export function runBacktest(
               commissionRate,
               taxRate,
               slippage: reduceSlip,
+              interest,
             });
 
             trades.push(result.trade);
-            deductMarginInterest(position.entryTime, candle.time, reduceFraction);
             currentCapital += result.netProceeds - repayMarginLoan(reduceFraction);
             returns.push(result.returnPercent / 100);
 
@@ -891,6 +918,8 @@ export function runBacktest(
           const sharesRemaining = position.shares - sharesToSell;
 
           const partialSlip = getSlippage(candle, i);
+          const partialFraction = sharesToSell / position.shares;
+          const interest = deductMarginInterest(position.entryTime, candle.time, partialFraction);
           const result = calculateTradeClose({
             position,
             exitTime: candle.time,
@@ -903,11 +932,10 @@ export function runBacktest(
             commissionRate,
             taxRate,
             slippage: partialSlip,
+            interest,
           });
 
           trades.push(result.trade);
-          const partialFraction = sharesToSell / position.shares;
-          deductMarginInterest(position.entryTime, candle.time, partialFraction);
           currentCapital += result.netProceeds - repayMarginLoan(partialFraction);
           returns.push(result.returnPercent / 100);
 
@@ -950,6 +978,12 @@ export function runBacktest(
             const sharesRemaining = position.shares - sharesToSell;
 
             const scaleOutSlip = getSlippage(candle, i);
+            const scaleOutFraction = sharesToSell / position.shares;
+            const interest = deductMarginInterest(
+              position.entryTime,
+              candle.time,
+              scaleOutFraction,
+            );
             const result = calculateTradeClose({
               position,
               exitTime: candle.time,
@@ -962,11 +996,10 @@ export function runBacktest(
               commissionRate,
               taxRate,
               slippage: scaleOutSlip,
+              interest,
             });
 
             trades.push(result.trade);
-            const scaleOutFraction = sharesToSell / position.shares;
-            deductMarginInterest(position.entryTime, candle.time, scaleOutFraction);
             currentCapital += result.netProceeds - repayMarginLoan(scaleOutFraction);
             returns.push(result.returnPercent / 100);
 
@@ -1109,6 +1142,7 @@ export function runBacktest(
       if (shouldExit) {
         if (fillMode === "same-bar-close") {
           const currentSlip = getSlippage(candle, i);
+          const interest = deductMarginInterest(position.entryTime, candle.time);
           const result = calculateTradeClose({
             position,
             exitTime: candle.time,
@@ -1119,10 +1153,10 @@ export function runBacktest(
             commissionRate,
             taxRate,
             slippage: currentSlip,
+            interest,
           });
 
           trades.push(result.trade);
-          deductMarginInterest(position.entryTime, candle.time);
           currentCapital += result.netProceeds - repayMarginLoan(1);
           returns.push(result.returnPercent / 100);
 
@@ -1152,6 +1186,7 @@ export function runBacktest(
   if (position !== null) {
     const lastCandle = candles[candles.length - 1];
 
+    const interest = deductMarginInterest(position.entryTime, lastCandle.time);
     const result = calculateTradeClose({
       position,
       exitTime: lastCandle.time,
@@ -1162,10 +1197,10 @@ export function runBacktest(
       commissionRate,
       taxRate,
       slippage: 0, // No slippage for end-of-data close
+      interest,
     });
 
     trades.push(result.trade);
-    deductMarginInterest(position.entryTime, lastCandle.time);
     currentCapital += result.netProceeds - repayMarginLoan(1);
     returns.push(result.returnPercent / 100);
     // The end-of-data close realizes the final bar's equity (the in-loop value

@@ -37,6 +37,44 @@ export type MarginState = {
 };
 
 /**
+ * Reject a margin configuration the engine cannot honour.
+ *
+ * `leverage` below 1 is not "partial deployment": the loan it implies is
+ * negative, and a negative loan is never repaid, so the undeployed cash
+ * silently vanished at the first exit. `maintenanceMargin` is a ratio of
+ * equity to position value, so it must lie in [0, 1) — a percentage such as
+ * `30` margin-calls every bar. `0` is allowed: it calls only once equity
+ * turns negative, which then liquidates (the reduction fraction is
+ * unbounded). A ratio above `1 / leverage` is accepted but calls on the
+ * entry bar, since a full-size entry starts at that ratio (less any entry
+ * commission and adverse move).
+ *
+ * @example
+ * ```ts
+ * assertValidMarginConfig({ leverage: 2, maintenanceMargin: 0.25, marginCallAction: "liquidate" });
+ * ```
+ */
+export function assertValidMarginConfig(config: MarginConfig): void {
+  // Negated ranges so NaN is rejected rather than slipping through.
+  if (!(config.leverage >= 1 && Number.isFinite(config.leverage))) {
+    throw new Error(`margin.leverage must be a finite number >= 1, got ${config.leverage}`);
+  }
+  if (!(config.maintenanceMargin >= 0 && config.maintenanceMargin < 1)) {
+    throw new Error(
+      `margin.maintenanceMargin must be a ratio in [0, 1) (e.g. 0.25 for 25%), got ${config.maintenanceMargin}`,
+    );
+  }
+  if (
+    config.interestRate !== undefined &&
+    !(config.interestRate >= 0 && Number.isFinite(config.interestRate))
+  ) {
+    throw new Error(
+      `margin.interestRate must be a finite number >= 0 (e.g. 0.05 for 5%), got ${config.interestRate}`,
+    );
+  }
+}
+
+/**
  * Create initial margin state from capital and leverage.
  *
  * @param capital - Own capital (initial equity)

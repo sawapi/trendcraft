@@ -174,19 +174,23 @@ describe("drawdown is measured on mark-to-market equity", () => {
       slTpMode: "close-only",
       margin: {
         leverage: 2,
-        maintenanceMargin: 30,
+        maintenanceMargin: 0.5,
         marginCallAction: "reduceToMaintenance",
         interestRate: 0,
       },
     });
 
     expectDrawdownCoherent(result);
-    // Bar 2 is the trough: a 10% price fall at 2x is a 20% equity loss, and
-    // the margin call closes ~98.5% of the position there, so the rest of the
-    // fall barely moves the account. The freed cash is not a recovery.
+    // Bar 2: a 10% price fall at 2x is a 20% equity loss (800k against a
+    // 1.8M position, ratio 0.44), and the call sells just enough to bring
+    // the position back to 2x equity. Each later bar then loses
+    // 2 × equity × the price fall, with the freed cash repaying the loan
+    // rather than counting as a recovery:
+    // 800k × (1 − 2·10/90) × (1 − 2·10/80) × (1 − 2·10/70) = 333,333.
     const curve = result.equityCurve as number[];
     expect(curve[2]).toBeCloseTo(800_000, 6);
-    expect(result.maxDrawdown).toBeCloseTo(20.89, 2);
+    expect(curve[5]).toBeCloseTo(1_000_000 / 3, 4);
+    expect(result.maxDrawdown).toBeCloseTo(66.67, 2);
   });
 
   it("a short position's drawdown follows its equity", () => {

@@ -2942,7 +2942,7 @@ const result = runBacktest(candles, entry, exit, {
 |--------|--------|----------|
 | `'full-capital'` | — | Deploy all available capital (default, legacy behavior) |
 | `'fixed-fractional'` | `fractionPercent` | Deploy a fixed percentage of current equity |
-| `'risk-based'` | `riskPercent` | Risk a percentage of equity against the configured stop (`stopLoss`, or `atrRisk.atrStopMultiplier`). Falls back to full-capital when no stop is configured |
+| `'risk-based'` | `riskPercent` | Risk a percentage of equity against the configured stop (`stopLoss`, or `atrRisk.atrStopMultiplier`). Falls back to full-capital when no stop is configured. A long stop at or below zero (`stopLoss >= 100`) is sized as a stop at 0 |
 | `'atr-based'` | `riskPercent`, `atrMultiplier?` (2), `atrPeriod?` (14) | Risk against an ATR-implied stop distance. Entries are skipped while ATR is warming up |
 | `'kelly'` | `winRate`, `winLossRatio`, `kellyFraction?` (0.5), `maxKellyPercent?` (25) | Kelly criterion from user-supplied statistics. Entries are skipped when there is no positive edge |
 | `'custom'` | `calculate(ctx)` | Per-entry callback receiving a `BacktestSizingContext` (current equity, entry price, proposed full-capital shares, ATR, closed trades so far). Return the share count, or 0 to skip the entry |
@@ -3054,8 +3054,8 @@ interface Trade {
   entryPrice: number;
   exitTime: number;
   exitPrice: number;
-  return: number;
-  returnPercent: number;
+  return: number;                // Realised P&L, net of every cost (entry share too)
+  returnPercent: number;         // `return` as % of the closed shares' entry notional
   holdingDays: number;
   direction?: PositionDirection; // Position direction (default: "long")
   isPartial?: boolean;           // True when this row is a partial exit
@@ -4295,7 +4295,7 @@ Two resampling methods (`method` option):
 
 Each simulation rebuilds the equity curve from the resampled trades and recomputes Sharpe, max drawdown, total return, and profit factor. The result reports the distribution of these metrics plus a `downside` summary (probability of profit/loss, risk of ruin). There is no binary significance flag — the figures in `downside` are the verdict.
 
-Each trade enters the resampler as its **return on account equity** — its dollar P&L divided by the realised equity before it — not as `Trade.returnPercent` (the return on the position's own cost), so fractional and risk-based sizing are simulated at their real scale. Compounding those returns assumes a position's size scales with equity, which is exact for `full-capital` and `fixed-fractional` sizing and an approximation for sizing that does not compound (a fixed share count, a fixed dollar amount). Entry commissions and margin interest are not part of `Trade.return`, so with either one set the reconstructed path runs above the engine's own — in one test, by 3.5 points with a 0.5% commission rate at 20% fractional sizing (engine −15.6%, Monte Carlo −12.0%) and by 13.6 points at full capital (−57.5% vs −43.9%). With no commission and no margin interest it reproduces the engine's total return exactly under `"shuffle"`.
+Each trade enters the resampler as its **return on account equity** — its dollar P&L divided by the realised equity before it — not as `Trade.returnPercent` (the return on the position's own cost), so fractional and risk-based sizing are simulated at their real scale. Compounding those returns assumes a position's size scales with equity, which is exact for `full-capital` and `fixed-fractional` sizing and an approximation for sizing that does not compound (a fixed share count, a fixed dollar amount). `Trade.return` carries every cost of the trade — commissions on both sides, tax and margin interest — so `"shuffle"` reproduces the engine's total return exactly.
 
 Sharpe is computed from the per-trade returns and annualised by the observed trade frequency (trades per year over the original trade list's span), the same rule a backtest result uses for trade-based Sharpe — an approximation of `result.sharpeRatio`, which comes from bar-to-bar equity returns.
 
@@ -4587,11 +4587,18 @@ type MarginConfig = {
 };
 ```
 
+`runBacktest` rejects a configuration it cannot honour: `leverage` must be at
+least 1, `maintenanceMargin` a ratio in [0, 1) (`0.25`, not `25`; `0` means
+no maintenance calls until equity turns negative), and `interestRate`, when
+set, non-negative. A full-size entry opens at a margin ratio of
+`1 / leverage`, so a `maintenanceMargin` above that calls on the entry bar.
+
 `interestRate` is charged as **simple interest over elapsed holding time**: the
 annual rate is divided by 365 and multiplied by the *fractional* days each loan
 was outstanding, so a one-hour trade pays one hour of interest. The charge is
 deducted in cash at exit, and a partial exit bills each tranche for the balance
-outstanding while that tranche was open.
+outstanding while that tranche was open. It is part of that exit's
+`Trade.return`.
 
 This is not the convention brokers bill on. They charge on the overnight
 settled balance, so a real intraday round trip accrues nothing at all.

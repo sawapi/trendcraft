@@ -141,6 +141,12 @@ type ScaledPosition = {
    * capital actually committed to this trade cycle.
    */
   committedCapital: number;
+  /**
+   * Entry commission paid for the shares still held and not yet charged to
+   * a trade. Each close takes its pro-rata share (by shares) into the
+   * trade's `return`; a later tranche adds its own.
+   */
+  unchargedEntryCommission: number;
 };
 
 /**
@@ -320,6 +326,7 @@ export function runBacktestScaled(
       entryAtr,
       reservedCapital: currentCapital - trancheCapital,
       committedCapital: currentCapital,
+      unchargedEntryCommission: entryCommission,
     };
 
     currentCapital = 0; // All capital (including reserved) is committed
@@ -353,6 +360,7 @@ export function runBacktestScaled(
     pos.totalShares += shares;
     pos.avgEntryPrice = calculateAvgEntryPrice(pos.tranches);
     pos.reservedCapital -= trancheCapital;
+    pos.unchargedEntryCommission += entryCommission;
   }
 
   /**
@@ -388,7 +396,14 @@ export function runBacktestScaled(
       tax = grossReturn * (taxRate / 100);
     }
 
-    const netReturn = grossReturn - exitCommission - tax;
+    // The trade's return carries its share of the entry commissions too.
+    // They left `currentCapital` when the tranches were bought, so they are
+    // not deducted from the cash credited back below.
+    const entryCommission =
+      pos.totalShares > 0 ? pos.unchargedEntryCommission * (sharesToClose / pos.totalShares) : 0;
+    pos.unchargedEntryCommission -= entryCommission;
+
+    const netReturn = grossReturn - entryCommission - exitCommission - tax;
     const returnPercent = (netReturn / (pos.avgEntryPrice * sharesToClose)) * 100;
     const holdingDays = Math.round((time - pos.tranches[0].time) / MS_PER_DAY);
 

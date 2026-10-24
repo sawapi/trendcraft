@@ -10,6 +10,7 @@ import { and, or } from "../backtest/conditions";
 import { IndicatorCache } from "../core/indicator-cache";
 import type { BacktestOptions, Condition, NormalizedCandle } from "../types";
 import type { OptimizationConstraint, OptimizationMetric } from "../types/optimization";
+import { DEFAULT_BACKTEST_CAPITAL } from "./constants";
 import { calculateAllMetrics, checkConstraint, getMetricValue } from "./metrics";
 
 /**
@@ -237,7 +238,7 @@ export function combinationSearch(
     maxEntryConditions = 4,
     minExitConditions = 1,
     maxExitConditions = 3,
-    backtestOptions = { capital: 1000000 },
+    backtestOptions = { capital: DEFAULT_BACKTEST_CAPITAL },
     progressCallback,
     maxCombinations = 50000,
     keepAllResults = false,

@@ -72,7 +72,14 @@ export type Trade = {
   entryPrice: number;
   exitTime: number;
   exitPrice: number;
+  /**
+   * Realised P&L of this trade (or partial exit) in currency, net of every
+   * cost of the round trip: exit commission and tax, the pro-rata share of
+   * the entry commission, and any margin interest settled with it. The
+   * trades of a run sum to `finalCapital − initialCapital`.
+   */
   return: number;
+  /** `return` as a percentage of the closed shares' entry notional */
   returnPercent: number;
   holdingDays: number;
   /** Position direction (default: "long") */
@@ -253,6 +260,8 @@ export type BacktestSizingContext = {
  * - `risk-based`: risk `riskPercent` of equity against the configured stop
  *   (`stopLoss` percent, or `atrRisk.atrStopMultiplier` when set). Falls back
  *   to full-capital when no stop is configured, like the streaming manager.
+ *   A long stop at or below zero (`stopLoss >= 100`) is sized as a stop at 0,
+ *   i.e. a share can lose its whole price.
  * - `atr-based`: risk `riskPercent` of equity against an ATR-derived stop
  *   distance (`atrValue × atrMultiplier`). Entries are skipped while ATR is
  *   still warming up.

@@ -2920,7 +2920,7 @@ const result = runBacktest(candles, entry, exit, {
 |----------|------|------|
 | `'full-capital'` | — | 全額投入（デフォルト、従来動作） |
 | `'fixed-fractional'` | `fractionPercent` | 現在資金の固定割合を投入 |
-| `'risk-based'` | `riskPercent` | 設定済みストップ（`stopLoss` または `atrRisk.atrStopMultiplier`）に対して資金の一定割合をリスクに取る。ストップ未設定時は full-capital にフォールバック |
+| `'risk-based'` | `riskPercent` | 設定済みストップ（`stopLoss` または `atrRisk.atrStopMultiplier`）に対して資金の一定割合をリスクに取る。ストップ未設定時は full-capital にフォールバック。ロングのストップが 0 以下になる場合（`stopLoss >= 100`）は、ストップを 0 とみなしてサイジングする |
 | `'atr-based'` | `riskPercent`, `atrMultiplier?` (2), `atrPeriod?` (14) | ATR由来のストップ距離に対してリスクを取る。ATRウォームアップ中のエントリーはスキップ |
 | `'kelly'` | `winRate`, `winLossRatio`, `kellyFraction?` (0.5), `maxKellyPercent?` (25) | ユーザー指定の統計値によるケリー基準。エッジがない場合はエントリーをスキップ |
 | `'custom'` | `calculate(ctx)` | エントリーごとのコールバック。`BacktestSizingContext`（現在資金、エントリー価格、全額投入時の株数、ATR、約定済みトレード）を受け取り株数を返す。0を返すとスキップ |
@@ -3032,8 +3032,8 @@ interface Trade {
   entryPrice: number;
   exitTime: number;
   exitPrice: number;
-  return: number;
-  returnPercent: number;
+  return: number;                // 実現損益。エントリー分も含むすべてのコストを差し引いた額
+  returnPercent: number;         // `return` を決済株数のエントリー時想定元本で割った %
   holdingDays: number;
   direction?: PositionDirection; // ポジション方向（デフォルト: "long"）
   isPartial?: boolean;           // 部分利確による決済の場合 true
@@ -4259,7 +4259,7 @@ console.log('破産リスク:', mcResult.downside.riskOfRuin);
 
 各シミュレーションはリサンプリングしたトレードからエクイティカーブを再構築し、Sharpe・最大ドローダウン・トータルリターン・プロフィットファクターを再計算します。結果はこれらのメトリクスの分布に加え、`downside` サマリー（利益/損失確率、破産リスク）を返します。二値の有意性フラグはありません — `downside` の数値が判定結果です。
 
-各トレードは `Trade.returnPercent`（建玉自体のコストに対するリターン）ではなく、**口座資産に対するリターン**（損益額 ÷ そのトレード直前の確定済み資産）としてリサンプリングされるため、固定比率やリスクベースのサイジングも実際の規模でシミュレーションされます。このリターンを複利で積み上げるのは、建玉の大きさが資産に比例すると仮定することにあたり、`full-capital` と `fixed-fractional` では正確、株数固定や金額固定のように複利にならないサイジングでは近似になります。エントリー手数料と信用取引の金利は `Trade.return` に含まれないため、どちらかを設定すると再構築した経路はエンジン自身の経路より上振れします。あるテストでは、手数料率 0.5%・固定比率 20% で 3.5 ポイント（エンジン −15.6%、Monte Carlo −12.0%）、full-capital で 13.6 ポイント（−57.5% 対 −43.9%）の差が出ました。手数料も信用取引の金利もなければ、`"shuffle"` でエンジンのトータルリターンを正確に再現します。
+各トレードは `Trade.returnPercent`（建玉自体のコストに対するリターン）ではなく、**口座資産に対するリターン**（損益額 ÷ そのトレード直前の確定済み資産）としてリサンプリングされるため、固定比率やリスクベースのサイジングも実際の規模でシミュレーションされます。このリターンを複利で積み上げるのは、建玉の大きさが資産に比例すると仮定することにあたり、`full-capital` と `fixed-fractional` では正確、株数固定や金額固定のように複利にならないサイジングでは近似になります。`Trade.return` にはそのトレードのすべてのコスト（売買両側の手数料、税、信用取引の金利）が含まれるため、`"shuffle"` はエンジンのトータルリターンを正確に再現します。
 
 Sharpe はトレードごとのリターンから計算し、観測されたトレード頻度（元のトレード列の期間あたりの年間トレード数）で年率化します。バックテスト結果がトレードベースの Sharpe に使うのと同じ規則で、バー単位のエクイティリターンから求める `result.sharpeRatio` の近似値です。
 
@@ -4544,10 +4544,16 @@ type MarginConfig = {
 };
 ```
 
+`runBacktest` は扱えない設定をエラーにする。`leverage` は 1 以上、`maintenanceMargin`
+は 0 以上 1 未満の比率（`25` ではなく `0.25`。`0` は資産がマイナスになるまで追証を
+出さない指定）、`interestRate` は指定する場合 0 以上でなければならない。全額エントリー
+直後の証拠金比率は `1 / leverage` なので、`maintenanceMargin` をそれより大きくすると
+エントリーした足で追証が発生する。
+
 `interestRate` は**経過保有時間に対する単利**として課金される。年率を 365 で割り、
 各ローンが残っていた**分数**日数を掛けるので、1時間の取引は1時間分だけ支払う。
 決済時に現金から差し引かれ、部分決済ではトランシェごとに「そのトランシェが開いて
-いた間の残高」で課金される。
+いた間の残高」で課金される。課金額はその決済の `Trade.return` に含まれる。
 
 これはブローカーの課金規約とは異なる。実際のブローカーはオーバーナイトの決済残高に
 課金するため、日中の往復は一切利息が付かない。それを再現するには日境界（タイムゾーン
