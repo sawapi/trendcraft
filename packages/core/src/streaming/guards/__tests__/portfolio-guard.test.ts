@@ -103,3 +103,30 @@ describe("createPortfolioGuard", () => {
     expect(exposure.openPositions).toBe(0);
   });
 });
+
+describe("createPortfolioGuard once equity is gone", () => {
+  it("blocks on drawdown when equity falls to or below zero", () => {
+    // The check used to require totalEquity > 0, so a wiped-out portfolio
+    // skipped it and could open new positions.
+    for (const equity of [0, -5_000]) {
+      const guard = createPortfolioGuard({ maxPortfolioDrawdown: 20 });
+      guard.updateEquity(100_000);
+      guard.updateEquity(equity);
+      const result = guard.canOpenPosition("AAPL", 1_000);
+      expect(result.allowed, String(equity)).toBe(false);
+      expect(result.reason).toContain("drawdown");
+    }
+  });
+
+  it("blocks new exposure when equity is gone and an exposure limit is set", () => {
+    const guard = createPortfolioGuard({ maxTotalExposure: 100 });
+    guard.updateEquity(100_000);
+    guard.updateEquity(0);
+    expect(guard.canOpenPosition("AAPL", 1_000).allowed).toBe(false);
+  });
+
+  it("still allows positions before any equity is reported", () => {
+    const guard = createPortfolioGuard({ maxPortfolioDrawdown: 20, maxTotalExposure: 100 });
+    expect(guard.canOpenPosition("AAPL", 1_000).allowed).toBe(true);
+  });
+});

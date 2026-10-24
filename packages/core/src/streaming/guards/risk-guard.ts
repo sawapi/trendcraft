@@ -21,6 +21,7 @@
  * ```
  */
 
+import { depthPercent } from "../../backtest/drawdown-tracker";
 import type { RiskGuard, RiskGuardOptions, RiskGuardState } from "./types";
 
 const MS_PER_DAY = 86_400_000;
@@ -104,9 +105,11 @@ export function createRiskGuard(options: RiskGuardOptions, fromState?: RiskGuard
         cooldownUntil = 0;
       }
 
-      // Check max drawdown from peak equity
-      if (options.maxDrawdownPercent !== undefined && peakEquity > 0 && currentEquity > 0) {
-        const drawdownPercent = ((peakEquity - currentEquity) / peakEquity) * 100;
+      // Check max drawdown from peak equity. A positive peak means equity has
+      // been reported; from then on the current equity counts even at or
+      // below zero, where the drawdown is 100% or more.
+      if (options.maxDrawdownPercent !== undefined && peakEquity > 0) {
+        const drawdownPercent = depthPercent(peakEquity, currentEquity);
         if (drawdownPercent >= options.maxDrawdownPercent) {
           return {
             allowed: false,
@@ -174,6 +177,13 @@ export function createRiskGuard(options: RiskGuardOptions, fromState?: RiskGuard
     },
 
     checkPositionSize(positionValue: number) {
+      if (options.maxPositionPercent !== undefined && peakEquity > 0 && currentEquity <= 0) {
+        // Equity was reported and is gone: there is nothing to size against.
+        return {
+          allowed: false,
+          reason: `No equity to size against (equity ${currentEquity})`,
+        };
+      }
       if (options.maxPositionPercent !== undefined && currentEquity > 0) {
         const positionPercent = (Math.abs(positionValue) / currentEquity) * 100;
         if (positionPercent > options.maxPositionPercent) {

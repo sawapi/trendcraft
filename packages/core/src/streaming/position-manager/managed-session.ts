@@ -192,10 +192,14 @@ export function createManagedSession(
   );
 
   /**
-   * Report a closed trade to the risk guard
+   * Report a closed trade to the risk guard, together with the equity it left.
+   * Equity is otherwise refreshed only on candles while a position is open, so
+   * without this the guard's drawdown check would read the pre-exit mark while
+   * flat.
    */
   function reportToRiskGuard(trade: BacktestTrade, time: number): void {
     guardedSession.riskGuard?.reportTrade(trade.return, time);
+    guardedSession.riskGuard?.updateEquity(tracker.getAccount().equity, time);
   }
 
   /**

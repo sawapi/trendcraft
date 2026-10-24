@@ -5122,6 +5122,8 @@ guard.reportTrade(-200, Date.now());
 | `maxConsecutiveLosses` | `number` | — | Maximum consecutive losing trades before blocking |
 | `cooldownMs` | `number` | — | Cooldown period in ms after hitting consecutive loss limit |
 | `resetTimeOffsetMs` | `number` | `0` | Daily reset time as offset from UTC midnight in ms |
+| `maxDrawdownPercent` | `number` | — | Block new trades once equity is this % below its peak. Applies only after `updateEquity` has reported equity, and at any equity from then on (a wiped-out account reads 100% or more) |
+| `maxPositionPercent` | `number` | — | Max single position size as % of equity, checked by `checkPositionSize`. Applies only after `updateEquity` has reported equity; with none left, every position is refused |
 
 **Methods:**
 
@@ -5129,6 +5131,8 @@ guard.reportTrade(-200, Date.now());
 |--------|---------|-------------|
 | `check(time)` | `{ allowed, reason? }` | Check if trading is currently allowed |
 | `reportTrade(pnl, time)` | `void` | Report a completed trade result |
+| `updateEquity(equity, time)` | `void` | Report current account equity (feeds `maxDrawdownPercent` and `maxPositionPercent`) |
+| `checkPositionSize(positionValue)` | `{ allowed, reason? }` | Check a position's value against `maxPositionPercent` |
 | `reset()` | `void` | Reset all counters |
 | `getState()` | `RiskGuardState` | Serialize internal state |
 

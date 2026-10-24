@@ -5076,6 +5076,8 @@ guard.reportTrade(-200, Date.now());
 | `maxConsecutiveLosses` | `number` | — | 連続負けの最大回数 |
 | `cooldownMs` | `number` | — | 連続負け制限後のクールダウン期間（ミリ秒） |
 | `resetTimeOffsetMs` | `number` | `0` | UTC深夜からの日次リセット時刻オフセット（ミリ秒） |
+| `maxDrawdownPercent` | `number` | — | 評価額がピークからこの%以上下がったら新規取引をブロック。`updateEquity` で評価額が報告された後にだけ働き、以後は評価額がいくつでも判定する（資金が尽きた口座は100%以上） |
+| `maxPositionPercent` | `number` | — | 1ポジションの最大サイズ（評価額に対する%）。`checkPositionSize` で判定。`updateEquity` で評価額が報告された後にだけ働き、評価額が残っていなければすべて拒否 |
 
 **メソッド:**
 
@@ -5083,6 +5085,8 @@ guard.reportTrade(-200, Date.now());
 |--------|---------|-------------|
 | `check(time)` | `{ allowed, reason? }` | 現在取引が許可されているか確認 |
 | `reportTrade(pnl, time)` | `void` | 完了した取引結果を報告 |
+| `updateEquity(equity, time)` | `void` | 現在の口座評価額を報告（`maxDrawdownPercent` と `maxPositionPercent` が使う） |
+| `checkPositionSize(positionValue)` | `{ allowed, reason? }` | ポジション金額を `maxPositionPercent` と照合 |
 | `reset()` | `void` | すべてのカウンターをリセット |
 | `getState()` | `RiskGuardState` | 内部状態をシリアライズ |
 

@@ -423,3 +423,31 @@ describe("createRiskGuard", () => {
     });
   });
 });
+
+describe("createRiskGuard once equity is gone", () => {
+  it("blocks on drawdown when equity falls to or below zero", () => {
+    // The check used to require currentEquity > 0, so a wiped-out account
+    // skipped it and was allowed to trade.
+    for (const equity of [0, -5_000]) {
+      const guard = createRiskGuard({ maxDrawdownPercent: 20 });
+      guard.updateEquity(100_000, BASE_TIME);
+      guard.updateEquity(equity, BASE_TIME + HOUR);
+      const result = guard.check(BASE_TIME + HOUR);
+      expect(result.allowed, String(equity)).toBe(false);
+      expect(result.reason).toContain("Max drawdown");
+    }
+  });
+
+  it("refuses to size a position against equity that is gone", () => {
+    const guard = createRiskGuard({ maxPositionPercent: 10 });
+    guard.updateEquity(100_000, BASE_TIME);
+    guard.updateEquity(0, BASE_TIME + HOUR);
+    expect(guard.checkPositionSize(5_000).allowed).toBe(false);
+  });
+
+  it("still allows trading before any equity is reported", () => {
+    const guard = createRiskGuard({ maxDrawdownPercent: 20, maxPositionPercent: 10 });
+    expect(guard.check(BASE_TIME).allowed).toBe(true);
+    expect(guard.checkPositionSize(5_000).allowed).toBe(true);
+  });
+});
