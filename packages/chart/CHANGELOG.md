@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — a re-attached sparkline could double its bitmap each time
+
+Rendering writes the DPR-scaled bitmap size onto the canvas's `width` /
+`height` attributes, and `destroy()` left it there. The next `add()` then
+read that bitmap as the author's declared size, so a canvas that had no
+layout box (hidden, collapsed, not yet attached) and is sized by a
+non-pixel style (e.g. `width: 100%`) grew by the device pixel ratio on
+every re-attach; the wrappers' default pixel sizing was not affected. Re-attaching happens on its own with
+`<SparklineList>` (React and Vue) and under React StrictMode. `destroy()`
+now restores the attributes the author set, and removes the ones the
+renders added.
+
 ### Security — a colour could inject CSS into the legend and info overlay
 
 Theme colours and series colours are written into `style` attributes of the

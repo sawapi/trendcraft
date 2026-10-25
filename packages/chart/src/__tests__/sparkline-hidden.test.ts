@@ -10,7 +10,7 @@
  */
 
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { createSparkline } from "../sparkline";
+import { createSparkline, createSparklineGroup } from "../sparkline";
 
 /** Canvases whose getBoundingClientRect should report a zero-sized box. */
 const hidden = new Set<HTMLElement>();
@@ -132,8 +132,8 @@ describe("sparkline sizing without a layout box", () => {
 
   it("keeps the last measured box over the width attribute while hidden", () => {
     // A percent inline style is not a px declaration, so the only declared
-    // size is the attribute — which must not outrank a real measurement: on
-    // a re-attach the attribute holds the previous DPR-scaled bitmap.
+    // size is the attribute — which must not outrank a real measurement of
+    // the box the canvas actually has.
     const canvas = makeCanvas({ width: 300, height: 60 });
     canvas.style.width = "100%";
     canvas.style.height = "100%";
@@ -148,6 +148,38 @@ describe("sparkline sizing without a layout box", () => {
     expect(canvas.height).toBe(120);
 
     handle.destroy();
+  });
+
+  it("re-attaching a never laid-out canvas keeps the author's size (ops #98)", () => {
+    // What the group wrappers do: a standalone sparkline, then destroy() and
+    // add() to a group — and React StrictMode repeats it.
+    const canvas = makeCanvas();
+    canvas.style.width = "100%";
+    canvas.setAttribute("width", "80");
+    canvas.setAttribute("height", "30");
+    createSparkline(canvas, { type: "line", data }).destroy();
+    // destroy() hands the canvas back as the author declared it.
+    expect(canvas.getAttribute("width")).toBe("80");
+    expect(canvas.getAttribute("height")).toBe("30");
+
+    const group = createSparklineGroup({ container: document.body });
+    for (let i = 0; i < 3; i++) {
+      const handle = group.add(canvas, { type: "line", data });
+      // Previously: 320, 640, 1280 — the last bitmap read back as the author's size.
+      expect(canvas.width).toBe(160);
+      expect(canvas.height).toBe(60);
+      handle.destroy();
+    }
+    group.destroy();
+  });
+
+  it("destroy() removes the size attributes the renders added", () => {
+    const canvas = makeCanvas({ width: 80, height: 30 });
+    const handle = createSparkline(canvas, { type: "line", data });
+    expect(canvas.getAttribute("width")).toBe("160");
+    handle.destroy();
+    expect(canvas.hasAttribute("width")).toBe(false);
+    expect(canvas.hasAttribute("height")).toBe(false);
   });
 
   it("takes a hidden canvas's size from an inline px style, over a stale measurement", () => {
