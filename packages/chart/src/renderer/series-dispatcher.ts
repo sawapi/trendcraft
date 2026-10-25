@@ -16,7 +16,7 @@ import { renderBand } from "../series/band";
 import { renderBoxes } from "../series/box";
 import { renderCloud } from "../series/cloud";
 import { renderHeatmap } from "../series/heatmap";
-import { renderHistogram } from "../series/histogram";
+import { BarBatch, renderHistogram } from "../series/histogram";
 import { renderChannelLine, renderLine } from "../series/line";
 import { renderMarkers } from "../series/marker";
 
@@ -37,7 +37,7 @@ const _lttbCache = new WeakMap<
 >();
 
 /** Return cached decomposed channels, recomputing only when data changes */
-function getCachedChannels(
+export function getCachedChannels(
   s: InternalSeries,
   rule: IntrospectionRule,
 ): Map<string, (number | null)[]> {
@@ -127,17 +127,21 @@ export function dispatchSeries(
       const barWidth = Math.max(1, timeScale.barSpacing * 0.6);
       const halfBar = barWidth / 2;
       const zeroY = priceScale.priceToY(0);
+      const bars = new BarBatch(barWidth);
       for (let i = start; i < end && i < s.data.length; i++) {
         const val = (s.data[i] as DataPoint<number | null>)?.value;
         if (val === null || val === undefined) continue;
-        const x = timeScale.indexToX(i);
         const valY = priceScale.priceToY(val);
-        const isUp = candles?.[i] ? candles[i].close >= candles[i].open : true;
-        ctx.fillStyle = isUp ? upColor : downColor;
+        const isDown = candles?.[i] ? candles[i].close < candles[i].open : false;
         const top = Math.min(valY, zeroY);
-        const height = Math.max(1, Math.abs(valY - zeroY));
-        ctx.fillRect(x - halfBar, top, barWidth, height);
+        bars.add(
+          timeScale.indexToX(i) - halfBar,
+          top,
+          top + Math.max(1, Math.abs(valY - zeroY)),
+          isDown,
+        );
       }
+      bars.fill(ctx, upColor, downColor);
       return;
     }
 

@@ -197,6 +197,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — charts with many bars spent most of each frame on work they did not need
+
+Every frame, the price range of a pane decomposed each multi-channel
+series (Bollinger Bands, MACD, Ichimoku, Supertrend, Parabolic SAR, …)
+over its whole length, not just the visible bars, at any zoom. With
+20,000 bars and four such indicators that was about 6ms per frame at an
+ordinary zoom, against about 0.2ms now: the range reuses the decomposition
+the renderers already cache.
+
+Zoomed far out (down to 0.1px per bar), volume and histogram bars and
+marker dots were also drawn one by one, ten or more per pixel column.
+Bars that share a pixel column are now drawn as one rect per colour, and
+dots on the same pixel are drawn once, all in a single fill. The same
+chart draws a frame in about 7.5ms instead of 21.5ms. At that zoom
+volume and histogram panes look lighter than before: their translucent
+colours no longer stack ten bars deep.
+
 ### Fixed — docs: `llms-full.txt` links pointed at files npm does not ship
 
 `llms-full.txt` concatenates the docs at the package root, but kept their
