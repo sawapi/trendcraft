@@ -226,6 +226,14 @@ then never be shown again. A pane is now removed only when no series at all
 is assigned to it. A pane whose series are all hidden therefore stays, as
 an empty pane.
 
+### Fixed — an animation started from a range-change listener was dropped
+
+When a `visibleRangeChange` listener started a new range animation (for
+example by calling `setVisibleRange`), the finishing animation cleared the
+new one's callbacks, so the second range never applied and range-change
+events stayed suppressed. An animation started from an animation callback
+now runs normally.
+
 ### Fixed — pressing the mouse did not stop a fling
 
 A trackpad flick keeps the chart scrolling after the gesture, and pressing
