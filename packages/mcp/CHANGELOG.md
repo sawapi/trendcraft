@@ -17,6 +17,19 @@ The error told callers that `list_indicators({ calcSupported: true })` would
 show "all 59 computable kinds", but it lists 45: the other wrappers have no
 manifest entry. The count now comes from the same source as that listing.
 
+### Fixed — manifest-advertised object params were rejected
+
+The manifest's `paramHints` advertise `vwap`'s `session` and
+`volatilityRegime`'s `thresholds`, both objects, but `calc_indicator`
+rejected every nested object with "pass primitives only". An object is now
+accepted for a key the kind's `paramHints` names, with its values (and a
+`breaks` array of flat objects) checked by the same rules as top-level
+params. Other object values, arrays of objects outside such a param, and
+objects on number-style keys such as `period` are still rejected. What the
+object means is checked by the indicator itself: `trendcraft` now rejects a
+session with missing or out-of-range clock fields and non-numeric
+thresholds.
+
 ### Fixed — the `detect_signal` response example in `EXAMPLES.md` was missing `processedBars`
 
 The recipe's sample response showed every field except `processedBars`, which
