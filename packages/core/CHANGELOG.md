@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Fixed — docs: dead table-of-contents links in the API reference
+
+Five entries of the API.md table of contents (four in API.ja.md) led
+nowhere: anchored walk-forward analysis, `validateCandles`,
+`normalizeAndValidate`, Meta-Strategy, and serialize / parse. They now
+match their headings, and a docs test checks every in-page link against
+the headings of its file.
+
 ### Fixed — docs: `createPortfolioGuard` and the drawdown analysis functions were undocumented
 
 API.md and API.ja.md now document `createPortfolioGuard` (its options,

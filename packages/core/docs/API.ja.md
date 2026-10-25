@@ -74,8 +74,8 @@
   - [analyzeDrawdowns](#analyzedrawdownsperiods)
   - [パターンプロジェクション](#パターンプロジェクション)
 - [データ品質バリデーション](#データ品質バリデーション)
-  - [validateCandles](#validatecandles)
-  - [normalizeAndValidate](#normalizeandvalidate)
+  - [validateCandles](#validatecandlescandles-options)
+  - [normalizeAndValidate](#normalizeandvalidatecandles-validation)
   - [個別検出関数](#個別検出関数)
 - [カスタムインジケーター（プラグインシステム）](#カスタムインジケータープラグインシステム)
   - [defineIndicator](#defineindicator)
@@ -109,7 +109,7 @@
 - [戦略JSONシリアライゼーション](#戦略jsonシリアライゼーション)
   - [ビルトインレジストリ](#ビルトインレジストリ)
   - [ConditionRegistry](#conditionregistry)
-  - [シリアライズ / パース](#serializestrategystrategy--parsestratejson)
+  - [シリアライズ / パース](#serializestrategystrategy--parsestrategyjson)
   - [ハイドレーション / ロード](#hydrateconditionspec-registry--loadstrategyjson-registry)
   - [バリデーション](#validateconditionspecspec-registry--validatestrategyjsonjson)
 - [ライブストリーミング & シリーズメタデータ](#ライブストリーミング--シリーズメタデータ)
@@ -6945,7 +6945,9 @@ const last = phases[phases.length - 1].value;
 
 ---
 
-## メタ戦略（エクイティカーブトレーディング）
+## メタ戦略
+
+エクイティカーブトレーディングと戦略ローテーション。
 
 ### `applyEquityCurveFilter(result, options?)`
 
