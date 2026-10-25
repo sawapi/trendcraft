@@ -88,7 +88,7 @@ tracking issue for a known bug; the spec for it is a `test.fail` until fixed.
 | Rendering | A non-finite OHLC value or indicator value does not blank the chart | covered |
 | Rendering | Flat or zero price range still draws an axis with ticks | covered by unit tests (`price-scale-degenerate.test.ts`) |
 | Rendering | Theme change reaches the legend | todo (ops #27) |
-| Rendering | Series `lineWidth` / `channelColors` reach band, MACD, ichimoku | todo (ops #20, #21) |
+| Rendering | Series `lineWidth` / `channelColors` / `markers` reach band, MACD, ichimoku, line | covered by unit tests (`series-config-reaches-renderer.test.ts`) |
 | Rendering | Hidden series keep their pane | todo (ops #25) |
 | Rendering | hmmRegime and volume-profile heatmap draw and stay put on scroll | todo (ops #32, #33) |
 | Pan / zoom | Wheel up zooms in | covered |

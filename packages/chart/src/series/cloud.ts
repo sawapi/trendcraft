@@ -37,7 +37,13 @@ export function renderCloud(
   priceScale: PriceScale,
   options: Partial<CloudRenderOptions> = {},
 ): void {
-  const opts = { ...DEFAULT_CLOUD_OPTIONS, ...options };
+  // lineColors merges per channel, so a partial channelColors keeps the
+  // default for every channel it does not name.
+  const opts = {
+    ...DEFAULT_CLOUD_OPTIONS,
+    ...options,
+    lineColors: { ...DEFAULT_CLOUD_OPTIONS.lineColors, ...options.lineColors },
+  };
   const start = timeScale.startIndex;
   const end = timeScale.endIndex;
 

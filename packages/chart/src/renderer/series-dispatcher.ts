@@ -51,6 +51,16 @@ function getCachedChannels(
 }
 
 /**
+ * Drop `undefined` entries so a renderer's `{ ...defaults, ...options }`
+ * keeps its default for every option the series config leaves unset.
+ */
+function definedOnly<T extends object>(options: T): Partial<T> {
+  return Object.fromEntries(
+    Object.entries(options).filter(([, v]) => v !== undefined),
+  ) as Partial<T>;
+}
+
+/**
  * Dispatch a series to its appropriate renderer based on introspection.
  */
 export function dispatchSeries(
@@ -190,7 +200,12 @@ export function dispatchSeries(
       channels.get("lower") ?? [],
       timeScale,
       priceScale,
-      cc ? { upperColor: cc.upper, middleColor: cc.middle, lowerColor: cc.lower } : undefined,
+      definedOnly({
+        upperColor: cc?.upper,
+        middleColor: cc?.middle,
+        lowerColor: cc?.lower,
+        lineWidth: s.config.lineWidth,
+      }),
     );
     return;
   }
@@ -204,18 +219,24 @@ export function dispatchSeries(
     });
     renderChannelLine(ctx, channels.get("macd") ?? [], timeScale, priceScale, {
       color: cc?.macd ?? "#2196F3",
-      lineWidth: 1.5,
+      lineWidth,
     });
     renderChannelLine(ctx, channels.get("signal") ?? [], timeScale, priceScale, {
       color: cc?.signal ?? "#FF9800",
-      lineWidth: 1.5,
+      lineWidth,
     });
     return;
   }
 
   if (rule.name === "ichimoku") {
     const channels = getCachedChannels(s, rule);
-    renderCloud(ctx, channels, timeScale, priceScale);
+    renderCloud(
+      ctx,
+      channels,
+      timeScale,
+      priceScale,
+      definedOnly({ lineColors: s.config.channelColors, lineWidth: s.config.lineWidth }),
+    );
     return;
   }
 
