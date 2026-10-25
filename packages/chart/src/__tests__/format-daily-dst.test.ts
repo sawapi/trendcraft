@@ -2,7 +2,7 @@
  * Daily bars from real feeds are stamped at the exchange's local midnight in
  * UTC, which moves by an hour at every DST change (05:00Z in winter, 04:00Z
  * in summer for US data). The axis read that one-hour shift as an intraday
- * session gap and labelled daily bars with a time (ops #88).
+ * session gap and labelled daily bars with a time.
  */
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";

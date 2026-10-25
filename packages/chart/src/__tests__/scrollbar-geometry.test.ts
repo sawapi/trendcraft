@@ -1,5 +1,5 @@
 /**
- * The scrollbar thumb stays inside its track (ops #18 D1). The window can
+ * The scrollbar thumb stays inside its track. The window can
  * start past the last bar (a right margin or an overscroll bounce), and the
  * minimum thumb width can reach past the track's end; either drew and
  * hit-tested a thumb partly or wholly outside the track.

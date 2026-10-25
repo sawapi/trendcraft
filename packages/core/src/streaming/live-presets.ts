@@ -260,7 +260,7 @@ export const livePresets: Record<string, LivePreset> = /* @__PURE__ */ buildLive
 
 // Built in a function, not as a plain literal: the entries' helper calls would
 // run at module load and pin every indicator they reference into any bundle
-// that imports anything from "trendcraft" (ops #90).
+// that imports anything from "trendcraft".
 function buildLivePresets(): Record<string, LivePreset> {
   return {
     // Moving Averages

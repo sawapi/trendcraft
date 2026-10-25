@@ -278,7 +278,7 @@ describe("renderMarkers", () => {
     const { ctx, ts, ps } = setup();
     renderMarkers(ctx, [100, null, 105], ts, ps);
     expect(ctx.arc).toHaveBeenCalledTimes(2);
-    // All dots share one path and one fill (ops #124).
+    // All dots share one path and one fill.
     expect(ctx.fill).toHaveBeenCalledTimes(1);
   });
 

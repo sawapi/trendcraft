@@ -157,7 +157,7 @@ describe("createRegimeHeatmap", () => {
     );
   });
 
-  it("takes the confidence from hmmRegimes' probabilities when there is no confidence field (ops #32)", () => {
+  it("takes the confidence from hmmRegimes' probabilities when there is no confidence field", () => {
     // trendcraft's HmmRegimeValue carries per-state probabilities, not `confidence`.
     const data = [
       {

@@ -6,7 +6,7 @@ const LIGHT_TEXT = "rgb(19, 23, 34)";
 const DARK_TEXT = "rgb(209, 212, 220)";
 
 test.describe("theme", () => {
-  test("switching theme recolours the legend text (ops #27)", async ({ page }) => {
+  test("switching theme recolours the legend text", async ({ page }) => {
     await openChart(page);
     await page.evaluate(() => {
       const { chart, candles } = window.__tc;

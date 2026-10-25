@@ -1,5 +1,5 @@
 /**
- * `wallClock` reads an epoch time's calendar in an IANA zone (ops #89); the
+ * `wallClock` reads an epoch time's calendar in an IANA zone; the
  * format helpers built on it label the same instant identically whatever
  * zone the browser is in.
  */
@@ -61,7 +61,7 @@ describe("wallClock", () => {
 });
 
 describe("format helpers in a time zone", () => {
-  // 2025-11-26 20:55Z: the bar from the ops #89 report.
+  // 2025-11-26 20:55Z: the bar from the original bug report.
   const t = Date.UTC(2025, 10, 26, 20, 55);
 
   it("labels the crosshair in the given zone", () => {

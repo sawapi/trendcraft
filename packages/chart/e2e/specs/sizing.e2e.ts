@@ -4,8 +4,7 @@ import { frames, logicalRange, openChart } from "./helpers";
 test.describe("chart sizing", () => {
   // A zero-width data area has no window to measure. It once collapsed the
   // window to nothing, so a live view stopped counting as at the end and
-  // bars appended meanwhile stayed off-screen after the chart grew back
-  // (ops #18 D7).
+  // bars appended meanwhile stayed off-screen after the chart grew back.
   for (const width of [0, 40]) {
     test(`a live view keeps following through a ${width}px-wide resize`, async ({ page }) => {
       await openChart(page, "?volume=0");

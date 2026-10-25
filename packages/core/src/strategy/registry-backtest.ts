@@ -169,7 +169,7 @@ export const backtestRegistry: ConditionRegistry<Condition> =
 
 // Built in a function, not by top-level register() calls: module-level
 // side effects pin this registry, and every condition it imports, into any
-// bundle that imports anything from "trendcraft" (ops #90).
+// bundle that imports anything from "trendcraft".
 function createBacktestRegistry(): ConditionRegistry<Condition> {
   const registry = new ConditionRegistry<Condition>();
 

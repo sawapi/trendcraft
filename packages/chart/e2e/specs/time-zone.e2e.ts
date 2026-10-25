@@ -3,7 +3,7 @@ import { chartBox, frames, openChart } from "./helpers";
 
 // The time axis and the crosshair label used to read the browser's zone, so
 // one bar showed different dates on different machines and in an app that
-// formats its own panel in another zone (ops #89). With `timeZone` set, both
+// formats its own panel in another zone. With `timeZone` set, both
 // read that zone wherever the browser is.
 
 /** 5-minute bars over three US sessions (09:30–16:00 New York, 14:30Z). */

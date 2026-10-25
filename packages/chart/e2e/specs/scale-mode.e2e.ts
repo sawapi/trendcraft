@@ -2,9 +2,7 @@ import { expect, test } from "@playwright/test";
 import { openChart } from "./helpers";
 
 test.describe("scale mode", () => {
-  test('a "percent" scale mode warns instead of rendering silently as linear (ops #48)', async ({
-    page,
-  }) => {
+  test('a "percent" scale mode warns instead of rendering silently as linear', async ({ page }) => {
     await openChart(page);
     const messages = await page.evaluate(() => {
       const { chart } = window.__tc;

@@ -37,7 +37,7 @@ export function isShipped(rootDir, path) {
 /**
  * Re-point the relative links of `file` from the concatenated llms-full.txt,
  * which sits at the package root. A target npm does not ship (docs/ is not in
- * the tarball) becomes a GitHub URL, and an image a raw one (ops #127).
+ * the tarball) becomes a GitHub URL, and an image a raw one.
  */
 function rebaseLinks(rootDir, file, markdown) {
   return markdown.replace(/(!?)(\[[^\]]*\])\(([^)\s]+)\)/g, (match, bang, text, target) => {

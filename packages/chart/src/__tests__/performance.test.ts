@@ -34,7 +34,7 @@ function generateLineData(count: number): DataPoint<number>[] {
 }
 
 /**
- * Timing policy (ops #128). These tests catch a gross regression, such as an
+ * Timing policy. These tests catch a gross regression, such as an
  * accidental O(n^2) loop, not a constant-factor drift: that needs a benchmark.
  * The budgets leave wide headroom on a developer machine, but shared CI runners
  * run this file alongside the other test files and swing by far more: LTTB on

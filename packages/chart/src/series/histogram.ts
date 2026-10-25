@@ -19,8 +19,8 @@ export type HistogramRenderOptions = {
  * Histogram bars of two colours, drawn with one `fillStyle` per colour. Bars
  * closer than a pixel overlap, so the bars of one colour that start in the
  * same pixel column fold into a single rect spanning them all: zoomed out to
- * 0.1px spacing, a frame draws one rect per column instead of one per bar
- * (ops #124). Each bar touches the zero line, and bars at least a pixel wide
+ * 0.1px spacing, a frame draws one rect per column instead of one per bar.
+ * Each bar touches the zero line, and bars at least a pixel wide
  * that start within a pixel of each other leave no gap, so the fold covers
  * the pixels its bars did: from the first bar's left edge to the last one's
  * right edge, from the highest top to the lowest bottom. (A short bar beside

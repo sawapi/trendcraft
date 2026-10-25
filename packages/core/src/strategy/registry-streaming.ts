@@ -98,7 +98,7 @@ export const streamingRegistry: ConditionRegistry<StreamingCondition> =
 
 // Built in a function, not by top-level register() calls: module-level
 // side effects pin this registry, and every condition it imports, into any
-// bundle that imports anything from "trendcraft" (ops #90).
+// bundle that imports anything from "trendcraft".
 function createStreamingRegistry(): ConditionRegistry<StreamingCondition> {
   const registry = new ConditionRegistry<StreamingCondition>();
 

@@ -4,7 +4,7 @@ import { logicalRange, openChart, touchDriver } from "./helpers";
 const width = (r: { from: number; to: number }) => r.to - r.from;
 
 test.describe("touch", () => {
-  test("lifting one finger after a pinch lets the other pan (ops #35)", async ({ page }) => {
+  test("lifting one finger after a pinch lets the other pan", async ({ page }) => {
     await openChart(page);
     const touch = await touchDriver(page);
     const y = 200;

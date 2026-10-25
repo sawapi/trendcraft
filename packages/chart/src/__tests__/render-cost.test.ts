@@ -1,5 +1,5 @@
 /**
- * Per-frame cost of zoomed-out series (ops #124).
+ * Per-frame cost of zoomed-out series.
  *
  * Zoomed out to the 0.1px bar-spacing floor, a pane shows ten bars per pixel
  * column. Series the pipeline does not decimate drew every one of them — a
@@ -90,7 +90,7 @@ function coverage(rects: { x: number; y: number; w: number; h: number }[]) {
   return cols;
 }
 
-describe("zoomed-out bars (ops #124)", () => {
+describe("zoomed-out bars", () => {
   it("draws volume as at most two rects per pixel column, with four fillStyles", () => {
     const data = candles(BARS);
     const ts = makeTimeScale(BARS, WIDTH);
@@ -205,7 +205,7 @@ describe("zoomed-out bars (ops #124)", () => {
   });
 });
 
-describe("zoomed-out markers (ops #124)", () => {
+describe("zoomed-out markers", () => {
   it("fills every dot in one path and skips dots on the same pixel", () => {
     const values = Array.from({ length: BARS }, () => 150);
     const ts = makeTimeScale(BARS, WIDTH);
@@ -227,7 +227,7 @@ describe("zoomed-out markers (ops #124)", () => {
   });
 });
 
-describe("pane price range (ops #124)", () => {
+describe("pane price range", () => {
   afterEach(() => vi.restoreAllMocks());
 
   it("decomposes a multi-channel series once, not on every frame", () => {

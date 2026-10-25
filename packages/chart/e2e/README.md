@@ -82,8 +82,8 @@ Then encode that gesture and observable as a spec.
 
 ## Test perspectives
 
-What the browser suite should cover, and where it stands. "ops #N" is the
-tracking issue for a known bug; the spec for it is a `test.fail` until fixed.
+What the browser suite should cover, and where it stands. A spec for a known,
+unfixed bug is a `test.fail` until the bug is fixed.
 
 | Area | Perspective | Status |
 |---|---|---|

@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { logicalRange, openChart } from "./helpers";
 
 test.describe("animation", () => {
-  test("a visible-range change started from a visibleRangeChange listener lands (ops #26)", async ({
+  test("a visible-range change started from a visibleRangeChange listener lands", async ({
     page,
   }) => {
     await openChart(page);

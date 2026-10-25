@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 /**
  * `cssColor` round-trips caller-supplied colours through the canvas colour
- * parser (ops #121). The real parser is exercised in
+ * parser. The real parser is exercised in
  * e2e/specs/css-injection.e2e.ts; here a stub that accepts only `#rrggbb`
  * stands in for it, since happy-dom has no canvas.
  */

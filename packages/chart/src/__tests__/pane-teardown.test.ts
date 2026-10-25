@@ -1,9 +1,9 @@
-/** Removing a series tore down a pane a hidden series still used (ops #25). */
+/** Removing a series tore down a pane a hidden series still used. */
 
 import { describe, expect, it } from "vitest";
 import { DataLayer } from "../core/data-layer";
 
-describe("pane teardown (ops #25)", () => {
+describe("pane teardown", () => {
   it("keeps a pane while a hidden series is still assigned to it", () => {
     const dl = new DataLayer();
     const emptied: string[] = [];

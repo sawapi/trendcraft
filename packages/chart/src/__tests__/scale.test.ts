@@ -399,7 +399,7 @@ describe("TimeScale.setTimeProportional", () => {
 });
 
 describe("TimeScale.panTo", () => {
-  it("moves the window without snapping a sub-2px zoom back in (ops #28)", () => {
+  it("moves the window without snapping a sub-2px zoom back in", () => {
     const ts = new TimeScale();
     ts.setWidth(800);
     ts.setTotalCount(20_000);

@@ -54,7 +54,7 @@ describe.each(CONFIGS)("jump-to-end contract — $label", (config) => {
     expect(ts.rawStartIndex).toBeCloseTo(ts.scrollToEndTarget, 9);
   });
 
-  it.skipIf(config.gaps)("the window's right edge lands exactly on the offset (ops #16)", () => {
+  it.skipIf(config.gaps)("the window's right edge lands exactly on the offset", () => {
     const ts = makeScale(config);
     // Keep the spacing and widen the view so the window spans a fractional
     // 100.375 bars: a landing derived from the ceiled visibleCount (101)

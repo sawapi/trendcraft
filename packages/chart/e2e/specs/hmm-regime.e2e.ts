@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { openChart } from "./helpers";
 
 test.describe("hmmRegime", () => {
-  test("an hmmRegimes() series draws in its pane (ops #32)", async ({ page }) => {
+  test("an hmmRegimes() series draws in its pane", async ({ page }) => {
     await openChart(page, "?volume=0");
     const painted = await page.evaluate(async () => {
       const { chart, candles } = window.__tc;
