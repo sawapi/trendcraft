@@ -69,7 +69,7 @@ export function attachKeyboardHandlers(
         timeScale.zoom(0.87);
         break;
       case "Home":
-        timeScale.setVisibleRange(0, timeScale.visibleCount);
+        timeScale.panTo(0);
         break;
       case "End":
         timeScale.scrollToEnd();

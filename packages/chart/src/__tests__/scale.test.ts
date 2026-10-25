@@ -397,3 +397,19 @@ describe("TimeScale.setTimeProportional", () => {
     expect(ts.getDateTicks()).toEqual([]);
   });
 });
+
+describe("TimeScale.panTo", () => {
+  it("moves the window without snapping a sub-2px zoom back in (ops #28)", () => {
+    const ts = new TimeScale();
+    ts.setWidth(800);
+    ts.setTotalCount(20_000);
+    ts.fitContent();
+    const spacing = ts.barSpacing;
+    const visible = ts.visibleCount;
+    expect(spacing).toBeLessThan(2);
+    ts.panTo(5_000);
+    expect(ts.barSpacing).toBe(spacing);
+    expect(ts.visibleCount).toBe(visible);
+    expect(ts.rawStartIndex).toBe(5_000);
+  });
+});

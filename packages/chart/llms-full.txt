@@ -206,6 +206,13 @@ already did. A click or tap that stops a fling or an edge bounce now also
 finishes what that motion would have: an overscroll still springs back to
 the edge, where a tap used to leave it stuck past it.
 
+### Fixed — scrollbar drag and the Home key zoomed in
+
+Dragging the scrollbar and pressing Home went through the range-setting
+path, which clamps the bar spacing to at least 2 px. On a fitted or
+zoomed-out view below that (e.g. thousands of bars), a pan therefore zoomed
+in many times over. Both now only move the window and keep the zoom.
+
 ### Fixed — `markers` on line series never drew
 
 Both config resolvers (`addIndicator`'s introspection and
