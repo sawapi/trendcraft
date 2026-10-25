@@ -13,6 +13,7 @@ import { candlePriceRange } from "../series/candlestick";
 import { cloudPriceRange } from "../series/cloud";
 import { volumeRange } from "../series/histogram";
 import { linePriceRange } from "../series/line";
+import { getCachedChannels } from "./series-dispatcher";
 
 /**
  * Compute the price range for a pane based on candles and assigned series.
@@ -62,18 +63,20 @@ export function computeSeriesRange(
   end: number,
   rendererRegistry?: RendererRegistry,
 ): [number, number] {
+  // The rule and channels cached on the series, as the renderers use them:
+  // decomposing the whole series here ran once per frame (ops #124).
+  const rule = s._rule !== undefined ? s._rule : defaultRegistry.detect(s.data);
+
   // Check custom renderer for priceRange (by series type or rule name)
   if (rendererRegistry) {
-    const rule0 = defaultRegistry.detect(s.data);
     const custom =
       rendererRegistry.getRenderer(s.type) ??
-      (rule0 ? rendererRegistry.getRenderer(rule0.name) : undefined);
+      (rule ? rendererRegistry.getRenderer(rule.name) : undefined);
     if (custom?.priceRange) {
       return custom.priceRange(s, start, end);
     }
   }
 
-  const rule = defaultRegistry.detect(s.data);
   if (!rule) return [Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY];
 
   if (rule.name === "number") {
@@ -81,27 +84,27 @@ export function computeSeriesRange(
   }
 
   if (rule.name === "band") {
-    const channels = defaultRegistry.decomposeAll(s.data, rule);
+    const channels = getCachedChannels(s, rule);
     const upper = channels.get("upper") ?? [];
     const lower = channels.get("lower") ?? [];
     return bandPriceRange(upper, lower, start, end);
   }
 
   if (rule.name === "ichimoku") {
-    const channels = defaultRegistry.decomposeAll(s.data, rule);
+    const channels = getCachedChannels(s, rule);
     return cloudPriceRange(channels, start, end);
   }
 
   // Supertrend: only use upperBand/lowerBand for range (exclude trend direction channel)
   if (rule.name === "supertrend") {
-    const channels = defaultRegistry.decomposeAll(s.data, rule);
+    const channels = getCachedChannels(s, rule);
     const upper = channels.get("upperBand") ?? [];
     const lower = channels.get("lowerBand") ?? [];
     return bandPriceRange(upper, lower, start, end);
   }
 
   // Generic: decompose and find range across all channels
-  const channels = defaultRegistry.decomposeAll(s.data, rule);
+  const channels = getCachedChannels(s, rule);
   let acc: MinMax = emptyRange();
   for (const [, vals] of channels) {
     acc = reduceRange(vals, start, end, acc);
