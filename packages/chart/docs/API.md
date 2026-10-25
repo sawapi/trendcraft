@@ -590,9 +590,9 @@ import { TrendChart, useTrendChart } from '@trendcraft/chart/react';
 />
 ```
 
-Props mirror the `useTrendChart` options: `candles`, `indicators`, `signals`, `trades`, `drawings`, `timeframes`, `backtest`, `patterns`, `scores`, `plugins`, `chartType`, `layout`, `theme`, `fitOnLoad`, event handlers (`onCrosshairMove`, `onSeriesAdded`, `onSeriesRemoved`, `onError`), an `options` prop carrying the remaining `ChartOptions`, plus `style` / `className`. Expose the underlying `ChartInstance` via ref.
+Props mirror the `useTrendChart` options: `candles`, `indicators`, `signals`, `trades`, `drawings`, `timeframes`, `backtest`, `patterns`, `scores`, `plugins`, `chartType`, `layout`, `theme`, `fitOnLoad`, one event handler per chart event (`onClick`, `onDoubleClick`, `onCrosshairMove`, `onVisibleRangeChange`, `onResize`, `onPaneResize`, `onSeriesAdded`, `onSeriesRemoved`, `onSeriesEditRequest`, `onSeriesRemoveRequest`, `onDataFiltered`, `onDrawingComplete`, `onDrawingToolChanged`, `onError`), an `options` prop carrying the remaining `ChartOptions`, plus `style` / `className`. Expose the underlying `ChartInstance` via ref.
 
-The event handlers receive the chart's own event payloads — `CrosshairMoveData`, `SeriesAddedData`, `SeriesRemovedData`, `ChartErrorPayload` (all exported from `@trendcraft/chart`). Handlers may be inline arrows; the subscription is held for the life of the chart and dispatches to the callbacks of the latest committed render. `options` is diffed against what was previously passed through the wrapper, so only fields whose value changed reach `applyOptions` — passing a creation-only field such as `locale` at mount does not warn, and dropping a field then re-supplying it unchanged does not either. Plain objects and arrays are compared structurally; function-valued options (`priceFormatter`, `timeFormatter`, `formatInfoOverlay`) by identity, so memoize them (`useCallback` / a module-level function) rather than passing a new arrow each render — `formatInfoOverlay` is creation-only and warns on every new identity. The diff is not against the chart's live state: an imperative call on the instance (`setChartType`, a container resize) is not undone by an unchanged `options` prop.
+Each handler receives its event's payload, `ChartEventMap[event]` (see [Event payloads](#event-payloads)). `onSeriesEditRequest` / `onSeriesRemoveRequest` are subscribed only while given, because the legend shows its ⚙ / ✕ only while someone listens. Handlers may be inline arrows; the subscription is held for the life of the chart and dispatches to the callbacks of the latest committed render. `options` is diffed against what was previously passed through the wrapper, so only fields whose value changed reach `applyOptions` — passing a creation-only field such as `locale` at mount does not warn, and dropping a field then re-supplying it unchanged does not either. Plain objects and arrays are compared structurally; function-valued options (`priceFormatter`, `timeFormatter`, `formatInfoOverlay`) by identity, so memoize them (`useCallback` / a module-level function) rather than passing a new arrow each render — `formatInfoOverlay` is creation-only and warns on every new identity. The diff is not against the chart's live state: an imperative call on the instance (`setChartType`, a container resize) is not undone by an unchanged `options` prop.
 
 **Hook** — imperative access to `ChartInstance` for drawing tools, live feeds, custom plugins:
 
@@ -615,7 +615,7 @@ function MyChart({ candles }: { candles: CandleData[] }) {
 import { TrendChart, useTrendChart } from '@trendcraft/chart/vue';
 ```
 
-**Component** — same prop surface as React; the `crosshairMove` / `seriesAdded` / `seriesRemoved` / `error` emits carry the chart's own event payloads:
+**Component** — same prop surface as React; every chart event is re-emitted under its own name (`click`, `visibleRangeChange`, `crosshairMove`, …) with the chart's payload. `@click` is therefore the chart's `ChartClickData`, not the DOM `MouseEvent`; to handle the raw DOM click, listen on an element wrapping the component. `seriesEditRequest` / `seriesRemoveRequest` are subscribed only when the parent listens to them at mount, because the legend shows its ⚙ / ✕ only while someone listens — a listener added after mount (a conditional binding) does not subscribe them:
 
 ```vue
 <TrendChart
@@ -623,17 +623,20 @@ import { TrendChart, useTrendChart } from '@trendcraft/chart/vue';
   :indicators="[sma(candles, { period: 20 }), rsi(candles)]"
   :backtest="backtestResult"
   theme="dark"
+  @click="(data) => data.time !== null && showBar(data.index)"
   @crosshairMove="onCrosshairMove"
+  @series-edit-request="openSettings"
 />
 ```
 
-**Composable**:
+**Composable** — takes the same `on*` handlers as the React hook; they are read when an event fires, except `onSeriesEditRequest` / `onSeriesRemoveRequest`, which must be in the options at mount to be subscribed:
 
 ```vue
 <script setup>
 const { containerRef, chart } = useTrendChart({
   candles: () => props.candles,
   theme: 'dark',
+  onClick: (data) => console.log(data.time),
 });
 </script>
 ```

@@ -23,11 +23,12 @@
  * ```
  */
 
-import { defineComponent, h, type PropType } from "vue";
+import { defineComponent, getCurrentInstance, h, type PropType } from "vue";
 import type { AnyPrimitivePlugin, AnySeriesRendererPlugin } from "../src/core/plugin-types";
 import type {
   BacktestResultData,
   CandleData,
+  ChartEvent,
   ChartEventMap,
   ChartOptions,
   ChartPatternSignal,
@@ -39,6 +40,7 @@ import type {
   TimeframeOverlay,
   TradeMarker,
 } from "../src/core/types";
+import { CHART_EVENTS, eventProp, wantsEvent } from "../src/integration/chart-event-props";
 import { type IndicatorInput, useTrendChart } from "./useTrendChart";
 
 export type { IndicatorInput, UseTrendChartOptions, UseTrendChartResult } from "./useTrendChart";
@@ -75,14 +77,28 @@ export const TrendChart = defineComponent({
     options: { type: Object as PropType<Omit<ChartOptions, "theme">>, default: undefined },
     fitOnLoad: { type: Boolean, default: true },
   },
-  // Typed emits — the payloads are the chart's own event payloads.
-  emits: {
-    crosshairMove: (_data: ChartEventMap["crosshairMove"]) => true,
-    seriesAdded: (_data: ChartEventMap["seriesAdded"]) => true,
-    seriesRemoved: (_data: ChartEventMap["seriesRemoved"]) => true,
-    error: (_data: ChartEventMap["error"]) => true,
+  // One emit per chart event, carrying the chart's own payload.
+  emits: Object.fromEntries(CHART_EVENTS.map((e) => [e, null])) as unknown as {
+    [E in ChartEvent]: (data: ChartEventMap[E]) => true;
   },
   setup(props, { emit, expose }) {
+    // Re-emit every chart event. The legend-action ones only when the parent
+    // listens at mount: subscribing makes the legend draw its ⚙ / ✕ (see
+    // wantsEvent). A listener can be bound under any key emit() resolves:
+    // camelCase or hyphenated, with or without the `.once` suffix.
+    const listeners = getCurrentInstance()?.vnode.props ?? {};
+    const handlers: Record<string, (d: unknown) => void> = {};
+    for (const e of CHART_EVENTS) {
+      const prop = eventProp(e);
+      const kebab = `on${e[0].toUpperCase()}${e
+        .slice(1)
+        .replace(/\B([A-Z])/g, "-$1")
+        .toLowerCase()}`;
+      const listened = [prop, `${prop}Once`, kebab, `${kebab}Once`].some((k) => listeners[k]);
+      if (wantsEvent(e, listened)) {
+        handlers[prop] = (d) => (emit as (event: string, data: unknown) => void)(e, d);
+      }
+    }
     const { containerRef, chart } = useTrendChart({
       candles: () => props.candles,
       indicators: () => props.indicators,
@@ -103,10 +119,7 @@ export const TrendChart = defineComponent({
       // so runtime option changes were silently ignored.
       options: () => props.options,
       fitOnLoad: () => props.fitOnLoad,
-      onCrosshairMove: (data) => emit("crosshairMove", data),
-      onSeriesAdded: (data) => emit("seriesAdded", data),
-      onSeriesRemoved: (data) => emit("seriesRemoved", data),
-      onError: (data) => emit("error", data),
+      ...handlers,
     });
 
     expose({ chart: () => chart.value });

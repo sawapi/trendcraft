@@ -39,7 +39,6 @@ import type {
   BacktestResultData,
   CandleData,
   ChartEvent,
-  ChartEventHandler,
   ChartInstance,
   ChartOptions,
   ChartPatternSignal,
@@ -54,6 +53,12 @@ import type {
   TradeMarker,
 } from "../src/core/types";
 import { createChart } from "../src/index";
+import {
+  CHART_EVENTS,
+  type ChartEventProps,
+  eventProp,
+  wantsEvent,
+} from "../src/integration/chart-event-props";
 
 /**
  * `useLayoutEffect` is a no-op on the server and React 18 warns about it
@@ -86,11 +91,7 @@ export type UseTrendChartOptions = {
   theme?: "dark" | "light" | ThemeColors;
   options?: Omit<ChartOptions, "theme">;
   fitOnLoad?: boolean;
-  onCrosshairMove?: ChartEventHandler<"crosshairMove">;
-  onSeriesAdded?: ChartEventHandler<"seriesAdded">;
-  onSeriesRemoved?: ChartEventHandler<"seriesRemoved">;
-  onError?: ChartEventHandler<"error">;
-};
+} & ChartEventProps;
 
 export type UseTrendChartResult = {
   /** Attach to the host element (`<div ref={containerRef} />`) */
@@ -116,10 +117,6 @@ export function useTrendChart(opts: UseTrendChartOptions): UseTrendChartResult {
     theme = "dark",
     options,
     fitOnLoad = true,
-    onCrosshairMove,
-    onSeriesAdded,
-    onSeriesRemoved,
-    onError,
   } = opts;
 
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -147,7 +144,7 @@ export function useTrendChart(opts: UseTrendChartOptions): UseTrendChartResult {
   // `seriesRemoved` from the indicators cleanup — reached the *previous*
   // render's closure, and `seriesAdded` from the initial indicators reached
   // nobody, because that subscription had not been made yet.
-  const callbacks = useRef({ onCrosshairMove, onSeriesAdded, onSeriesRemoved, onError });
+  const callbacks = useRef<ChartEventProps>(opts);
   // Updated in a layout effect, not during render: a render React does not
   // commit (a transition held back by a suspended sibling) must not redirect
   // the events of the chart that is still on screen to its callbacks. Layout
@@ -155,29 +152,27 @@ export function useTrendChart(opts: UseTrendChartOptions): UseTrendChartResult {
   // the passive cleanups of the same commit — the indicators cleanup that
   // emits `seriesRemoved` — fire.
   useIsomorphicLayoutEffect(() => {
-    callbacks.current = { onCrosshairMove, onSeriesAdded, onSeriesRemoved, onError };
+    callbacks.current = opts;
   });
 
+  // The legend-action events change what the chart draws while subscribed
+  // (see wantsEvent), so re-subscribe when their handlers come or go.
+  const subscribed = CHART_EVENTS.filter((e) => wantsEvent(e, opts[eventProp(e)])).join();
   useEffect(() => {
     if (!chart) return;
-    const subscribe = <E extends ChartEvent>(
-      event: E,
-      pick: (c: typeof callbacks.current) => ChartEventHandler<E> | undefined,
-    ) => {
-      const h: ChartEventHandler<E> = (d) => pick(callbacks.current)?.(d);
-      chart.on(event, h);
-      return () => chart.off(event, h);
-    };
-    const offs = [
-      subscribe("crosshairMove", (c) => c.onCrosshairMove),
-      subscribe("seriesAdded", (c) => c.onSeriesAdded),
-      subscribe("seriesRemoved", (c) => c.onSeriesRemoved),
-      subscribe("error", (c) => c.onError),
-    ];
+    const offs = subscribed.split(",").map((name) => {
+      const e = name as ChartEvent;
+      // The prop for `e` holds `e`'s handler (ChartEventProps); the
+      // name-indexed read loses that pairing, hence the cast.
+      const h = (d: unknown) =>
+        (callbacks.current[eventProp(e)] as ((d: unknown) => void) | undefined)?.(d);
+      chart.on(e, h);
+      return () => chart.off(e, h);
+    });
     return () => {
       for (const off of offs) off();
     };
-  }, [chart]);
+  }, [chart, subscribed]);
 
   // Options — forward only the fields that changed since the chart consumed
   // them (at creation, or on the previous change). Replaying the whole object
