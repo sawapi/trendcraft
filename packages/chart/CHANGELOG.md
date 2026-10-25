@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — daily time-axis labels showed a time after a DST change
+
+Daily bars from real feeds are stamped at the exchange's local midnight in
+UTC, which moves by an hour at every DST change (e.g. 05:00Z in winter,
+04:00Z in summer for US data). The axis read that one-hour shift as an
+intraday session gap and labelled the bar with a time ("Mar 10 13:00"),
+which then ran into its neighbours. Daily and coarser bars no longer get a
+time on any label, not just the first.
+
 ### Fixed — `hmmRegimes()` series drew an empty pane
 
 The built-in `hmmRegime` rule looked for a `confidence` field that

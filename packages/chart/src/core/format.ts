@@ -129,7 +129,11 @@ export function autoFormatTime(time: number, prevTime: number | null, intervalMs
   // a different time-of-day than the previous one. Daily / weekly data keeps
   // bars at a consistent hour (e.g. 00:00 or 09:30), so the hour is noise.
   // Session gaps (overnight, weekend) move between different times-of-day.
-  const bigJump = time - prevTime > 4 * 60 * 60 * 1000;
+  // Daily and coarser bars carry no meaningful wall-clock time: their hour is
+  // a feed or timezone artifact that also shifts by an hour at every DST
+  // change, which the time-of-day test below would read as a session gap.
+  const coarse = (intervalMs ?? 0) >= DAY_MS;
+  const bigJump = !coarse && time - prevTime > 4 * 60 * 60 * 1000;
   const prevTod = prev.getHours() * 60 + prev.getMinutes();
   const curTod = hours * 60 + minutes;
   const sameTimeOfDay = Math.abs(prevTod - curTod) < 60;

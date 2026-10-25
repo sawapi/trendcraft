@@ -104,6 +104,6 @@ tracking issue for a known bug; the spec for it is a `test.fail` until fixed.
 | Crosshair | Crosshair value clears past the last bar | todo (ops #18) |
 | Touch | Lifting one finger after a pinch leaves the other able to pan | covered |
 | Animation | An animation started from another's `onDone` runs | covered |
-| Axis | Labels do not overlap at any start offset; DST does not add times | todo (ops #14, #88) |
+| Axis | Labels do not overlap at any start offset; DST does not add times | todo (ops #14); DST by unit tests (`format-daily-dst.test.ts`) |
 | Sizing | `setWidth(0)` does not corrupt the viewport | todo (ops #18) |
 | Sparkline | Re-attach keeps its CSS size (bitmap does not grow) | todo (ops #98) |
