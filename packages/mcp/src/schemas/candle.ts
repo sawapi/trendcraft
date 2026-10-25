@@ -14,8 +14,33 @@ export const candleSchema = z.object({
   volume: z.number().finite().optional(),
 });
 
-// Length validation is handled by the tool handler so that the surfaced
-// error follows the canonical INVALID_INPUT envelope instead of a raw zod blob.
+/**
+ * Most candles one call (or one `load_candles` handle) may carry. Ten years
+ * of daily bars is ~2,500 and a month of one-minute bars ~30,000. The cap
+ * bounds what a session retains (up to the store's capacity of handles, each
+ * at most this long). It runs after the request has been parsed, so it does
+ * not limit the cost of parsing one huge request.
+ */
+export const MAX_CANDLES = 100_000;
+
+/**
+ * Throw the canonical INVALID_INPUT envelope unless `count` is within
+ * [1, MAX_CANDLES].
+ */
+export function assertCandleCount(count: number): void {
+  if (count === 0) {
+    throw new Error("INVALID_INPUT: candles must contain at least 1 entry");
+  }
+  if (count > MAX_CANDLES) {
+    throw new Error(
+      `INVALID_INPUT: candles must contain at most ${MAX_CANDLES} entries, got ${count}`,
+    );
+  }
+}
+
+// Length validation is handled by the tool handler (assertCandleCount) so that
+// the surfaced error follows the canonical INVALID_INPUT envelope instead of a
+// raw zod blob.
 export const candlesArraySchema = z.array(candleSchema);
 
 export type Candle = z.infer<typeof candleSchema>;
@@ -128,6 +153,8 @@ export function resolveCandlesInput(input: CandlesInput, store: CandleStore): Re
     symbol = entry.symbol;
     hint = entry.hint;
   } else if (input.candlesArray !== undefined) {
+    // Check the count before converting, so an oversized array is not copied.
+    assertCandleCount(input.candlesArray.length);
     candles = input.candlesArray.map(tupleToCandle);
     source = "tuple";
   } else {
@@ -135,8 +162,6 @@ export function resolveCandlesInput(input: CandlesInput, store: CandleStore): Re
     source = "inline";
   }
 
-  if (candles.length === 0) {
-    throw new Error("INVALID_INPUT: candles must contain at least 1 entry");
-  }
+  assertCandleCount(candles.length);
   return { candles, source, ...(symbol ? { symbol } : {}), ...(hint ? { hint } : {}) };
 }

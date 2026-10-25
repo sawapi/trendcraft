@@ -30,6 +30,15 @@ object means is checked by the indicator itself: `trendcraft` now rejects a
 session with missing or out-of-range clock fields and non-numeric
 thresholds.
 
+### Breaking — input size limits
+
+Tools now refuse more than 100,000 candles in one call or one
+`load_candles` handle, a `symbol` longer than 64 characters, and a `hint`
+longer than 1,000, with an `INVALID_INPUT` error. Without them, a session
+could retain unbounded data across the up to 50 handles it keeps. The check
+runs after a request has been parsed, so it bounds retained data, not the
+cost of parsing one huge request.
+
 ### Fixed — the `detect_signal` response example in `EXAMPLES.md` was missing `processedBars`
 
 The recipe's sample response showed every field except `processedBars`, which
