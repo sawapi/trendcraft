@@ -49,7 +49,7 @@
   - [Walk-Forward Analysis](#walkforwardanalysiscandles-strategyfactory-paramranges-options)
   - [Combination Search](#combinationsearchcandles-entrypool-exitpool-options)
   - [Monte Carlo Simulation](#runmontecarlosimulationresult-options)
-  - [Anchored Walk-Forward Analysis](#anchoredwalkforwardanalysiscandles-entrypool-exitpool-options)
+  - [Anchored Walk-Forward Analysis](#anchoredwalkforwardanalysiscandles-entryconditions-exitconditions-options)
 - [Scaled Entry](#scaled-entry)
 - [Streaming](#streaming)
   - [Layer 1: Candle Aggregation](#layer-1-candle-aggregation)
@@ -74,8 +74,8 @@
   - [analyzeDrawdowns](#analyzedrawdownsperiods)
   - [Pattern Projection](#pattern-projection)
 - [Data Validation](#data-validation)
-  - [validateCandles](#validatecandles)
-  - [normalizeAndValidate](#normalizeandvalidate)
+  - [validateCandles](#validatecandlescandles-options)
+  - [normalizeAndValidate](#normalizeandvalidatecandles-validation)
   - [Individual Detectors](#individual-detectors)
 - [Custom Indicators (Plugin System)](#custom-indicators-plugin-system)
   - [defineIndicator](#defineindicator)
@@ -109,7 +109,7 @@
 - [Strategy JSON Serialization](#strategy-json-serialization)
   - [Pre-built Registries](#pre-built-registries)
   - [ConditionRegistry](#conditionregistry)
-  - [Serialize / Parse](#serializestrategystrategy--parsestratejson)
+  - [Serialize / Parse](#serializestrategystrategy--parsestrategyjson)
   - [Hydrate / Load](#hydrateconditionspec-registry--loadstrategyjson-registry)
   - [Validate](#validateconditionspecspec-registry--validatestrategyjsonjson)
 - [Live Streaming & Series Metadata](#live-streaming--series-metadata)
@@ -7002,7 +7002,9 @@ const last = phases[phases.length - 1].value;
 
 ---
 
-## Meta-Strategy (Equity Curve Trading)
+## Meta-Strategy
+
+Equity curve trading and strategy rotation.
 
 ### `applyEquityCurveFilter(result, options?)`
 
