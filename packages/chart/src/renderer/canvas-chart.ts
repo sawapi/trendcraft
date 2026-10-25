@@ -45,7 +45,13 @@ import type {
 } from "../core/types";
 import { DARK_THEME, LIGHT_THEME } from "../core/types";
 import type { ShapeCheck } from "../core/validation";
-import { checkBacktest, checkSignals, checkTrades, summarizeIssues } from "../core/validation";
+import {
+  checkBacktest,
+  checkSignals,
+  checkTrades,
+  isFiniteOHLC,
+  summarizeIssues,
+} from "../core/validation";
 import { type InteractionOptionsUpdate, Viewport } from "../core/viewport";
 import { APPLY_WITH_ORIGIN, attachViewportOrigin } from "../core/viewport-origin";
 import { INDICATOR_PRESETS, type IndicatorPreset } from "../integration/indicator-presets";
@@ -668,8 +674,9 @@ export class CanvasChart implements ChartInstance {
     if (
       !candle ||
       typeof candle.time !== "number" ||
-      !Number.isFinite(candle.open) ||
-      !Number.isFinite(candle.close)
+      // The same price rule setCandles applies: a bar with a non-finite
+      // high or low is rejected rather than stored.
+      !isFiniteOHLC(candle)
     ) {
       this._warn("updateCandle: invalid candle data ignored", candle, "BAD_CANDLE");
       return;

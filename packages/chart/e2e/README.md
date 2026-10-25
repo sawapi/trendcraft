@@ -85,8 +85,8 @@ tracking issue for a known bug; the spec for it is a `test.fail` until fixed.
 |---|---|---|
 | Rendering | Candles paint in both colours; canvas fills the container | covered |
 | Rendering | Visible range lies inside the data | covered |
-| Rendering | A non-finite OHLC value does not blank the chart | todo (ops #31) |
-| Rendering | Flat or zero price range still draws an axis with ticks | todo (ops #29) |
+| Rendering | A non-finite OHLC value or indicator value does not blank the chart | covered |
+| Rendering | Flat or zero price range still draws an axis with ticks | covered by unit tests (`price-scale-degenerate.test.ts`) |
 | Rendering | Theme change reaches the legend | todo (ops #27) |
 | Rendering | Series `lineWidth` / `channelColors` reach band, MACD, ichimoku | todo (ops #20, #21) |
 | Rendering | Hidden series keep their pane | todo (ops #25) |

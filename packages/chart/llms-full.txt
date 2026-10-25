@@ -197,6 +197,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — one non-finite value blanked the whole chart
+
+`updateCandle` checked only `open` and `close`, so a live bar with an
+`Infinity` high or low was stored. The candle renderer skipped that bar, but
+the auto-range did not, so the price scale became infinite and every other
+candle disappeared, with no error. A non-finite value in an indicator series
+broke its pane's scale the same way, and on the main pane it took the
+candles with it; sparklines had the same flaw. `updateCandle` now rejects a
+bar with any non-finite price (as `setCandles` already did); the candle,
+line, band, cloud and volume ranges and the sparkline scale skip non-finite
+values; and a pane merges only the finite bounds each series reports, so a
+custom renderer's range cannot drag it either.
+
+### Fixed — a flat price range drew on the pane edge or upside down
+
+A pane whose visible values were all equal had its range widened by
+multiplying, which does nothing at 0 (the line sat on the bottom edge and the
+axis had no labels) and inverted the axis for a negative value. The range is
+now widened additively around the value, and an inverted range is swapped.
+A range with a non-finite bound keeps the previous range rather than
+collapsing around the finite one.
+
+### Fixed — `PriceScale.getTicks()` returned its internal cache
+
+On a cache hit `getTicks` returned the array it keeps for later frames, so a
+caller that sorted or truncated the result emptied the axis until the range
+changed. It now returns a copy every time.
+
 ### Fixed — theme colours could inject markup into the info overlay
 
 The info overlay wrote some theme colours (`text`, `textSecondary`,

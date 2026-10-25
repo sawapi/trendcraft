@@ -111,6 +111,8 @@ export function drawMiniCandles(args: CandleDrawArgs): void {
   let min = Number.POSITIVE_INFINITY;
   let max = Number.NEGATIVE_INFINITY;
   for (const c of data) {
+    // A non-finite high or low would stretch the scale and blank the sparkline.
+    if (!Number.isFinite(c.low) || !Number.isFinite(c.high)) continue;
     if (c.low < min) min = c.low;
     if (c.high > max) max = c.high;
   }

@@ -85,7 +85,7 @@ export function volumeRange(
   let max = 0;
   for (let i = startIndex; i < endIndex && i < candles.length; i++) {
     const v = candles[i]?.volume;
-    if (v !== undefined && v > max) max = v;
+    if (v !== undefined && Number.isFinite(v) && v > max) max = v;
   }
   return [0, max];
 }
