@@ -197,6 +197,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — docs: the accessibility guide described announcements and focus that do not exist
+
+GUIDE's Accessibility section quoted an announcement with an indicator
+value and a date (`"RSI: 42.5 at 2026-04-15"`) and said the chart container
+is focusable. The live region announces the crosshair candle's OHLCV
+(`"O 142.30, H 144.10, L 141.80, C 143.55, V 1,204,000"`, labels from
+`locale`), and the focusable element is the chart's canvas, so focusing the
+container did nothing. The section now says so and shows how to focus the
+canvas from code. The guide's bundle-size figure is also updated (~44 kB).
+
+### Fixed — docs: the live-data recipe blanked the chart
+
+COOKBOOK Recipe 8 set the chart's candles from `history` and then called
+`connectIndicators` without `initHistory: false`, so the call replaced
+them with the live candle's still-empty `completedCandles` and the price
+pane stayed blank until the first bar closed. The recipe now passes
+`initHistory: false`, as LIVE.md already did.
+
 ### Added — `timeZone` option
 
 The time axis and the crosshair time label always read the browser's local
@@ -1516,7 +1534,7 @@ A conceptual walkthrough of `@trendcraft/chart`. If you just want to get pixels 
 `@trendcraft/chart` is a Canvas-based charting library built specifically for financial time series. It optimizes for three things:
 
 1. **Zero-config indicator rendering** — pass a `trendcraft` indicator output and the chart figures out where it belongs, what scale it needs, and what reference lines to draw.
-2. **A small, focused runtime** — no runtime dependencies, ~42 kB main bundle (brotli, size-limit enforced), one canvas per chart, no virtual DOM.
+2. **A small, focused runtime** — no runtime dependencies, ~44 kB main bundle (brotli, size-limit enforced), one canvas per chart, no virtual DOM.
 3. **Extensibility as a plugin system, not a configuration tree** — custom series types and overlays ship as plain functions you register.
 
 What it's **not**:
@@ -1783,7 +1801,7 @@ can be changed at runtime via `applyOptions({ timeScale: { rightOffset } })`.
 
 ### Keyboard
 
-The chart captures keyboard when focused:
+The chart captures keyboard when its canvas has focus (click it, or see [Accessibility](#accessibility)):
 
 | Key | Action |
 |---|---|
@@ -1873,13 +1891,13 @@ For Next.js specifically, import `@trendcraft/chart` in a `useEffect` or a dynam
 
 ## Accessibility
 
-Each chart mounts an `aria-live` region (`ChartAria`) that announces crosshair updates:
+Each chart mounts an `aria-live` region (`ChartAria`) that announces the OHLCV of the candle under the crosshair, with the labels from the chart's `locale` (`O`, `H`, `L`, `C`, `V` by default):
 
-> "RSI: 42.5 at 2026-04-15"
+> "O 142.30, H 144.10, L 141.80, C 143.55, V 1,204,000"
 
-Announcements are debounced by 300 ms (the announcement fires 300 ms after the crosshair settles) so screen readers don't get spammed. You can disable ARIA entirely by setting `theme.border` to transparent and... actually you can't disable it yet — if you need that, open an issue.
+Prices go through the chart's `priceFormatter`, and the volume is in the browser's number format (`1.204.000` in German). Indicator values and the bar's date are not announced. Announcements are debounced by 300 ms (the announcement fires 300 ms after the crosshair settles) so screen readers don't get spammed. There is no option to turn the region off yet.
 
-Keyboard navigation works as documented in [Viewport and navigation](#viewport-and-navigation). The chart container itself is focusable (tabindex 0); arrow keys pan only when focused.
+Keyboard navigation works as documented in [Viewport and navigation](#viewport-and-navigation). The focusable element is the chart's canvas (`tabindex="0"`), not the container you passed to `createChart`; arrow keys pan only while it has focus. To focus it from code, call `container.querySelector("canvas")?.focus()`.
 
 ## Cleanup and lifecycle
 
@@ -3688,10 +3706,14 @@ const live = createLiveCandle({
   maxHistory: 2000,
 });
 
+// initHistory: false — the chart was primed with setCandles(history) above.
+// The default would replace its candles with live.completedCandles, which is
+// empty here: createLiveCandle's `history` only warms up the indicators.
 const conn = connectIndicators(chart, {
   presets: indicatorPresets,
   candles: history,
   live,
+  initHistory: false,
 });
 conn.add("rsi");
 conn.add("bb"); // Bollinger Bands

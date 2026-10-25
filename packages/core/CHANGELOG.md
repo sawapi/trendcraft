@@ -2,6 +2,26 @@
 
 ## [Unreleased]
 
+### Fixed — docs: `createPortfolioGuard` and the drawdown analysis functions were undocumented
+
+API.md and API.ja.md now document `createPortfolioGuard` (its options,
+methods, that `canOpenPosition` returns `{ allowed, reason? }`, not a
+boolean, and that it is used on its own, not through
+`createGuardedSession`), and `conditionalDrawdown`, `drawdownDistribution`,
+`estimateRecoveryTime` and `ulcerPerformanceIndex`, including that
+`conditionalDrawdown` throws on inputs of different lengths. `llms-full.txt`
+lists `createPortfolioGuard` with the other guards. The broken
+"Risk Analytics" table-of-contents links are fixed.
+
+### Fixed — the documentation links were dead on npm
+
+The README's Documentation links (Guide, API Reference, Cookbook, llms.txt,
+llms-full.txt) were relative paths to files the package does not ship, so
+they led nowhere from npm or `node_modules`, and `llms.txt` pointed at a
+repository path that does not exist. The package now ships `llms.txt`,
+`llms-full.txt` and `CHANGELOG.md`, like `@trendcraft/chart`, and the README
+and `llms.txt` links are absolute GitHub URLs.
+
 ### Breaking — invalid session definitions and regime thresholds throw
 
 A `session` whose `startHour` / `startMinute` / `endHour` / `endMinute` (or a

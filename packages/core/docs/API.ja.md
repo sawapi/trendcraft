@@ -94,6 +94,10 @@
   - [ローリングVaR](#rollingvarreturns-options)
   - [リスクパリティ](#riskparityallocationreturnsseries-options)
   - [相関調整サイジング](#correlationadjustedsizecurrentreturns-portfolioreturns-options)
+  - [ドローダウン分布](#drawdowndistributiondrawdowndepths-numbins)
+  - [市場状態別ドローダウン](#conditionaldrawdownreturns-drawdowndepths-volatilities)
+  - [回復期間の推定](#estimaterecoverytimecurrentdrawdown-historicaldrawdowns)
+  - [アルサー・パフォーマンス・インデックス](#ulcerperformanceindexequitycurve-riskfreerate-annualizationopts)
 - [メタ戦略](#メタ戦略)
   - [エクイティカーブフィルター](#applyequitycurvefilterresult-options)
   - [戦略ローテーション](#rotatestrategiesresults-options)
@@ -5092,6 +5096,64 @@ guard.reportTrade(-200, Date.now());
 
 ---
 
+#### `createPortfolioGuard(options, fromState?)`
+
+ポートフォリオ全体のリスク上限を銘柄横断で適用します。総エクスポージャー、銘柄ごとのエクスポージャー、相関グループのエクスポージャー（いずれも評価額に対する%）、保有ポジション数、ポートフォリオのドローダウンによる停止です。評価額とポジションの建て・決済は利用者が報告し、ガード自身は価格を追いません。
+
+```typescript
+import { streaming } from "trendcraft";
+const { createPortfolioGuard } = streaming;
+
+const guard = createPortfolioGuard({
+  maxTotalExposure: 200, // 最大2倍のレバレッジ
+  maxSymbolExposure: 25,
+  maxOpenPositions: 10,
+  maxPortfolioDrawdown: 15,
+  maxCorrelatedExposure: 50,
+  correlationGroups: [["AAPL", "MSFT", "GOOGL"]],
+});
+
+guard.updateEquity(100_000);
+
+const check = guard.canOpenPosition("AAPL", 20_000);
+if (check.allowed) {
+  guard.reportPositionOpen("AAPL", 20_000);
+} else {
+  console.log("ブロック:", check.reason);
+}
+
+// 決済時: 想定元本を解放し、損益を評価額に加える
+guard.reportPositionClose("AAPL", 20_000, 500);
+const { totalPercent, bySymbol, openPositions } = guard.getExposure();
+```
+
+| オプション | 型 | デフォルト | 説明 |
+|-----------|------|---------|-------------|
+| `maxTotalExposure` | `number` | — | 想定元本の合計の上限（評価額に対する%。例: `200` = 2倍のレバレッジ） |
+| `maxSymbolExposure` | `number` | — | 1銘柄の想定元本の上限（評価額に対する%） |
+| `maxCorrelatedExposure` | `number` | — | 相関グループの想定元本の合計の上限（評価額に対する%）。`correlationGroups` が必要 |
+| `correlationGroups` | `string[][]` | — | `maxCorrelatedExposure` で1つのエクスポージャーとして扱う銘柄のグループ |
+| `maxOpenPositions` | `number` | — | 同時に保有できるポジション数の上限 |
+| `maxPortfolioDrawdown` | `number` | — | 評価額がピークからこの%以上下がったら新規ポジションを拒否。正の評価額が一度でも記録された後にだけ働き、以後は評価額がいくつでも判定する（資金が尽きた口座は100%以上） |
+
+エクスポージャーの上限は、正の評価額が一度でも記録された後にだけ働きます。記録の経路は `updateEquity` か決済の損益で、`updateEquity` を呼ぶ前の決済では、その損益がそのまま評価額になります。それまでは比べる基準がないので通します。以後は、評価額が0以下になると、エクスポージャーの上限がどれか1つでも設定されていれば、新規ポジションはすべて拒否されます。
+
+このガードは単独で使います。`createGuardedSession` が受け取るのはリスクガードとタイムガードだけなので、エントリーに応じる前に自分で `canOpenPosition` を呼んでください。
+
+**メソッド:**
+
+| メソッド | 戻り値 | 説明 |
+|--------|---------|-------------|
+| `canOpenPosition(symbol, notional)` | `{ allowed, reason? }` | 新規ポジションをすべての上限と照合。真偽値ではなくオブジェクトなので `.allowed` を読む |
+| `reportPositionOpen(symbol, notional)` | `void` | 建てたポジションの想定元本を記録 |
+| `reportPositionClose(symbol, notional, pnl)` | `void` | 想定元本を解放し、`pnl` を評価額に加える |
+| `updateEquity(equity)` | `void` | 現在の評価額を報告（ピークも更新） |
+| `getExposure()` | `{ totalPercent, bySymbol, openPositions }` | 現在のエクスポージャー（評価額に対する%、合計と銘柄ごと） |
+| `reset()` | `void` | エクスポージャー、評価額、カウンターをすべて消去 |
+| `getState()` | `PortfolioGuardState` | 内部状態をシリアライズ（`fromState` に渡して復元） |
+
+---
+
 #### `createTimeGuard(options, fromState?)`
 
 取引時間枠、強制決済タイミング、ブラックアウト期間を管理します。
@@ -6956,7 +7018,9 @@ const rotation = rotateStrategies([resultA, resultB, resultC], {
 
 ---
 
-## リスク分析（VaR / CVaR / リスクパリティ）
+## リスク分析
+
+VaR / CVaR、リスクパリティ、相関調整サイジング、ドローダウン分析。
 
 ### `calculateVaR(returns, options?)`
 
@@ -7036,6 +7100,64 @@ const result = correlationAdjustedSize(stockReturns, [pos1Returns, pos2Returns],
 // result.adjustedSize: 7500
 // result.sizeFactor: 0.75
 // result.averageCorrelation: 0.5
+```
+
+---
+
+### `drawdownDistribution(drawdownDepths, numBins?)`
+
+計測済みのドローダウンの深さ（正の%。例: 資産曲線から求めたもの）を `numBins` 個（デフォルト `10`）の等幅ビンに分けたヒストグラムと、中央値、95・99パーセンタイルを返します。入力が空ならビンは空、統計値は0です。
+
+```typescript
+import { drawdownDistribution } from "trendcraft";
+
+const dist = drawdownDistribution([2, 5, 8, 3, 12, 1, 7, 4, 15, 6], 5);
+// dist.bins: [{ rangeStart, rangeEnd, count, frequency }, ...]（等幅の5ビン）
+// dist.median, dist.percentile95, dist.percentile99
+```
+
+### `conditionalDrawdown(returns, drawdownDepths, volatilities)`
+
+各バーの市場状態でドローダウンの深さを分けます。高ボラティリティ／低ボラティリティ（ボラティリティの中央値で区切る）と、トレンド／レンジ（リターンの絶対値の中央値で区切る）です。どちらの中央値も全バーから求め、そのうえで深さが `0` のバーを統計から除きます。3つの配列はインデックスで対応させるので、長さが同じでなければなりません。違う場合は例外を投げます。
+
+```typescript
+import { conditionalDrawdown } from "trendcraft";
+
+const returns = [0.01, -0.02, 0.005, -0.015, 0.02];
+const depths = [0, 2, 1.5, 3, 0];
+const vols = [0.01, 0.02, 0.015, 0.025, 0.012];
+const result = conditionalDrawdown(returns, depths, vols);
+// result.highVolatility: { avgDepth, count, maxDepth }
+// result.lowVolatility, result.trending, result.ranging: 同じ形
+```
+
+### `estimateRecoveryTime(currentDrawdown, historicalDrawdowns)`
+
+深さ `currentDrawdown` %のドローダウンが回復するまでのバー数を、過去のドローダウンとその回復期間から推定します。現在の深さの±50%に入る過去のドローダウンを平均し、信頼度は一致が5件で `1` になるまで増えます。一致がなければ全件を平均して深さで補正し、信頼度は半分になります。`currentDrawdown` が0以下、または履歴が空なら `{ estimatedBars: 0, confidence: 0, historicalRecoveries: [] }` を返します。
+
+```typescript
+import { estimateRecoveryTime } from "trendcraft";
+
+const est = estimateRecoveryTime(11, [
+  { depth: 10, recoveryBars: 20 },
+  { depth: 12, recoveryBars: 25 },
+  { depth: 8, recoveryBars: 15 },
+]);
+// est.estimatedBars: 20, est.confidence: 0.6, est.historicalRecoveries: [20, 25, 15]
+```
+
+### `ulcerPerformanceIndex(equityCurve, riskFreeRate?, annualizationOpts?)`
+
+年率換算した超過リターンを、アルサー・インデックス（その時点までのピークからのドローダウン率の二乗平均平方根）で割った値です。ボラティリティ全体ではなく、深い、または長いドローダウンを減点します。`riskFreeRate` は年率（デフォルト `0`）です。リターンの年率換算には `annualizationOpts` を使います（[取引カレンダー](#取引カレンダー-trading-calendar)を参照。デフォルトは1年252バー）。2点未満の曲線や、ドローダウンのない曲線では `0` を返します。
+
+```typescript
+import { ulcerPerformanceIndex } from "trendcraft";
+
+const upi = ulcerPerformanceIndex([100, 102, 99, 101, 105, 103, 108], 0.02);
+// 日足以外の足では、1年あたりのバー数を渡す
+const upiHourly = ulcerPerformanceIndex([100, 102, 99, 101, 105, 103, 108], 0.02, {
+  periodsPerYear: 252 * 7,
+});
 ```
 
 ---

@@ -2,7 +2,7 @@
 
 依存ゼロのTypeScriptテクニカル分析ライブラリ。130以上のインジケーター、シグナル検出、バックテスト、最適化、ライブストリーミングを提供します。
 
-[English README](./README.md)
+[English README](https://github.com/sawapi/trendcraft/blob/main/packages/core/README.md)
 
 TrendCraftは、生のOHLCVローソク足をインジケーター・トレーディングシグナル・バックテスト済み戦略へと変換します。すべて純粋なTypeScriptで実装され、ランタイム依存はありません。すべてのインジケーターは同じ`Series<T>`形式（`{ time, value }[]`）を返すため、結果はきれいに合成でき、任意のチャートライブラリやデータパイプラインで利用できます。Node・ブラウザの両方で動作します。
 
@@ -40,7 +40,7 @@ const result = TrendCraft.from(candles)
 console.log(`Return: ${result.totalReturnPercent.toFixed(2)}%  Sharpe: ${result.sharpeRatio.toFixed(3)}`);
 ```
 
-実行可能なスクリプトは [`examples/quick-start/`](./examples/quick-start/) にあります（インジケーター、バックテスト、最適化、スクリーニング、ストリーミング）。
+実行可能なスクリプトは [`examples/quick-start/`](https://github.com/sawapi/trendcraft/tree/main/packages/core/examples/quick-start) にあります（インジケーター、バックテスト、最適化、スクリーニング、ストリーミング）。
 
 ## 主な機能
 
@@ -53,7 +53,7 @@ console.log(`Return: ${result.totalReturnPercent.toFixed(2)}%  Sharpe: ${result.
 - **ストリーミング** — `createLiveCandle()` がティックやローソク足を集約し、90以上のインクリメンタルなインジケーターファクトリをバーごとに駆動。再開可能なセッションのための状態保存/復元に対応。
 - **高度な分析** — ペアトレード/共和分、クロスアセット相関、アルファ減衰モニタリング、戦略ロバストネススコアリング、シグナル説明可能性。
 
-48個のインジケーターはTA-Libと相互検証済みです — [`cross-validation/`](./cross-validation/) を参照してください。
+48個のインジケーターはTA-Libと相互検証済みです — [`cross-validation/`](https://github.com/sawapi/trendcraft/tree/main/packages/core/cross-validation) を参照してください。
 
 ## エントリーポイント
 
@@ -86,12 +86,12 @@ import { ... } from 'trendcraft/manifest';     // インジケーターメタデ
 
 ## ドキュメント
 
-- [ガイド](./docs/GUIDE.ja.md) — 使い方と概念の解説（[English](./docs/GUIDE.md)）
-- [APIリファレンス](./docs/API.ja.md) — 全API（[English](./docs/API.md)）
-- [クックブック](./docs/COOKBOOK.md) — 実践的なレシピ
-- [マイグレーション: 0.3 → 0.4](./docs/migration-0.3-to-0.4.md)
-- [CHANGELOG](./CHANGELOG.md)
-- [llms.txt](./llms.txt) / [llms-full.txt](./llms-full.txt) — LLM向けサマリー
+- [ガイド](https://github.com/sawapi/trendcraft/blob/main/packages/core/docs/GUIDE.ja.md) — 使い方と概念の解説（[English](https://github.com/sawapi/trendcraft/blob/main/packages/core/docs/GUIDE.md)）
+- [APIリファレンス](https://github.com/sawapi/trendcraft/blob/main/packages/core/docs/API.ja.md) — 全API（[English](https://github.com/sawapi/trendcraft/blob/main/packages/core/docs/API.md)）
+- [クックブック](https://github.com/sawapi/trendcraft/blob/main/packages/core/docs/COOKBOOK.md) — 実践的なレシピ
+- [マイグレーション: 0.3 → 0.4](https://github.com/sawapi/trendcraft/blob/main/packages/core/docs/migration-0.3-to-0.4.md)
+- [CHANGELOG](https://github.com/sawapi/trendcraft/blob/main/packages/core/CHANGELOG.md)
+- [llms.txt](https://github.com/sawapi/trendcraft/blob/main/packages/core/llms.txt) / [llms-full.txt](https://github.com/sawapi/trendcraft/blob/main/packages/core/llms-full.txt) — LLM向けサマリー
 
 ## 免責事項
 
