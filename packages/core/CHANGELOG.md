@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+### Fixed — `drawdownDistribution()` with equal depths or an invalid `numBins`
+
+When every depth was the same, the bins ran one unit wide past the data
+and the last one was inverted (`[5, 6], [6, 7], [7, 5]` for three depths
+of 5). They are now all the zero-width range at that depth, with every
+count in the first. A `numBins` of 0 or below crashed with a TypeError,
+and a fractional one returned a bin ending past the data; any `numBins`
+that is not a positive integer now throws an error that says so (for a
+fractional value, a call that used to return bins now throws). Depths
+that are not finite numbers, or that span more than a number can hold,
+also crashed with a TypeError and now throw an error that says so; a
+span too small for its bin width to be represented is now binned
+instead of crashing.
+
 ### Fixed — docs: dead table-of-contents links in the API reference
 
 Five entries of the API.md table of contents (four in API.ja.md) led
