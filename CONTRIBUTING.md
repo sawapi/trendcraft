@@ -64,3 +64,7 @@ All indicators must follow these conventions:
 - Add JSDoc comments with an `@example` block.
 - Add tests covering typical usage and edge cases.
 - If a file exceeds 500 lines, split it into focused modules.
+
+## Security
+
+Please do not report vulnerabilities in public issues; see [SECURITY.md](SECURITY.md).

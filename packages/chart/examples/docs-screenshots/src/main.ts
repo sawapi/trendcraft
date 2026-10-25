@@ -41,7 +41,7 @@ const scene = SCENES.find((s) => s.id === requested);
 if (!scene) {
   stage.innerHTML = `
     <div style="padding:24px;font-family:inherit">
-      <h1 style="font-size:16px;margin-bottom:12px">Unknown scene: <code>${requested}</code></h1>
+      <h1 style="font-size:16px;margin-bottom:12px">Unknown scene: <code></code></h1>
       <p style="font-size:13px;color:#999;margin-bottom:12px">Available scenes:</p>
       <ul style="font-size:13px;line-height:1.8;list-style:none">
         ${SCENES.map(
@@ -50,6 +50,9 @@ if (!scene) {
       </ul>
     </div>
   `;
+  // The scene name comes from the URL: set it as text, never as markup.
+  const code = stage.querySelector("code");
+  if (code) code.textContent = requested;
 } else {
   Promise.resolve(scene.run(stage, candles))
     .then(() => {
