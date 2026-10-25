@@ -315,14 +315,26 @@ function classifyRegime(
  * Merge user options with defaults
  */
 function mergeOptions(options: VolatilityRegimeOptions): ResolvedOptions {
+  const thresholds = {
+    low: options.thresholds?.low ?? DEFAULT_OPTIONS.thresholds.low,
+    high: options.thresholds?.high ?? DEFAULT_OPTIONS.thresholds.high,
+    extreme: options.thresholds?.extreme ?? DEFAULT_OPTIONS.thresholds.extreme,
+  };
+  // The thresholds are percentiles compared against a 0-100 reading. A
+  // non-numeric one never matched, so every bar silently classified as
+  // "normal". Their order is not enforced: extreme, high and low are tested
+  // in that order, which gives an overlapping set a defined meaning.
+  for (const [key, value] of Object.entries(thresholds)) {
+    if (!(typeof value === "number" && value >= 0 && value <= 100)) {
+      throw new Error(
+        `volatilityRegime: thresholds.${key} must be a percentile from 0 to 100, got ${JSON.stringify(value)}`,
+      );
+    }
+  }
   return {
     atrPeriod: options.atrPeriod ?? DEFAULT_OPTIONS.atrPeriod,
     bbPeriod: options.bbPeriod ?? DEFAULT_OPTIONS.bbPeriod,
     lookbackPeriod: options.lookbackPeriod ?? DEFAULT_OPTIONS.lookbackPeriod,
-    thresholds: {
-      low: options.thresholds?.low ?? DEFAULT_OPTIONS.thresholds.low,
-      high: options.thresholds?.high ?? DEFAULT_OPTIONS.thresholds.high,
-      extreme: options.thresholds?.extreme ?? DEFAULT_OPTIONS.thresholds.extreme,
-    },
+    thresholds,
   };
 }

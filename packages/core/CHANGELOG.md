@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+### Breaking — invalid session definitions and regime thresholds throw
+
+A `session` whose `startHour` / `startMinute` / `endHour` / `endMinute` (or a
+break's) was missing, non-integer or out of range put every bar outside the
+session, so `vwap`, `twap`, `openingRange`, the incremental `createVwap` /
+`createTwap` and the session statistics returned all `null` with no error.
+They now throw, naming the invalid field (hours 0-23, minutes 0-59).
+`volatilityRegime` likewise throws when a `thresholds` value is not a number
+from 0 to 100. A non-numeric threshold used to never match, so its regime was
+never reported and those bars read `"normal"`. Numeric strings such as `"20"`,
+which comparisons used to coerce and so worked, now throw too: pass numbers.
+
 ### Fixed — risk guards let a wiped-out account keep trading
 
 `createRiskGuard`'s `maxDrawdownPercent` and `createPortfolioGuard`'s

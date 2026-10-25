@@ -328,6 +328,7 @@ export function resolveSessionMembership(
   epochMs: number,
   session: SessionDefinition,
 ): SessionMembership {
+  assertValidSessionDefinition(session);
   const local = getTzDateTime(epochMs, session.timezone);
 
   if (!isInSessionWindow(local.hour, local.minute, session)) {
@@ -347,6 +348,60 @@ export function resolveSessionMembership(
     inBreak,
     active: !inBreak,
   };
+}
+
+function assertClockField(where: string, field: string, value: unknown, max: number): void {
+  if (!(typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= max)) {
+    throw new Error(
+      `${where}.${field} must be an integer from 0 to ${max}, got ${JSON.stringify(value)}`,
+    );
+  }
+}
+
+function assertClockWindow(where: string, w: Record<string, unknown>): void {
+  assertClockField(where, "startHour", w.startHour, 23);
+  assertClockField(where, "startMinute", w.startMinute, 59);
+  assertClockField(where, "endHour", w.endHour, 23);
+  assertClockField(where, "endMinute", w.endMinute, 59);
+}
+
+/**
+ * Reject a session definition whose clock fields cannot describe a window.
+ *
+ * A missing, non-integer or out-of-range hour or minute made every bar fall
+ * outside the session, so a session-anchored indicator returned all `null`
+ * with no error. Called by {@link resolveSessionMembership} on every bar,
+ * which every session-aware indicator goes through. The check is a handful of
+ * comparisons, cheap next to the timezone conversion beside it, and needs no
+ * cache, so a definition mutated between calls is checked again.
+ *
+ * @param session - The session definition to check
+ * @throws Error naming the first invalid field
+ *
+ * @example
+ * ```ts
+ * assertValidSessionDefinition({ name: "NY", startHour: 14, startMinute: 30, endHour: 21, endMinute: 0 });
+ * ```
+ */
+export function assertValidSessionDefinition(session: SessionDefinition): void {
+  if (typeof session !== "object" || session === null) {
+    throw new Error(`session must be an object, got ${JSON.stringify(session)}`);
+  }
+  assertClockWindow("session", session as unknown as Record<string, unknown>);
+  if (session.breaks !== undefined) {
+    if (!Array.isArray(session.breaks)) {
+      throw new Error("session.breaks must be an array");
+    }
+    session.breaks.forEach((br, i) => {
+      if (typeof br !== "object" || br === null) {
+        throw new Error(`session.breaks[${i}] must be an object`);
+      }
+      assertClockWindow(`session.breaks[${i}]`, br as unknown as Record<string, unknown>);
+    });
+  }
+  if (session.timezone !== undefined && typeof session.timezone !== "string") {
+    throw new Error(`session.timezone must be a string, got ${JSON.stringify(session.timezone)}`);
+  }
 }
 
 /**
