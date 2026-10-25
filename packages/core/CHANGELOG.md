@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+### Fixed — docs: `createPortfolioGuard` and the drawdown analysis functions were undocumented
+
+API.md and API.ja.md now document `createPortfolioGuard` (its options,
+methods, that `canOpenPosition` returns `{ allowed, reason? }`, not a
+boolean, and that it is used on its own, not through
+`createGuardedSession`), and `conditionalDrawdown`, `drawdownDistribution`,
+`estimateRecoveryTime` and `ulcerPerformanceIndex`, including that
+`conditionalDrawdown` throws on inputs of different lengths. `llms-full.txt`
+lists `createPortfolioGuard` with the other guards. The broken
+"Risk Analytics" table-of-contents links are fixed.
+
 ### Fixed — the documentation links were dead on npm
 
 The README's Documentation links (Guide, API Reference, Cookbook, llms.txt,

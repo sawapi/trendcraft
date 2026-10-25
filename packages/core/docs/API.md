@@ -94,6 +94,10 @@
   - [Rolling VaR](#rollingvarreturns-options)
   - [Risk Parity](#riskparityallocationreturnsseries-options)
   - [Correlation-Adjusted Sizing](#correlationadjustedsizecurrentreturns-portfolioreturns-options)
+  - [Drawdown Distribution](#drawdowndistributiondrawdowndepths-numbins)
+  - [Conditional Drawdown](#conditionaldrawdownreturns-drawdowndepths-volatilities)
+  - [Recovery Time Estimate](#estimaterecoverytimecurrentdrawdown-historicaldrawdowns)
+  - [Ulcer Performance Index](#ulcerperformanceindexequitycurve-riskfreerate-annualizationopts)
 - [Meta-Strategy](#meta-strategy)
   - [Equity Curve Filter](#applyequitycurvefilterresult-options)
   - [Strategy Rotation](#rotatestrategiesresults-options)
@@ -5138,6 +5142,64 @@ guard.reportTrade(-200, Date.now());
 
 ---
 
+#### `createPortfolioGuard(options, fromState?)`
+
+Cross-symbol risk limits for a portfolio: total, per-symbol and correlated-group exposure (as % of equity), the number of open positions, and a portfolio drawdown halt. You report equity and position opens/closes; the guard does not track prices.
+
+```typescript
+import { streaming } from "trendcraft";
+const { createPortfolioGuard } = streaming;
+
+const guard = createPortfolioGuard({
+  maxTotalExposure: 200, // max 2x leverage
+  maxSymbolExposure: 25,
+  maxOpenPositions: 10,
+  maxPortfolioDrawdown: 15,
+  maxCorrelatedExposure: 50,
+  correlationGroups: [["AAPL", "MSFT", "GOOGL"]],
+});
+
+guard.updateEquity(100_000);
+
+const check = guard.canOpenPosition("AAPL", 20_000);
+if (check.allowed) {
+  guard.reportPositionOpen("AAPL", 20_000);
+} else {
+  console.log("Blocked:", check.reason);
+}
+
+// On close: notional released, P&L added to equity
+guard.reportPositionClose("AAPL", 20_000, 500);
+const { totalPercent, bySymbol, openPositions } = guard.getExposure();
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `maxTotalExposure` | `number` | — | Max total notional as % of equity (e.g. `200` = 2x leverage) |
+| `maxSymbolExposure` | `number` | — | Max notional in one symbol as % of equity |
+| `maxCorrelatedExposure` | `number` | — | Max combined notional of a correlation group as % of equity. Needs `correlationGroups` |
+| `correlationGroups` | `string[][]` | — | Groups of symbols treated as one exposure for `maxCorrelatedExposure` |
+| `maxOpenPositions` | `number` | — | Max concurrent open positions |
+| `maxPortfolioDrawdown` | `number` | — | Refuse new positions once equity is this % below its peak. Applies once a positive equity has been seen, at any equity from then on (a wiped-out account reads 100% or more) |
+
+The exposure limits apply once a positive equity has been seen: through `updateEquity`, or through a close's P&L, which before any `updateEquity` becomes the equity on its own. Until then they have nothing to measure against and pass. After that, an equity at or below zero refuses every new position while any exposure limit is set.
+
+The guard is standalone: `createGuardedSession` takes only a risk guard and a time guard, so call `canOpenPosition` yourself before acting on an entry.
+
+**Methods:**
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `canOpenPosition(symbol, notional)` | `{ allowed, reason? }` | Check a new position against every limit. An object, not a boolean: read `.allowed` |
+| `reportPositionOpen(symbol, notional)` | `void` | Record an opened position's notional |
+| `reportPositionClose(symbol, notional, pnl)` | `void` | Release the notional and add `pnl` to equity |
+| `updateEquity(equity)` | `void` | Report current total equity (also updates the peak) |
+| `getExposure()` | `{ totalPercent, bySymbol, openPositions }` | Current exposure as % of equity, total and per symbol |
+| `reset()` | `void` | Clear all exposure, equity and counters |
+| `getState()` | `PortfolioGuardState` | Serialize internal state (pass back as `fromState`) |
+
+---
+
 #### `createTimeGuard(options, fromState?)`
 
 Enforces trading windows, force-close timing, and blackout periods.
@@ -7013,7 +7075,9 @@ Weights are always finite, within `[0, 1]`, and sum to 1 (for a positive integer
 
 ---
 
-## Risk Analytics (VaR / CVaR / Risk Parity)
+## Risk Analytics
+
+VaR / CVaR, risk parity, correlation-adjusted sizing, and drawdown analysis.
 
 ### `calculateVaR(returns, options?)`
 
@@ -7096,6 +7160,64 @@ const result = correlationAdjustedSize(stockReturns, [pos1Returns, pos2Returns],
 // result.adjustedSize: 7500
 // result.sizeFactor: 0.75
 // result.averageCorrelation: 0.5
+```
+
+---
+
+### `drawdownDistribution(drawdownDepths, numBins?)`
+
+Histogram of drawdown depths you have already measured (positive percentages, e.g. from an equity curve) in `numBins` equal-width bins (default `10`), with the median and the 95th / 99th percentiles. Empty input gives no bins and zero statistics.
+
+```typescript
+import { drawdownDistribution } from "trendcraft";
+
+const dist = drawdownDistribution([2, 5, 8, 3, 12, 1, 7, 4, 15, 6], 5);
+// dist.bins: [{ rangeStart, rangeEnd, count, frequency }, ...] (5 equal-width bins)
+// dist.median, dist.percentile95, dist.percentile99
+```
+
+### `conditionalDrawdown(returns, drawdownDepths, volatilities)`
+
+Drawdown depth split by market condition at each bar: high vs low volatility (against the median volatility) and trending vs ranging (absolute return against its median). Both medians are taken over all bars; bars with a depth of `0` are then left out of the statistics. The three arrays are matched by index and must have the same length; it throws otherwise.
+
+```typescript
+import { conditionalDrawdown } from "trendcraft";
+
+const returns = [0.01, -0.02, 0.005, -0.015, 0.02];
+const depths = [0, 2, 1.5, 3, 0];
+const vols = [0.01, 0.02, 0.015, 0.025, 0.012];
+const result = conditionalDrawdown(returns, depths, vols);
+// result.highVolatility: { avgDepth, count, maxDepth }
+// result.lowVolatility, result.trending, result.ranging: same shape
+```
+
+### `estimateRecoveryTime(currentDrawdown, historicalDrawdowns)`
+
+Estimate how many bars a drawdown of `currentDrawdown` % takes to recover, from past drawdowns and their recovery times. Past drawdowns within ±50% of the current depth are averaged, with confidence growing to `1` at five matches; with no match, all of them are averaged and scaled by depth, at half the confidence. A `currentDrawdown` of `0` or less, or an empty history, gives `{ estimatedBars: 0, confidence: 0, historicalRecoveries: [] }`.
+
+```typescript
+import { estimateRecoveryTime } from "trendcraft";
+
+const est = estimateRecoveryTime(11, [
+  { depth: 10, recoveryBars: 20 },
+  { depth: 12, recoveryBars: 25 },
+  { depth: 8, recoveryBars: 15 },
+]);
+// est.estimatedBars: 20, est.confidence: 0.6, est.historicalRecoveries: [20, 25, 15]
+```
+
+### `ulcerPerformanceIndex(equityCurve, riskFreeRate?, annualizationOpts?)`
+
+Annualized excess return per unit of the Ulcer Index, the root mean square of the percentage drawdowns from the running peak. It penalizes deep or long drawdowns, not volatility as a whole. `riskFreeRate` is annual (default `0`); the return is annualized with `annualizationOpts` (see [Trading Calendar](#trading-calendar); 252 bars per year by default). Returns `0` for fewer than two points or a curve with no drawdown.
+
+```typescript
+import { ulcerPerformanceIndex } from "trendcraft";
+
+const upi = ulcerPerformanceIndex([100, 102, 99, 101, 105, 103, 108], 0.02);
+// With a non-daily bar frequency, pass how many bars make a year
+const upiHourly = ulcerPerformanceIndex([100, 102, 99, 101, 105, 103, 108], 0.02, {
+  periodsPerYear: 252 * 7,
+});
 ```
 
 ---

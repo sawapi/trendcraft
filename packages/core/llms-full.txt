@@ -1136,6 +1136,18 @@ const guarded = streaming.createGuardedSession(sessionOpts, {
   riskGuard: { maxDailyLoss: -50000 },
   timeGuard: { tradingWindows: [...] },
 });
+
+// Portfolio Guard (standalone; not part of createGuardedSession)
+const portfolioGuard = streaming.createPortfolioGuard({
+  maxTotalExposure: 200,   // % of equity
+  maxSymbolExposure: 25,
+  maxOpenPositions: 10,
+  maxPortfolioDrawdown: 15,
+});
+portfolioGuard.updateEquity(100_000);
+const { allowed, reason } = portfolioGuard.canOpenPosition('AAPL', 20_000); // an object, not a boolean
+if (allowed) portfolioGuard.reportPositionOpen('AAPL', 20_000);
+portfolioGuard.reportPositionClose('AAPL', 20_000, 500); // notional, P&L
 ```
 
 ### Layer 6: Position Management
