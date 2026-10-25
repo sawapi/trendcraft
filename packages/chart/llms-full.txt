@@ -197,6 +197,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — jumping to the end hid part of a fractional right offset
+
+`scrollToEnd`-style navigation (the End key, the scrollbar's far right,
+setting `timeScale.rightOffset` on a pinned view) placed the window using
+its width rounded up to whole bars, so when the bar spacing did not divide
+the width evenly, up to one bar of the configured `rightOffset` landed past
+the right edge. The window's exact fractional width is now used, so the
+last bar and the margin land exactly where `rightOffset` says. The scroll
+limit uses the same width, so that position stays reachable.
+
 ### Fixed — a CSS-sized sparkline stopped following its container
 
 Every render wrote the measured size into the canvas's inline

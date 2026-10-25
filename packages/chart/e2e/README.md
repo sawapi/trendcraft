@@ -101,7 +101,7 @@ tracking issue for a known bug; the spec for it is a `test.fail` until fixed.
 | Pan / zoom | Mouse press stops a wheel fling | covered |
 | Pan / zoom | A click, tap or long-press during an edge bounce still settles at the edge | covered |
 | Pan / zoom | Scrollbar drag and Home / End keep the zoom level | covered |
-| Pan / zoom | Scroll-to-end keeps the right offset exactly | todo (ops #16) |
+| Pan / zoom | Scroll-to-end keeps the right offset exactly | covered |
 | Pan / zoom | Scrollbar thumb stays inside the track | todo (ops #18) |
 | Crosshair | Pointer move emits `crosshairMove` with the bar index | covered |
 | Crosshair | Crosshair value clears past the last bar | todo (ops #18) |
