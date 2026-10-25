@@ -74,7 +74,7 @@ const bt = TrendCraft.from(candles)
 - `roc(candles, { period })` — Rate of Change
 - `trix(candles, { period })` — Triple EMA oscillator
 - `aroon(candles, { period })` — Aroon Up/Down/Oscillator
-- `dpo(candles, { period })` — Detrended Price Oscillator
+- `dpo(candles, { period, centered })` — Detrended Price Oscillator (causal by default; `centered: true` reads future bars)
 - `hurst(candles, { minWindow, maxWindow })` — Hurst Exponent (R/S analysis, 0-1 range)
 - `connorsRsi(candles, { rsiPeriod, streakPeriod, rocPeriod })` — Connors RSI (RSI + Streak RSI + ROC Percentile)
 - `imi(candles, { period })` — Intraday Momentum Index

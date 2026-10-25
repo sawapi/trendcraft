@@ -1,13 +1,11 @@
 /**
  * Incremental Detrended Price Oscillator (DPO)
  *
- * DPO removes the trend from price data to identify cycles.
- * Batch formula: DPO[i] = Price[i] - SMA[i + shift], where shift = floor(period/2) + 1
- *
- * For incremental mode, we queue pending prices and resolve them when the
- * required SMA (shift bars later) becomes available. Output is emitted in
- * order with the correct timestamps, but with a delay of `shift` bars.
- * Bars near the end of a finite series will be null (no future SMA).
+ * DPO removes the trend from price data to identify cycles. Like the batch
+ * `dpo()` default, bar `i` gets `Price[i - shift] - SMA[i]`, where
+ * shift = floor(period/2) + 1: the price `shift` bars back is queued until the
+ * SMA centred on it is complete. (The batch `centered: true` form stamps that
+ * value `shift` bars earlier, which a stream cannot do without the future.)
  *
  * State category: **Cascaded** (composes an inner incremental SMA plus
  * a pending-entry queue keyed on `shift`, which is derived from
@@ -56,11 +54,8 @@ type DpoParams = {
 /**
  * Create an incremental Detrended Price Oscillator indicator
  *
- * DPO[i] = Price[i] - SMA[i + shift]. The output for each bar is only
- * available `shift` bars later when the SMA is computed. The `next()` method
- * returns the DPO for the bar that can now be resolved (shift bars ago), with
- * that bar's timestamp. If no bar can be resolved yet, it returns the current
- * bar's time with null.
+ * `next()` returns `Price[i - shift] - SMA[i]` with the current bar's time,
+ * and `null` until both the SMA and the price `shift` bars back exist.
  *
  * @example
  * ```ts
@@ -125,8 +120,7 @@ export function createDpo(
 
       const smaVal = sma.next(candle).value;
 
-      // DPO[i] = Price[i] - SMA[i + shift]
-      // When SMA at bar j is ready, resolve bar (j - shift).
+      // DPO at bar j = Price[j - shift] - SMA[j].
       // targetIdx in the global bar space = count - 1 - shift
       // pendingIdx = targetIdx - resolvedOffset (adjusted for trimmed head)
       const globalTarget = count - 1 - shift;
@@ -140,7 +134,7 @@ export function createDpo(
           pending.splice(0, pendingIdx);
           resolvedOffset += pendingIdx;
         }
-        return { time: entry.time, value: dpoVal };
+        return { time: candle.time, value: dpoVal };
       }
 
       return { time: candle.time, value: null };
@@ -154,17 +148,9 @@ export function createDpo(
       const pendingIdx = globalTarget - resolvedOffset;
 
       if (smaVal !== null && pendingIdx >= 0) {
-        let entryPrice: number;
-        let entryTime: number;
-        if (pendingIdx < pending.length) {
-          entryPrice = pending[pendingIdx].price;
-          entryTime = pending[pendingIdx].time;
-        } else {
-          // pendingIdx == pending.length means the new candle itself
-          entryPrice = price;
-          entryTime = candle.time;
-        }
-        return { time: entryTime, value: entryPrice - smaVal };
+        // pendingIdx == pending.length means the new candle itself
+        const entryPrice = pendingIdx < pending.length ? pending[pendingIdx].price : price;
+        return { time: candle.time, value: entryPrice - smaVal };
       }
 
       return { time: candle.time, value: null };
