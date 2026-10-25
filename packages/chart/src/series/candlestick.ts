@@ -81,7 +81,8 @@ export function candlePriceRange(
   let max = Number.NEGATIVE_INFINITY;
   for (let i = startIndex; i < endIndex && i < candles.length; i++) {
     const c = candles[i];
-    if (!c) continue;
+    // Same rule as the renderer: a bar it skips must not stretch the range.
+    if (!c || !isFiniteOHLC(c)) continue;
     if (c.low < min) min = c.low;
     if (c.high > max) max = c.high;
   }

@@ -13,7 +13,7 @@ export function emptyRange(): MinMax {
 }
 
 /**
- * Reduce a numeric array (with null/undefined gaps) into its min/max over
+ * Reduce a numeric array (with null/undefined/non-finite gaps) into its min/max over
  * [startIndex, endIndex). Accepts an accumulator for multi-source ranges.
  */
 export function reduceRange(
@@ -26,7 +26,9 @@ export function reduceRange(
   const lim = Math.min(endIndex, values.length);
   for (let i = startIndex; i < lim; i++) {
     const v = values[i];
-    if (v === null || v === undefined) continue;
+    // Non-finite values are gaps too: one Infinity would stretch the range
+    // and blank every other value on the pane.
+    if (v === null || v === undefined || !Number.isFinite(v)) continue;
     if (v < min) min = v;
     if (v > max) max = v;
   }

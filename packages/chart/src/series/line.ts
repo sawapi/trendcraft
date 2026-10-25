@@ -127,7 +127,8 @@ export function linePriceRange(
   const lim = Math.min(endIndex, data.length);
   for (let i = startIndex; i < lim; i++) {
     const val = data[i]?.value;
-    if (val === null || val === undefined) continue;
+    // A non-finite value is a gap, as in reduceRange.
+    if (val === null || val === undefined || !Number.isFinite(val)) continue;
     if (val < min) min = val;
     if (val > max) max = val;
   }

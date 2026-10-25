@@ -43,8 +43,11 @@ export function computePaneRange(
 
   for (const s of paneSeries) {
     const [sMin, sMax] = computeSeriesRange(s, start, end, rendererRegistry);
-    if (sMin < min) min = sMin;
-    if (sMax > max) max = sMax;
+    // Merge only finite bounds: a custom renderer's priceRange is caller code,
+    // and one series reporting Infinity must not drag the whole pane's range
+    // (on the main pane, the candles' scale with it).
+    if (Number.isFinite(sMin) && sMin < min) min = sMin;
+    if (Number.isFinite(sMax) && sMax > max) max = sMax;
   }
 
   return min <= max ? [min, max] : [0, 100];

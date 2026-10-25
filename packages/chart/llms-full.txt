@@ -197,6 +197,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — one non-finite value blanked the whole chart
+
+`updateCandle` checked only `open` and `close`, so a live bar with an
+`Infinity` high or low was stored. The candle renderer skipped that bar, but
+the auto-range did not, so the price scale became infinite and every other
+candle disappeared, with no error. A non-finite value in an indicator series
+broke its pane's scale the same way, and on the main pane it took the
+candles with it; sparklines had the same flaw. `updateCandle` now rejects a
+bar with any non-finite price (as `setCandles` already did); the candle,
+line, band, cloud and volume ranges and the sparkline scale skip non-finite
+values; and a pane merges only the finite bounds each series reports, so a
+custom renderer's range cannot drag it either.
+
 ### Fixed — theme colours could inject markup into the info overlay
 
 The info overlay wrote some theme colours (`text`, `textSecondary`,

@@ -59,6 +59,8 @@ export function drawMiniLine(args: LineDrawArgs): void {
   let max = Number.NEGATIVE_INFINITY;
   for (const d of data) {
     const v = getClose(d);
+    // A non-finite close would stretch the scale and blank the sparkline.
+    if (!Number.isFinite(v)) continue;
     if (v < min) min = v;
     if (v > max) max = v;
   }
