@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+### Fixed — `calc_indicator` reported `volumeProfile` as an empty series
+
+`volumeProfile` returns one profile object, not a per-bar series, and
+`calc_indicator` replaced any non-series result with `[]`, so it returned a
+successful `{ count: 0, series: [] }` and dropped the POC, value area and
+levels. A kind whose result is not a series now fails with
+`UNSUPPORTED_KIND`. The code's documented meaning now covers both cases: no calc
+wrapper, or a result that is not a per-bar series.
+
+### Fixed — `UNSUPPORTED_KIND` promised more kinds than discovery lists
+
+The error told callers that `list_indicators({ calcSupported: true })` would
+show "all 59 computable kinds", but it lists 45: the other wrappers have no
+manifest entry. The count now comes from the same source as that listing.
+
 ### Fixed — the `detect_signal` response example in `EXAMPLES.md` was missing `processedBars`
 
 The recipe's sample response showed every field except `processedBars`, which

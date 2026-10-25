@@ -292,7 +292,7 @@ Every tool returns canonical `<CODE>: <message>` strings on failure. Common reco
 | `INVALID_PARAMETER: indicator "sma" requires a params object — paramHints: ...` | Always pass `params: { period: ... }`. The error message inlines the manifest's `paramHints` in v0.2.0+; older clients can still call `get_indicator_manifest` for the same content. |
 | `INVALID_HANDLE: candlesRef "cdl_..." is not in the session cache` | The handle was evicted (capacity 50, LRU) or the process restarted. Call `load_candles` again — it's cheap. |
 | `INSUFFICIENT_DATA` | Increase the candles window — typical minimum is 2× the indicator's longest lookback. |
-| `UNSUPPORTED_KIND` (calc) | The kind is documented but no calc wrapper yet. Use `list_indicators({ calcSupported: true })` to enumerate the calc-ready set. |
+| `UNSUPPORTED_KIND` (calc) | `calc_indicator` cannot compute the kind: it has no calc wrapper yet, or its result is a single value rather than a per-bar series. Use `list_indicators({ calcSupported: true })` to enumerate the calc-ready set. |
 | `UNSUPPORTED_SIGNAL` (detect_signal) | Call `list_signals({})` to see registered kinds — the set is smaller than `calc_indicator`'s. |
 | `UNKNOWN_KIND` (manifest) | The kind doesn't exist at all. Call `list_indicators({})` to find the closest match. |
 

@@ -68,7 +68,7 @@ export function createServer(): McpServer {
       description:
         "Return the full IndicatorManifest for a single kind: whenToUse, signals, pitfalls, synergy, marketRegime, timeframe, paramHints. " +
         "Use this to decide whether an indicator fits the user's situation, or to look up paramHints before calling calc_indicator. " +
-        "Throws UNKNOWN_KIND if no manifest entry exists (distinct from UNSUPPORTED_KIND, which means the manifest entry exists but no calc wrapper is available).",
+        "Throws UNKNOWN_KIND if no manifest entry exists (distinct from UNSUPPORTED_KIND, which means the manifest entry exists but calc_indicator cannot compute it: there is no calc wrapper, or the result is a single value rather than a per-bar series).",
       inputSchema: getManifestInputShape,
     },
     async (args) => {
@@ -175,7 +175,7 @@ export function createServer(): McpServer {
       description:
         "Compute a single indicator on caller-supplied OHLCV candles. " +
         "Inputs: kind (e.g. 'rsi', 'ema', 'ichimoku'); candle input via exactly one of `candles` (canonical `[{time,open,high,low,close,volume?}]`), `candlesArray` (compact tuple form `[[time,open,high,low,close,volume?], ...]`, ~40% smaller), or `candlesRef` (handle from `load_candles` — cheapest for repeated calls); optional params; optional lastN (default 200, 0 = full series). " +
-        "Returns Result envelope. Errors use canonical codes: INVALID_INPUT (bad candles), INVALID_HANDLE (stale `candlesRef`), INVALID_PARAMETER (bad/missing params — error message embeds the manifest's paramHints), INSUFFICIENT_DATA, UNSUPPORTED_KIND (no calc wrapper for this kind). " +
+        "Returns Result envelope. Errors use canonical codes: INVALID_INPUT (bad candles), INVALID_HANDLE (stale `candlesRef`), INVALID_PARAMETER (bad/missing params — error message embeds the manifest's paramHints), INSUFFICIENT_DATA, UNSUPPORTED_KIND (no calc wrapper for this kind, or its result is a single value rather than a per-bar series). " +
         "Discover computable kinds via list_indicators({ calcSupported: true }).",
       inputSchema: calcIndicatorInputShape,
     },

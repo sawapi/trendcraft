@@ -1,7 +1,7 @@
 import { getManifest } from "trendcraft/manifest";
 import { z } from "zod";
 import { type CandleStore, defaultCandleStore } from "../dispatcher/candle-store";
-import { getSafeIndicator, listSupportedKinds } from "../dispatcher/safe-map";
+import { getSafeIndicator } from "../dispatcher/safe-map";
 import {
   type Candle,
   type CandlesInput,
@@ -9,6 +9,7 @@ import {
   resolveCandlesInput,
 } from "../schemas/candle";
 import { validateIndicatorParams } from "../validation/params";
+import { listIndicatorsHandler } from "./manifest";
 
 export const calcIndicatorInputShape = {
   kind: z.string().min(1),
@@ -66,9 +67,12 @@ export function calcIndicatorHandler(
 
   const fn = getSafeIndicator(input.kind);
   if (!fn) {
-    const total = listSupportedKinds().length;
+    // Count what list_indicators({ calcSupported: true }) will actually return,
+    // not every safe wrapper: some wrappers (helpers such as `highest`) have no
+    // manifest entry and so cannot be discovered there.
+    const total = listIndicatorsHandler({ calcSupported: true }).length;
     throw new Error(
-      `UNSUPPORTED_KIND: "${input.kind}" has no calc wrapper. Call list_indicators({ calcSupported: true }) to discover all ${total} computable kinds, or get_indicator_manifest("${input.kind}") to confirm whether the kind exists at all.`,
+      `UNSUPPORTED_KIND: "${input.kind}" has no calc wrapper. Call list_indicators({ calcSupported: true }) to discover the ${total} computable kinds it lists, or get_indicator_manifest("${input.kind}") to confirm whether the kind exists at all.`,
     );
   }
 
@@ -98,7 +102,15 @@ export function calcIndicatorHandler(
     throw new Error(`${code}: ${message}`);
   }
 
-  const series = Array.isArray(raw.value) ? (raw.value as unknown[]) : [];
+  // A wrapper whose success value is not a series (volumeProfile returns one
+  // profile object) cannot be reported as one. Coercing it to [] used to
+  // report an empty, successful series and drop the whole result.
+  if (!Array.isArray(raw.value)) {
+    throw new Error(
+      `UNSUPPORTED_KIND: "${input.kind}" returns a single value, not a per-bar series, so calc_indicator cannot report it.`,
+    );
+  }
+  const series = raw.value as unknown[];
   const totalLength = series.length;
   const lastN = input.lastN === undefined ? DEFAULT_LAST_N : input.lastN;
   const sliced = lastN === 0 || lastN >= totalLength ? series : series.slice(totalLength - lastN);

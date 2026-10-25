@@ -97,7 +97,7 @@ export function getManifestHandler(input: { kind: string }): IndicatorManifest {
   const m = getManifest(input.kind);
   if (!m) {
     throw new Error(
-      `UNKNOWN_KIND: no manifest entry for kind "${input.kind}". (UNKNOWN_KIND = manifest miss; UNSUPPORTED_KIND = manifest exists but no calc wrapper. Use list_indicators to discover valid kinds.)`,
+      `UNKNOWN_KIND: no manifest entry for kind "${input.kind}". (UNKNOWN_KIND = manifest miss; UNSUPPORTED_KIND = calc_indicator cannot compute the kind (no calc wrapper, or not a per-bar series). Use list_indicators to discover valid kinds.)`,
     );
   }
   return m;
