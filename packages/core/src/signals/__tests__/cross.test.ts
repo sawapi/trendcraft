@@ -457,4 +457,60 @@ describe("validateCrossSignals", () => {
   it("should handle empty candles", () => {
     expect(validateCrossSignals([])).toEqual([]);
   });
+
+  describe("what is known at the cross, and when the outcome is", () => {
+    // A wave with a drifting volume: crosses both ways, some of which hold
+    // for holdingDays and some of which reverse sooner.
+    const prices = Array.from({ length: 120 }, (_, i) => ({
+      close: 100 + 10 * Math.sin(i / 4) + 4 * Math.sin(i / 1.3),
+      volume: 1000 + ((i * 37) % 900),
+    }));
+    const candles = makeCandles(prices);
+    const opts = { short: 3, long: 8, holdingDays: 5 };
+    const full = validateCrossSignals(candles, opts);
+    const at = (cut: number, time: number) =>
+      validateCrossSignals(candles.slice(0, cut), opts).find((s) => s.time === time);
+
+    it("produces crosses that hold and crosses that reverse", () => {
+      expect(full.some((s) => s.details.holdingConfirmed === true)).toBe(true);
+      expect(full.some((s) => s.details.holdingConfirmed === false)).toBe(true);
+    });
+
+    it("realtimeScore is the score without the holding bonus", () => {
+      for (const s of full) {
+        expect(s.score).toBe(s.realtimeScore + (s.details.holdingConfirmed === true ? 30 : 0));
+      }
+    });
+
+    it("realtimeScore is the same when the series ends at the cross bar", () => {
+      for (const s of full) {
+        const idx = candles.findIndex((c) => c.time === s.time);
+        const then = at(idx + 1, s.time);
+        expect(then?.realtimeScore).toBe(s.realtimeScore);
+      }
+    });
+
+    it("isFake and score are final from confirmedAt, and not known before it", () => {
+      for (const s of full) {
+        if (s.confirmedIdx === null) continue;
+        expect(s.confirmedAt).toBe(candles[s.confirmedIdx].time);
+        const settled = at(s.confirmedIdx + 1, s.time);
+        expect(settled?.isFake).toBe(s.isFake);
+        expect(settled?.score).toBe(s.score);
+        expect(settled?.confirmedIdx).toBe(s.confirmedIdx);
+        const before = at(s.confirmedIdx, s.time);
+        expect(before?.confirmedAt).toBeNull();
+        expect(before?.details.holdingConfirmed).toBeNull();
+      }
+    });
+
+    it("settles a reversal even when the series ends before holdingDays", () => {
+      const reversed = full.find((s) => s.details.holdingConfirmed === false);
+      expect(reversed).toBeDefined();
+      if (!reversed || reversed.confirmedIdx === null) return;
+      const cut = at(reversed.confirmedIdx + 1, reversed.time);
+      expect(cut?.details.holdingConfirmed).toBe(false);
+      expect(cut?.isFake).toBe(true);
+    });
+  });
 });

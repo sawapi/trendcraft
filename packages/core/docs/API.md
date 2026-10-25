@@ -2267,17 +2267,22 @@ const signals = validateCrossSignals(candles, {
 interface CrossSignalQuality {
   time: number;
   type: 'golden' | 'dead';
-  isFake: boolean;
-  score: number;          // Quality score 0-100 (higher = more reliable)
+  isFake: boolean;              // reads the bars after the cross; final from confirmedAt
+  score: number;                // 0-100: realtimeScore + 30 if it held; final from confirmedAt
+  realtimeScore: number;        // 15-70: known at the cross bar (volume, trend, price position)
+  confirmedAt: number | null;   // bar from which isFake / score are final; null until then
+  confirmedIdx: number | null;
   details: {
     volumeConfirmed: boolean;
     trendConfirmed: boolean;
-    holdingConfirmed: boolean | null;
+    holdingConfirmed: boolean | null;  // reads the bars after the cross
     pricePositionConfirmed: boolean;
-    daysUntilReverse: number | null;
+    daysUntilReverse: number | null;   // reads the bars after the cross; annotation only
   };
 }
 ```
+
+`isFake` and `score` grade a cross by what price did after it, so they are a review of the past, not an input to a decision at `time`. To act on a cross when it happens, filter on `realtimeScore` (or use the `validatedGoldenCross` / `validatedDeadCross` backtest conditions, which gate on the same score); to study which crosses failed, read `isFake` / `score` only once `confirmedAt` is set.
 
 ---
 
@@ -5500,7 +5505,9 @@ import { fromCrossSignal } from 'trendcraft';
 const signals = validateCrossSignals(candles);
 const tradeSignals = signals.map(s => fromCrossSignal(s, candles.find(c => c.time === s.time)?.close));
 // or simply signals.map(s => fromCrossSignal(s)) since entryPrice is optional
-// { action: "BUY", direction: "LONG", confidence: 85, ... }
+// { action: "BUY", direction: "LONG", confidence: 55, ... } — confidence is the
+// signal's realtimeScore: the trade signal is stamped at the cross bar, so it
+// carries no field that reads the bars after it
 ```
 
 #### `fromDivergenceSignal(signal, entryPrice?)`
