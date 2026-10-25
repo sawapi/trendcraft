@@ -197,6 +197,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — event handlers receive their event's payload type
+
+`chart.on()` and `chart.off()` used to type every handler's argument as
+`unknown`, so each handler cast it. The handler for event `E` now receives
+`ChartEventMap[E]`: `chart.on("click", (data) => data.shiftKey)` compiles
+without a cast, and a handler written for another event's payload is a
+type error. A handler that takes `unknown` still type-checks. New exported
+types: `ChartEventMap`, `ChartEventHandler<E>`, and the payload types that
+had no name — `ChartResizeData`, `PaneResizeData`, `DataFilteredData` and
+`DrawingToolChangedData`. The React/Vue wrappers' `onCrosshairMove` /
+`onSeriesAdded` / `onSeriesRemoved` / `onError` types are derived from the
+map; their payloads are unchanged.
+
+### Fixed — `error` events from a renderer that throws had no `message`
+
+When a series renderer or primitive plugin threw while drawing, the `error`
+event carried `{ source, error }` instead of the documented
+`ChartErrorPayload`, so `onError((e) => e.message)` read `undefined`. It now
+carries `message` (`"primitive:<name> threw while rendering: <reason>"` or
+`"series:<id> …"`), the new code `"RENDER_ERROR"`, and
+`detail: { source, error }`. Code that read the old fields reads them from
+`detail` now: `e.detail.source` and `e.detail.error`.
+
 ### Breaking — requires Node.js 22 or later
 
 `engines.node` is now `>=22.0.0` (was `>=18.0.0`). Node.js 18 and 20 have
@@ -1850,20 +1873,30 @@ On touch devices: single-finger pan, two-finger pinch-zoom, double-tap to fit co
 
 ## Events
 
-Subscribe via `chart.on(event, handler)`. Unsubscribe via `chart.off`. Events are not typed by the handler — use the data shape hints in `core/types.ts`:
+Subscribe via `chart.on(event, handler)`. Unsubscribe via `chart.off`. The handler receives its event's payload type (`ChartEventMap[event]`), so no cast is needed:
+
+```typescript
+chart.on("click", (data) => {
+  // data: ChartClickData
+  if (data.time !== null) console.log(data.time, data.shiftKey);
+});
+```
 
 | Event | Payload |
 |---|---|
 | `crosshairMove` | `CrosshairMoveData` — time, index, ohlcv, paneId |
 | `visibleRangeChange` | `VisibleRangeChangeData` — startTime, endTime, startIndex, endIndex (clamped to the data), plus `logicalRange: { from, to }` with the unclamped fractional window edges (a right-edge margin is only visible here) |
 | `click` | `ChartClickData` — x, y, index, time, shiftKey, altKey, metaKey, ctrlKey; fires on pointer up |
-| `resize` | `{ width, height }` |
-| `paneResize` | `{ paneId, height }` — fires when the user drags a pane divider |
+| `doubleClick` | `ChartClickData` — same fields; fires on a double-click or double-tap |
+| `resize` | `ChartResizeData` — `{ width, height }` |
+| `paneResize` | `PaneResizeData` — `{ paneId, height }`; fires when the user drags a pane divider |
 | `seriesAdded` | `SeriesAddedData` — `{ id, label }` |
 | `seriesRemoved` | `SeriesRemovedData` — `{ id }` |
-| `dataFiltered` | `{ total, valid, removed }` — fires when invalid candles are dropped (`removed` = count) |
+| `seriesEditRequest` / `seriesRemoveRequest` | `SeriesActionData` — `{ seriesId, anchorEl }`; the legend's ⚙ / ✕ was clicked (shown only while subscribed) |
+| `dataFiltered` | `DataFilteredData` — `{ total, valid, removed }`; fires when invalid candles are dropped (`removed` = count) |
 | `drawingComplete` | `Drawing` — fires after a click-to-place drawing finishes |
-| `error` | `ChartErrorPayload` — `{ message, code?, detail? }`, non-fatal runtime warnings |
+| `drawingToolChanged` | `DrawingToolChangedData` — `{ tool }`, the armed tool or `null` |
+| `error` | `ChartErrorPayload` — `{ message, code?, detail? }`, non-fatal runtime warnings, and series renderers or primitives that throw while drawing (`code: "RENDER_ERROR"`) |
 
 ## Live data
 
@@ -2235,11 +2268,11 @@ Draws higher-timeframe candles as a semi-transparent overlay on the main pane.
 ### Event methods
 
 ```typescript
-on<E extends ChartEvent>(event: E, handler: (data: unknown) => void): void
-off<E extends ChartEvent>(event: E, handler: (data: unknown) => void): void
+on<E extends ChartEvent>(event: E, handler: (data: ChartEventMap[E]) => void): void
+off<E extends ChartEvent>(event: E, handler: (data: ChartEventMap[E]) => void): void
 ```
 
-See [Event payloads](#event-payloads).
+The handler receives its event's payload type; see [Event payloads](#event-payloads). `ChartEventMap` maps each event name to its payload, and `ChartEventHandler<E>` is the handler type for event `E`.
 
 ### Theme and options methods
 
@@ -2330,14 +2363,16 @@ All time values are epoch milliseconds.
 | Event | Payload shape |
 |---|---|
 | `crosshairMove` | `CrosshairMoveData = { time, index, ohlcv, paneId }` |
-| `click` | `ChartClickData = { x, y, index, time, shiftKey, altKey, metaKey, ctrlKey }` |
+| `click` / `doubleClick` | `ChartClickData = { x, y, index, time, shiftKey, altKey, metaKey, ctrlKey }` |
 | `visibleRangeChange` | `VisibleRangeChangeData = { startTime, endTime, startIndex, endIndex, logicalRange? }` — time/index fields are clamped to the data; `logicalRange: { from, to }` carries the unclamped fractional window edges (always populated; a right-edge margin is only visible here) |
-| `resize` | `{ width: number, height: number }` |
-| `paneResize` | `{ paneId: string, height: number }` |
+| `resize` | `ChartResizeData = { width: number, height: number }` |
+| `paneResize` | `PaneResizeData = { paneId: string, height: number }` |
 | `seriesAdded` | `SeriesAddedData = { id: string, label: string }` |
 | `seriesRemoved` | `SeriesRemovedData = { id: string }` |
-| `dataFiltered` | `{ total: number, valid: number, removed: number }` |
+| `seriesEditRequest` / `seriesRemoveRequest` | `SeriesActionData = { seriesId: string, anchorEl: HTMLElement }` |
+| `dataFiltered` | `DataFilteredData = { total: number, valid: number, removed: number }` |
 | `drawingComplete` | `Drawing` |
+| `drawingToolChanged` | `DrawingToolChangedData = { tool: DrawingType \| null }` |
 | `error` | `ChartErrorPayload = { message: string, code?: ChartErrorCode, detail?: unknown }` |
 
 ## Connection APIs

@@ -312,20 +312,30 @@ On touch devices: single-finger pan, two-finger pinch-zoom, double-tap to fit co
 
 ## Events
 
-Subscribe via `chart.on(event, handler)`. Unsubscribe via `chart.off`. Events are not typed by the handler — use the data shape hints in `core/types.ts`:
+Subscribe via `chart.on(event, handler)`. Unsubscribe via `chart.off`. The handler receives its event's payload type (`ChartEventMap[event]`), so no cast is needed:
+
+```typescript
+chart.on("click", (data) => {
+  // data: ChartClickData
+  if (data.time !== null) console.log(data.time, data.shiftKey);
+});
+```
 
 | Event | Payload |
 |---|---|
 | `crosshairMove` | `CrosshairMoveData` — time, index, ohlcv, paneId |
 | `visibleRangeChange` | `VisibleRangeChangeData` — startTime, endTime, startIndex, endIndex (clamped to the data), plus `logicalRange: { from, to }` with the unclamped fractional window edges (a right-edge margin is only visible here) |
 | `click` | `ChartClickData` — x, y, index, time, shiftKey, altKey, metaKey, ctrlKey; fires on pointer up |
-| `resize` | `{ width, height }` |
-| `paneResize` | `{ paneId, height }` — fires when the user drags a pane divider |
+| `doubleClick` | `ChartClickData` — same fields; fires on a double-click or double-tap |
+| `resize` | `ChartResizeData` — `{ width, height }` |
+| `paneResize` | `PaneResizeData` — `{ paneId, height }`; fires when the user drags a pane divider |
 | `seriesAdded` | `SeriesAddedData` — `{ id, label }` |
 | `seriesRemoved` | `SeriesRemovedData` — `{ id }` |
-| `dataFiltered` | `{ total, valid, removed }` — fires when invalid candles are dropped (`removed` = count) |
+| `seriesEditRequest` / `seriesRemoveRequest` | `SeriesActionData` — `{ seriesId, anchorEl }`; the legend's ⚙ / ✕ was clicked (shown only while subscribed) |
+| `dataFiltered` | `DataFilteredData` — `{ total, valid, removed }`; fires when invalid candles are dropped (`removed` = count) |
 | `drawingComplete` | `Drawing` — fires after a click-to-place drawing finishes |
-| `error` | `ChartErrorPayload` — `{ message, code?, detail? }`, non-fatal runtime warnings |
+| `drawingToolChanged` | `DrawingToolChangedData` — `{ tool }`, the armed tool or `null` |
+| `error` | `ChartErrorPayload` — `{ message, code?, detail? }`, non-fatal runtime warnings, and series renderers or primitives that throw while drawing (`code: "RENDER_ERROR"`) |
 
 ## Live data
 

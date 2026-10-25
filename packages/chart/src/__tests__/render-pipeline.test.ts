@@ -127,3 +127,72 @@ describe("renderFrame", () => {
     expect(result.crosshairIndex).toBe(5);
   });
 });
+
+describe("renderFrame — a renderer that throws", () => {
+  it("emits an `error` payload shaped like ChartErrorPayload", () => {
+    // It used to emit `{ source, error }`, so `onError(e => e.message)` read
+    // undefined for exactly the errors a host most needs to see.
+    const rc = makeRenderContext();
+    rc.rendererRegistry.registerPrimitive({
+      name: "boom",
+      pane: "main",
+      zOrder: "above",
+      defaultState: null,
+      render: () => {
+        throw new Error("kaboom");
+      },
+    });
+    const candles = Array.from({ length: 20 }, (_, i) =>
+      makeCandle(1609459200000 + i * 86400000, 100, 105, 95, 1000),
+    );
+    rc.data.setCandles(candles);
+    rc.timeScale.setTotalCount(candles.length);
+    rc.timeScale.fitContent();
+
+    renderFrame(rc);
+
+    expect(rc.emit).toHaveBeenCalledWith("error", {
+      message: "primitive:boom threw while rendering: kaboom",
+      code: "RENDER_ERROR",
+      detail: { source: "primitive:boom", error: expect.any(Error) },
+    });
+  });
+
+  it("survives a thrown value that cannot be turned into a string", () => {
+    // String(Object.create(null)) throws; the payload builder must not, or
+    // the rest of the frame is skipped and the error escapes the render loop.
+    const rc = makeRenderContext();
+    const ran = vi.fn();
+    rc.rendererRegistry.registerPrimitive({
+      name: "opaque",
+      pane: "main",
+      zOrder: "below",
+      defaultState: null,
+      render: () => {
+        throw Object.create(null);
+      },
+    });
+    rc.rendererRegistry.registerPrimitive({
+      name: "after",
+      pane: "main",
+      zOrder: "above",
+      defaultState: null,
+      render: ran,
+    });
+    rc.data.setCandles(
+      Array.from({ length: 20 }, (_, i) =>
+        makeCandle(1609459200000 + i * 86400000, 100, 105, 95, 1000),
+      ),
+    );
+    rc.timeScale.setTotalCount(20);
+    rc.timeScale.fitContent();
+
+    expect(() => renderFrame(rc)).not.toThrow();
+    expect(ran).toHaveBeenCalled();
+    expect(rc.emit).toHaveBeenCalledWith("error", {
+      message: "primitive:opaque threw while rendering a value that cannot be described",
+      code: "RENDER_ERROR",
+      detail: { source: "primitive:opaque", error: expect.anything() },
+    });
+  });
+});

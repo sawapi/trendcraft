@@ -12,6 +12,7 @@
 import { act, cleanup, render } from "@testing-library/react";
 import { createRef } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { CrosshairMoveData } from "../core/types";
 import { createMockChartInstance, type MockChartInstance } from "./helpers/mock-chart-instance";
 
 const { createChartMock } = vi.hoisted(() => ({
@@ -178,9 +179,10 @@ describe("React TrendChart lifecycle", () => {
 
     const handler = [...(currentMock.__state.eventHandlers.get("crosshairMove") ?? [])][0];
     expect(handler).toBeDefined();
+    const data: CrosshairMoveData = { time: 42, index: 3, ohlcv: null, paneId: "main" };
     act(() => {
-      handler?.({ time: 42, price: 100 });
+      handler?.(data);
     });
-    expect(onCrosshairMove).toHaveBeenCalledWith({ time: 42, price: 100 });
+    expect(onCrosshairMove).toHaveBeenCalledWith(data);
   });
 });

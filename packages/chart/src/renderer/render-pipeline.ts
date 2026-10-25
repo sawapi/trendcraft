@@ -11,7 +11,13 @@ import { formatVolume } from "../core/format";
 import type { LayoutEngine } from "../core/layout";
 import type { RendererRegistry } from "../core/renderer-registry";
 import { PriceScale, type TimeScale } from "../core/scale";
-import type { CandleData, ChartType, PaneRect, ThemeColors } from "../core/types";
+import type {
+  CandleData,
+  ChartErrorPayload,
+  ChartType,
+  PaneRect,
+  ThemeColors,
+} from "../core/types";
 import type { ViewportState } from "../core/viewport";
 import { renderCandlesticks } from "../series/candlestick";
 import { renderVolume } from "../series/histogram";
@@ -26,6 +32,7 @@ import {
 } from "./backtest-renderer";
 import { renderCrosshair } from "./crosshair-renderer";
 import { renderDrawings } from "./drawing-renderer";
+import type { ChartEventEmitter } from "./event-emitter";
 import {
   type ComputedBadge,
   computeSeriesBadges,
@@ -96,7 +103,7 @@ export type RenderContext = {
   viewportState: Readonly<ViewportState>;
   rendererRegistry: RendererRegistry;
   drawHelper: DrawHelper | null;
-  emit: (event: string, data: unknown) => void;
+  emit: ChartEventEmitter;
   /** Temporary drawing being placed interactively (shown as preview) */
   drawingPreview?: import("../core/types").Drawing;
   /** Locale strings for i18n */
@@ -112,6 +119,34 @@ export type RenderResult = {
   seriesByPane: Map<string, InternalSeries[]>;
   drawHelper: DrawHelper | null;
 };
+
+/**
+ * The `error` payload for a renderer or primitive that threw mid-frame:
+ * `source` names it (`series:<id>` / `primitive:<name>`), and `detail` keeps
+ * the source and the thrown value.
+ */
+function renderError(source: string, error: unknown): ChartErrorPayload {
+  return {
+    message: describeRenderError(source, error),
+    code: "RENDER_ERROR",
+    detail: { source, error },
+  };
+}
+
+/**
+ * Total: this runs inside the catch that contains a throwing plugin, and
+ * describing the thrown value can itself throw (String() of a null-prototype
+ * object, a throwing toString or `message` getter, a revoked Proxy), so the
+ * whole message is built inside the try.
+ */
+function describeRenderError(source: string, error: unknown): string {
+  try {
+    const reason = error instanceof Error ? error.message : error;
+    return `${source} threw while rendering: ${String(reason)}`;
+  } catch {
+    return `${source} threw while rendering a value that cannot be described`;
+  }
+}
 
 /**
  * Execute one render frame. Pure rendering — no DOM mutations.
@@ -398,7 +433,7 @@ export function renderFrame(rc: RenderContext): RenderResult {
             prim.state,
           );
         } catch (err) {
-          rc.emit("error", { source: `primitive:${prim.plugin.name}`, error: err });
+          rc.emit("error", renderError(`primitive:${prim.plugin.name}`, err));
         }
       }
 
@@ -419,7 +454,7 @@ export function renderFrame(rc: RenderContext): RenderResult {
             rc.rendererRegistry,
           );
         } catch (err) {
-          rc.emit("error", { source: `series:${s.id}`, error: err });
+          rc.emit("error", renderError(`series:${s.id}`, err));
         }
       }
 
@@ -442,7 +477,7 @@ export function renderFrame(rc: RenderContext): RenderResult {
             prim.state,
           );
         } catch (err) {
-          rc.emit("error", { source: `primitive:${prim.plugin.name}`, error: err });
+          rc.emit("error", renderError(`primitive:${prim.plugin.name}`, err));
         }
       }
     });

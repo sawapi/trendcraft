@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — event handlers receive their event's payload type
+
+`chart.on()` and `chart.off()` used to type every handler's argument as
+`unknown`, so each handler cast it. The handler for event `E` now receives
+`ChartEventMap[E]`: `chart.on("click", (data) => data.shiftKey)` compiles
+without a cast, and a handler written for another event's payload is a
+type error. A handler that takes `unknown` still type-checks. New exported
+types: `ChartEventMap`, `ChartEventHandler<E>`, and the payload types that
+had no name — `ChartResizeData`, `PaneResizeData`, `DataFilteredData` and
+`DrawingToolChangedData`. The React/Vue wrappers' `onCrosshairMove` /
+`onSeriesAdded` / `onSeriesRemoved` / `onError` types are derived from the
+map; their payloads are unchanged.
+
+### Fixed — `error` events from a renderer that throws had no `message`
+
+When a series renderer or primitive plugin threw while drawing, the `error`
+event carried `{ source, error }` instead of the documented
+`ChartErrorPayload`, so `onError((e) => e.message)` read `undefined`. It now
+carries `message` (`"primitive:<name> threw while rendering: <reason>"` or
+`"series:<id> …"`), the new code `"RENDER_ERROR"`, and
+`detail: { source, error }`. Code that read the old fields reads them from
+`detail` now: `e.detail.source` and `e.detail.error`.
+
 ### Breaking — requires Node.js 22 or later
 
 `engines.node` is now `>=22.0.0` (was `>=18.0.0`). Node.js 18 and 20 have

@@ -2,24 +2,12 @@
  * Chart event types
  */
 
+import type { Drawing, DrawingType } from "./drawing";
 import type { TimeValue } from "./fundamental";
 import type { SeriesInfo } from "./integration";
 
-export type ChartEvent =
-  | "crosshairMove"
-  | "visibleRangeChange"
-  | "click"
-  | "doubleClick"
-  | "resize"
-  | "paneResize"
-  | "seriesAdded"
-  | "seriesRemoved"
-  | "seriesEditRequest"
-  | "seriesRemoveRequest"
-  | "dataFiltered"
-  | "drawingComplete"
-  | "drawingToolChanged"
-  | "error";
+/** Every chart event name: the keys of {@link ChartEventMap}. */
+export type ChartEvent = keyof ChartEventMap;
 
 /**
  * Payload for `seriesEditRequest` and `seriesRemoveRequest` events. Fired when
@@ -137,10 +125,77 @@ export type ChartErrorCode =
   | "EMPTY_INPUT" // the input is structurally valid but empty (informational)
   | "INVALID_OPTION" // an unsupported option was passed to applyOptions/createChart
   | "UNKNOWN_INDICATOR_TYPE" // type/preset not registered with the chart
-  | "BAD_CANDLE"; // a candle object was rejected during setCandles/updateCandle
+  | "BAD_CANDLE" // a candle object was rejected during setCandles/updateCandle
+  | "RENDER_ERROR"; // a series renderer or primitive plugin threw while drawing
 
 export type ChartErrorPayload = {
   message: string;
   code?: ChartErrorCode;
   detail?: unknown;
 };
+
+/** Payload for the `resize` event: the chart's new size in CSS pixels. */
+export type ChartResizeData = {
+  width: number;
+  height: number;
+};
+
+/**
+ * Payload for the `paneResize` event, fired while a pane divider is dragged:
+ * the pane above the divider and its new height in CSS pixels.
+ */
+export type PaneResizeData = {
+  paneId: string;
+  height: number;
+};
+
+/**
+ * Payload for the `dataFiltered` event, fired when `setCandles` drops
+ * candles that failed validation: how many were passed, kept and removed.
+ */
+export type DataFilteredData = {
+  total: number;
+  valid: number;
+  removed: number;
+};
+
+/** Payload for the `drawingToolChanged` event: the armed tool, or `null`. */
+export type DrawingToolChangedData = {
+  tool: DrawingType | null;
+};
+
+/**
+ * Event name → payload type, for every event the chart emits. `on()`, `off()`
+ * and the framework wrappers derive their handler types from it, so a handler
+ * receives its event's payload without a cast.
+ *
+ * @example
+ * ```ts
+ * import { createChart } from "@trendcraft/chart";
+ *
+ * const chart = createChart(document.getElementById("chart")!);
+ * chart.on("click", (data) => {
+ *   // data: ChartClickData
+ *   if (data.time !== null) console.log(data.time, data.shiftKey);
+ * });
+ * ```
+ */
+export type ChartEventMap = {
+  crosshairMove: CrosshairMoveData;
+  visibleRangeChange: VisibleRangeChangeData;
+  click: ChartClickData;
+  doubleClick: ChartClickData;
+  resize: ChartResizeData;
+  paneResize: PaneResizeData;
+  seriesAdded: SeriesAddedData;
+  seriesRemoved: SeriesRemovedData;
+  seriesEditRequest: SeriesActionData;
+  seriesRemoveRequest: SeriesActionData;
+  dataFiltered: DataFilteredData;
+  drawingComplete: Drawing;
+  drawingToolChanged: DrawingToolChangedData;
+  error: ChartErrorPayload;
+};
+
+/** Handler for event `E`: receives that event's payload. */
+export type ChartEventHandler<E extends ChartEvent> = (data: ChartEventMap[E]) => void;
