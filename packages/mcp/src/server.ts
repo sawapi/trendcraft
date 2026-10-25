@@ -68,7 +68,7 @@ export function createServer(): McpServer {
       description:
         "Return the full IndicatorManifest for a single kind: whenToUse, signals, pitfalls, synergy, marketRegime, timeframe, paramHints. " +
         "Use this to decide whether an indicator fits the user's situation, or to look up paramHints before calling calc_indicator. " +
-        "Throws UNKNOWN_KIND if no manifest entry exists (distinct from UNSUPPORTED_KIND, which means the manifest entry exists but no calc wrapper is available).",
+        "Throws UNKNOWN_KIND if no manifest entry exists (distinct from UNSUPPORTED_KIND, which means the manifest entry exists but calc_indicator cannot compute it: there is no calc wrapper, or the result is a single value rather than a per-bar series).",
       inputSchema: getManifestInputShape,
     },
     async (args) => {
@@ -135,7 +135,7 @@ export function createServer(): McpServer {
       description:
         "Cache OHLCV candles in the session and return an opaque `handle`. Pass that handle as `candlesRef` on subsequent `calc_indicator` / `detect_signal` calls instead of re-sending the candle array. " +
         "Designed for multi-tool screens: 5 parallel indicator calls against the same 124-bar series transmits the bars 1× total instead of 5×. " +
-        "Inputs: provide either `candles` (canonical `[{time,open,high,low,close,volume?}]`) or `candlesArray` (compact tuple form `[[time,open,high,low,close,volume?], ...]`, ~40% smaller). Optional `symbol` and `hint` are stored as metadata for your own bookkeeping. " +
+        "Inputs: provide either `candles` (canonical `[{time,open,high,low,close,volume?}]`) or `candlesArray` (compact tuple form `[[time,open,high,low,close,volume?], ...]`, ~40% smaller). Optional `symbol` (at most 64 characters) and `hint` (at most 1,000) are stored as metadata for your own bookkeeping. At most 100,000 candles per call. " +
         "Output: `{ handle, count, span: { from, to }, symbol?, hint?, storeSize, capacity }` — `storeSize` is the number of handles currently held (including this one), `capacity` is the LRU limit. " +
         "Lifetime: handles live for the duration of the stdio MCP process only — no persistence, no cross-session sharing. Capacity is 50 handles; oldest is silently evicted. Reload is cheap.",
       inputSchema: loadCandlesInputShape,
@@ -154,7 +154,7 @@ export function createServer(): McpServer {
     {
       description:
         "Detect a trading signal from caller-supplied OHLCV candles. Single-tool dispatcher across crossovers (goldenCross, deadCross), multi-MA alignment (perfectOrder), divergence (rsiDivergence, macdDivergence, obvDivergence), volatility squeeze (bollingerSqueeze), volume signals (volumeBreakout, volumeAccumulation, volumeMaCross, volumeAboveAverage), and candlestick patterns (candlestickPatterns). " +
-        "Candle input: provide exactly one of `candles` (canonical), `candlesArray` (compact tuple form), or `candlesRef` (handle from `load_candles` — cheapest for repeated calls). " +
+        "Candle input: provide exactly one of `candles` (canonical), `candlesArray` (compact tuple form), or `candlesRef` (handle from `load_candles` — cheapest for repeated calls); at most 100,000 candles. " +
         'Output envelope: `{ kind, shape, output, firedAt, count, totalLength, truncated, processedBars, symbol? }`. `firedAt` is a token-cheap list of times where the signal triggered — ideal for screening ("did goldenCross fire in the last 5 bars on this symbol?"). `shape` is `series` (boolean/state value per bar) or `events` (sparse event objects). `processedBars` is the number of input candle bars evaluated; `symbol` is echoed when `candlesRef` is used. ' +
         "Errors: INVALID_INPUT, INVALID_HANDLE, INVALID_PARAMETER, INSUFFICIENT_DATA, UNSUPPORTED_SIGNAL, SIGNAL_ERROR. " +
         "Note: signal kinds are NOT the same set as calc_indicator kinds — call detect_signal with an unknown kind to see the supported list.",
@@ -174,8 +174,8 @@ export function createServer(): McpServer {
     {
       description:
         "Compute a single indicator on caller-supplied OHLCV candles. " +
-        "Inputs: kind (e.g. 'rsi', 'ema', 'ichimoku'); candle input via exactly one of `candles` (canonical `[{time,open,high,low,close,volume?}]`), `candlesArray` (compact tuple form `[[time,open,high,low,close,volume?], ...]`, ~40% smaller), or `candlesRef` (handle from `load_candles` — cheapest for repeated calls); optional params; optional lastN (default 200, 0 = full series). " +
-        "Returns Result envelope. Errors use canonical codes: INVALID_INPUT (bad candles), INVALID_HANDLE (stale `candlesRef`), INVALID_PARAMETER (bad/missing params — error message embeds the manifest's paramHints), INSUFFICIENT_DATA, UNSUPPORTED_KIND (no calc wrapper for this kind). " +
+        "Inputs: kind (e.g. 'rsi', 'ema', 'ichimoku'); candle input via exactly one of `candles` (canonical `[{time,open,high,low,close,volume?}]`), `candlesArray` (compact tuple form `[[time,open,high,low,close,volume?], ...]`, ~40% smaller), or `candlesRef` (handle from `load_candles` — cheapest for repeated calls), at most 100,000 candles; optional params; optional lastN (default 200, 0 = full series). " +
+        "Returns Result envelope. Errors use canonical codes: INVALID_INPUT (bad candles), INVALID_HANDLE (stale `candlesRef`), INVALID_PARAMETER (bad/missing params — error message embeds the manifest's paramHints), INSUFFICIENT_DATA, UNSUPPORTED_KIND (no calc wrapper for this kind, or its result is a single value rather than a per-bar series). " +
         "Discover computable kinds via list_indicators({ calcSupported: true }).",
       inputSchema: calcIndicatorInputShape,
     },

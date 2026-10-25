@@ -86,3 +86,35 @@ describe("validateIndicatorParams", () => {
     ).not.toThrow();
   });
 });
+
+describe("validateIndicatorParams — object params", () => {
+  it("accepts an object only where the manifest's paramHints names the key", () => {
+    expect(() =>
+      validateIndicatorParams("vwap", { session: { name: "NY", startHour: 14 } }),
+    ).not.toThrow();
+    expect(() => validateIndicatorParams("vwap", { notAHint: { a: 1 } })).toThrow(/nested object/);
+  });
+
+  it("still checks the leaves of an accepted object", () => {
+    expect(() => validateIndicatorParams("vwap", { session: { startHour: Number.NaN } })).toThrow(
+      /params\.session\.startHour .*not a finite number/,
+    );
+    expect(() =>
+      validateIndicatorParams("vwap", { session: { breaks: [{ startHour: { deep: 1 } }] } }),
+    ).toThrow(/params\.session\.breaks\[0\]\.startHour .* nested too deeply/);
+  });
+});
+
+describe("validateIndicatorParams — arrays of objects", () => {
+  it("rejects an array of objects outside an advertised object param", () => {
+    expect(() => validateIndicatorParams("rsi", { period: [{ a: 1 }] })).toThrow(
+      /must be an array of primitives/,
+    );
+    expect(() => validateIndicatorParams("rsi", { foo: [{ x: [{ y: 1 }] }] })).toThrow(
+      /must be an array of primitives/,
+    );
+    expect(() => validateIndicatorParams("goldenCross", { foo: [{ a: 1 }] })).toThrow(
+      /must be an array of primitives/,
+    );
+  });
+});

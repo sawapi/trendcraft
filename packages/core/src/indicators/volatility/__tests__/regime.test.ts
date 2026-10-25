@@ -224,3 +224,30 @@ describe("Volatility Regime", () => {
     });
   });
 });
+
+describe("volatilityRegime thresholds validation", () => {
+  const candles = Array.from({ length: 50 }, (_, i) => ({
+    time: Date.UTC(2024, 0, 1) + i * 86_400_000,
+    open: 100 + Math.sin(i),
+    high: 102 + Math.sin(i),
+    low: 98 + Math.sin(i),
+    close: 100 + Math.sin(i),
+    volume: 1000,
+  }));
+
+  it("rejects a non-numeric or out-of-range threshold instead of classifying every bar normal", () => {
+    expect(() =>
+      volatilityRegime(candles, { thresholds: { low: "x" as unknown as number } }),
+    ).toThrow(/thresholds\.low must be a percentile from 0 to 100, got "x"/);
+    expect(() => volatilityRegime(candles, { thresholds: { extreme: 150 } })).toThrow(
+      /thresholds\.extreme/,
+    );
+    expect(() => volatilityRegime(candles, { thresholds: { high: Number.NaN } })).toThrow(
+      /thresholds\.high/,
+    );
+  });
+
+  it("still accepts partial and overlapping thresholds", () => {
+    expect(() => volatilityRegime(candles, { thresholds: { low: 99.9 } })).not.toThrow();
+  });
+});
