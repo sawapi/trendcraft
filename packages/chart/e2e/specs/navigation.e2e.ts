@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { isMoving, logicalRange, openChart, scrollbarThumb } from "./helpers";
+import { frames, isMoving, logicalRange, openChart, scrollbarThumb } from "./helpers";
 
 const width = (r: { from: number; to: number }) => r.to - r.from;
 
@@ -38,4 +38,30 @@ test.describe("navigation keeps the zoom", () => {
     expect(after.from).toBeGreaterThan(fitted.from + 100);
     expect(width(after)).toBeCloseTo(width(fitted), 0);
   });
+});
+
+test("End lands the window's right edge exactly on the right offset (ops #16)", async ({
+  page,
+}) => {
+  await openChart(page, "?volume=0");
+  const bars = await page.evaluate(() => {
+    window.__tc.chart.applyOptions({ timeScale: { rightOffset: 5 } });
+    return window.__tc.candles.length;
+  });
+  // The pinned view moves to the new offset first; let it settle.
+  await frames(page, 2);
+  await expect.poll(() => isMoving(page), { intervals: [50] }).toBe(false);
+  // A fractional span (73.3 bars): the old landing used the span ceiled to
+  // whole bars and pushed the fraction of the margin off-screen.
+  await page.evaluate(() => window.__tc.chart.setVisibleLogicalRange(100, 173.3));
+  await expect.poll(async () => (await logicalRange(page)).from).toBeCloseTo(100, 3);
+  await expect.poll(() => isMoving(page), { intervals: [50] }).toBe(false);
+
+  await page.evaluate(() => (document.querySelector("#chart canvas") as HTMLElement).focus());
+  await page.keyboard.press("End");
+  await expect.poll(async () => (await logicalRange(page)).from).toBeGreaterThan(200);
+  await expect.poll(() => isMoving(page), { intervals: [50] }).toBe(false);
+  const end = await logicalRange(page);
+  expect(end.to).toBeCloseTo(bars + 5, 3);
+  expect(width(end)).toBeCloseTo(73.3, 3);
 });

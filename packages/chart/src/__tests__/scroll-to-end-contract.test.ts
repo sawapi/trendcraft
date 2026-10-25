@@ -54,6 +54,16 @@ describe.each(CONFIGS)("jump-to-end contract — $label", (config) => {
     expect(ts.rawStartIndex).toBeCloseTo(ts.scrollToEndTarget, 9);
   });
 
+  it.skipIf(config.gaps)("the window's right edge lands exactly on the offset (ops #16)", () => {
+    const ts = makeScale(config);
+    // Keep the spacing and widen the view so the window spans a fractional
+    // 100.375 bars: a landing derived from the ceiled visibleCount (101)
+    // put the fraction of the margin off-screen.
+    ts.setWidth(803);
+    ts.scrollToEnd();
+    expect(ts.getVisibleLogicalRange().to).toBeCloseTo(500 + config.rightOffset, 9);
+  });
+
   it.skipIf(config.gaps)("scrollToEndTarget leaves the offset visible past the data", () => {
     // Gap-free layouts only: with session gaps the window spans virtual
     // slots, so real-index arithmetic doesn't express the margin directly.

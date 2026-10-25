@@ -299,14 +299,23 @@ export class CanvasChart implements ChartInstance {
    */
   private _maybeEmitCrosshair(): void {
     const idx = this._viewport.state.crosshairIndex;
-    if (idx === this._lastCrosshairIndex) return;
-    this._lastCrosshairIndex = idx;
-    if (idx === null) {
-      this._emit("crosshairMove", { time: null, index: null, ohlcv: null, paneId: null });
+    const candle = idx === null ? undefined : this._data.candles[idx];
+    // Every index over the empty margin (past the last bar or before the
+    // first) is one state, -1, so moving across it emits once.
+    const key = idx === null || candle ? idx : -1;
+    if (key === this._lastCrosshairIndex) return;
+    this._lastCrosshairIndex = key;
+    if (!candle) {
+      this._emit("crosshairMove", {
+        time: null,
+        index: null,
+        ohlcv: null,
+        // Never null here, so this stays distinct from leaving the data area
+        // even with the pointer over no pane (the time axis, or touch).
+        paneId: idx === null ? null : (this._viewport.state.activePaneId ?? "main"),
+      });
       return;
     }
-    const candle = this._data.candles[idx];
-    if (!candle) return;
     this._emit("crosshairMove", {
       time: candle.time,
       index: idx,

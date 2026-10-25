@@ -34,9 +34,17 @@ export function scrollbarThumbRect(
   if (trackWidth <= 0 || total <= 0) return null;
   const startFrac = Math.max(0, timeScale.startIndex / total);
   const endFrac = Math.min(1, timeScale.endIndex / total);
+  // The window can start past the last bar (a right margin, an overscroll
+  // bounce), and the width floor can reach past the track's end: keep the
+  // drawn and grabbable rect inside the track. startFrac stays the window's
+  // own position, which is what a drag anchors to.
+  const width = Math.min(
+    trackWidth,
+    Math.max(MIN_THUMB_WIDTH, Math.max(0, endFrac - startFrac) * trackWidth),
+  );
   return {
-    x: trackX + startFrac * trackWidth,
-    width: Math.max(MIN_THUMB_WIDTH, (endFrac - startFrac) * trackWidth),
+    x: trackX + Math.min(startFrac * trackWidth, trackWidth - width),
+    width,
     startFrac,
   };
 }

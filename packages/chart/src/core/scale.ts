@@ -89,6 +89,12 @@ export class TimeScale {
     return this._visibleCount;
   }
 
+  /** The window's true fractional width in bar slots (`width / barSpacing`);
+   *  {@link visibleCount} is this ceiled to whole bars, for iteration. */
+  private get windowSpan(): number {
+    return this._width > 0 ? this._width / this._barSpacing : this._visibleCount;
+  }
+
   get totalCount(): number {
     return this._totalCount;
   }
@@ -406,7 +412,7 @@ export class TimeScale {
   get scrollToEndTarget(): number {
     const targetVirt = Math.max(
       0,
-      this.virtualTotal + this.effectiveRightOffset() - this._visibleCount,
+      this.virtualTotal + this.effectiveRightOffset() - this.windowSpan,
     );
     return Math.max(0, this.realAtVirt(targetVirt));
   }
@@ -492,7 +498,9 @@ export class TimeScale {
   /** Set visible range by start/end index */
   setVisibleRange(start: number, end: number): void {
     const count = end - start;
-    if (count <= 0) return;
+    // No width to fit the range into: ignore it, as setVisibleLogicalRange
+    // and fitContent do, rather than collapse the window (see recalcVisibleCount).
+    if (count <= 0 || this._width <= 0) return;
     this._granted = null; // ordinary (data-bounded) range: release any grant
     this._barSpacing = Math.max(
       this._minBarSpacing,
@@ -546,8 +554,7 @@ export class TimeScale {
    */
   getVisibleLogicalRange(): { from: number; to: number } {
     const from = this._startIndex;
-    const span = this._width > 0 ? this._width / this._barSpacing : this._visibleCount;
-    return { from, to: this.realAtVirt(this.virtAt(from) + span) };
+    return { from, to: this.realAtVirt(this.virtAt(from) + this.windowSpan) };
   }
 
   /**
@@ -608,7 +615,12 @@ export class TimeScale {
   }
 
   private recalcVisibleCount(): void {
-    this._visibleCount = this._width > 0 ? Math.ceil(this._width / this._barSpacing) : 0;
+    // A zero-width data area (a container narrower than the price axis, or
+    // resize(0, h)) has no window to measure: keep the last one, so the
+    // logical range and the live-edge follow keep describing where the
+    // viewer is, instead of collapsing to an empty window that no longer
+    // counts as at the end.
+    if (this._width > 0) this._visibleCount = Math.ceil(this._width / this._barSpacing);
   }
 
   /** Returns how far past the edge the viewport is (0 = within bounds).
@@ -648,12 +660,14 @@ export class TimeScale {
     if (this._totalCount <= 0) return 0;
     const virtTotal = this.virtualTotal;
     const offset = this.effectiveRightOffset();
-    if (this._visibleCount >= virtTotal + offset) return 0;
+    const span = this.windowSpan;
+    if (span >= virtTotal + offset) return 0;
     // The scrollable empty space on the right is whichever is larger: the
     // 20% overscroll pad or the configured right offset — so the pinned
     // (scrollToEnd) position is always reachable without fighting clamp.
+    // Both use the fractional span, as scrollToEndTarget does.
     const rightPad = Math.max(Math.ceil(this._visibleCount * 0.2), offset);
-    const maxStartVirt = Math.max(0, virtTotal + rightPad - this._visibleCount);
+    const maxStartVirt = Math.max(0, virtTotal + rightPad - span);
     if (this._virt.length === 0) return maxStartVirt;
     return this.realAtVirt(maxStartVirt);
   }

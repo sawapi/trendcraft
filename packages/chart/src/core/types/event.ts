@@ -49,8 +49,12 @@ export type SeriesRemovedData = Pick<SeriesInfo, "id">;
 /**
  * Payload for the `crosshairMove` event. Fires when the candle the crosshair
  * snaps to changes. `time`/`index`/`ohlcv` describe the snapped candle;
- * `paneId` is the pane under the pointer. All fields are `null` in the single
- * emission fired when the crosshair leaves the data area.
+ * `paneId` is the pane under the pointer. Over the empty margin past the last
+ * bar (or before the first) there is no candle: `time`/`index`/`ohlcv` are
+ * `null` and `paneId` is still set (`"main"` when the pointer is over no
+ * pane, such as the time axis), in one emission on entering it. All
+ * fields are `null` in the single emission fired when the crosshair leaves
+ * the data area.
  */
 export type CrosshairMoveData = {
   time: TimeValue | null;
