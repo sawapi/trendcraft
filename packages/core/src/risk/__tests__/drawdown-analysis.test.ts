@@ -52,6 +52,42 @@ describe("drawdownDistribution", () => {
     expect(totalCount).toBe(1);
   });
 
+  it("gives zero-width bins, none inverted, when every depth is the same (ops #125)", () => {
+    const result = drawdownDistribution([5, 5, 5], 3);
+    // Previously [5,6], [6,7], [7,5]: past the data, and the last one inverted.
+    expect(result.bins).toEqual([
+      { rangeStart: 5, rangeEnd: 5, count: 3, frequency: 1 },
+      { rangeStart: 5, rangeEnd: 5, count: 0, frequency: 0 },
+      { rangeStart: 5, rangeEnd: 5, count: 0, frequency: 0 },
+    ]);
+  });
+
+  it.each([0, -1, 2.5, Number.NaN])("rejects numBins = %s (ops #125)", (numBins) => {
+    // Previously a TypeError from bins[0] (0, -1, NaN), or 3 bins with the
+    // last one ending past the data (2.5).
+    expect(() => drawdownDistribution([1, 2], numBins)).toThrow(
+      /numBins must be a positive integer/,
+    );
+    // An argument error does not depend on whether there is data.
+    expect(() => drawdownDistribution([], numBins)).toThrow(/numBins must be a positive integer/);
+  });
+
+  it.each([
+    [[1, Number.POSITIVE_INFINITY], /depths must be finite numbers, got Infinity/],
+    [[1, Number.NaN, 2], /depths must be finite numbers, got NaN/],
+    [[1, undefined as unknown as number], /depths must be finite numbers, got undefined/],
+    [[1e308, -1e308], /depth range .* is too wide/],
+  ])("rejects depths [%s] with a named error, not a TypeError (ops #125)", (depths, message) => {
+    expect(() => drawdownDistribution(depths, 3)).toThrow(message);
+  });
+
+  it("bins a span too small for binWidth to represent (ops #125)", () => {
+    // binWidth underflows to 0 here; previously 0 / 0 gave a NaN bin index.
+    const result = drawdownDistribution([0, 5e-324], 10);
+    expect(result.bins.map((b) => b.count)).toEqual([1, 0, 0, 0, 0, 0, 0, 0, 0, 1]);
+    expect(result.bins.every((b) => b.rangeStart <= b.rangeEnd)).toBe(true);
+  });
+
   it("supports a custom number of bins", () => {
     const depths = [2, 5, 8, 3, 12, 1, 7, 4, 15, 6];
     const result = drawdownDistribution(depths, 5);

@@ -97,9 +97,15 @@ function conditionStats(depths: number[]): {
  * Creates equal-width histogram bins and computes median, 95th and 99th
  * percentile statistics over the provided drawdown depths.
  *
+ * When every depth is the same, all bins are the zero-width range at that
+ * depth and the first one holds every count, so `bins.length` is always
+ * `numBins` for non-empty input.
+ *
  * @param drawdownDepths - Array of drawdown percentages (positive numbers)
- * @param numBins - Number of histogram bins (default 10)
+ * @param numBins - Number of histogram bins, a positive integer (default 10)
  * @returns Distribution with bins and percentile statistics
+ * @throws {Error} If `numBins` is not a positive integer, or a depth is not
+ * a finite number
  *
  * @example
  * ```ts
@@ -112,6 +118,9 @@ function conditionStats(depths: number[]): {
  * ```
  */
 export function drawdownDistribution(drawdownDepths: number[], numBins = 10): DrawdownDistribution {
+  if (!Number.isInteger(numBins) || numBins < 1) {
+    throw new Error(`drawdownDistribution: numBins must be a positive integer, got ${numBins}`);
+  }
   if (drawdownDepths.length === 0) {
     return {
       bins: [],
@@ -121,12 +130,23 @@ export function drawdownDistribution(drawdownDepths: number[], numBins = 10): Dr
     };
   }
 
+  const bad = drawdownDepths.findIndex((d) => !Number.isFinite(d));
+  if (bad !== -1) {
+    throw new Error(
+      `drawdownDistribution: depths must be finite numbers, got ${drawdownDepths[bad]}`,
+    );
+  }
+
   const sorted = [...drawdownDepths].sort((a, b) => a - b);
   const min = sorted[0];
   const max = sorted[sorted.length - 1];
+  const span = max - min;
+  if (!Number.isFinite(span)) {
+    throw new Error(`drawdownDistribution: depth range ${min} to ${max} is too wide`);
+  }
 
-  // Build equal-width bins
-  const binWidth = max === min ? 1 : (max - min) / numBins;
+  // Build equal-width bins (zero-width when every depth is the same)
+  const binWidth = span / numBins;
   const bins: DrawdownBin[] = [];
 
   for (let i = 0; i < numBins; i++) {
@@ -137,7 +157,13 @@ export function drawdownDistribution(drawdownDepths: number[], numBins = 10): Dr
 
   // Assign each depth to a bin
   for (const d of sorted) {
-    let idx = max === min ? 0 : Math.floor((d - min) / binWidth);
+    // binWidth can underflow to 0 for a tiny span; scale by the span then.
+    let idx =
+      binWidth > 0
+        ? Math.floor((d - min) / binWidth)
+        : span > 0
+          ? Math.floor(((d - min) / span) * numBins)
+          : 0;
     if (idx >= numBins) idx = numBins - 1;
     bins[idx].count++;
   }

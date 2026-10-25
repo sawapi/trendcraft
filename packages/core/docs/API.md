@@ -7168,7 +7168,7 @@ const result = correlationAdjustedSize(stockReturns, [pos1Returns, pos2Returns],
 
 ### `drawdownDistribution(drawdownDepths, numBins?)`
 
-Histogram of drawdown depths you have already measured (positive percentages, e.g. from an equity curve) in `numBins` equal-width bins (default `10`), with the median and the 95th / 99th percentiles. Empty input gives no bins and zero statistics.
+Histogram of drawdown depths you have already measured (positive percentages, e.g. from an equity curve) in `numBins` equal-width bins (default `10`), with the median and the 95th / 99th percentiles. Empty input gives no bins and zero statistics. When every depth is the same, the bins are all the zero-width range at that depth, with every count in the first. `numBins` must be a positive integer and every depth a finite number; it throws otherwise.
 
 ```typescript
 import { drawdownDistribution } from "trendcraft";

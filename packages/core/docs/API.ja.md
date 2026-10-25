@@ -7108,7 +7108,7 @@ const result = correlationAdjustedSize(stockReturns, [pos1Returns, pos2Returns],
 
 ### `drawdownDistribution(drawdownDepths, numBins?)`
 
-計測済みのドローダウンの深さ（正の%。例: 資産曲線から求めたもの）を `numBins` 個（デフォルト `10`）の等幅ビンに分けたヒストグラムと、中央値、95・99パーセンタイルを返します。入力が空ならビンは空、統計値は0です。
+計測済みのドローダウンの深さ（正の%。例: 資産曲線から求めたもの）を `numBins` 個（デフォルト `10`）の等幅ビンに分けたヒストグラムと、中央値、95・99パーセンタイルを返します。入力が空ならビンは空、統計値は0です。深さがすべて同じ値なら、ビンはすべてその値の幅0の範囲になり、件数はすべて最初のビンに入ります。`numBins` は正の整数、深さはすべて有限の数でなければならず、そうでなければ例外を投げます。
 
 ```typescript
 import { drawdownDistribution } from "trendcraft";
