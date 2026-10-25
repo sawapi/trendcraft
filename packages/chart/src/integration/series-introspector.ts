@@ -85,17 +85,17 @@ export function introspect<T>(
   const presetPalette = Array.isArray(presetColor) ? presetColor : undefined;
   const presetColorString = typeof presetColor === "string" ? presetColor : undefined;
 
-  // Merge config (including channelColors from preset)
+  // Start from the user's config so every SeriesConfig field reaches the
+  // renderer (a hand-listed whitelist silently dropped `markers`), then set
+  // the fields resolved against the preset, rule and metadata above.
   const config: SeriesConfig = {
+    ...userConfig,
     pane,
-    scaleId: userConfig?.scaleId,
     type: seriesType,
     color: userConfig?.color ?? presetColorString,
     colorPalette: userConfig?.color ? undefined : presetPalette,
     lineWidth: userConfig?.lineWidth ?? preset?.lineWidth,
     label,
-    visible: userConfig?.visible,
-    maxHeightRatio: userConfig?.maxHeightRatio,
     channelColors: userConfig?.channelColors ?? preset?.channelColors,
   };
 

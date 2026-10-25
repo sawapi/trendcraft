@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — `markers` on line series never drew
+
+Both config resolvers (`addIndicator`'s introspection and
+`connectIndicators`) copied `SeriesConfig` field by field and left out
+`markers`, so `{ markers: true }` was always dropped before rendering. They
+now pass every field through, so options added to `SeriesConfig` later
+cannot be lost the same way.
+
+### Fixed — `lineWidth` and `channelColors` ignored by band, MACD and Ichimoku
+
+Bollinger / Keltner / Donchian bands drew at width 1 and MACD at 1.5 whatever
+`lineWidth` said, and Ichimoku ignored both `lineWidth` and `channelColors`.
+All three now honour them; an unset `lineWidth` keeps each renderer's
+previous default. A partial Ichimoku `channelColors` keeps the default for
+the lines it does not name. Ichimoku's built-in preset colours, which never
+reached the canvas before, now apply: its Senkou A/B lines draw in the
+preset's translucent green and red instead of opaque ones.
+
+### Fixed — `setTheme()` did not reach the legend
+
+Switching theme at runtime left the legend text in the old theme's colour,
+which is nearly invisible on the new background. The legend now follows the
+theme.
+
 ### Fixed — one non-finite value blanked the whole chart
 
 `updateCandle` checked only `open` and `close`, so a live bar with an

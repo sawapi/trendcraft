@@ -98,7 +98,11 @@ export function buildSeriesConfig(
   const presetColor = chartPreset?.color;
   const presetPalette = Array.isArray(presetColor) ? presetColor : undefined;
   const presetColorString = typeof presetColor === "string" ? presetColor : undefined;
+  // Start from the overrides so every SeriesConfig field passes through (a
+  // hand-listed whitelist silently dropped `markers`), then set the fields
+  // resolved against the preset meta.
   return {
+    ...overrides,
     pane: overrides?.pane ?? (meta.overlay ? "main" : snapshotName),
     color: overrides?.color ?? presetColorString,
     colorPalette: overrides?.color ? undefined : presetPalette,
@@ -111,9 +115,6 @@ export function buildSeriesConfig(
     label: overrides?.label,
     yRange: overrides?.yRange ?? meta.yRange,
     referenceLines: overrides?.referenceLines ?? meta.referenceLines,
-    type: overrides?.type,
-    scaleId: overrides?.scaleId,
-    maxHeightRatio: overrides?.maxHeightRatio,
     channelColors: overrides?.channelColors ?? chartPreset?.channelColors,
   };
 }

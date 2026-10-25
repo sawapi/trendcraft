@@ -1143,6 +1143,7 @@ export class CanvasChart implements ChartInstance {
       this._theme = theme === "light" ? LIGHT_THEME : DARK_THEME;
     }
     this._infoOverlay?.setTheme(this._theme);
+    this._legendOverlay?.setTheme(this._theme);
     this._needsRender = true;
   }
 
