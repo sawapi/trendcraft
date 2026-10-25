@@ -102,7 +102,7 @@ tracking issue for a known bug; the spec for it is a `test.fail` until fixed.
 | Pan / zoom | Scrollbar thumb stays inside the track | todo (ops #18) |
 | Crosshair | Pointer move emits `crosshairMove` with the bar index | covered |
 | Crosshair | Crosshair value clears past the last bar | todo (ops #18) |
-| Touch | Lifting one finger after a pinch leaves the other able to pan | todo (ops #35) |
+| Touch | Lifting one finger after a pinch leaves the other able to pan | covered |
 | Animation | An animation started from another's `onDone` runs | todo (ops #26) |
 | Axis | Labels do not overlap at any start offset; DST does not add times | todo (ops #14, #88) |
 | Sizing | `setWidth(0)` does not corrupt the viewport | todo (ops #18) |

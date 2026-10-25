@@ -213,6 +213,12 @@ path, which clamps the bar spacing to at least 2 px. On a fitted or
 zoomed-out view below that (e.g. thousands of bars), a pan therefore zoomed
 in many times over. Both now only move the window and keep the zoom.
 
+### Fixed — lifting one finger of a pinch froze the other
+
+After a two-finger pinch, lifting one finger ended the whole gesture, so the
+remaining finger could not pan (and the page could not scroll either) until
+it was lifted and placed again. The remaining finger now pans.
+
 ### Fixed — `markers` on line series never drew
 
 Both config resolvers (`addIndicator`'s introspection and

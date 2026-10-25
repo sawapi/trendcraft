@@ -167,7 +167,28 @@ export function attachTouchHandlers(
     }
   };
 
-  const onTouchEnd = () => {
+  const onTouchEnd = (e: TouchEvent) => {
+    // Lifting one finger of a pinch is not the end of the gesture: the
+    // remaining finger(s) carry on. `touchcancel` always ends it.
+    if (e.type === "touchend" && e.touches.length > 0 && !ctx.drag.scrollbarDragging) {
+      if (e.touches.length === 1) {
+        // Pinch -> one finger: re-arm a pan from where that finger is now.
+        const touch = e.touches[0];
+        ctx.viewState.isDragging = true;
+        ctx.touch.lastDist = 0;
+        ctx.pan.lastTouchX = touch.clientX;
+        ctx.pan.lastTouchMoveTime = Date.now();
+        ctx.pan.velocity = 0;
+        ctx.drag.startX = touch.clientX;
+        ctx.drag.startIndex = timeScale.rawStartIndex;
+      } else {
+        // Three fingers -> two: keep pinching from the current spread.
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        ctx.touch.lastDist = Math.sqrt(dx * dx + dy * dy);
+      }
+      return;
+    }
     if (ctx.touch.longPressTimer) {
       clearTimeout(ctx.touch.longPressTimer);
       ctx.touch.longPressTimer = null;
