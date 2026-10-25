@@ -12,13 +12,34 @@ describe("renderHeatmap", () => {
     expect(ctx.setLineDash).toHaveBeenCalledWith([]);
   });
 
-  it("draws POC on the first non-null value, then stops", () => {
+  it("draws POC as one stroke stepping through every non-null bar", () => {
     const ctx = mockCtx();
     const ts = makeTimeScale(5, 800);
     const ps = makePriceScale(300, 100, 200);
     renderHeatmap(ctx, new Map([["poc", [null, null, 150, 160, 170]]]), ts, ps, 800);
-    // POC draws once (single stroke call minimum for POC)
     expect(ctx.stroke).toHaveBeenCalledTimes(1);
+    // Each bar's level is drawn at its own price (ops #33).
+    const ys = new Set(
+      (ctx.lineTo as unknown as { mock: { calls: number[][] } }).mock.calls.map((c) => c[1]),
+    );
+    expect(ys.size).toBe(3);
+  });
+
+  it("draws each bar's level at the same place whatever the scroll position (ops #33)", () => {
+    const poc = Array.from({ length: 200 }, (_, i) => 100 + i * 0.1);
+    const yOfBar = (start: number) => {
+      const ctx = mockCtx();
+      const ts = makeTimeScale(200, 800);
+      ts.setVisibleRange(start, start + 50);
+      const ps = makePriceScale(300, 90, 130);
+      renderHeatmap(ctx, new Map([["poc", poc]]), ts, ps, 800);
+      const calls = (ctx.lineTo as unknown as { mock: { calls: number[][] } }).mock.calls;
+      const x = ts.indexToX(120) + ts.barSpacing / 2;
+      return calls.find((c) => Math.abs(c[0] - x) < 0.01)?.[1];
+    };
+    // Bar 120 is visible from both positions; its POC line must not move.
+    expect(yOfBar(100)).toBeDefined();
+    expect(yOfBar(100)).toBe(yOfBar(110));
   });
 
   it("all-null POC draws nothing", () => {

@@ -209,6 +209,15 @@ regime's confidence from its state probability when there is no
 `confidence` field, so its shading and badge percentage work with
 `hmmRegimes()`.
 
+### Fixed — Volume Profile lines moved when the chart scrolled
+
+A rolling `volumeProfileSeries` drew POC / VAH / VAL as single full-width
+lines at the values of whichever bar was at the left edge of the view, so
+the levels jumped as the chart scrolled. They are now drawn as stepped
+lines, each bar at its own window's levels. `barColor` and `maxBarWidth`
+in `HeatmapRenderOptions` are documented as reserved: per-level volume bars
+are not drawn.
+
 ### Fixed — pressing the mouse did not stop a fling
 
 A trackpad flick keeps the chart scrolling after the gesture, and pressing

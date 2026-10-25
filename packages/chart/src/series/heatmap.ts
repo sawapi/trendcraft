@@ -1,6 +1,9 @@
 /**
  * Heatmap Series Renderer
- * Renders Volume Profile as horizontal bars at price levels.
+ * Renders a rolling Volume Profile's POC, VAH and VAL as stepped lines: each
+ * bar draws its own window's levels, so the lines follow the data, not the
+ * scroll position. (Per-level volume bars are not drawn; see
+ * HeatmapRenderOptions.)
  */
 
 import type { PriceScale, TimeScale } from "../core/scale";
@@ -11,10 +14,12 @@ export type HeatmapLevel = {
 };
 
 export type HeatmapRenderOptions = {
+  /** Reserved for per-level volume bars, which are not drawn yet: no effect. */
   barColor: string;
   pocColor: string;
   vahValColor: string;
-  maxBarWidth: number; // Max width as fraction of pane width (default: 0.3)
+  /** Reserved for per-level volume bars, which are not drawn yet: no effect. */
+  maxBarWidth: number;
 };
 
 const DEFAULT_HEATMAP_OPTIONS: HeatmapRenderOptions = {
@@ -24,16 +29,48 @@ const DEFAULT_HEATMAP_OPTIONS: HeatmapRenderOptions = {
   maxBarWidth: 0.3,
 };
 
+/** Draw one channel as a step line: a flat segment across each bar's slot. */
+function strokeSteps(
+  ctx: CanvasRenderingContext2D,
+  values: readonly (number | null | undefined)[],
+  timeScale: TimeScale,
+  priceScale: PriceScale,
+): void {
+  const half = timeScale.barSpacing / 2;
+  ctx.beginPath();
+  let open = false;
+  let drawn = false;
+  for (
+    let i = Math.max(0, timeScale.startIndex);
+    i < timeScale.endIndex && i < values.length;
+    i++
+  ) {
+    const v = values[i];
+    if (v === null || v === undefined || !Number.isFinite(v)) {
+      open = false;
+      continue;
+    }
+    const x = timeScale.indexToX(i);
+    const y = Math.round(priceScale.priceToY(v)) + 0.5;
+    if (open) ctx.lineTo(x - half, y);
+    else ctx.moveTo(x - half, y);
+    ctx.lineTo(x + half, y);
+    open = true;
+    drawn = true;
+  }
+  if (drawn) ctx.stroke();
+}
+
 /**
- * Render Volume Profile heatmap on the main pane.
- * Each level is a horizontal bar whose width represents volume at that price.
+ * Render a rolling Volume Profile's POC (solid) and VAH / VAL (dashed) as
+ * stepped lines over the visible bars.
  */
 export function renderHeatmap(
   ctx: CanvasRenderingContext2D,
   channels: Map<string, (number | null)[]>,
   timeScale: TimeScale,
   priceScale: PriceScale,
-  paneWidth: number,
+  _paneWidth: number,
   options: Partial<HeatmapRenderOptions> = {},
 ): void {
   const opts = { ...DEFAULT_HEATMAP_OPTIONS, ...options };
@@ -41,42 +78,16 @@ export function renderHeatmap(
   const vah = channels.get("vah");
   const val = channels.get("val");
 
-  // Draw POC line
   if (poc) {
-    for (let i = timeScale.startIndex; i < timeScale.endIndex && i < poc.length; i++) {
-      const v = poc[i];
-      if (v === null || v === undefined) continue;
-      const y = priceScale.priceToY(v);
-      ctx.strokeStyle = opts.pocColor;
-      ctx.lineWidth = 2;
-      ctx.setLineDash([]);
-      ctx.beginPath();
-      ctx.moveTo(0, Math.round(y) + 0.5);
-      ctx.lineTo(paneWidth, Math.round(y) + 0.5);
-      ctx.stroke();
-      break; // POC is typically one value per period
-    }
+    ctx.strokeStyle = opts.pocColor;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([]);
+    strokeSteps(ctx, poc, timeScale, priceScale);
   }
-
-  // Draw VAH/VAL lines
-  for (const [_key, values] of [
-    ["vah", vah],
-    ["val", val],
-  ] as const) {
-    if (!values) continue;
-    for (let i = timeScale.startIndex; i < timeScale.endIndex && i < values.length; i++) {
-      const v = values[i];
-      if (v === null || v === undefined) continue;
-      const y = priceScale.priceToY(v);
-      ctx.strokeStyle = opts.vahValColor;
-      ctx.lineWidth = 1;
-      ctx.setLineDash([4, 3]);
-      ctx.beginPath();
-      ctx.moveTo(0, Math.round(y) + 0.5);
-      ctx.lineTo(paneWidth, Math.round(y) + 0.5);
-      ctx.stroke();
-      break;
-    }
-  }
+  ctx.strokeStyle = opts.vahValColor;
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 3]);
+  if (vah) strokeSteps(ctx, vah, timeScale, priceScale);
+  if (val) strokeSteps(ctx, val, timeScale, priceScale);
   ctx.setLineDash([]);
 }
