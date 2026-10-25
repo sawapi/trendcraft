@@ -38,9 +38,9 @@ type Entry = {
   /**
    * Size the author declared via the `width`/`height` attributes, captured
    * before the first render. Once rendered, those attributes hold the
-   * DPR-scaled bitmap size instead, so the intent is only readable here —
-   * and on a re-attach it is the bitmap that gets captured, which is why
-   * this ranks below a real measurement in setupCanvas.
+   * DPR-scaled bitmap size instead, so the intent is only readable here.
+   * destroy() writes it back, so a re-attach (destroy() then add(), which
+   * the group wrappers do) captures the author's value, not the bitmap.
    */
   authorWidth: number;
   authorHeight: number;
@@ -104,9 +104,7 @@ function setupCanvas(entry: Entry): {
   // because it is the one that moves while the canvas is hidden (a framework
   // wrapper changing its `width` prop) — the measurement is then stale. The
   // attribute ranks below the measurement because it is captured once and
-  // can be wrong: on a re-attach (destroy() then add(), which the group
-  // wrappers do) the attribute already holds the DPR-scaled bitmap of the
-  // previous render, and a real measurement must keep shadowing it.
+  // does not follow the layout box.
   const cssWidth =
     rect.width ||
     canvas.clientWidth ||
@@ -146,6 +144,21 @@ function setupCanvas(entry: Entry): {
  */
 function readAuthorSize(canvas: HTMLCanvasElement, attr: "width" | "height"): number {
   return positivePx(canvas.getAttribute(attr));
+}
+
+/**
+ * Put back the author's `width`/`height` attributes (or remove the ones the
+ * renders added), undoing the DPR-scaled bitmap size written over them.
+ */
+function restoreAuthorSize(entry: Entry): void {
+  const { canvas } = entry;
+  for (const [attr, px] of [
+    ["width", entry.authorWidth],
+    ["height", entry.authorHeight],
+  ] as const) {
+    if (px) canvas.setAttribute(attr, String(px));
+    else canvas.removeAttribute(attr);
+  }
 }
 
 /**
@@ -480,11 +493,10 @@ export function createSparklineGroup(groupOpts: SparklineGroupOptions): Sparklin
         renderEntry(entry, themeColors);
       },
       destroy() {
+        if (!entries.delete(id)) return;
         canvas.removeAttribute(DATA_ATTR);
-        entries.delete(id);
-        // Clear the canvas
-        const ctx = canvas.getContext("2d");
-        if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+        // Resetting the bitmap size also clears the canvas.
+        restoreAuthorSize(entry);
       },
     };
   };
@@ -498,6 +510,7 @@ export function createSparklineGroup(groupOpts: SparklineGroupOptions): Sparklin
     tooltip = null;
     for (const entry of entries.values()) {
       entry.canvas.removeAttribute(DATA_ATTR);
+      restoreAuthorSize(entry);
     }
     entries.clear();
   };
