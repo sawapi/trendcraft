@@ -106,15 +106,28 @@
   },
   "size-limit": [
     {
+      "name": "import { sma } from \"trendcraft\"",
       "path": "dist/index.js",
-      "limit": "500 kB"
+      "import": "{ sma }",
+      "limit": "2 kB"
+    },
+    {
+      "name": "import { runBacktest, goldenCross } from \"trendcraft\"",
+      "path": "dist/index.js",
+      "import": "{ runBacktest, goldenCross }",
+      "limit": "15 kB"
+    },
+    {
+      "path": "dist/index.js",
+      "limit": "180 kB"
     },
     {
       "path": "dist/index.cjs",
-      "limit": "400 kB"
+      "limit": "195 kB"
     }
   ],
   "devDependencies": {
+    "@size-limit/esbuild": "^12.1.0",
     "@size-limit/file": "^12.1.0",
     "@vitest/coverage-v8": "^4.1.9",
     "size-limit": "^13.0.3",

@@ -10,6 +10,18 @@ and 26. On Node.js 20 or older, most package managers warn when installing
 `trendcraft`; some refuse (yarn 1, or npm and pnpm with
 `engine-strict`). Nothing in the package itself changed.
 
+### Fixed — importing one function from `trendcraft` bundled the whole library
+
+`import { sma } from "trendcraft"` pulled about 400 kB (100 kB gzipped)
+into an application bundle, whatever was imported: code that ran when the
+module loaded (the condition registries' `register()` calls, the
+indicator presets, the scoring signal definitions, a `require()` in the
+condition pools) kept everything it referenced. That code now runs inside
+functions that bundlers can drop, and `sma` alone bundles to about 2 kB
+(under 1 kB gzipped); `runBacktest` with `goldenCross` to about 35 kB.
+`backtestRegistry`, `streamingRegistry`, `indicatorPresets` and
+`livePresets` hold the same entries as before.
+
 ### Fixed — `drawdownDistribution()` with equal depths or an invalid `numBins`
 
 When every depth was the same, the bins ran one unit wide past the data

@@ -426,7 +426,7 @@ export const rsiOversold30: SignalDefinition = {
   displayName: "RSI < 30",
   weight: 2.0,
   category: "momentum",
-  evaluate: createRsiOversoldEvaluator(30, 14),
+  evaluate: /* @__PURE__ */ createRsiOversoldEvaluator(30, 14),
   requiredIndicators: ["rsi14"],
 };
 
@@ -435,7 +435,7 @@ export const rsiOverbought70: SignalDefinition = {
   displayName: "RSI > 70",
   weight: 2.0,
   category: "momentum",
-  evaluate: createRsiOverboughtEvaluator(70, 14),
+  evaluate: /* @__PURE__ */ createRsiOverboughtEvaluator(70, 14),
   requiredIndicators: ["rsi14"],
 };
 
@@ -444,7 +444,7 @@ export const macdBullish: SignalDefinition = {
   displayName: "MACD Bullish",
   weight: 1.5,
   category: "momentum",
-  evaluate: createMacdBullishEvaluator(),
+  evaluate: /* @__PURE__ */ createMacdBullishEvaluator(),
   requiredIndicators: ["macd"],
 };
 
@@ -453,7 +453,7 @@ export const macdBearish: SignalDefinition = {
   displayName: "MACD Bearish",
   weight: 1.5,
   category: "momentum",
-  evaluate: createMacdBearishEvaluator(),
+  evaluate: /* @__PURE__ */ createMacdBearishEvaluator(),
   requiredIndicators: ["macd"],
 };
 
@@ -462,7 +462,7 @@ export const stochOversold: SignalDefinition = {
   displayName: "Stoch < 20",
   weight: 1.5,
   category: "momentum",
-  evaluate: createStochOversoldEvaluator(20),
+  evaluate: /* @__PURE__ */ createStochOversoldEvaluator(20),
   requiredIndicators: ["stoch"],
 };
 
@@ -471,6 +471,6 @@ export const stochOverbought: SignalDefinition = {
   displayName: "Stoch > 80",
   weight: 1.5,
   category: "momentum",
-  evaluate: createStochOverboughtEvaluator(80),
+  evaluate: /* @__PURE__ */ createStochOverboughtEvaluator(80),
   requiredIndicators: ["stoch"],
 };

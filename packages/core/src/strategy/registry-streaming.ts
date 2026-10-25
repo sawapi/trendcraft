@@ -93,639 +93,650 @@ import { ConditionRegistry } from "./registry";
 /**
  * Pre-built registry containing all streaming conditions
  */
-export const streamingRegistry = new ConditionRegistry<StreamingCondition>();
+export const streamingRegistry: ConditionRegistry<StreamingCondition> =
+  /* @__PURE__ */ createStreamingRegistry();
 
-// ============================================
-// RSI
-// ============================================
+// Built in a function, not by top-level register() calls: module-level
+// side effects pin this registry, and every condition it imports, into any
+// bundle that imports anything from "trendcraft" (ops #90).
+function createStreamingRegistry(): ConditionRegistry<StreamingCondition> {
+  const registry = new ConditionRegistry<StreamingCondition>();
 
-streamingRegistry.register({
-  name: "rsiBelow",
-  displayName: "RSI Below",
-  category: "momentum",
-  params: {
-    // Default matches the backtest registry so a portable StrategyJSON that
-    // omits `threshold` validates identically against either registry.
-    threshold: { type: "number", default: 30, min: 0, max: 100, description: "RSI threshold" },
-    key: { type: "string", default: "rsi" },
-  },
-  create: (p) => rsiBelow((p.threshold as number) ?? 30, (p.key as string) ?? "rsi"),
-});
+  // ============================================
+  // RSI
+  // ============================================
 
-streamingRegistry.register({
-  name: "rsiAbove",
-  displayName: "RSI Above",
-  category: "momentum",
-  params: {
-    threshold: { type: "number", default: 70, min: 0, max: 100, description: "RSI threshold" },
-    key: { type: "string", default: "rsi" },
-  },
-  create: (p) => rsiAbove((p.threshold as number) ?? 70, (p.key as string) ?? "rsi"),
-});
+  registry.register({
+    name: "rsiBelow",
+    displayName: "RSI Below",
+    category: "momentum",
+    params: {
+      // Default matches the backtest registry so a portable StrategyJSON that
+      // omits `threshold` validates identically against either registry.
+      threshold: { type: "number", default: 30, min: 0, max: 100, description: "RSI threshold" },
+      key: { type: "string", default: "rsi" },
+    },
+    create: (p) => rsiBelow((p.threshold as number) ?? 30, (p.key as string) ?? "rsi"),
+  });
 
-// ============================================
-// MACD
-// ============================================
+  registry.register({
+    name: "rsiAbove",
+    displayName: "RSI Above",
+    category: "momentum",
+    params: {
+      threshold: { type: "number", default: 70, min: 0, max: 100, description: "RSI threshold" },
+      key: { type: "string", default: "rsi" },
+    },
+    create: (p) => rsiAbove((p.threshold as number) ?? 70, (p.key as string) ?? "rsi"),
+  });
 
-streamingRegistry.register({
-  name: "macdPositive",
-  displayName: "MACD Positive",
-  category: "momentum",
-  params: { key: { type: "string", default: "macd" } },
-  create: (p) => macdPositive((p.key as string) ?? "macd"),
-});
+  // ============================================
+  // MACD
+  // ============================================
 
-streamingRegistry.register({
-  name: "macdNegative",
-  displayName: "MACD Negative",
-  category: "momentum",
-  params: { key: { type: "string", default: "macd" } },
-  create: (p) => macdNegative((p.key as string) ?? "macd"),
-});
+  registry.register({
+    name: "macdPositive",
+    displayName: "MACD Positive",
+    category: "momentum",
+    params: { key: { type: "string", default: "macd" } },
+    create: (p) => macdPositive((p.key as string) ?? "macd"),
+  });
 
-streamingRegistry.register({
-  name: "macdCrossUp",
-  displayName: "MACD Cross Up",
-  category: "momentum",
-  params: { key: { type: "string", default: "macd" } },
-  create: (p) => macdCrossUp((p.key as string) ?? "macd"),
-});
+  registry.register({
+    name: "macdNegative",
+    displayName: "MACD Negative",
+    category: "momentum",
+    params: { key: { type: "string", default: "macd" } },
+    create: (p) => macdNegative((p.key as string) ?? "macd"),
+  });
 
-streamingRegistry.register({
-  name: "macdCrossDown",
-  displayName: "MACD Cross Down",
-  category: "momentum",
-  params: { key: { type: "string", default: "macd" } },
-  create: (p) => macdCrossDown((p.key as string) ?? "macd"),
-});
+  registry.register({
+    name: "macdCrossUp",
+    displayName: "MACD Cross Up",
+    category: "momentum",
+    params: { key: { type: "string", default: "macd" } },
+    create: (p) => macdCrossUp((p.key as string) ?? "macd"),
+  });
 
-streamingRegistry.register({
-  name: "macdHistogramRising",
-  displayName: "MACD Histogram Rising",
-  category: "momentum",
-  params: { key: { type: "string", default: "macd" } },
-  create: (p) => macdHistogramRising((p.key as string) ?? "macd"),
-});
+  registry.register({
+    name: "macdCrossDown",
+    displayName: "MACD Cross Down",
+    category: "momentum",
+    params: { key: { type: "string", default: "macd" } },
+    create: (p) => macdCrossDown((p.key as string) ?? "macd"),
+  });
 
-streamingRegistry.register({
-  name: "macdHistogramFalling",
-  displayName: "MACD Histogram Falling",
-  category: "momentum",
-  params: { key: { type: "string", default: "macd" } },
-  create: (p) => macdHistogramFalling((p.key as string) ?? "macd"),
-});
+  registry.register({
+    name: "macdHistogramRising",
+    displayName: "MACD Histogram Rising",
+    category: "momentum",
+    params: { key: { type: "string", default: "macd" } },
+    create: (p) => macdHistogramRising((p.key as string) ?? "macd"),
+  });
 
-// ============================================
-// Price
-// ============================================
+  registry.register({
+    name: "macdHistogramFalling",
+    displayName: "MACD Histogram Falling",
+    category: "momentum",
+    params: { key: { type: "string", default: "macd" } },
+    create: (p) => macdHistogramFalling((p.key as string) ?? "macd"),
+  });
 
-streamingRegistry.register({
-  name: "priceAbove",
-  displayName: "Price Above",
-  category: "trend",
-  params: {
-    indicatorKey: { type: "string", required: true, description: "Snapshot key for indicator" },
-  },
-  create: (p) => priceAbove(p.indicatorKey as string),
-});
+  // ============================================
+  // Price
+  // ============================================
 
-streamingRegistry.register({
-  name: "priceBelow",
-  displayName: "Price Below",
-  category: "trend",
-  params: {
-    indicatorKey: { type: "string", required: true, description: "Snapshot key for indicator" },
-  },
-  create: (p) => priceBelow(p.indicatorKey as string),
-});
+  registry.register({
+    name: "priceAbove",
+    displayName: "Price Above",
+    category: "trend",
+    params: {
+      indicatorKey: { type: "string", required: true, description: "Snapshot key for indicator" },
+    },
+    create: (p) => priceAbove(p.indicatorKey as string),
+  });
 
-streamingRegistry.register({
-  name: "indicatorAbove",
-  displayName: "Indicator Above",
-  category: "trend",
-  params: {
-    indicatorKey: { type: "string", required: true },
-    threshold: { type: "number", required: true },
-  },
-  create: (p) => indicatorAbove(p.indicatorKey as string, p.threshold as number),
-});
+  registry.register({
+    name: "priceBelow",
+    displayName: "Price Below",
+    category: "trend",
+    params: {
+      indicatorKey: { type: "string", required: true, description: "Snapshot key for indicator" },
+    },
+    create: (p) => priceBelow(p.indicatorKey as string),
+  });
 
-streamingRegistry.register({
-  name: "indicatorBelow",
-  displayName: "Indicator Below",
-  category: "trend",
-  params: {
-    indicatorKey: { type: "string", required: true },
-    threshold: { type: "number", required: true },
-  },
-  create: (p) => indicatorBelow(p.indicatorKey as string, p.threshold as number),
-});
+  registry.register({
+    name: "indicatorAbove",
+    displayName: "Indicator Above",
+    category: "trend",
+    params: {
+      indicatorKey: { type: "string", required: true },
+      threshold: { type: "number", required: true },
+    },
+    create: (p) => indicatorAbove(p.indicatorKey as string, p.threshold as number),
+  });
 
-// ============================================
-// Cross Detection
-// ============================================
+  registry.register({
+    name: "indicatorBelow",
+    displayName: "Indicator Below",
+    category: "trend",
+    params: {
+      indicatorKey: { type: "string", required: true },
+      threshold: { type: "number", required: true },
+    },
+    create: (p) => indicatorBelow(p.indicatorKey as string, p.threshold as number),
+  });
 
-streamingRegistry.register({
-  name: "crossOver",
-  displayName: "Cross Over",
-  category: "trend",
-  params: {
-    a: { type: "string", required: true, description: "First value key or number" },
-    b: { type: "string", required: true, description: "Second value key or number" },
-  },
-  create: (p) =>
-    crossOver(p.a as string, Number.isNaN(Number(p.b)) ? (p.b as string) : Number(p.b)),
-});
+  // ============================================
+  // Cross Detection
+  // ============================================
 
-streamingRegistry.register({
-  name: "crossUnder",
-  displayName: "Cross Under",
-  category: "trend",
-  params: {
-    a: { type: "string", required: true },
-    b: { type: "string", required: true },
-  },
-  create: (p) =>
-    crossUnder(p.a as string, Number.isNaN(Number(p.b)) ? (p.b as string) : Number(p.b)),
-});
+  registry.register({
+    name: "crossOver",
+    displayName: "Cross Over",
+    category: "trend",
+    params: {
+      a: { type: "string", required: true, description: "First value key or number" },
+      b: { type: "string", required: true, description: "Second value key or number" },
+    },
+    create: (p) =>
+      crossOver(p.a as string, Number.isNaN(Number(p.b)) ? (p.b as string) : Number(p.b)),
+  });
 
-// ============================================
-// DMI / ADX
-// ============================================
+  registry.register({
+    name: "crossUnder",
+    displayName: "Cross Under",
+    category: "trend",
+    params: {
+      a: { type: "string", required: true },
+      b: { type: "string", required: true },
+    },
+    create: (p) =>
+      crossUnder(p.a as string, Number.isNaN(Number(p.b)) ? (p.b as string) : Number(p.b)),
+  });
 
-streamingRegistry.register({
-  name: "dmiBullish",
-  displayName: "DMI Bullish",
-  category: "trend",
-  params: {
-    threshold: { type: "number", default: 25, min: 0 },
-    key: { type: "string", default: "dmi" },
-  },
-  create: (p) => dmiBullish((p.threshold as number) ?? 25, (p.key as string) ?? "dmi"),
-});
+  // ============================================
+  // DMI / ADX
+  // ============================================
 
-streamingRegistry.register({
-  name: "dmiBearish",
-  displayName: "DMI Bearish",
-  category: "trend",
-  params: {
-    threshold: { type: "number", default: 25, min: 0 },
-    key: { type: "string", default: "dmi" },
-  },
-  create: (p) => dmiBearish((p.threshold as number) ?? 25, (p.key as string) ?? "dmi"),
-});
+  registry.register({
+    name: "dmiBullish",
+    displayName: "DMI Bullish",
+    category: "trend",
+    params: {
+      threshold: { type: "number", default: 25, min: 0 },
+      key: { type: "string", default: "dmi" },
+    },
+    create: (p) => dmiBullish((p.threshold as number) ?? 25, (p.key as string) ?? "dmi"),
+  });
 
-streamingRegistry.register({
-  name: "adxStrong",
-  displayName: "ADX Strong",
-  category: "trend",
-  params: {
-    threshold: { type: "number", default: 25, min: 0 },
-    key: { type: "string", default: "dmi" },
-  },
-  isFilter: true,
-  create: (p) => adxStrong((p.threshold as number) ?? 25, (p.key as string) ?? "dmi"),
-});
+  registry.register({
+    name: "dmiBearish",
+    displayName: "DMI Bearish",
+    category: "trend",
+    params: {
+      threshold: { type: "number", default: 25, min: 0 },
+      key: { type: "string", default: "dmi" },
+    },
+    create: (p) => dmiBearish((p.threshold as number) ?? 25, (p.key as string) ?? "dmi"),
+  });
 
-streamingRegistry.register({
-  name: "adxRising",
-  displayName: "ADX Rising",
-  category: "trend",
-  params: { key: { type: "string", default: "dmi" } },
-  create: (p) => adxRising((p.key as string) ?? "dmi"),
-});
+  registry.register({
+    name: "adxStrong",
+    displayName: "ADX Strong",
+    category: "trend",
+    params: {
+      threshold: { type: "number", default: 25, min: 0 },
+      key: { type: "string", default: "dmi" },
+    },
+    isFilter: true,
+    create: (p) => adxStrong((p.threshold as number) ?? 25, (p.key as string) ?? "dmi"),
+  });
 
-streamingRegistry.register({
-  name: "dmiCrossUp",
-  displayName: "DMI Cross Up",
-  category: "trend",
-  params: { key: { type: "string", default: "dmi" } },
-  create: (p) => dmiCrossUp((p.key as string) ?? "dmi"),
-});
+  registry.register({
+    name: "adxRising",
+    displayName: "ADX Rising",
+    category: "trend",
+    params: { key: { type: "string", default: "dmi" } },
+    create: (p) => adxRising((p.key as string) ?? "dmi"),
+  });
 
-streamingRegistry.register({
-  name: "dmiCrossDown",
-  displayName: "DMI Cross Down",
-  category: "trend",
-  params: { key: { type: "string", default: "dmi" } },
-  create: (p) => dmiCrossDown((p.key as string) ?? "dmi"),
-});
+  registry.register({
+    name: "dmiCrossUp",
+    displayName: "DMI Cross Up",
+    category: "trend",
+    params: { key: { type: "string", default: "dmi" } },
+    create: (p) => dmiCrossUp((p.key as string) ?? "dmi"),
+  });
 
-// ============================================
-// Bollinger Bands
-// ============================================
+  registry.register({
+    name: "dmiCrossDown",
+    displayName: "DMI Cross Down",
+    category: "trend",
+    params: { key: { type: "string", default: "dmi" } },
+    create: (p) => dmiCrossDown((p.key as string) ?? "dmi"),
+  });
 
-streamingRegistry.register({
-  name: "bollingerBreakout",
-  displayName: "Bollinger Breakout",
-  category: "volatility",
-  // `band` defaults to "lower" to match the backtest registry (a portable
-  // JSON omitting `band` resolves identically on either side).
-  params: {
-    band: { type: "string", default: "lower", enum: ["upper", "lower"] },
-    key: { type: "string", default: "bb" },
-  },
-  create: (p) =>
-    bollingerBreakout((p.band as "upper" | "lower") ?? "lower", (p.key as string) ?? "bb"),
-});
+  // ============================================
+  // Bollinger Bands
+  // ============================================
 
-streamingRegistry.register({
-  name: "bollingerTouch",
-  displayName: "Bollinger Touch",
-  category: "volatility",
-  // `band` defaults to "lower" to match the backtest registry (see bollingerBreakout).
-  params: {
-    band: { type: "string", default: "lower", enum: ["upper", "lower"] },
-    tolerance: { type: "number", default: 0.1, min: 0 },
-    key: { type: "string", default: "bb" },
-  },
-  create: (p) =>
-    bollingerTouch(
-      (p.band as "upper" | "lower") ?? "lower",
-      (p.tolerance as number) ?? 0.1,
-      (p.key as string) ?? "bb",
-    ),
-});
+  registry.register({
+    name: "bollingerBreakout",
+    displayName: "Bollinger Breakout",
+    category: "volatility",
+    // `band` defaults to "lower" to match the backtest registry (a portable
+    // JSON omitting `band` resolves identically on either side).
+    params: {
+      band: { type: "string", default: "lower", enum: ["upper", "lower"] },
+      key: { type: "string", default: "bb" },
+    },
+    create: (p) =>
+      bollingerBreakout((p.band as "upper" | "lower") ?? "lower", (p.key as string) ?? "bb"),
+  });
 
-streamingRegistry.register({
-  name: "bollingerSqueeze",
-  displayName: "Bollinger Squeeze",
-  category: "volatility",
-  params: {
-    threshold: { type: "number", default: 0.1, min: 0 },
-    key: { type: "string", default: "bb" },
-  },
-  create: (p) => bollingerSqueeze((p.threshold as number) ?? 0.1, (p.key as string) ?? "bb"),
-});
+  registry.register({
+    name: "bollingerTouch",
+    displayName: "Bollinger Touch",
+    category: "volatility",
+    // `band` defaults to "lower" to match the backtest registry (see bollingerBreakout).
+    params: {
+      band: { type: "string", default: "lower", enum: ["upper", "lower"] },
+      tolerance: { type: "number", default: 0.1, min: 0 },
+      key: { type: "string", default: "bb" },
+    },
+    create: (p) =>
+      bollingerTouch(
+        (p.band as "upper" | "lower") ?? "lower",
+        (p.tolerance as number) ?? 0.1,
+        (p.key as string) ?? "bb",
+      ),
+  });
 
-streamingRegistry.register({
-  name: "bollingerExpansion",
-  displayName: "Bollinger Expansion",
-  category: "volatility",
-  params: {
-    threshold: { type: "number", default: 0.2, min: 0 },
-    key: { type: "string", default: "bb" },
-  },
-  create: (p) => bollingerExpansion((p.threshold as number) ?? 0.2, (p.key as string) ?? "bb"),
-});
+  registry.register({
+    name: "bollingerSqueeze",
+    displayName: "Bollinger Squeeze",
+    category: "volatility",
+    params: {
+      threshold: { type: "number", default: 0.1, min: 0 },
+      key: { type: "string", default: "bb" },
+    },
+    create: (p) => bollingerSqueeze((p.threshold as number) ?? 0.1, (p.key as string) ?? "bb"),
+  });
 
-// ============================================
-// Stochastics
-// ============================================
+  registry.register({
+    name: "bollingerExpansion",
+    displayName: "Bollinger Expansion",
+    category: "volatility",
+    params: {
+      threshold: { type: "number", default: 0.2, min: 0 },
+      key: { type: "string", default: "bb" },
+    },
+    create: (p) => bollingerExpansion((p.threshold as number) ?? 0.2, (p.key as string) ?? "bb"),
+  });
 
-streamingRegistry.register({
-  name: "stochBelow",
-  displayName: "Stoch Below",
-  category: "momentum",
-  params: {
-    threshold: { type: "number", default: 20, min: 0, max: 100 },
-    key: { type: "string", default: "stochastics" },
-  },
-  create: (p) => stochBelow((p.threshold as number) ?? 20, (p.key as string) ?? "stochastics"),
-});
+  // ============================================
+  // Stochastics
+  // ============================================
 
-streamingRegistry.register({
-  name: "stochAbove",
-  displayName: "Stoch Above",
-  category: "momentum",
-  params: {
-    threshold: { type: "number", default: 80, min: 0, max: 100 },
-    key: { type: "string", default: "stochastics" },
-  },
-  create: (p) => stochAbove((p.threshold as number) ?? 80, (p.key as string) ?? "stochastics"),
-});
+  registry.register({
+    name: "stochBelow",
+    displayName: "Stoch Below",
+    category: "momentum",
+    params: {
+      threshold: { type: "number", default: 20, min: 0, max: 100 },
+      key: { type: "string", default: "stochastics" },
+    },
+    create: (p) => stochBelow((p.threshold as number) ?? 20, (p.key as string) ?? "stochastics"),
+  });
 
-streamingRegistry.register({
-  name: "stochCrossUp",
-  displayName: "Stoch Cross Up",
-  category: "momentum",
-  params: { key: { type: "string", default: "stochastics" } },
-  create: (p) => stochCrossUp((p.key as string) ?? "stochastics"),
-});
+  registry.register({
+    name: "stochAbove",
+    displayName: "Stoch Above",
+    category: "momentum",
+    params: {
+      threshold: { type: "number", default: 80, min: 0, max: 100 },
+      key: { type: "string", default: "stochastics" },
+    },
+    create: (p) => stochAbove((p.threshold as number) ?? 80, (p.key as string) ?? "stochastics"),
+  });
 
-streamingRegistry.register({
-  name: "stochCrossDown",
-  displayName: "Stoch Cross Down",
-  category: "momentum",
-  params: { key: { type: "string", default: "stochastics" } },
-  create: (p) => stochCrossDown((p.key as string) ?? "stochastics"),
-});
+  registry.register({
+    name: "stochCrossUp",
+    displayName: "Stoch Cross Up",
+    category: "momentum",
+    params: { key: { type: "string", default: "stochastics" } },
+    create: (p) => stochCrossUp((p.key as string) ?? "stochastics"),
+  });
 
-// ============================================
-// Volume
-// ============================================
+  registry.register({
+    name: "stochCrossDown",
+    displayName: "Stoch Cross Down",
+    category: "momentum",
+    params: { key: { type: "string", default: "stochastics" } },
+    create: (p) => stochCrossDown((p.key as string) ?? "stochastics"),
+  });
 
-streamingRegistry.register({
-  name: "volumeAboveAvg",
-  displayName: "Volume Above Avg",
-  category: "volume",
-  params: {
-    multiplier: { type: "number", default: 1.5, min: 0.1 },
-    key: { type: "string", default: "volumeAnomaly" },
-  },
-  isFilter: true,
-  create: (p) =>
-    volumeAboveAvg((p.multiplier as number) ?? 1.5, (p.key as string) ?? "volumeAnomaly"),
-});
+  // ============================================
+  // Volume
+  // ============================================
 
-streamingRegistry.register({
-  name: "cmfAbove",
-  displayName: "CMF Above",
-  category: "volume",
-  // Default matches the backtest registry. 0 is the canonical CMF zero-line
-  // reference (the ±0.05 buffer is an optional whipsaw filter, not the default).
-  params: { threshold: { type: "number", default: 0 }, key: { type: "string", default: "cmf" } },
-  create: (p) => cmfAbove((p.threshold as number) ?? 0, (p.key as string) ?? "cmf"),
-});
-streamingRegistry.register({
-  name: "cmfBelow",
-  displayName: "CMF Below",
-  category: "volume",
-  // Default matches the backtest registry (CMF zero-line; see cmfAbove).
-  params: {
-    threshold: { type: "number", default: 0 },
-    key: { type: "string", default: "cmf" },
-  },
-  create: (p) => cmfBelow((p.threshold as number) ?? 0, (p.key as string) ?? "cmf"),
-});
-streamingRegistry.register({
-  name: "obvRising",
-  displayName: "OBV Rising",
-  category: "volume",
-  params: { key: { type: "string", default: "obv" } },
-  create: (p) => obvRising((p.key as string) ?? "obv"),
-});
-streamingRegistry.register({
-  name: "obvFalling",
-  displayName: "OBV Falling",
-  category: "volume",
-  params: { key: { type: "string", default: "obv" } },
-  create: (p) => obvFalling((p.key as string) ?? "obv"),
-});
-streamingRegistry.register({
-  name: "obvCrossUp",
-  displayName: "OBV Cross Up",
-  category: "volume",
-  params: {
-    signalKey: { type: "string", default: "obvSignal" },
-    key: { type: "string", default: "obv" },
-  },
-  create: (p) => obvCrossUp((p.signalKey as string) ?? "obvSignal", (p.key as string) ?? "obv"),
-});
-streamingRegistry.register({
-  name: "obvCrossDown",
-  displayName: "OBV Cross Down",
-  category: "volume",
-  params: {
-    signalKey: { type: "string", default: "obvSignal" },
-    key: { type: "string", default: "obv" },
-  },
-  create: (p) => obvCrossDown((p.signalKey as string) ?? "obvSignal", (p.key as string) ?? "obv"),
-});
+  registry.register({
+    name: "volumeAboveAvg",
+    displayName: "Volume Above Avg",
+    category: "volume",
+    params: {
+      multiplier: { type: "number", default: 1.5, min: 0.1 },
+      key: { type: "string", default: "volumeAnomaly" },
+    },
+    isFilter: true,
+    create: (p) =>
+      volumeAboveAvg((p.multiplier as number) ?? 1.5, (p.key as string) ?? "volumeAnomaly"),
+  });
 
-// ============================================
-// Volatility
-// ============================================
+  registry.register({
+    name: "cmfAbove",
+    displayName: "CMF Above",
+    category: "volume",
+    // Default matches the backtest registry. 0 is the canonical CMF zero-line
+    // reference (the ±0.05 buffer is an optional whipsaw filter, not the default).
+    params: { threshold: { type: "number", default: 0 }, key: { type: "string", default: "cmf" } },
+    create: (p) => cmfAbove((p.threshold as number) ?? 0, (p.key as string) ?? "cmf"),
+  });
+  registry.register({
+    name: "cmfBelow",
+    displayName: "CMF Below",
+    category: "volume",
+    // Default matches the backtest registry (CMF zero-line; see cmfAbove).
+    params: {
+      threshold: { type: "number", default: 0 },
+      key: { type: "string", default: "cmf" },
+    },
+    create: (p) => cmfBelow((p.threshold as number) ?? 0, (p.key as string) ?? "cmf"),
+  });
+  registry.register({
+    name: "obvRising",
+    displayName: "OBV Rising",
+    category: "volume",
+    params: { key: { type: "string", default: "obv" } },
+    create: (p) => obvRising((p.key as string) ?? "obv"),
+  });
+  registry.register({
+    name: "obvFalling",
+    displayName: "OBV Falling",
+    category: "volume",
+    params: { key: { type: "string", default: "obv" } },
+    create: (p) => obvFalling((p.key as string) ?? "obv"),
+  });
+  registry.register({
+    name: "obvCrossUp",
+    displayName: "OBV Cross Up",
+    category: "volume",
+    params: {
+      signalKey: { type: "string", default: "obvSignal" },
+      key: { type: "string", default: "obv" },
+    },
+    create: (p) => obvCrossUp((p.signalKey as string) ?? "obvSignal", (p.key as string) ?? "obv"),
+  });
+  registry.register({
+    name: "obvCrossDown",
+    displayName: "OBV Cross Down",
+    category: "volume",
+    params: {
+      signalKey: { type: "string", default: "obvSignal" },
+      key: { type: "string", default: "obv" },
+    },
+    create: (p) => obvCrossDown((p.signalKey as string) ?? "obvSignal", (p.key as string) ?? "obv"),
+  });
 
-streamingRegistry.register({
-  name: "atrPercentAbove",
-  displayName: "ATR% Above",
-  category: "volatility",
-  // Default references the shared DEFAULT_ATR_THRESHOLD constant (matches the
-  // backtest registry and the factory; single source of truth).
-  params: {
-    threshold: { type: "number", default: DEFAULT_ATR_THRESHOLD, min: 0 },
-    key: { type: "string", default: "atr" },
-  },
-  isFilter: true,
-  create: (p) =>
-    atrPercentAbove((p.threshold as number) ?? DEFAULT_ATR_THRESHOLD, (p.key as string) ?? "atr"),
-});
+  // ============================================
+  // Volatility
+  // ============================================
 
-streamingRegistry.register({
-  name: "atrPercentBelow",
-  displayName: "ATR% Below",
-  category: "volatility",
-  params: {
-    threshold: { type: "number", default: 1.0, min: 0 },
-    key: { type: "string", default: "atr" },
-  },
-  isFilter: true,
-  create: (p) => atrPercentBelow((p.threshold as number) ?? 1.0, (p.key as string) ?? "atr"),
-});
+  registry.register({
+    name: "atrPercentAbove",
+    displayName: "ATR% Above",
+    category: "volatility",
+    // Default references the shared DEFAULT_ATR_THRESHOLD constant (matches the
+    // backtest registry and the factory; single source of truth).
+    params: {
+      threshold: { type: "number", default: DEFAULT_ATR_THRESHOLD, min: 0 },
+      key: { type: "string", default: "atr" },
+    },
+    isFilter: true,
+    create: (p) =>
+      atrPercentAbove((p.threshold as number) ?? DEFAULT_ATR_THRESHOLD, (p.key as string) ?? "atr"),
+  });
 
-streamingRegistry.register({
-  name: "volatilityExpanding",
-  displayName: "Volatility Expanding",
-  category: "volatility",
-  params: { key: { type: "string", default: "atr" } },
-  isFilter: true,
-  create: (p) => volatilityExpanding((p.key as string) ?? "atr"),
-});
-streamingRegistry.register({
-  name: "volatilityContracting",
-  displayName: "Volatility Contracting",
-  category: "volatility",
-  params: { key: { type: "string", default: "atr" } },
-  isFilter: true,
-  create: (p) => volatilityContracting((p.key as string) ?? "atr"),
-});
+  registry.register({
+    name: "atrPercentBelow",
+    displayName: "ATR% Below",
+    category: "volatility",
+    params: {
+      threshold: { type: "number", default: 1.0, min: 0 },
+      key: { type: "string", default: "atr" },
+    },
+    isFilter: true,
+    create: (p) => atrPercentBelow((p.threshold as number) ?? 1.0, (p.key as string) ?? "atr"),
+  });
 
-// ============================================
-// Trend
-// ============================================
+  registry.register({
+    name: "volatilityExpanding",
+    displayName: "Volatility Expanding",
+    category: "volatility",
+    params: { key: { type: "string", default: "atr" } },
+    isFilter: true,
+    create: (p) => volatilityExpanding((p.key as string) ?? "atr"),
+  });
+  registry.register({
+    name: "volatilityContracting",
+    displayName: "Volatility Contracting",
+    category: "volatility",
+    params: { key: { type: "string", default: "atr" } },
+    isFilter: true,
+    create: (p) => volatilityContracting((p.key as string) ?? "atr"),
+  });
 
-streamingRegistry.register({
-  name: "supertrendBullish",
-  displayName: "Supertrend Bullish",
-  category: "trend",
-  params: { key: { type: "string", default: "supertrend" } },
-  create: (p) => supertrendBullish((p.key as string) ?? "supertrend"),
-});
-streamingRegistry.register({
-  name: "supertrendBearish",
-  displayName: "Supertrend Bearish",
-  category: "trend",
-  params: { key: { type: "string", default: "supertrend" } },
-  create: (p) => supertrendBearish((p.key as string) ?? "supertrend"),
-});
-streamingRegistry.register({
-  name: "supertrendFlip",
-  displayName: "Supertrend Flip",
-  category: "trend",
-  params: { key: { type: "string", default: "supertrend" } },
-  create: (p) => supertrendFlip((p.key as string) ?? "supertrend"),
-});
-streamingRegistry.register({
-  name: "ichimokuBullish",
-  displayName: "Ichimoku Bullish",
-  category: "trend",
-  params: { key: { type: "string", default: "ichimoku" } },
-  create: (p) => ichimokuBullish((p.key as string) ?? "ichimoku"),
-});
-streamingRegistry.register({
-  name: "ichimokuBearish",
-  displayName: "Ichimoku Bearish",
-  category: "trend",
-  params: { key: { type: "string", default: "ichimoku" } },
-  create: (p) => ichimokuBearish((p.key as string) ?? "ichimoku"),
-});
-streamingRegistry.register({
-  name: "sarFlip",
-  displayName: "SAR Flip",
-  category: "trend",
-  params: { key: { type: "string", default: "parabolicSar" } },
-  create: (p) => sarFlip((p.key as string) ?? "parabolicSar"),
-});
+  // ============================================
+  // Trend
+  // ============================================
 
-// ============================================
-// Price (Streaming)
-// ============================================
+  registry.register({
+    name: "supertrendBullish",
+    displayName: "Supertrend Bullish",
+    category: "trend",
+    params: { key: { type: "string", default: "supertrend" } },
+    create: (p) => supertrendBullish((p.key as string) ?? "supertrend"),
+  });
+  registry.register({
+    name: "supertrendBearish",
+    displayName: "Supertrend Bearish",
+    category: "trend",
+    params: { key: { type: "string", default: "supertrend" } },
+    create: (p) => supertrendBearish((p.key as string) ?? "supertrend"),
+  });
+  registry.register({
+    name: "supertrendFlip",
+    displayName: "Supertrend Flip",
+    category: "trend",
+    params: { key: { type: "string", default: "supertrend" } },
+    create: (p) => supertrendFlip((p.key as string) ?? "supertrend"),
+  });
+  registry.register({
+    name: "ichimokuBullish",
+    displayName: "Ichimoku Bullish",
+    category: "trend",
+    params: { key: { type: "string", default: "ichimoku" } },
+    create: (p) => ichimokuBullish((p.key as string) ?? "ichimoku"),
+  });
+  registry.register({
+    name: "ichimokuBearish",
+    displayName: "Ichimoku Bearish",
+    category: "trend",
+    params: { key: { type: "string", default: "ichimoku" } },
+    create: (p) => ichimokuBearish((p.key as string) ?? "ichimoku"),
+  });
+  registry.register({
+    name: "sarFlip",
+    displayName: "SAR Flip",
+    category: "trend",
+    params: { key: { type: "string", default: "parabolicSar" } },
+    create: (p) => sarFlip((p.key as string) ?? "parabolicSar"),
+  });
 
-streamingRegistry.register({
-  name: "priceDroppedAtr",
-  displayName: "Price Dropped ATR",
-  category: "volatility",
-  // Default matches the backtest registry. 2× ATR is the conventional range
-  // (2–3) for a meaningful move; 1× is too tight to register as a "drop".
-  params: {
-    multiplier: { type: "number", default: 2.0, min: 0.1 },
-    key: { type: "string", default: "atr" },
-  },
-  create: (p) => priceDroppedAtr((p.multiplier as number) ?? 2.0, (p.key as string) ?? "atr"),
-});
+  // ============================================
+  // Price (Streaming)
+  // ============================================
 
-streamingRegistry.register({
-  name: "priceGainedAtr",
-  displayName: "Price Gained ATR",
-  category: "volatility",
-  params: {
-    multiplier: { type: "number", default: 1.0, min: 0.1 },
-    key: { type: "string", default: "atr" },
-  },
-  create: (p) => priceGainedAtr((p.multiplier as number) ?? 1.0, (p.key as string) ?? "atr"),
-});
+  registry.register({
+    name: "priceDroppedAtr",
+    displayName: "Price Dropped ATR",
+    category: "volatility",
+    // Default matches the backtest registry. 2× ATR is the conventional range
+    // (2–3) for a meaningful move; 1× is too tight to register as a "drop".
+    params: {
+      multiplier: { type: "number", default: 2.0, min: 0.1 },
+      key: { type: "string", default: "atr" },
+    },
+    create: (p) => priceDroppedAtr((p.multiplier as number) ?? 2.0, (p.key as string) ?? "atr"),
+  });
 
-streamingRegistry.register({
-  name: "newHigh",
-  displayName: "New High",
-  category: "trend",
-  params: { key: { type: "string", default: "donchian" } },
-  create: (p) => newHigh((p.key as string) ?? "donchian"),
-});
-streamingRegistry.register({
-  name: "newLow",
-  displayName: "New Low",
-  category: "trend",
-  params: { key: { type: "string", default: "donchian" } },
-  create: (p) => newLow((p.key as string) ?? "donchian"),
-});
+  registry.register({
+    name: "priceGainedAtr",
+    displayName: "Price Gained ATR",
+    category: "volatility",
+    params: {
+      multiplier: { type: "number", default: 1.0, min: 0.1 },
+      key: { type: "string", default: "atr" },
+    },
+    create: (p) => priceGainedAtr((p.multiplier as number) ?? 1.0, (p.key as string) ?? "atr"),
+  });
 
-// ============================================
-// Perfect Order (Streaming)
-// ============================================
+  registry.register({
+    name: "newHigh",
+    displayName: "New High",
+    category: "trend",
+    params: { key: { type: "string", default: "donchian" } },
+    create: (p) => newHigh((p.key as string) ?? "donchian"),
+  });
+  registry.register({
+    name: "newLow",
+    displayName: "New Low",
+    category: "trend",
+    params: { key: { type: "string", default: "donchian" } },
+    create: (p) => newLow((p.key as string) ?? "donchian"),
+  });
 
-streamingRegistry.register({
-  name: "perfectOrderBullish",
-  displayName: "PO Bullish",
-  category: "trend",
-  params: { key: { type: "string", default: "emaRibbon" } },
-  create: (p) => perfectOrderBullish((p.key as string) ?? "emaRibbon"),
-});
-streamingRegistry.register({
-  name: "perfectOrderBearish",
-  displayName: "PO Bearish",
-  category: "trend",
-  params: { key: { type: "string", default: "emaRibbon" } },
-  create: (p) => perfectOrderBearish((p.key as string) ?? "emaRibbon"),
-});
-streamingRegistry.register({
-  name: "perfectOrderForming",
-  displayName: "PO Forming",
-  category: "trend",
-  params: { key: { type: "string", default: "emaRibbon" } },
-  create: (p) => perfectOrderForming((p.key as string) ?? "emaRibbon"),
-});
-streamingRegistry.register({
-  name: "perfectOrderCollapsed",
-  displayName: "PO Collapsed",
-  category: "trend",
-  params: { key: { type: "string", default: "emaRibbon" } },
-  create: (p) => perfectOrderCollapsed((p.key as string) ?? "emaRibbon"),
-});
+  // ============================================
+  // Perfect Order (Streaming)
+  // ============================================
 
-// ============================================
-// Keltner Channel
-// ============================================
+  registry.register({
+    name: "perfectOrderBullish",
+    displayName: "PO Bullish",
+    category: "trend",
+    params: { key: { type: "string", default: "emaRibbon" } },
+    create: (p) => perfectOrderBullish((p.key as string) ?? "emaRibbon"),
+  });
+  registry.register({
+    name: "perfectOrderBearish",
+    displayName: "PO Bearish",
+    category: "trend",
+    params: { key: { type: "string", default: "emaRibbon" } },
+    create: (p) => perfectOrderBearish((p.key as string) ?? "emaRibbon"),
+  });
+  registry.register({
+    name: "perfectOrderForming",
+    displayName: "PO Forming",
+    category: "trend",
+    params: { key: { type: "string", default: "emaRibbon" } },
+    create: (p) => perfectOrderForming((p.key as string) ?? "emaRibbon"),
+  });
+  registry.register({
+    name: "perfectOrderCollapsed",
+    displayName: "PO Collapsed",
+    category: "trend",
+    params: { key: { type: "string", default: "emaRibbon" } },
+    create: (p) => perfectOrderCollapsed((p.key as string) ?? "emaRibbon"),
+  });
 
-streamingRegistry.register({
-  name: "keltnerBreakout",
-  displayName: "Keltner Breakout",
-  category: "volatility",
-  params: {
-    band: { type: "string", required: true, enum: ["upper", "lower"] },
-    key: { type: "string", default: "keltner" },
-  },
-  create: (p) => keltnerBreakout(p.band as "upper" | "lower", (p.key as string) ?? "keltner"),
-});
+  // ============================================
+  // Keltner Channel
+  // ============================================
 
-streamingRegistry.register({
-  name: "keltnerTouch",
-  displayName: "Keltner Touch",
-  category: "volatility",
-  params: {
-    band: { type: "string", required: true, enum: ["upper", "lower"] },
-    tolerance: { type: "number", default: 0.1, min: 0 },
-    key: { type: "string", default: "keltner" },
-  },
-  create: (p) =>
-    keltnerTouch(
-      p.band as "upper" | "lower",
-      (p.tolerance as number) ?? 0.1,
-      (p.key as string) ?? "keltner",
-    ),
-});
+  registry.register({
+    name: "keltnerBreakout",
+    displayName: "Keltner Breakout",
+    category: "volatility",
+    params: {
+      band: { type: "string", required: true, enum: ["upper", "lower"] },
+      key: { type: "string", default: "keltner" },
+    },
+    create: (p) => keltnerBreakout(p.band as "upper" | "lower", (p.key as string) ?? "keltner"),
+  });
 
-streamingRegistry.register({
-  name: "keltnerSqueeze",
-  displayName: "Keltner Squeeze (TTM)",
-  category: "volatility",
-  params: {
-    bbKey: { type: "string", default: "bb" },
-    keltnerKey: { type: "string", default: "keltner" },
-  },
-  create: (p) => keltnerSqueeze((p.bbKey as string) ?? "bb", (p.keltnerKey as string) ?? "keltner"),
-});
+  registry.register({
+    name: "keltnerTouch",
+    displayName: "Keltner Touch",
+    category: "volatility",
+    params: {
+      band: { type: "string", required: true, enum: ["upper", "lower"] },
+      tolerance: { type: "number", default: 0.1, min: 0 },
+      key: { type: "string", default: "keltner" },
+    },
+    create: (p) =>
+      keltnerTouch(
+        p.band as "upper" | "lower",
+        (p.tolerance as number) ?? 0.1,
+        (p.key as string) ?? "keltner",
+      ),
+  });
 
-// ============================================
-// Donchian Channel
-// ============================================
+  registry.register({
+    name: "keltnerSqueeze",
+    displayName: "Keltner Squeeze (TTM)",
+    category: "volatility",
+    params: {
+      bbKey: { type: "string", default: "bb" },
+      keltnerKey: { type: "string", default: "keltner" },
+    },
+    create: (p) =>
+      keltnerSqueeze((p.bbKey as string) ?? "bb", (p.keltnerKey as string) ?? "keltner"),
+  });
 
-streamingRegistry.register({
-  name: "donchianBreakoutHigh",
-  displayName: "Donchian Breakout High",
-  category: "trend",
-  params: { key: { type: "string", default: "donchian" } },
-  create: (p) => donchianBreakoutHigh((p.key as string) ?? "donchian"),
-});
-streamingRegistry.register({
-  name: "donchianBreakoutLow",
-  displayName: "Donchian Breakout Low",
-  category: "trend",
-  params: { key: { type: "string", default: "donchian" } },
-  create: (p) => donchianBreakoutLow((p.key as string) ?? "donchian"),
-});
-streamingRegistry.register({
-  name: "donchianMiddleCrossUp",
-  displayName: "Donchian Middle Cross Up",
-  category: "trend",
-  params: { key: { type: "string", default: "donchian" } },
-  create: (p) => donchianMiddleCrossUp((p.key as string) ?? "donchian"),
-});
-streamingRegistry.register({
-  name: "donchianMiddleCrossDown",
-  displayName: "Donchian Middle Cross Down",
-  category: "trend",
-  params: { key: { type: "string", default: "donchian" } },
-  create: (p) => donchianMiddleCrossDown((p.key as string) ?? "donchian"),
-});
+  // ============================================
+  // Donchian Channel
+  // ============================================
+
+  registry.register({
+    name: "donchianBreakoutHigh",
+    displayName: "Donchian Breakout High",
+    category: "trend",
+    params: { key: { type: "string", default: "donchian" } },
+    create: (p) => donchianBreakoutHigh((p.key as string) ?? "donchian"),
+  });
+  registry.register({
+    name: "donchianBreakoutLow",
+    displayName: "Donchian Breakout Low",
+    category: "trend",
+    params: { key: { type: "string", default: "donchian" } },
+    create: (p) => donchianBreakoutLow((p.key as string) ?? "donchian"),
+  });
+  registry.register({
+    name: "donchianMiddleCrossUp",
+    displayName: "Donchian Middle Cross Up",
+    category: "trend",
+    params: { key: { type: "string", default: "donchian" } },
+    create: (p) => donchianMiddleCrossUp((p.key as string) ?? "donchian"),
+  });
+  registry.register({
+    name: "donchianMiddleCrossDown",
+    displayName: "Donchian Middle Cross Down",
+    category: "trend",
+    params: { key: { type: "string", default: "donchian" } },
+    create: (p) => donchianMiddleCrossDown((p.key as string) ?? "donchian"),
+  });
+
+  return registry;
+}

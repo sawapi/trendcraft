@@ -91,7 +91,9 @@ const METRIC_KEYS: Record<OptimizationMetric, true> = {
 };
 
 /** Every {@link OptimizationMetric}, in a stable order. */
-export const OPTIMIZATION_METRICS = Object.keys(METRIC_KEYS) as OptimizationMetric[];
+export const OPTIMIZATION_METRICS = /* @__PURE__ */ Object.keys(
+  METRIC_KEYS,
+) as OptimizationMetric[];
 
 /**
  * Mean across only the finite entries; returns 0 when no finite

@@ -445,7 +445,7 @@ export const perfectOrderBullish: SignalDefinition = {
   displayName: "Perfect Order (Bull)",
   weight: 3.0,
   category: "trend",
-  evaluate: createPerfectOrderBullishEvaluator(),
+  evaluate: /* @__PURE__ */ createPerfectOrderBullishEvaluator(),
   requiredIndicators: ["perfectOrder"],
 };
 
@@ -454,7 +454,7 @@ export const perfectOrderBearish: SignalDefinition = {
   displayName: "Perfect Order (Bear)",
   weight: 3.0,
   category: "trend",
-  evaluate: createPerfectOrderBearishEvaluator(),
+  evaluate: /* @__PURE__ */ createPerfectOrderBearishEvaluator(),
   requiredIndicators: ["perfectOrder"],
 };
 
@@ -463,7 +463,7 @@ export const poConfirmation: SignalDefinition = {
   displayName: "PO+ Confirmation",
   weight: 3.0,
   category: "trend",
-  evaluate: createPOConfirmationEvaluator(),
+  evaluate: /* @__PURE__ */ createPOConfirmationEvaluator(),
   requiredIndicators: ["perfectOrderEnhanced"],
 };
 
@@ -472,7 +472,7 @@ export const pullbackEntry20: SignalDefinition = {
   displayName: "Pullback to 20MA",
   weight: 2.0,
   category: "trend",
-  evaluate: createPullbackEntryEvaluator(20),
+  evaluate: /* @__PURE__ */ createPullbackEntryEvaluator(20),
   requiredIndicators: ["sma"],
 };
 
@@ -481,7 +481,7 @@ export const goldenCross50200: SignalDefinition = {
   displayName: "Golden Cross (50/200)",
   weight: 2.5,
   category: "trend",
-  evaluate: createGoldenCrossEvaluator(50, 200),
+  evaluate: /* @__PURE__ */ createGoldenCrossEvaluator(50, 200),
   requiredIndicators: ["sma"],
 };
 
@@ -490,6 +490,6 @@ export const priceAboveEma20: SignalDefinition = {
   displayName: "Price > EMA20",
   weight: 1.0,
   category: "trend",
-  evaluate: createPriceAboveEmaEvaluator(20),
+  evaluate: /* @__PURE__ */ createPriceAboveEmaEvaluator(20),
   requiredIndicators: ["ema"],
 };

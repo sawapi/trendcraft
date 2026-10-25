@@ -256,862 +256,898 @@ function factory<TParams extends Record<string, unknown> = Record<string, unknow
  * conn.addIndicator("rsi");   // uses livePresets.rsi
  * ```
  */
-export const livePresets: Record<string, LivePreset> = {
-  // Moving Averages
-  sma: {
-    meta: SMA_META,
-    defaultParams: { period: 20 },
-    snapshotName: (p) => `sma_${p.source ?? "close"}_${p.period ?? 20}`,
-    createFactory: factory<{ source?: PriceSource; period?: number }>()(createSma, (p) => ({
-      period: p.period ?? 20,
-      source: p.source,
-    })),
-  },
-  ema: {
-    meta: EMA_META,
-    defaultParams: { period: 20 },
-    snapshotName: (p) => `ema${p.period}`,
-    createFactory: factory<{ period?: number }>()(createEma, (p) => ({ period: p.period ?? 20 })),
-  },
-  wma: {
-    meta: WMA_META,
-    defaultParams: { period: 20 },
-    snapshotName: (p) => `wma${p.period}`,
-    createFactory: factory<{ period?: number }>()(createWma, (p) => ({ period: p.period ?? 20 })),
-  },
-  vwma: {
-    meta: VWMA_META,
-    defaultParams: { period: 20 },
-    snapshotName: (p) => `vwma${p.period}`,
-    createFactory: factory<{ period?: number }>()(createVwma, (p) => ({ period: p.period ?? 20 })),
-  },
-  kama: {
-    meta: KAMA_META,
-    defaultParams: { period: 10 },
-    snapshotName: (p) => `kama${p.period}`,
-    createFactory: factory<{ period?: number }>()(createKama, (p) => ({ period: p.period ?? 10 })),
-  },
-  hma: {
-    meta: HMA_META,
-    defaultParams: { period: 16 },
-    snapshotName: (p) => `hma${p.period}`,
-    createFactory: factory<{ period?: number }>()(createHma, (p) => ({ period: p.period ?? 16 })),
-  },
-  t3: {
-    meta: T3_META,
-    defaultParams: { period: 5, vFactor: 0.7 },
-    snapshotName: (p) => `t3_${p.period}_${p.vFactor}`,
-    createFactory: factory<{ period?: number; vFactor?: number }>()(createT3, (p) => ({
-      period: p.period ?? 5,
-      vFactor: p.vFactor ?? 0.7,
-    })),
-  },
-  mcginley: {
-    meta: MCGINLEY_META,
-    defaultParams: { period: 14 },
-    snapshotName: (p) => `mcginley${p.period}`,
-    createFactory: factory<{ period?: number }>()(createMcGinleyDynamic, (p) => ({
-      period: p.period ?? 14,
-    })),
-  },
-  emaRibbon: {
-    meta: EMA_RIBBON_META,
-    defaultParams: { periods: [8, 13, 21, 34, 55] },
-    snapshotName: "emaRibbon",
-    createFactory: factory<{ periods?: number[] }>()(createEmaRibbon, (p) => ({
-      periods: p.periods,
-    })),
-  },
-  dema: {
-    meta: DEMA_META,
-    defaultParams: { period: 20 },
-    snapshotName: (p) => `dema_${p.source ?? "close"}_${p.period ?? 20}`,
-    createFactory: factory<{ source?: PriceSource; period?: number }>()(createDema, (p) => ({
-      period: p.period ?? 20,
-      source: p.source,
-    })),
-  },
-  tema: {
-    meta: TEMA_META,
-    defaultParams: { period: 20 },
-    snapshotName: (p) => `tema_${p.source ?? "close"}_${p.period ?? 20}`,
-    createFactory: factory<{ source?: PriceSource; period?: number }>()(createTema, (p) => ({
-      period: p.period ?? 20,
-      source: p.source,
-    })),
-  },
-  zlema: {
-    meta: ZLEMA_META,
-    defaultParams: { period: 20 },
-    snapshotName: (p) => `zlema_${p.source ?? "close"}_${p.period ?? 20}`,
-    createFactory: factory<{ source?: PriceSource; period?: number }>()(createZlema, (p) => ({
-      period: p.period ?? 20,
-      source: p.source,
-    })),
-  },
-  alma: {
-    meta: ALMA_META,
-    defaultParams: { period: 9, offset: 0.85, sigma: 6 },
-    snapshotName: (p) => `alma${p.period}_${p.offset ?? 0.85}_${p.sigma ?? 6}`,
-    createFactory: factory<{
-      source?: PriceSource;
-      period?: number;
-      offset?: number;
-      sigma?: number;
-    }>()(createAlma, (p) => ({
-      period: p.period ?? 9,
-      offset: p.offset ?? 0.85,
-      sigma: p.sigma ?? 6,
-      source: p.source,
-    })),
-  },
-  frama: {
-    meta: FRAMA_META,
-    defaultParams: { period: 16 },
-    snapshotName: (p) => `frama_${p.source ?? "close"}_${p.period ?? 16}`,
-    createFactory: factory<{ source?: PriceSource; period?: number }>()(createFrama, (p) => ({
-      period: p.period ?? 16,
-      source: p.source,
-    })),
-  },
+export const livePresets: Record<string, LivePreset> = /* @__PURE__ */ buildLivePresets();
 
-  // Momentum
-  rsi: {
-    meta: RSI_META,
-    defaultParams: { period: 14 },
-    snapshotName: (p) => `rsi${p.period}`,
-    createFactory: factory<{ period?: number }>()(createRsi, (p) => ({ period: p.period ?? 14 })),
-  },
-  macd: {
-    meta: MACD_META,
-    defaultParams: { fastPeriod: 12, slowPeriod: 26, signalPeriod: 9 },
-    snapshotName: "macd",
-    createFactory: factory<{ fastPeriod?: number; slowPeriod?: number; signalPeriod?: number }>()(
-      createMacd,
-      (p) => ({
-        fastPeriod: p.fastPeriod,
-        slowPeriod: p.slowPeriod,
-        signalPeriod: p.signalPeriod,
-      }),
-    ),
-  },
-  stochastics: {
-    meta: STOCHASTICS_META,
-    defaultParams: { kPeriod: 14, dPeriod: 3, slowing: 3 },
-    snapshotName: "stoch",
-    createFactory: factory<{ kPeriod?: number; dPeriod?: number; slowing?: number }>()(
-      createStochastics,
-      (p) => ({
+// Built in a function, not as a plain literal: the entries' helper calls would
+// run at module load and pin every indicator they reference into any bundle
+// that imports anything from "trendcraft" (ops #90).
+function buildLivePresets(): Record<string, LivePreset> {
+  return {
+    // Moving Averages
+    sma: {
+      meta: SMA_META,
+      defaultParams: { period: 20 },
+      snapshotName: (p) => `sma_${p.source ?? "close"}_${p.period ?? 20}`,
+      createFactory: factory<{ source?: PriceSource; period?: number }>()(createSma, (p) => ({
+        period: p.period ?? 20,
+        source: p.source,
+      })),
+    },
+    ema: {
+      meta: EMA_META,
+      defaultParams: { period: 20 },
+      snapshotName: (p) => `ema${p.period}`,
+      createFactory: factory<{ period?: number }>()(createEma, (p) => ({ period: p.period ?? 20 })),
+    },
+    wma: {
+      meta: WMA_META,
+      defaultParams: { period: 20 },
+      snapshotName: (p) => `wma${p.period}`,
+      createFactory: factory<{ period?: number }>()(createWma, (p) => ({ period: p.period ?? 20 })),
+    },
+    vwma: {
+      meta: VWMA_META,
+      defaultParams: { period: 20 },
+      snapshotName: (p) => `vwma${p.period}`,
+      createFactory: factory<{ period?: number }>()(createVwma, (p) => ({
+        period: p.period ?? 20,
+      })),
+    },
+    kama: {
+      meta: KAMA_META,
+      defaultParams: { period: 10 },
+      snapshotName: (p) => `kama${p.period}`,
+      createFactory: factory<{ period?: number }>()(createKama, (p) => ({
+        period: p.period ?? 10,
+      })),
+    },
+    hma: {
+      meta: HMA_META,
+      defaultParams: { period: 16 },
+      snapshotName: (p) => `hma${p.period}`,
+      createFactory: factory<{ period?: number }>()(createHma, (p) => ({ period: p.period ?? 16 })),
+    },
+    t3: {
+      meta: T3_META,
+      defaultParams: { period: 5, vFactor: 0.7 },
+      snapshotName: (p) => `t3_${p.period}_${p.vFactor}`,
+      createFactory: factory<{ period?: number; vFactor?: number }>()(createT3, (p) => ({
+        period: p.period ?? 5,
+        vFactor: p.vFactor ?? 0.7,
+      })),
+    },
+    mcginley: {
+      meta: MCGINLEY_META,
+      defaultParams: { period: 14 },
+      snapshotName: (p) => `mcginley${p.period}`,
+      createFactory: factory<{ period?: number }>()(createMcGinleyDynamic, (p) => ({
+        period: p.period ?? 14,
+      })),
+    },
+    emaRibbon: {
+      meta: EMA_RIBBON_META,
+      defaultParams: { periods: [8, 13, 21, 34, 55] },
+      snapshotName: "emaRibbon",
+      createFactory: factory<{ periods?: number[] }>()(createEmaRibbon, (p) => ({
+        periods: p.periods,
+      })),
+    },
+    dema: {
+      meta: DEMA_META,
+      defaultParams: { period: 20 },
+      snapshotName: (p) => `dema_${p.source ?? "close"}_${p.period ?? 20}`,
+      createFactory: factory<{ source?: PriceSource; period?: number }>()(createDema, (p) => ({
+        period: p.period ?? 20,
+        source: p.source,
+      })),
+    },
+    tema: {
+      meta: TEMA_META,
+      defaultParams: { period: 20 },
+      snapshotName: (p) => `tema_${p.source ?? "close"}_${p.period ?? 20}`,
+      createFactory: factory<{ source?: PriceSource; period?: number }>()(createTema, (p) => ({
+        period: p.period ?? 20,
+        source: p.source,
+      })),
+    },
+    zlema: {
+      meta: ZLEMA_META,
+      defaultParams: { period: 20 },
+      snapshotName: (p) => `zlema_${p.source ?? "close"}_${p.period ?? 20}`,
+      createFactory: factory<{ source?: PriceSource; period?: number }>()(createZlema, (p) => ({
+        period: p.period ?? 20,
+        source: p.source,
+      })),
+    },
+    alma: {
+      meta: ALMA_META,
+      defaultParams: { period: 9, offset: 0.85, sigma: 6 },
+      snapshotName: (p) => `alma${p.period}_${p.offset ?? 0.85}_${p.sigma ?? 6}`,
+      createFactory: factory<{
+        source?: PriceSource;
+        period?: number;
+        offset?: number;
+        sigma?: number;
+      }>()(createAlma, (p) => ({
+        period: p.period ?? 9,
+        offset: p.offset ?? 0.85,
+        sigma: p.sigma ?? 6,
+        source: p.source,
+      })),
+    },
+    frama: {
+      meta: FRAMA_META,
+      defaultParams: { period: 16 },
+      snapshotName: (p) => `frama_${p.source ?? "close"}_${p.period ?? 16}`,
+      createFactory: factory<{ source?: PriceSource; period?: number }>()(createFrama, (p) => ({
+        period: p.period ?? 16,
+        source: p.source,
+      })),
+    },
+
+    // Momentum
+    rsi: {
+      meta: RSI_META,
+      defaultParams: { period: 14 },
+      snapshotName: (p) => `rsi${p.period}`,
+      createFactory: factory<{ period?: number }>()(createRsi, (p) => ({ period: p.period ?? 14 })),
+    },
+    macd: {
+      meta: MACD_META,
+      defaultParams: { fastPeriod: 12, slowPeriod: 26, signalPeriod: 9 },
+      snapshotName: "macd",
+      createFactory: factory<{ fastPeriod?: number; slowPeriod?: number; signalPeriod?: number }>()(
+        createMacd,
+        (p) => ({
+          fastPeriod: p.fastPeriod,
+          slowPeriod: p.slowPeriod,
+          signalPeriod: p.signalPeriod,
+        }),
+      ),
+    },
+    stochastics: {
+      meta: STOCHASTICS_META,
+      defaultParams: { kPeriod: 14, dPeriod: 3, slowing: 3 },
+      snapshotName: "stoch",
+      createFactory: factory<{ kPeriod?: number; dPeriod?: number; slowing?: number }>()(
+        createStochastics,
+        (p) => ({
+          kPeriod: p.kPeriod,
+          dPeriod: p.dPeriod,
+          slowing: p.slowing,
+        }),
+      ),
+    },
+    dmi: {
+      meta: DMI_META,
+      defaultParams: { period: 14 },
+      snapshotName: "dmi",
+      createFactory: factory<{ period?: number }>()(createDmi, (p) => ({ period: p.period ?? 14 })),
+    },
+    roc: {
+      meta: ROC_META,
+      defaultParams: { period: 12 },
+      snapshotName: (p) => `roc${p.period}`,
+      createFactory: factory<{ period?: number }>()(createRoc, (p) => ({ period: p.period ?? 12 })),
+    },
+    williamsR: {
+      meta: WILLIAMS_R_META,
+      defaultParams: { period: 14 },
+      snapshotName: (p) => `willR${p.period}`,
+      createFactory: factory<{ period?: number }>()(createWilliamsR, (p) => ({
+        period: p.period ?? 14,
+      })),
+    },
+    cci: {
+      meta: CCI_META,
+      defaultParams: { period: 20 },
+      snapshotName: (p) => `cci${p.period}`,
+      createFactory: factory<{ period?: number }>()(createCci, (p) => ({ period: p.period ?? 20 })),
+    },
+    stochRsi: {
+      meta: STOCH_RSI_META,
+      defaultParams: { rsiPeriod: 14, stochPeriod: 14, kPeriod: 3, dPeriod: 3 },
+      snapshotName: "stochRsi",
+      createFactory: factory<{
+        rsiPeriod?: number;
+        stochPeriod?: number;
+        kPeriod?: number;
+        dPeriod?: number;
+      }>()(createStochRsi, (p) => ({
+        rsiPeriod: p.rsiPeriod,
+        stochPeriod: p.stochPeriod,
         kPeriod: p.kPeriod,
         dPeriod: p.dPeriod,
-        slowing: p.slowing,
-      }),
-    ),
-  },
-  dmi: {
-    meta: DMI_META,
-    defaultParams: { period: 14 },
-    snapshotName: "dmi",
-    createFactory: factory<{ period?: number }>()(createDmi, (p) => ({ period: p.period ?? 14 })),
-  },
-  roc: {
-    meta: ROC_META,
-    defaultParams: { period: 12 },
-    snapshotName: (p) => `roc${p.period}`,
-    createFactory: factory<{ period?: number }>()(createRoc, (p) => ({ period: p.period ?? 12 })),
-  },
-  williamsR: {
-    meta: WILLIAMS_R_META,
-    defaultParams: { period: 14 },
-    snapshotName: (p) => `willR${p.period}`,
-    createFactory: factory<{ period?: number }>()(createWilliamsR, (p) => ({
-      period: p.period ?? 14,
-    })),
-  },
-  cci: {
-    meta: CCI_META,
-    defaultParams: { period: 20 },
-    snapshotName: (p) => `cci${p.period}`,
-    createFactory: factory<{ period?: number }>()(createCci, (p) => ({ period: p.period ?? 20 })),
-  },
-  stochRsi: {
-    meta: STOCH_RSI_META,
-    defaultParams: { rsiPeriod: 14, stochPeriod: 14, kPeriod: 3, dPeriod: 3 },
-    snapshotName: "stochRsi",
-    createFactory: factory<{
-      rsiPeriod?: number;
-      stochPeriod?: number;
-      kPeriod?: number;
-      dPeriod?: number;
-    }>()(createStochRsi, (p) => ({
-      rsiPeriod: p.rsiPeriod,
-      stochPeriod: p.stochPeriod,
-      kPeriod: p.kPeriod,
-      dPeriod: p.dPeriod,
-    })),
-  },
-  trix: {
-    meta: TRIX_META,
-    defaultParams: { period: 15 },
-    snapshotName: (p) => `trix${p.period}`,
-    createFactory: factory<{ period?: number }>()(createTrix, (p) => ({ period: p.period ?? 15 })),
-  },
-  aroon: {
-    meta: AROON_META,
-    defaultParams: { period: 25 },
-    snapshotName: "aroon",
-    createFactory: factory<{ period?: number }>()(createAroon, (p) => ({ period: p.period ?? 25 })),
-  },
-  connorsRsi: {
-    meta: CONNORS_RSI_META,
-    defaultParams: { rsiPeriod: 3, streakPeriod: 2, rocPeriod: 100 },
-    snapshotName: "crsi",
-    createFactory: factory<{ rsiPeriod?: number; streakPeriod?: number; rocPeriod?: number }>()(
-      createConnorsRsi,
-      (p) => ({
-        rsiPeriod: p.rsiPeriod,
-        streakPeriod: p.streakPeriod,
-        rocPeriod: p.rocPeriod,
-      }),
-    ),
-  },
-  cmo: {
-    meta: CMO_META,
-    defaultParams: { period: 14 },
-    snapshotName: (p) => `cmo${p.period}`,
-    createFactory: factory<{ period?: number }>()(createCmo, (p) => ({ period: p.period ?? 14 })),
-  },
-  adxr: {
-    meta: ADXR_META,
-    defaultParams: { period: 14 },
-    snapshotName: "adxr",
-    createFactory: factory<{ period?: number }>()(createAdxr, (p) => ({ period: p.period ?? 14 })),
-  },
-  imi: {
-    meta: IMI_META,
-    defaultParams: { period: 14 },
-    snapshotName: (p) => `imi${p.period}`,
-    createFactory: factory<{ period?: number }>()(createImi, (p) => ({ period: p.period ?? 14 })),
-  },
-  vortex: {
-    meta: VORTEX_META,
-    defaultParams: { period: 14 },
-    snapshotName: "vortex",
-    createFactory: factory<{ period?: number }>()(createVortex, (p) => ({
-      period: p.period ?? 14,
-    })),
-  },
-  ao: {
-    meta: AO_META,
-    defaultParams: { fastPeriod: 5, slowPeriod: 34 },
-    snapshotName: "ao",
-    createFactory: factory<{ fastPeriod?: number; slowPeriod?: number }>()(
-      createAwesomeOscillator,
-      (p) => ({
-        fastPeriod: p.fastPeriod ?? 5,
-        slowPeriod: p.slowPeriod ?? 34,
-      }),
-    ),
-  },
-  bop: {
-    meta: BOP_META,
-    defaultParams: { smoothPeriod: 14 },
-    snapshotName: (p) => `bop${p.smoothPeriod}`,
-    createFactory: factory<{ smoothPeriod?: number }>()(createBalanceOfPower, (p) => ({
-      smoothPeriod: p.smoothPeriod ?? 14,
-    })),
-  },
-  qstick: {
-    meta: QSTICK_META,
-    defaultParams: { period: 14 },
-    snapshotName: (p) => `qstick${p.period}`,
-    createFactory: factory<{ period?: number }>()(createQStick, (p) => ({
-      period: p.period ?? 14,
-    })),
-  },
-  ppo: {
-    meta: PPO_META,
-    defaultParams: { fastPeriod: 12, slowPeriod: 26, signalPeriod: 9 },
-    snapshotName: "ppo",
-    createFactory: factory<{
-      source?: PriceSource;
-      fastPeriod?: number;
-      slowPeriod?: number;
-      signalPeriod?: number;
-    }>()(createPpo, (p) => ({
-      fastPeriod: p.fastPeriod ?? 12,
-      slowPeriod: p.slowPeriod ?? 26,
-      signalPeriod: p.signalPeriod ?? 9,
-      source: p.source,
-    })),
-  },
-  coppock: {
-    meta: COPPOCK_META,
-    defaultParams: { wmaPeriod: 10, longRocPeriod: 14, shortRocPeriod: 11 },
-    snapshotName: "coppock",
-    createFactory: factory<{
-      source?: PriceSource;
-      wmaPeriod?: number;
-      longRocPeriod?: number;
-      shortRocPeriod?: number;
-    }>()(createCoppockCurve, (p) => ({
-      wmaPeriod: p.wmaPeriod ?? 10,
-      longRocPeriod: p.longRocPeriod ?? 14,
-      shortRocPeriod: p.shortRocPeriod ?? 11,
-      source: p.source,
-    })),
-  },
-  massIndex: {
-    meta: MASS_INDEX_META,
-    defaultParams: { emaPeriod: 9, sumPeriod: 25 },
-    snapshotName: "massIndex",
-    createFactory: factory<{ emaPeriod?: number; sumPeriod?: number }>()(createMassIndex, (p) => ({
-      emaPeriod: p.emaPeriod ?? 9,
-      sumPeriod: p.sumPeriod ?? 25,
-    })),
-  },
-  // DPO is intentionally excluded from live presets.
-  // Its output is delayed by `shift` bars (lookahead dependency),
-  // which is incompatible with LiveCandle's current-bar association model.
-  // Use the batch-only preset in indicator-presets.ts instead.
-  ultimateOscillator: {
-    meta: UO_META,
-    defaultParams: { period1: 7, period2: 14, period3: 28 },
-    snapshotName: "uo",
-    createFactory: factory<{ period1?: number; period2?: number; period3?: number }>()(
-      createUltimateOscillator,
-      (p) => ({
-        period1: p.period1 ?? 7,
-        period2: p.period2 ?? 14,
-        period3: p.period3 ?? 28,
-      }),
-    ),
-  },
-  tsi: {
-    meta: TSI_META,
-    defaultParams: { longPeriod: 25, shortPeriod: 13, signalPeriod: 7 },
-    snapshotName: "tsi",
-    createFactory: factory<{
-      source?: PriceSource;
-      longPeriod?: number;
-      shortPeriod?: number;
-      signalPeriod?: number;
-    }>()(createTsi, (p) => ({
-      longPeriod: p.longPeriod ?? 25,
-      shortPeriod: p.shortPeriod ?? 13,
-      signalPeriod: p.signalPeriod ?? 7,
-      source: p.source,
-    })),
-  },
-  kst: {
-    meta: KST_META,
-    defaultParams: { signalPeriod: 9 },
-    snapshotName: (p) => `kst_${p.source ?? "close"}_${p.signalPeriod ?? 9}`,
-    createFactory: factory<{ source?: PriceSource; signalPeriod?: number }>()(createKst, (p) => ({
-      signalPeriod: p.signalPeriod ?? 9,
-      source: p.source,
-    })),
-  },
-  hurst: {
-    meta: HURST_META,
-    defaultParams: { minWindow: 20, maxWindow: 100 },
-    snapshotName: (p) => `hurst_${p.source ?? "close"}_${p.minWindow ?? 20}_${p.maxWindow ?? 100}`,
-    createFactory: factory<{ source?: PriceSource; minWindow?: number; maxWindow?: number }>()(
-      createHurst,
-      (p) => ({
-        minWindow: p.minWindow ?? 20,
-        maxWindow: p.maxWindow ?? 100,
+      })),
+    },
+    trix: {
+      meta: TRIX_META,
+      defaultParams: { period: 15 },
+      snapshotName: (p) => `trix${p.period}`,
+      createFactory: factory<{ period?: number }>()(createTrix, (p) => ({
+        period: p.period ?? 15,
+      })),
+    },
+    aroon: {
+      meta: AROON_META,
+      defaultParams: { period: 25 },
+      snapshotName: "aroon",
+      createFactory: factory<{ period?: number }>()(createAroon, (p) => ({
+        period: p.period ?? 25,
+      })),
+    },
+    connorsRsi: {
+      meta: CONNORS_RSI_META,
+      defaultParams: { rsiPeriod: 3, streakPeriod: 2, rocPeriod: 100 },
+      snapshotName: "crsi",
+      createFactory: factory<{ rsiPeriod?: number; streakPeriod?: number; rocPeriod?: number }>()(
+        createConnorsRsi,
+        (p) => ({
+          rsiPeriod: p.rsiPeriod,
+          streakPeriod: p.streakPeriod,
+          rocPeriod: p.rocPeriod,
+        }),
+      ),
+    },
+    cmo: {
+      meta: CMO_META,
+      defaultParams: { period: 14 },
+      snapshotName: (p) => `cmo${p.period}`,
+      createFactory: factory<{ period?: number }>()(createCmo, (p) => ({ period: p.period ?? 14 })),
+    },
+    adxr: {
+      meta: ADXR_META,
+      defaultParams: { period: 14 },
+      snapshotName: "adxr",
+      createFactory: factory<{ period?: number }>()(createAdxr, (p) => ({
+        period: p.period ?? 14,
+      })),
+    },
+    imi: {
+      meta: IMI_META,
+      defaultParams: { period: 14 },
+      snapshotName: (p) => `imi${p.period}`,
+      createFactory: factory<{ period?: number }>()(createImi, (p) => ({ period: p.period ?? 14 })),
+    },
+    vortex: {
+      meta: VORTEX_META,
+      defaultParams: { period: 14 },
+      snapshotName: "vortex",
+      createFactory: factory<{ period?: number }>()(createVortex, (p) => ({
+        period: p.period ?? 14,
+      })),
+    },
+    ao: {
+      meta: AO_META,
+      defaultParams: { fastPeriod: 5, slowPeriod: 34 },
+      snapshotName: "ao",
+      createFactory: factory<{ fastPeriod?: number; slowPeriod?: number }>()(
+        createAwesomeOscillator,
+        (p) => ({
+          fastPeriod: p.fastPeriod ?? 5,
+          slowPeriod: p.slowPeriod ?? 34,
+        }),
+      ),
+    },
+    bop: {
+      meta: BOP_META,
+      defaultParams: { smoothPeriod: 14 },
+      snapshotName: (p) => `bop${p.smoothPeriod}`,
+      createFactory: factory<{ smoothPeriod?: number }>()(createBalanceOfPower, (p) => ({
+        smoothPeriod: p.smoothPeriod ?? 14,
+      })),
+    },
+    qstick: {
+      meta: QSTICK_META,
+      defaultParams: { period: 14 },
+      snapshotName: (p) => `qstick${p.period}`,
+      createFactory: factory<{ period?: number }>()(createQStick, (p) => ({
+        period: p.period ?? 14,
+      })),
+    },
+    ppo: {
+      meta: PPO_META,
+      defaultParams: { fastPeriod: 12, slowPeriod: 26, signalPeriod: 9 },
+      snapshotName: "ppo",
+      createFactory: factory<{
+        source?: PriceSource;
+        fastPeriod?: number;
+        slowPeriod?: number;
+        signalPeriod?: number;
+      }>()(createPpo, (p) => ({
+        fastPeriod: p.fastPeriod ?? 12,
+        slowPeriod: p.slowPeriod ?? 26,
+        signalPeriod: p.signalPeriod ?? 9,
         source: p.source,
-      }),
-    ),
-  },
-  stc: {
-    meta: STC_META,
-    defaultParams: { fastPeriod: 23, slowPeriod: 50, cyclePeriod: 10 },
-    snapshotName: "stc",
-    createFactory: factory<{
-      source?: PriceSource;
-      fastPeriod?: number;
-      slowPeriod?: number;
-      cyclePeriod?: number;
-    }>()(createStc, (p) => ({
-      fastPeriod: p.fastPeriod ?? 23,
-      slowPeriod: p.slowPeriod ?? 50,
-      cyclePeriod: p.cyclePeriod ?? 10,
-      source: p.source,
-    })),
-  },
+      })),
+    },
+    coppock: {
+      meta: COPPOCK_META,
+      defaultParams: { wmaPeriod: 10, longRocPeriod: 14, shortRocPeriod: 11 },
+      snapshotName: "coppock",
+      createFactory: factory<{
+        source?: PriceSource;
+        wmaPeriod?: number;
+        longRocPeriod?: number;
+        shortRocPeriod?: number;
+      }>()(createCoppockCurve, (p) => ({
+        wmaPeriod: p.wmaPeriod ?? 10,
+        longRocPeriod: p.longRocPeriod ?? 14,
+        shortRocPeriod: p.shortRocPeriod ?? 11,
+        source: p.source,
+      })),
+    },
+    massIndex: {
+      meta: MASS_INDEX_META,
+      defaultParams: { emaPeriod: 9, sumPeriod: 25 },
+      snapshotName: "massIndex",
+      createFactory: factory<{ emaPeriod?: number; sumPeriod?: number }>()(
+        createMassIndex,
+        (p) => ({
+          emaPeriod: p.emaPeriod ?? 9,
+          sumPeriod: p.sumPeriod ?? 25,
+        }),
+      ),
+    },
+    // DPO is intentionally excluded from live presets.
+    // Its output is delayed by `shift` bars (lookahead dependency),
+    // which is incompatible with LiveCandle's current-bar association model.
+    // Use the batch-only preset in indicator-presets.ts instead.
+    ultimateOscillator: {
+      meta: UO_META,
+      defaultParams: { period1: 7, period2: 14, period3: 28 },
+      snapshotName: "uo",
+      createFactory: factory<{ period1?: number; period2?: number; period3?: number }>()(
+        createUltimateOscillator,
+        (p) => ({
+          period1: p.period1 ?? 7,
+          period2: p.period2 ?? 14,
+          period3: p.period3 ?? 28,
+        }),
+      ),
+    },
+    tsi: {
+      meta: TSI_META,
+      defaultParams: { longPeriod: 25, shortPeriod: 13, signalPeriod: 7 },
+      snapshotName: "tsi",
+      createFactory: factory<{
+        source?: PriceSource;
+        longPeriod?: number;
+        shortPeriod?: number;
+        signalPeriod?: number;
+      }>()(createTsi, (p) => ({
+        longPeriod: p.longPeriod ?? 25,
+        shortPeriod: p.shortPeriod ?? 13,
+        signalPeriod: p.signalPeriod ?? 7,
+        source: p.source,
+      })),
+    },
+    kst: {
+      meta: KST_META,
+      defaultParams: { signalPeriod: 9 },
+      snapshotName: (p) => `kst_${p.source ?? "close"}_${p.signalPeriod ?? 9}`,
+      createFactory: factory<{ source?: PriceSource; signalPeriod?: number }>()(createKst, (p) => ({
+        signalPeriod: p.signalPeriod ?? 9,
+        source: p.source,
+      })),
+    },
+    hurst: {
+      meta: HURST_META,
+      defaultParams: { minWindow: 20, maxWindow: 100 },
+      snapshotName: (p) =>
+        `hurst_${p.source ?? "close"}_${p.minWindow ?? 20}_${p.maxWindow ?? 100}`,
+      createFactory: factory<{ source?: PriceSource; minWindow?: number; maxWindow?: number }>()(
+        createHurst,
+        (p) => ({
+          minWindow: p.minWindow ?? 20,
+          maxWindow: p.maxWindow ?? 100,
+          source: p.source,
+        }),
+      ),
+    },
+    stc: {
+      meta: STC_META,
+      defaultParams: { fastPeriod: 23, slowPeriod: 50, cyclePeriod: 10 },
+      snapshotName: "stc",
+      createFactory: factory<{
+        source?: PriceSource;
+        fastPeriod?: number;
+        slowPeriod?: number;
+        cyclePeriod?: number;
+      }>()(createStc, (p) => ({
+        fastPeriod: p.fastPeriod ?? 23,
+        slowPeriod: p.slowPeriod ?? 50,
+        cyclePeriod: p.cyclePeriod ?? 10,
+        source: p.source,
+      })),
+    },
 
-  // Volatility
-  atr: {
-    meta: ATR_META,
-    defaultParams: { period: 14 },
-    snapshotName: (p) => `atr${p.period}`,
-    createFactory: factory<{ period?: number }>()(createAtr, (p) => ({ period: p.period ?? 14 })),
-  },
-  bb: {
-    meta: BB_META,
-    defaultParams: { period: 20, stdDev: 2 },
-    snapshotName: (p) => `bb${p.period}`,
-    createFactory: factory<{ period?: number; stdDev?: number }>()(createBollingerBands, (p) => ({
-      period: p.period ?? 20,
-      stdDev: p.stdDev,
-    })),
-  },
-  donchian: {
-    meta: DONCHIAN_META,
-    defaultParams: { period: 20 },
-    snapshotName: (p) => `donchian${p.period}`,
-    createFactory: factory<{ period?: number }>()(createDonchianChannel, (p) => ({
-      period: p.period ?? 20,
-    })),
-  },
-  keltner: {
-    meta: KELTNER_META,
-    defaultParams: { emaPeriod: 20, atrPeriod: 10, multiplier: 1.5 },
-    snapshotName: "keltner",
-    createFactory: factory<{ emaPeriod?: number; atrPeriod?: number; multiplier?: number }>()(
-      createKeltnerChannel,
-      (p) => ({
-        emaPeriod: p.emaPeriod,
-        atrPeriod: p.atrPeriod,
-        multiplier: p.multiplier,
-      }),
-    ),
-  },
-  chandelierExit: {
-    meta: CHANDELIER_EXIT_META,
-    defaultParams: { period: 22, multiplier: 3 },
-    snapshotName: "chandelier",
-    createFactory: factory<{ period?: number; multiplier?: number }>()(
-      createChandelierExit,
-      (p) => ({
-        period: p.period ?? 22,
+    // Volatility
+    atr: {
+      meta: ATR_META,
+      defaultParams: { period: 14 },
+      snapshotName: (p) => `atr${p.period}`,
+      createFactory: factory<{ period?: number }>()(createAtr, (p) => ({ period: p.period ?? 14 })),
+    },
+    bb: {
+      meta: BB_META,
+      defaultParams: { period: 20, stdDev: 2 },
+      snapshotName: (p) => `bb${p.period}`,
+      createFactory: factory<{ period?: number; stdDev?: number }>()(createBollingerBands, (p) => ({
+        period: p.period ?? 20,
+        stdDev: p.stdDev,
+      })),
+    },
+    donchian: {
+      meta: DONCHIAN_META,
+      defaultParams: { period: 20 },
+      snapshotName: (p) => `donchian${p.period}`,
+      createFactory: factory<{ period?: number }>()(createDonchianChannel, (p) => ({
+        period: p.period ?? 20,
+      })),
+    },
+    keltner: {
+      meta: KELTNER_META,
+      defaultParams: { emaPeriod: 20, atrPeriod: 10, multiplier: 1.5 },
+      snapshotName: "keltner",
+      createFactory: factory<{ emaPeriod?: number; atrPeriod?: number; multiplier?: number }>()(
+        createKeltnerChannel,
+        (p) => ({
+          emaPeriod: p.emaPeriod,
+          atrPeriod: p.atrPeriod,
+          multiplier: p.multiplier,
+        }),
+      ),
+    },
+    chandelierExit: {
+      meta: CHANDELIER_EXIT_META,
+      defaultParams: { period: 22, multiplier: 3 },
+      snapshotName: "chandelier",
+      createFactory: factory<{ period?: number; multiplier?: number }>()(
+        createChandelierExit,
+        (p) => ({
+          period: p.period ?? 22,
+          multiplier: p.multiplier ?? 3,
+        }),
+      ),
+    },
+    choppiness: {
+      meta: CHOPPINESS_META,
+      defaultParams: { period: 14 },
+      snapshotName: (p) => `chop${p.period}`,
+      createFactory: factory<{ period?: number }>()(createChoppinessIndex, (p) => ({
+        period: p.period ?? 14,
+      })),
+    },
+    ewmaVol: {
+      meta: EWMA_VOL_META,
+      defaultParams: { lambda: 0.94 },
+      snapshotName: (p) => `ewma${p.lambda}`,
+      createFactory: factory<{ source?: PriceSource; lambda?: number }>()(
+        createEwmaVolatility,
+        (p) => ({
+          lambda: p.lambda ?? 0.94,
+          source: p.source,
+        }),
+      ),
+    },
+    garmanKlass: {
+      meta: GARMAN_KLASS_META,
+      defaultParams: { period: 20 },
+      snapshotName: (p) => `gk${p.period}`,
+      createFactory: factory<{ period?: number; annualFactor?: number }>()(
+        createGarmanKlass,
+        (p) => ({
+          period: p.period ?? 20,
+          annualFactor: p.annualFactor ?? 252,
+        }),
+      ),
+    },
+    hv: {
+      meta: HV_META,
+      defaultParams: { period: 20 },
+      snapshotName: (p) => `hv_${p.source ?? "close"}_${p.period ?? 20}_${p.annualFactor ?? 252}`,
+      createFactory: factory<{ source?: PriceSource; period?: number; annualFactor?: number }>()(
+        createHistoricalVolatility,
+        (p) => ({
+          period: p.period ?? 20,
+          annualFactor: p.annualFactor ?? 252,
+          source: p.source,
+        }),
+      ),
+    },
+    atrStops: {
+      meta: ATR_STOPS_META,
+      defaultParams: { period: 14, stopMultiplier: 2, takeProfitMultiplier: 3 },
+      snapshotName: "atrStops",
+      createFactory: factory<{
+        period?: number;
+        stopMultiplier?: number;
+        takeProfitMultiplier?: number;
+      }>()(createAtrStops, (p) => ({
+        period: p.period ?? 14,
+        stopMultiplier: p.stopMultiplier ?? 2,
+        takeProfitMultiplier: p.takeProfitMultiplier ?? 3,
+      })),
+    },
+    ulcer: {
+      meta: ULCER_META,
+      defaultParams: { period: 14 },
+      snapshotName: (p) => `ulcer_${p.source ?? "close"}_${p.period ?? 14}`,
+      createFactory: factory<{ source?: PriceSource; period?: number }>()(
+        createUlcerIndex,
+        (p) => ({
+          period: p.period ?? 14,
+          source: p.source,
+        }),
+      ),
+    },
+    standardDeviation: {
+      meta: STD_DEV_META,
+      defaultParams: { period: 20 },
+      // Key matches `STD_DEV_META.kind` so `livePresets.standardDeviation`
+      // and `indicatorPresets.standardDeviation` reach the same factory.
+      snapshotName: (p) => `stddev_${p.source ?? "close"}_${p.period ?? 20}`,
+      createFactory: factory<{ period?: number; source?: PriceSource }>()(
+        createStandardDeviation,
+        (p) => ({
+          period: p.period ?? 20,
+          source: p.source,
+        }),
+      ),
+    },
+
+    // Trend
+    supertrend: {
+      meta: SUPERTREND_META,
+      defaultParams: { period: 10, multiplier: 3 },
+      snapshotName: "supertrend",
+      createFactory: factory<{ period?: number; multiplier?: number }>()(createSupertrend, (p) => ({
+        period: p.period ?? 10,
         multiplier: p.multiplier ?? 3,
-      }),
-    ),
-  },
-  choppiness: {
-    meta: CHOPPINESS_META,
-    defaultParams: { period: 14 },
-    snapshotName: (p) => `chop${p.period}`,
-    createFactory: factory<{ period?: number }>()(createChoppinessIndex, (p) => ({
-      period: p.period ?? 14,
-    })),
-  },
-  ewmaVol: {
-    meta: EWMA_VOL_META,
-    defaultParams: { lambda: 0.94 },
-    snapshotName: (p) => `ewma${p.lambda}`,
-    createFactory: factory<{ source?: PriceSource; lambda?: number }>()(
-      createEwmaVolatility,
-      (p) => ({
-        lambda: p.lambda ?? 0.94,
-        source: p.source,
-      }),
-    ),
-  },
-  garmanKlass: {
-    meta: GARMAN_KLASS_META,
-    defaultParams: { period: 20 },
-    snapshotName: (p) => `gk${p.period}`,
-    createFactory: factory<{ period?: number; annualFactor?: number }>()(
-      createGarmanKlass,
-      (p) => ({
-        period: p.period ?? 20,
-        annualFactor: p.annualFactor ?? 252,
-      }),
-    ),
-  },
-  hv: {
-    meta: HV_META,
-    defaultParams: { period: 20 },
-    snapshotName: (p) => `hv_${p.source ?? "close"}_${p.period ?? 20}_${p.annualFactor ?? 252}`,
-    createFactory: factory<{ source?: PriceSource; period?: number; annualFactor?: number }>()(
-      createHistoricalVolatility,
-      (p) => ({
-        period: p.period ?? 20,
-        annualFactor: p.annualFactor ?? 252,
-        source: p.source,
-      }),
-    ),
-  },
-  atrStops: {
-    meta: ATR_STOPS_META,
-    defaultParams: { period: 14, stopMultiplier: 2, takeProfitMultiplier: 3 },
-    snapshotName: "atrStops",
-    createFactory: factory<{
-      period?: number;
-      stopMultiplier?: number;
-      takeProfitMultiplier?: number;
-    }>()(createAtrStops, (p) => ({
-      period: p.period ?? 14,
-      stopMultiplier: p.stopMultiplier ?? 2,
-      takeProfitMultiplier: p.takeProfitMultiplier ?? 3,
-    })),
-  },
-  ulcer: {
-    meta: ULCER_META,
-    defaultParams: { period: 14 },
-    snapshotName: (p) => `ulcer_${p.source ?? "close"}_${p.period ?? 14}`,
-    createFactory: factory<{ source?: PriceSource; period?: number }>()(createUlcerIndex, (p) => ({
-      period: p.period ?? 14,
-      source: p.source,
-    })),
-  },
-  standardDeviation: {
-    meta: STD_DEV_META,
-    defaultParams: { period: 20 },
-    // Key matches `STD_DEV_META.kind` so `livePresets.standardDeviation`
-    // and `indicatorPresets.standardDeviation` reach the same factory.
-    snapshotName: (p) => `stddev_${p.source ?? "close"}_${p.period ?? 20}`,
-    createFactory: factory<{ period?: number; source?: PriceSource }>()(
-      createStandardDeviation,
-      (p) => ({
-        period: p.period ?? 20,
-        source: p.source,
-      }),
-    ),
-  },
+      })),
+    },
+    parabolicSar: {
+      meta: PARABOLIC_SAR_META,
+      defaultParams: {},
+      snapshotName: "sar",
+      createFactory: factory<{ step?: number; max?: number }>()(createParabolicSar, (p) => ({
+        step: p.step,
+        max: p.max,
+      })),
+    },
+    ichimoku: {
+      meta: ICHIMOKU_META,
+      defaultParams: {},
+      snapshotName: "ichimoku",
+      createFactory: factory<{
+        tenkanPeriod?: number;
+        kijunPeriod?: number;
+        senkouBPeriod?: number;
+        displacement?: number;
+      }>()(createIchimoku, (p) => ({
+        tenkanPeriod: p.tenkanPeriod,
+        kijunPeriod: p.kijunPeriod,
+        senkouBPeriod: p.senkouBPeriod,
+        displacement: p.displacement,
+      })),
+    },
 
-  // Trend
-  supertrend: {
-    meta: SUPERTREND_META,
-    defaultParams: { period: 10, multiplier: 3 },
-    snapshotName: "supertrend",
-    createFactory: factory<{ period?: number; multiplier?: number }>()(createSupertrend, (p) => ({
-      period: p.period ?? 10,
-      multiplier: p.multiplier ?? 3,
-    })),
-  },
-  parabolicSar: {
-    meta: PARABOLIC_SAR_META,
-    defaultParams: {},
-    snapshotName: "sar",
-    createFactory: factory<{ step?: number; max?: number }>()(createParabolicSar, (p) => ({
-      step: p.step,
-      max: p.max,
-    })),
-  },
-  ichimoku: {
-    meta: ICHIMOKU_META,
-    defaultParams: {},
-    snapshotName: "ichimoku",
-    createFactory: factory<{
-      tenkanPeriod?: number;
-      kijunPeriod?: number;
-      senkouBPeriod?: number;
-      displacement?: number;
-    }>()(createIchimoku, (p) => ({
-      tenkanPeriod: p.tenkanPeriod,
-      kijunPeriod: p.kijunPeriod,
-      senkouBPeriod: p.senkouBPeriod,
-      displacement: p.displacement,
-    })),
-  },
+    // Volume
+    obv: {
+      meta: OBV_META,
+      defaultParams: {},
+      snapshotName: "obv",
+      createFactory: factory()(createObv, () => ({})),
+    },
+    cmf: {
+      meta: CMF_META,
+      defaultParams: { period: 20 },
+      snapshotName: (p) => `cmf${p.period}`,
+      createFactory: factory<{ period?: number }>()(createCmf, (p) => ({ period: p.period ?? 20 })),
+    },
+    mfi: {
+      meta: MFI_META,
+      defaultParams: { period: 14 },
+      snapshotName: (p) => `mfi${p.period}`,
+      createFactory: factory<{ period?: number }>()(createMfi, (p) => ({ period: p.period ?? 14 })),
+    },
+    vwap: {
+      meta: VWAP_META,
+      defaultParams: {},
+      snapshotName: "vwap",
+      createFactory: factory()(createVwap, () => ({})),
+    },
+    adl: {
+      meta: ADL_META,
+      defaultParams: {},
+      snapshotName: "adl",
+      createFactory: factory()(createAdl, () => ({})),
+    },
+    twap: {
+      meta: TWAP_META,
+      defaultParams: {},
+      snapshotName: "twap",
+      createFactory: factory()(createTwap, () => ({})),
+    },
+    elderForceIndex: {
+      meta: ELDER_FORCE_INDEX_META,
+      defaultParams: { shortPeriod: 2, longPeriod: 13 },
+      // Snapshot key includes both periods — resuming under different
+      // periods would mix scales (each EMA's running state is tied to its
+      // own period). Different keys force a fresh warm-up.
+      snapshotName: (p) => `efi_${p.shortPeriod ?? 2}_${p.longPeriod ?? 13}`,
+      createFactory: factory<{ shortPeriod?: number; longPeriod?: number }>()(
+        createElderForceIndex,
+        (p) => ({
+          shortPeriod: p.shortPeriod ?? 2,
+          longPeriod: p.longPeriod ?? 13,
+        }),
+      ),
+    },
+    volumeAnomaly: {
+      meta: VOLUME_ANOMALY_META,
+      defaultParams: {},
+      snapshotName: "volAnomaly",
+      createFactory: factory<{ period?: number; threshold?: number }>()(
+        createVolumeAnomaly,
+        (p) => ({
+          period: p.period,
+          threshold: p.threshold,
+        }),
+      ),
+    },
+    klinger: {
+      meta: KLINGER_META,
+      defaultParams: {},
+      snapshotName: "klinger",
+      createFactory: factory<{ fastPeriod?: number; slowPeriod?: number; signalPeriod?: number }>()(
+        createKlinger,
+        (p) => ({
+          fastPeriod: p.fastPeriod,
+          slowPeriod: p.slowPeriod,
+          signalPeriod: p.signalPeriod,
+        }),
+      ),
+    },
+    pvt: {
+      meta: PVT_META,
+      defaultParams: {},
+      snapshotName: "pvt",
+      createFactory: factory()(createPvt, () => ({})),
+    },
+    nvi: {
+      meta: NVI_META,
+      defaultParams: { initialValue: 1000 },
+      snapshotName: "nvi",
+      createFactory: factory<{ initialValue?: number }>()(createNvi, (p) => ({
+        initialValue: p.initialValue ?? 1000,
+      })),
+    },
+    cvd: {
+      meta: CVD_META,
+      defaultParams: {},
+      snapshotName: "cvd",
+      createFactory: factory()(createCvd, () => ({})),
+    },
+    weisWave: {
+      meta: WEIS_WAVE_META,
+      defaultParams: { method: "close", threshold: 0 },
+      snapshotName: "weisWave",
+      createFactory: factory<{ method?: "close" | "highlow"; threshold?: number }>()(
+        createWeisWave,
+        (p) => ({
+          method: p.method ?? "close",
+          threshold: p.threshold ?? 0,
+        }),
+      ),
+    },
+    anchoredVwap: {
+      meta: ANCHORED_VWAP_META,
+      defaultParams: { bands: 0 },
+      snapshotName: "avwap",
+      createFactory: factory<{ anchorTime?: number; bands?: number }>()(
+        createAnchoredVwap,
+        (p) => ({
+          anchorTime: p.anchorTime ?? 0,
+          bands: p.bands ?? 0,
+        }),
+      ),
+    },
+    emv: {
+      meta: EMV_META,
+      defaultParams: { period: 14 },
+      // Include `volumeDivisor` in the snapshot key so resuming under a
+      // different divisor doesn't mix scales. EMV's circular buffer + sum
+      // are accumulated under the active divisor, so a state captured at
+      // 10000 cannot be reused for a 1e8 run — different keys force a
+      // fresh warm-up. Stale `emv14` snapshots from before this format
+      // change won't match the new key and are discarded cleanly.
+      snapshotName: (p) => `emv${p.period}_${p.volumeDivisor ?? 100_000_000}`,
+      // Pass `volumeDivisor` through only when the host supplies a real value
+      // so the preset inherits the incremental indicator's canonical (1e8)
+      // default. Use `== null` (catches both `undefined` and `null`) —
+      // host-supplied params often arrive from JSON / form deserialization
+      // that emits explicit `null` for unset optional fields, and forwarding
+      // that to `createEmv()` would yield a division by zero.
+      createFactory: factory<{ period?: number; volumeDivisor?: number }>()(createEmv, (p) => ({
+        period: p.period ?? 14,
+        ...(p.volumeDivisor != null ? { volumeDivisor: p.volumeDivisor as number } : {}),
+      })),
+    },
+    volumeTrend: {
+      meta: VOLUME_TREND_META,
+      defaultParams: { pricePeriod: 10, volumePeriod: 10, maPeriod: 20 },
+      snapshotName: "volTrend",
+      createFactory: factory<{
+        pricePeriod?: number;
+        volumePeriod?: number;
+        maPeriod?: number;
+        minPriceChange?: number;
+      }>()(createVolumeTrend, (p) => ({
+        pricePeriod: p.pricePeriod ?? 10,
+        volumePeriod: p.volumePeriod ?? 10,
+        maPeriod: p.maPeriod ?? 20,
+        minPriceChange: p.minPriceChange ?? 2.0,
+      })),
+    },
 
-  // Volume
-  obv: {
-    meta: OBV_META,
-    defaultParams: {},
-    snapshotName: "obv",
-    createFactory: factory()(createObv, () => ({})),
-  },
-  cmf: {
-    meta: CMF_META,
-    defaultParams: { period: 20 },
-    snapshotName: (p) => `cmf${p.period}`,
-    createFactory: factory<{ period?: number }>()(createCmf, (p) => ({ period: p.period ?? 20 })),
-  },
-  mfi: {
-    meta: MFI_META,
-    defaultParams: { period: 14 },
-    snapshotName: (p) => `mfi${p.period}`,
-    createFactory: factory<{ period?: number }>()(createMfi, (p) => ({ period: p.period ?? 14 })),
-  },
-  vwap: {
-    meta: VWAP_META,
-    defaultParams: {},
-    snapshotName: "vwap",
-    createFactory: factory()(createVwap, () => ({})),
-  },
-  adl: {
-    meta: ADL_META,
-    defaultParams: {},
-    snapshotName: "adl",
-    createFactory: factory()(createAdl, () => ({})),
-  },
-  twap: {
-    meta: TWAP_META,
-    defaultParams: {},
-    snapshotName: "twap",
-    createFactory: factory()(createTwap, () => ({})),
-  },
-  elderForceIndex: {
-    meta: ELDER_FORCE_INDEX_META,
-    defaultParams: { shortPeriod: 2, longPeriod: 13 },
-    // Snapshot key includes both periods — resuming under different
-    // periods would mix scales (each EMA's running state is tied to its
-    // own period). Different keys force a fresh warm-up.
-    snapshotName: (p) => `efi_${p.shortPeriod ?? 2}_${p.longPeriod ?? 13}`,
-    createFactory: factory<{ shortPeriod?: number; longPeriod?: number }>()(
-      createElderForceIndex,
-      (p) => ({
-        shortPeriod: p.shortPeriod ?? 2,
-        longPeriod: p.longPeriod ?? 13,
-      }),
-    ),
-  },
-  volumeAnomaly: {
-    meta: VOLUME_ANOMALY_META,
-    defaultParams: {},
-    snapshotName: "volAnomaly",
-    createFactory: factory<{ period?: number; threshold?: number }>()(createVolumeAnomaly, (p) => ({
-      period: p.period,
-      threshold: p.threshold,
-    })),
-  },
-  klinger: {
-    meta: KLINGER_META,
-    defaultParams: {},
-    snapshotName: "klinger",
-    createFactory: factory<{ fastPeriod?: number; slowPeriod?: number; signalPeriod?: number }>()(
-      createKlinger,
-      (p) => ({
-        fastPeriod: p.fastPeriod,
-        slowPeriod: p.slowPeriod,
-        signalPeriod: p.signalPeriod,
-      }),
-    ),
-  },
-  pvt: {
-    meta: PVT_META,
-    defaultParams: {},
-    snapshotName: "pvt",
-    createFactory: factory()(createPvt, () => ({})),
-  },
-  nvi: {
-    meta: NVI_META,
-    defaultParams: { initialValue: 1000 },
-    snapshotName: "nvi",
-    createFactory: factory<{ initialValue?: number }>()(createNvi, (p) => ({
-      initialValue: p.initialValue ?? 1000,
-    })),
-  },
-  cvd: {
-    meta: CVD_META,
-    defaultParams: {},
-    snapshotName: "cvd",
-    createFactory: factory()(createCvd, () => ({})),
-  },
-  weisWave: {
-    meta: WEIS_WAVE_META,
-    defaultParams: { method: "close", threshold: 0 },
-    snapshotName: "weisWave",
-    createFactory: factory<{ method?: "close" | "highlow"; threshold?: number }>()(
-      createWeisWave,
-      (p) => ({
-        method: p.method ?? "close",
-        threshold: p.threshold ?? 0,
-      }),
-    ),
-  },
-  anchoredVwap: {
-    meta: ANCHORED_VWAP_META,
-    defaultParams: { bands: 0 },
-    snapshotName: "avwap",
-    createFactory: factory<{ anchorTime?: number; bands?: number }>()(createAnchoredVwap, (p) => ({
-      anchorTime: p.anchorTime ?? 0,
-      bands: p.bands ?? 0,
-    })),
-  },
-  emv: {
-    meta: EMV_META,
-    defaultParams: { period: 14 },
-    // Include `volumeDivisor` in the snapshot key so resuming under a
-    // different divisor doesn't mix scales. EMV's circular buffer + sum
-    // are accumulated under the active divisor, so a state captured at
-    // 10000 cannot be reused for a 1e8 run — different keys force a
-    // fresh warm-up. Stale `emv14` snapshots from before this format
-    // change won't match the new key and are discarded cleanly.
-    snapshotName: (p) => `emv${p.period}_${p.volumeDivisor ?? 100_000_000}`,
-    // Pass `volumeDivisor` through only when the host supplies a real value
-    // so the preset inherits the incremental indicator's canonical (1e8)
-    // default. Use `== null` (catches both `undefined` and `null`) —
-    // host-supplied params often arrive from JSON / form deserialization
-    // that emits explicit `null` for unset optional fields, and forwarding
-    // that to `createEmv()` would yield a division by zero.
-    createFactory: factory<{ period?: number; volumeDivisor?: number }>()(createEmv, (p) => ({
-      period: p.period ?? 14,
-      ...(p.volumeDivisor != null ? { volumeDivisor: p.volumeDivisor as number } : {}),
-    })),
-  },
-  volumeTrend: {
-    meta: VOLUME_TREND_META,
-    defaultParams: { pricePeriod: 10, volumePeriod: 10, maPeriod: 20 },
-    snapshotName: "volTrend",
-    createFactory: factory<{
-      pricePeriod?: number;
-      volumePeriod?: number;
-      maPeriod?: number;
-      minPriceChange?: number;
-    }>()(createVolumeTrend, (p) => ({
-      pricePeriod: p.pricePeriod ?? 10,
-      volumePeriod: p.volumePeriod ?? 10,
-      maPeriod: p.maPeriod ?? 20,
-      minPriceChange: p.minPriceChange ?? 2.0,
-    })),
-  },
-
-  // Price
-  highestLowest: {
-    meta: HIGHEST_LOWEST_META,
-    defaultParams: { period: 20 },
-    snapshotName: (p) => `hilo${p.period}`,
-    createFactory: factory<{ period?: number }>()(createHighestLowest, (p) => ({
-      period: p.period ?? 20,
-    })),
-  },
-  returns: {
-    meta: RETURNS_META,
-    defaultParams: { period: 1, type: "simple" },
-    snapshotName: (p) => `returns_${p.type ?? "simple"}_${p.period ?? 1}`,
-    createFactory: factory<{ period?: number; type?: "simple" | "log" }>()(createReturns, (p) => ({
-      period: p.period ?? 1,
-      type: p.type ?? "simple",
-    })),
-  },
-  pivotPoints: {
-    meta: PIVOT_POINTS_META,
-    defaultParams: { method: "standard" },
-    snapshotName: (p) => `pivot_${p.method}`,
-    createFactory: factory<{ method?: "standard" }>()(createPivotPoints, (p) => ({
-      method: p.method ?? "standard",
-    })),
-  },
-  fractals: {
-    meta: FRACTALS_META,
-    defaultParams: { period: 2 },
-    snapshotName: (p) => `frac${p.period}`,
-    createFactory: factory<{ period?: number }>()(createFractals, (p) => ({
-      period: p.period ?? 2,
-    })),
-  },
-  gapAnalysis: {
-    meta: GAP_ANALYSIS_META,
-    defaultParams: { minGapPercent: 0.5 },
-    snapshotName: "gap",
-    createFactory: factory<{ minGapPercent?: number }>()(createGapAnalysis, (p) => ({
-      minGapPercent: p.minGapPercent ?? 0.5,
-    })),
-  },
-  orb: {
-    meta: ORB_META,
-    defaultParams: { minutes: 30 },
-    snapshotName: "orb",
-    createFactory: factory<{ minutes?: number; sessionResetPeriod?: "day" | number }>()(
-      createOpeningRange,
-      (p) => ({
-        minutes: p.minutes ?? 30,
-        sessionResetPeriod: p.sessionResetPeriod ?? "day",
-      }),
-    ),
-  },
-  fvg: {
-    meta: FVG_META,
-    defaultParams: { minGapPercent: 0, maxActiveFvgs: 10 },
-    snapshotName: "fvg",
-    createFactory: factory<{
-      minGapPercent?: number;
-      maxActiveFvgs?: number;
-      partialFill?: boolean;
-    }>()(createFairValueGap, (p) => ({
-      minGapPercent: p.minGapPercent ?? 0,
-      maxActiveFvgs: p.maxActiveFvgs ?? 10,
-      partialFill: p.partialFill ?? true,
-    })),
-  },
-  fibonacciRetracement: {
-    meta: FIBONACCI_RETRACEMENT_META,
-    defaultParams: { leftBars: 10, rightBars: 10 },
-    snapshotName: "fibRet",
-    createFactory: factory<{
-      leftBars?: number;
-      rightBars?: number;
-      levels?: number[];
-    }>()(createFibonacciRetracement, (p) => ({
-      leftBars: p.leftBars ?? 10,
-      rightBars: p.rightBars ?? 10,
-      levels: p.levels,
-    })),
-  },
-  fibonacciExtension: {
-    meta: FIBONACCI_EXTENSION_META,
-    defaultParams: { leftBars: 10, rightBars: 10 },
-    snapshotName: "fibExt",
-    createFactory: factory<{
-      leftBars?: number;
-      rightBars?: number;
-      levels?: number[];
-    }>()(createFibonacciExtension, (p) => ({
-      leftBars: p.leftBars ?? 10,
-      rightBars: p.rightBars ?? 10,
-      levels: p.levels,
-    })),
-  },
-  channelLine: {
-    meta: CHANNEL_LINE_META,
-    defaultParams: { leftBars: 10, rightBars: 10 },
-    snapshotName: "channel",
-    createFactory: factory<{ leftBars?: number; rightBars?: number }>()(createChannelLine, (p) => ({
-      leftBars: p.leftBars ?? 10,
-      rightBars: p.rightBars ?? 10,
-    })),
-  },
-  autoTrendLine: {
-    meta: AUTO_TREND_LINE_META,
-    defaultParams: { leftBars: 10, rightBars: 10 },
-    snapshotName: "atl",
-    createFactory: factory<{ leftBars?: number; rightBars?: number }>()(
-      createAutoTrendLine,
-      (p) => ({
+    // Price
+    highestLowest: {
+      meta: HIGHEST_LOWEST_META,
+      defaultParams: { period: 20 },
+      snapshotName: (p) => `hilo${p.period}`,
+      createFactory: factory<{ period?: number }>()(createHighestLowest, (p) => ({
+        period: p.period ?? 20,
+      })),
+    },
+    returns: {
+      meta: RETURNS_META,
+      defaultParams: { period: 1, type: "simple" },
+      snapshotName: (p) => `returns_${p.type ?? "simple"}_${p.period ?? 1}`,
+      createFactory: factory<{ period?: number; type?: "simple" | "log" }>()(
+        createReturns,
+        (p) => ({
+          period: p.period ?? 1,
+          type: p.type ?? "simple",
+        }),
+      ),
+    },
+    pivotPoints: {
+      meta: PIVOT_POINTS_META,
+      defaultParams: { method: "standard" },
+      snapshotName: (p) => `pivot_${p.method}`,
+      createFactory: factory<{ method?: "standard" }>()(createPivotPoints, (p) => ({
+        method: p.method ?? "standard",
+      })),
+    },
+    fractals: {
+      meta: FRACTALS_META,
+      defaultParams: { period: 2 },
+      snapshotName: (p) => `frac${p.period}`,
+      createFactory: factory<{ period?: number }>()(createFractals, (p) => ({
+        period: p.period ?? 2,
+      })),
+    },
+    gapAnalysis: {
+      meta: GAP_ANALYSIS_META,
+      defaultParams: { minGapPercent: 0.5 },
+      snapshotName: "gap",
+      createFactory: factory<{ minGapPercent?: number }>()(createGapAnalysis, (p) => ({
+        minGapPercent: p.minGapPercent ?? 0.5,
+      })),
+    },
+    orb: {
+      meta: ORB_META,
+      defaultParams: { minutes: 30 },
+      snapshotName: "orb",
+      createFactory: factory<{ minutes?: number; sessionResetPeriod?: "day" | number }>()(
+        createOpeningRange,
+        (p) => ({
+          minutes: p.minutes ?? 30,
+          sessionResetPeriod: p.sessionResetPeriod ?? "day",
+        }),
+      ),
+    },
+    fvg: {
+      meta: FVG_META,
+      defaultParams: { minGapPercent: 0, maxActiveFvgs: 10 },
+      snapshotName: "fvg",
+      createFactory: factory<{
+        minGapPercent?: number;
+        maxActiveFvgs?: number;
+        partialFill?: boolean;
+      }>()(createFairValueGap, (p) => ({
+        minGapPercent: p.minGapPercent ?? 0,
+        maxActiveFvgs: p.maxActiveFvgs ?? 10,
+        partialFill: p.partialFill ?? true,
+      })),
+    },
+    fibonacciRetracement: {
+      meta: FIBONACCI_RETRACEMENT_META,
+      defaultParams: { leftBars: 10, rightBars: 10 },
+      snapshotName: "fibRet",
+      createFactory: factory<{
+        leftBars?: number;
+        rightBars?: number;
+        levels?: number[];
+      }>()(createFibonacciRetracement, (p) => ({
         leftBars: p.leftBars ?? 10,
         rightBars: p.rightBars ?? 10,
-      }),
-    ),
-  },
-
-  // Wyckoff
-  vsa: {
-    meta: VSA_META,
-    defaultParams: { volumeMaPeriod: 20, atrPeriod: 14 },
-    snapshotName: "vsa",
-    createFactory: factory<{ volumeMaPeriod?: number; atrPeriod?: number }>()(createVsa, (p) => ({
-      volumeMaPeriod: p.volumeMaPeriod ?? 20,
-      atrPeriod: p.atrPeriod ?? 14,
-    })),
-  },
-
-  // SMC
-  liquiditySweep: {
-    meta: LIQUIDITY_SWEEP_META,
-    defaultParams: {
-      swingPeriod: 5,
-      maxRecoveryBars: 3,
-      maxTrackedSweeps: 10,
-      minSweepDepth: 0,
+        levels: p.levels,
+      })),
     },
-    snapshotName: "liqSweep",
-    createFactory: factory<{
-      swingPeriod?: number;
-      maxRecoveryBars?: number;
-      maxTrackedSweeps?: number;
-      minSweepDepth?: number;
-    }>()(createLiquiditySweep, (p) => ({
-      swingPeriod: p.swingPeriod ?? 5,
-      maxRecoveryBars: p.maxRecoveryBars ?? 3,
-      maxTrackedSweeps: p.maxTrackedSweeps ?? 10,
-      minSweepDepth: p.minSweepDepth ?? 0,
-    })),
-  },
-};
+    fibonacciExtension: {
+      meta: FIBONACCI_EXTENSION_META,
+      defaultParams: { leftBars: 10, rightBars: 10 },
+      snapshotName: "fibExt",
+      createFactory: factory<{
+        leftBars?: number;
+        rightBars?: number;
+        levels?: number[];
+      }>()(createFibonacciExtension, (p) => ({
+        leftBars: p.leftBars ?? 10,
+        rightBars: p.rightBars ?? 10,
+        levels: p.levels,
+      })),
+    },
+    channelLine: {
+      meta: CHANNEL_LINE_META,
+      defaultParams: { leftBars: 10, rightBars: 10 },
+      snapshotName: "channel",
+      createFactory: factory<{ leftBars?: number; rightBars?: number }>()(
+        createChannelLine,
+        (p) => ({
+          leftBars: p.leftBars ?? 10,
+          rightBars: p.rightBars ?? 10,
+        }),
+      ),
+    },
+    autoTrendLine: {
+      meta: AUTO_TREND_LINE_META,
+      defaultParams: { leftBars: 10, rightBars: 10 },
+      snapshotName: "atl",
+      createFactory: factory<{ leftBars?: number; rightBars?: number }>()(
+        createAutoTrendLine,
+        (p) => ({
+          leftBars: p.leftBars ?? 10,
+          rightBars: p.rightBars ?? 10,
+        }),
+      ),
+    },
+
+    // Wyckoff
+    vsa: {
+      meta: VSA_META,
+      defaultParams: { volumeMaPeriod: 20, atrPeriod: 14 },
+      snapshotName: "vsa",
+      createFactory: factory<{ volumeMaPeriod?: number; atrPeriod?: number }>()(createVsa, (p) => ({
+        volumeMaPeriod: p.volumeMaPeriod ?? 20,
+        atrPeriod: p.atrPeriod ?? 14,
+      })),
+    },
+
+    // SMC
+    liquiditySweep: {
+      meta: LIQUIDITY_SWEEP_META,
+      defaultParams: {
+        swingPeriod: 5,
+        maxRecoveryBars: 3,
+        maxTrackedSweeps: 10,
+        minSweepDepth: 0,
+      },
+      snapshotName: "liqSweep",
+      createFactory: factory<{
+        swingPeriod?: number;
+        maxRecoveryBars?: number;
+        maxTrackedSweeps?: number;
+        minSweepDepth?: number;
+      }>()(createLiquiditySweep, (p) => ({
+        swingPeriod: p.swingPeriod ?? 5,
+        maxRecoveryBars: p.maxRecoveryBars ?? 3,
+        maxTrackedSweeps: p.maxTrackedSweeps ?? 10,
+        minSweepDepth: p.minSweepDepth ?? 0,
+      })),
+    },
+  };
+}

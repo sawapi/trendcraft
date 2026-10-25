@@ -114,6 +114,9 @@ importers:
 
   packages/core:
     devDependencies:
+      '@size-limit/esbuild':
+        specifier: ^12.1.0
+        version: 12.1.0(size-limit@13.0.3)
       '@size-limit/file':
         specifier: ^12.1.0
         version: 12.1.0(size-limit@13.0.3)

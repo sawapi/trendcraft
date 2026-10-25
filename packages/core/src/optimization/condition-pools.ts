@@ -5,6 +5,7 @@
  * and utility functions for working with combination search results.
  */
 
+import * as conditions from "../backtest/conditions";
 import type { NormalizedCandle } from "../types";
 import type { OptimizationMetric } from "../types/optimization";
 import { err, ok, type Result, tcError } from "../types/result";
@@ -82,9 +83,6 @@ export function summarizeCombinationSearch(result: CombinationSearchResult): {
  * - Changed to filter-only: PO Bullish, PO+, Pullback (too strict, rarely fires)
  */
 export function createEntryConditionPool(): ConditionDefinition[] {
-  // Import conditions dynamically to avoid circular dependencies
-  const conditions = require("../backtest/conditions");
-
   return [
     // Trend - Core signals
     {
@@ -201,8 +199,6 @@ export function createEntryConditionPool(): ConditionDefinition[] {
  * - Key finding: MACD↓ + VolDiv dominated top results
  */
 export function createExitConditionPool(): ConditionDefinition[] {
-  const conditions = require("../backtest/conditions");
-
   return [
     // Trend
     {
