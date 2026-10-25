@@ -157,15 +157,15 @@ export function createSupertrend(
 
       // Determine direction
       if (direction === 0) {
-        // Initial direction
-        direction = candle.close > finalUpper ? 1 : -1;
+        // Undefined until the close first breaks a band (see batch supertrend)
+        direction = candle.close > finalUpper ? 1 : candle.close < finalLower ? -1 : 0;
       } else if (direction === -1 && candle.close > finalUpper) {
         direction = 1;
       } else if (direction === 1 && candle.close < finalLower) {
         direction = -1;
       }
 
-      const supertrend = direction === 1 ? finalLower : finalUpper;
+      const supertrend = direction === 0 ? null : direction === 1 ? finalLower : finalUpper;
 
       prevFinalUpper = finalUpper;
       prevFinalLower = finalLower;
@@ -203,7 +203,7 @@ export function createSupertrend(
 
       let dir = direction;
       if (dir === 0) {
-        dir = candle.close > finalUpper ? 1 : -1;
+        dir = candle.close > finalUpper ? 1 : candle.close < finalLower ? -1 : 0;
       } else if (dir === -1 && candle.close > finalUpper) {
         dir = 1;
       } else if (dir === 1 && candle.close < finalLower) {
@@ -213,7 +213,7 @@ export function createSupertrend(
       return {
         time: candle.time,
         value: {
-          supertrend: dir === 1 ? finalLower : finalUpper,
+          supertrend: dir === 0 ? null : dir === 1 ? finalLower : finalUpper,
           direction: dir,
           upperBand: finalUpper,
           lowerBand: finalLower,

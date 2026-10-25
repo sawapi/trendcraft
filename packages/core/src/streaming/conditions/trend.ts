@@ -51,11 +51,9 @@ function definedDirection(raw: number | null): 1 | -1 | null {
 /**
  * Condition: Supertrend direction flipped (reversal)
  *
- * Only a change between two defined directions (1 / -1) counts; the warm-up
- * value 0 is not a direction. Supertrend seeds its first defined direction
- * as down unless the close is already above the upper band (as TradingView's
- * `ta.supertrend` does), so in an uptrend the first flip after warm-up is
- * that seed correcting itself, a few bars in.
+ * Only a change between two defined directions (1 / -1) counts; 0 (warm-up,
+ * or no band broken yet) is not a direction. Supertrend's first defined
+ * direction is the first band break, so the first flip is a real reversal.
  *
  * @param key - Snapshot key (default: "supertrend")
  */

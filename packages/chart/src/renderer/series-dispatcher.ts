@@ -297,7 +297,9 @@ export function dispatchSeries(
 
       for (let i = start; i < end && i < trend.length; i++) {
         const t = trend[i];
-        const stVal = t === 1 ? lower[i] : upper[i];
+        // Direction 0 is "no trend yet" (warm-up, or no band broken since):
+        // nothing to draw, like a missing value.
+        const stVal = t === 1 ? lower[i] : t === -1 ? upper[i] : null;
         const close = candles[i]?.close;
         if (
           t === null ||
@@ -331,7 +333,7 @@ export function dispatchSeries(
     let drawing = false;
     for (let i = start; i < end && i < trend.length; i++) {
       const t = trend[i];
-      const val = t === 1 ? lower[i] : upper[i];
+      const val = t === 1 ? lower[i] : t === -1 ? upper[i] : null;
       if (val === null || val === undefined || t === null || t === undefined) {
         drawing = false;
         prevTrend = null;
