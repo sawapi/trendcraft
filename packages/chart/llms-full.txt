@@ -197,6 +197,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — `hmmRegimes()` series drew an empty pane
+
+The built-in `hmmRegime` rule looked for a `confidence` field that
+`hmmRegimes()` never emits, so its output matched no rule and drew nothing;
+the rule's draw branch also fed whole objects to the area renderer.
+`hmmRegimes()` output is now detected and drawn as an area of the regime
+index. The rule no longer captures `volatilityRegime()` output, which it
+used to mislabel and draw blank. The regime heatmap plugin now takes a
+regime's confidence from its state probability when there is no
+`confidence` field, so its shading and badge percentage work with
+`hmmRegimes()`.
+
+### Fixed — Volume Profile lines moved when the chart scrolled
+
+A rolling `volumeProfileSeries` drew POC / VAH / VAL as single full-width
+lines at the values of whichever bar was at the left edge of the view, so
+the levels jumped as the chart scrolled. They are now drawn as stepped
+lines, each bar at its own window's levels. `barColor` and `maxBarWidth`
+in `HeatmapRenderOptions` are documented as reserved: per-level volume bars
+are not drawn.
+
+### Fixed — removing a series could delete a pane a hidden series still used
+
+A pane was torn down when no *visible* series remained on it, so removing
+the last visible series dropped the pane under a hidden one, which could
+then never be shown again. A pane is now removed only when no series at all
+is assigned to it. A pane whose series are all hidden therefore stays, as
+an empty pane.
+
+### Fixed — an animation started from a range-change listener was dropped
+
+When a `visibleRangeChange` listener started a new range animation (for
+example by calling `setVisibleRange`), the finishing animation cleared the
+new one's callbacks, so the second range never applied and range-change
+events stayed suppressed. An animation started from an animation callback
+now runs normally.
+
+### Fixed — `"percent"` scale mode was silently linear
+
+`ScaleMode` accepts `"percent"`, but it was never implemented and rendered
+as `"linear"` without a word, and the dual-scale example in the guide used
+it. `setLayout` now emits a warning (`error` event) when a pane uses it, the
+type documents it as reserved, and the guide example uses `"linear"`.
+
 ### Fixed — pressing the mouse did not stop a fling
 
 A trackpad flick keeps the chart scrolling after the gesture, and pressing
@@ -1450,7 +1494,7 @@ chart.setLayout({
   panes: [{
     id: 'main',
     flex: 3,
-    leftScale: { mode: 'percent' },  // enables dual-scale
+    leftScale: { mode: 'linear' },  // enables dual-scale
   }],
 });
 chart.addIndicator(mySecondarySeries, { pane: 'main', scaleId: 'left' });

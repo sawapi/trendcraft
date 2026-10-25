@@ -157,6 +157,27 @@ describe("createRegimeHeatmap", () => {
     );
   });
 
+  it("takes the confidence from hmmRegimes' probabilities when there is no confidence field (ops #32)", () => {
+    // trendcraft's HmmRegimeValue carries per-state probabilities, not `confidence`.
+    const data = [
+      {
+        time: 1000,
+        value: { regime: 1, label: "ranging", probabilities: [0.1, 0.63, 0.27], logLikelihood: -5 },
+      },
+    ];
+    const plugin = createRegimeHeatmap(data as never);
+    const ctx = mockCtx();
+    plugin.render(
+      { ctx, pane: mockPaneRect, timeScale: mockTimeScale(0, 1) } as PrimitiveRenderContext,
+      plugin.defaultState,
+    );
+    expect(ctx.fillText).toHaveBeenCalledWith(
+      "ranging · 63%",
+      expect.any(Number),
+      expect.any(Number),
+    );
+  });
+
   it("omits the badge when showBadge is false", () => {
     const data = makeRegimeData([{ regime: 2, label: "trending-up", confidence: 0.9 }]);
     const plugin = createRegimeHeatmap(data, { showBadge: false });

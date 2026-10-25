@@ -44,7 +44,7 @@ export class DataLayer {
     this._onChange = cb;
   }
 
-  /** Register a callback when a pane has no more visible series */
+  /** Register a callback when a pane has no series left (visible or hidden) */
   setOnPaneEmpty(cb: (paneId: string) => void): void {
     this._onPaneEmpty = cb;
   }
@@ -80,10 +80,10 @@ export class DataLayer {
   }
 
   private checkPaneEmpty(paneId: string): void {
-    const hasVisibleSeries = [...this._series.values()].some(
-      (s) => s.paneId === paneId && s.visible,
-    );
-    if (!hasVisibleSeries) {
+    // Count hidden series too: the pane is torn down for good, and a hidden
+    // series still assigned to it could never be shown again.
+    const hasSeries = [...this._series.values()].some((s) => s.paneId === paneId);
+    if (!hasSeries) {
       this._onPaneEmpty?.(paneId);
     }
   }

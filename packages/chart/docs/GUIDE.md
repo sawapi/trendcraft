@@ -133,7 +133,7 @@ chart.setLayout({
   panes: [{
     id: 'main',
     flex: 3,
-    leftScale: { mode: 'percent' },  // enables dual-scale
+    leftScale: { mode: 'linear' },  // enables dual-scale
   }],
 });
 chart.addIndicator(mySecondarySeries, { pane: 'main', scaleId: 'left' });

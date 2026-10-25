@@ -2,6 +2,11 @@
  * Pane / layout configuration
  */
 
+/**
+ * Price-axis scaling. `"percent"` is reserved and not implemented yet: it
+ * renders exactly like `"linear"`, and the chart emits a warning when a pane
+ * uses it.
+ */
 export type ScaleMode = "linear" | "log" | "percent";
 
 export type PaneConfig = {

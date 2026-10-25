@@ -163,11 +163,14 @@ const BUILTIN_RULES: IntrospectionRule[] = [
   // HMM Regime
   {
     name: "hmmRegime",
-    test: (v) => hasKeys(v, ["regime", "confidence"]),
+    // The shape of trendcraft's HmmRegimeValue. It has no `confidence`; an
+    // earlier test for one never matched hmmRegimes() output and instead
+    // caught volatilityRegime's.
+    test: (v) => hasKeys(v, ["regime", "label", "probabilities"]),
     seriesType: "area",
     defaultPane: "sub",
     decompose: (v) => {
-      return { regime: v.regime, confidence: v.confidence };
+      return { regime: v.regime };
     },
   },
 

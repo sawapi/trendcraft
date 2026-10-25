@@ -351,7 +351,11 @@ export function dispatchSeries(
   }
 
   if (rule.name === "hmmRegime") {
-    renderArea(ctx, s.data as DataPoint<number | null>[], timeScale, priceScale, {
+    // Values are objects: plot the decomposed regime index, as every other
+    // multi-field rule does.
+    const regime = getCachedChannels(s, rule).get("regime") ?? [];
+    const points = s.data.map((p, i) => ({ time: p.time, value: regime[i] ?? null }));
+    renderArea(ctx, points, timeScale, priceScale, {
       lineColor: color,
       fillColor: `${color}26`,
     });

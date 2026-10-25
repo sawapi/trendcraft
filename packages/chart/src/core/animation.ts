@@ -24,6 +24,8 @@ export class ViewTransition {
   private _width = 0;
   private _onFrame: ((startIndex: number, barSpacing: number) => void) | null = null;
   private _onDone: (() => void) | null = null;
+  /** Bumped by every cancel() (and so every animate()): a tick from an older animation stops. */
+  private _generation = 0;
 
   get isRunning(): boolean {
     return this._rafId !== null;
@@ -76,6 +78,7 @@ export class ViewTransition {
 
   /** Cancel any running animation */
   cancel(): void {
+    this._generation++;
     if (this._rafId !== null) {
       cancelAnimationFrame(this._rafId);
       this._rafId = null;
@@ -98,15 +101,21 @@ export class ViewTransition {
     const barSpacing = Math.max(0.1, this._width / count);
     const startIndex = center - count / 2;
 
+    // Callbacks may start another animation (a visibleRangeChange listener
+    // calling setVisibleRange). That animation then owns the state, so this
+    // tick must neither reschedule itself nor clear the new callbacks.
+    const generation = this._generation;
     this._onFrame?.(startIndex, barSpacing);
+    if (this._generation !== generation) return;
 
     if (progress < 1) {
       this._rafId = requestAnimationFrame(this._tick);
     } else {
       this._rafId = null;
-      this._onDone?.();
+      const done = this._onDone;
       this._onFrame = null;
       this._onDone = null;
+      done?.();
     }
   };
 }

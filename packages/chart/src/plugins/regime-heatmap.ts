@@ -33,7 +33,14 @@ type RegimeDataPoint = DataPoint<{
   regime: number;
   label?: string;
   confidence?: number;
+  /** Per-state probabilities (trendcraft's hmmRegimes); used when `confidence` is absent. */
+  probabilities?: number[];
 }>;
+
+/** Confidence of the assigned regime: explicit, else its state probability. */
+function regimeConfidence(v: RegimeDataPoint["value"]): number | undefined {
+  return v.confidence ?? v.probabilities?.[v.regime];
+}
 
 export type RegimeHeatmapOptions = {
   /**
@@ -85,9 +92,9 @@ function renderRegimeHeatmap(
       const point = data[i];
       if (!point?.value) continue;
 
-      const { regime, label, confidence } = point.value;
+      const { regime, label } = point.value;
       const rgb = regimeToRgb(regime, label);
-      const alpha = 0.15 + (confidence ?? 0.5) * 0.25;
+      const alpha = 0.15 + (regimeConfidence(point.value) ?? 0.5) * 0.25;
       const x = timeScale.indexToX(i);
 
       ctx.fillStyle = `rgba(${rgb},${alpha.toFixed(3)})`;
@@ -132,7 +139,7 @@ function renderRegimeBadge(
   // emit `""` for "no label", and `??` would otherwise produce `" · 72%"`
   // or a blank pill.
   const text = value.label && value.label.length > 0 ? value.label : `regime ${value.regime}`;
-  const conf = value.confidence;
+  const conf = regimeConfidence(value);
   const display = conf != null ? `${text} · ${Math.round(conf * 100)}%` : text;
 
   ctx.save();
