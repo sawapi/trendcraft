@@ -4,7 +4,12 @@
 
 import { describe, expect, it } from "vitest";
 import { CandleStore } from "../dispatcher/candle-store";
-import { type Candle, MAX_CANDLES } from "../schemas/candle";
+import {
+  type Candle,
+  candlesArraySchema,
+  candlesTupleArraySchema,
+  MAX_CANDLES,
+} from "../schemas/candle";
 import { calcIndicatorHandler } from "../tools/calc";
 import { loadCandlesHandler, MAX_HINT_LENGTH, MAX_SYMBOL_LENGTH } from "../tools/load-candles";
 
@@ -46,4 +51,23 @@ describe("input size limits", () => {
       loadCandlesHandler({ candles, symbol: "X".repeat(MAX_SYMBOL_LENGTH) }, store).count,
     ).toBe(5);
   });
+
+  it.each([
+    ["candles", () => candlesArraySchema, (): unknown => ({ time: "x" })],
+    ["candlesArray", () => candlesTupleArraySchema, (): unknown => ["x"]],
+  ] as const)(
+    "rejects an oversized %s array by its length, before checking the bars",
+    (_name, schema, bad) => {
+      // Without a length bound, validation records one issue per invalid bar:
+      // a huge array of them could exhaust the server's memory before any
+      // handler ran.
+      const huge = Array.from({ length: MAX_CANDLES + 1 }, bad);
+      const result = schema().safeParse(huge);
+      expect(result.success).toBe(false);
+      expect(result.error?.issues).toHaveLength(1);
+      expect(result.error?.issues[0].message).toMatch(
+        new RegExp(`^INVALID_INPUT: candles must contain at most ${MAX_CANDLES}`),
+      );
+    },
+  );
 });
