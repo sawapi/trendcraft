@@ -498,7 +498,9 @@ export class TimeScale {
   /** Set visible range by start/end index */
   setVisibleRange(start: number, end: number): void {
     const count = end - start;
-    if (count <= 0) return;
+    // No width to fit the range into: ignore it, as setVisibleLogicalRange
+    // and fitContent do, rather than collapse the window (see recalcVisibleCount).
+    if (count <= 0 || this._width <= 0) return;
     this._granted = null; // ordinary (data-bounded) range: release any grant
     this._barSpacing = Math.max(
       this._minBarSpacing,
@@ -613,7 +615,12 @@ export class TimeScale {
   }
 
   private recalcVisibleCount(): void {
-    this._visibleCount = this._width > 0 ? Math.ceil(this._width / this._barSpacing) : 0;
+    // A zero-width data area (a container narrower than the price axis, or
+    // resize(0, h)) has no window to measure: keep the last one, so the
+    // logical range and the live-edge follow keep describing where the
+    // viewer is, instead of collapsing to an empty window that no longer
+    // counts as at the end.
+    if (this._width > 0) this._visibleCount = Math.ceil(this._width / this._barSpacing);
   }
 
   /** Returns how far past the edge the viewport is (0 = within bounds).

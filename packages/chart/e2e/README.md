@@ -102,13 +102,13 @@ tracking issue for a known bug; the spec for it is a `test.fail` until fixed.
 | Pan / zoom | A click, tap or long-press during an edge bounce still settles at the edge | covered |
 | Pan / zoom | Scrollbar drag and Home / End keep the zoom level | covered |
 | Pan / zoom | Scroll-to-end keeps the right offset exactly | covered |
-| Pan / zoom | Scrollbar thumb stays inside the track | todo (ops #18) |
+| Pan / zoom | Scrollbar thumb stays inside the track | covered by unit tests (`scrollbar-geometry.test.ts`) |
 | Crosshair | Pointer move emits `crosshairMove` with the bar index | covered |
-| Crosshair | Crosshair value clears past the last bar | todo (ops #18) |
+| Crosshair | Over the empty margin, one `crosshairMove` with no candle (pane kept) | covered |
 | Touch | Lifting one finger after a pinch leaves the other able to pan | covered |
 | Animation | An animation started from another's `onDone` runs | covered |
 | Axis | Labels do not overlap at any start offset, on the single- and two-row axes; DST does not add times | covered (overlap); DST by unit tests (`format-daily-dst.test.ts`) |
-| Sizing | `setWidth(0)` does not corrupt the viewport | todo (ops #18) |
+| Sizing | A zero-width data area does not lose the live edge | covered |
 | Rendering | A theme or series colour cannot inject CSS into the legend or info overlay | covered |
 | Sparkline | Re-attach keeps its CSS size (bitmap does not grow) | covered by unit tests (`sparkline-hidden.test.ts`) |
 | Sparkline | A CSS-sized canvas follows its container; one sized by its bitmap keeps its CSS size at any DPR, hidden or not | covered |

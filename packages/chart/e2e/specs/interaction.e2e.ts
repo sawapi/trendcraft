@@ -53,6 +53,36 @@ test.describe("pan and zoom", () => {
       .toBeGreaterThan(0);
   });
 
+  test("the crosshair over the right margin emits one move with no candle (ops #18 D5)", async ({
+    page,
+  }) => {
+    await openChart(page, "?volume=0");
+    // 300 bars; show 250..330, so the right eighth of the data area is margin.
+    await page.evaluate(() => window.__tc.chart.setVisibleLogicalRange(250, 330));
+    await expect.poll(async () => (await logicalRange(page)).from).toBeCloseTo(250, 3);
+    await expect.poll(() => isMoving(page), { intervals: [50] }).toBe(false);
+    const box = await chartBox(page);
+    const y = box.y + box.height / 3;
+    const moves = () =>
+      page.evaluate(() =>
+        window.__tc.events
+          .filter((e) => e.type === "crosshairMove")
+          .map((e) => e.data as { index: number | null; paneId: string | null }),
+      );
+
+    await page.mouse.move(box.x + box.width * 0.3, y);
+    await expect.poll(async () => (await moves()).at(-1)?.index ?? null).not.toBeNull();
+    const before = (await moves()).length;
+
+    // Several moves across the margin: a single emission, pane kept.
+    for (const f of [0.8, 0.82, 0.84]) await page.mouse.move(box.x + box.width * f, y);
+    await expect.poll(async () => (await moves()).length).toBe(before + 1);
+    expect((await moves()).at(-1)).toMatchObject({ index: null, paneId: "main" });
+
+    await page.mouse.move(box.x + box.width * 0.3, y);
+    await expect.poll(async () => (await moves()).at(-1)?.index ?? null).not.toBeNull();
+  });
+
   test("a horizontal wheel flick starts a fling", async ({ page }) => {
     await openChart(page);
     await wheelFlick(page);

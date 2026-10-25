@@ -80,10 +80,10 @@ Event data is expressed in candle terms — the snapped index and its OHLCV — 
 chart.on('crosshairMove', (data) => {
   // `on` handlers receive `unknown` — narrow to the event's payload type
   const move = data as CrosshairMoveData;
-  move.time;   // epoch ms of the snapped candle (or null when leaving the plot area)
-  move.index;  // candle index (or null)
-  move.ohlcv;  // { open, high, low, close, volume } (or null)
-  move.paneId; // pane under the pointer (or null)
+  move.time;   // epoch ms of the snapped candle (null over the empty margin or when leaving the plot area)
+  move.index;  // candle index (null as for time)
+  move.ohlcv;  // { open, high, low, close, volume } (null as for time)
+  move.paneId; // pane under the pointer (null when leaving the plot area, or over no pane with a candle snapped)
 });
 ```
 

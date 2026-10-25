@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — the scrollbar thumb could be drawn outside its track
+
+When the window started past the last bar (a right margin set through
+`setVisibleLogicalRange`, or an overscroll bounce), the thumb was drawn,
+and could be grabbed, past the right end of the scrollbar track; near the
+end, the minimum thumb width could also run past it. The thumb now stays
+inside the track. Dragging it still moves the window from where it is.
+
+### Fixed — a live chart stopped following while its data area had no width
+
+Resizing the chart so its data area had zero width (`resize(0, h)`, or a
+width narrower than the price axis) collapsed the visible window to
+nothing. The view then no longer counted as at the live edge, so bars
+appended meanwhile stayed off-screen once the chart grew back, and
+`getVisibleLogicalRange()` returned an empty range. The window from before
+the resize is now kept until the data area has a width again. A
+`setVisibleRange` call made meanwhile also collapsed the window and zoomed
+to the minimum bar spacing; it is now ignored, as `setVisibleLogicalRange`
+and `fitContent` already were at zero width.
+
+### Changed — `crosshairMove` over the empty margin
+
+With the crosshair over the empty space past the last bar (a right offset
+or a margin set through `setVisibleLogicalRange`) or before the first, no
+event fired, so listeners kept showing the bar the crosshair had just left.
+Entering the margin now fires one `crosshairMove` with `time`, `index` and
+`ohlcv` set to `null` and `paneId` set to the pane under the pointer
+(`"main"` over no pane, such as the time axis). An
+all-`null` event (including `paneId`) still means the crosshair left the
+data area.
+
 ### Fixed — jumping to the end hid part of a fractional right offset
 
 `scrollToEnd`-style navigation (the End key, the scrollbar's far right,
