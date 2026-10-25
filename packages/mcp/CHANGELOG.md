@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Breaking — requires Node.js 22 or later
+
+`engines.node` is now `>=22.0.0` (was `>=18.0.0`). Node.js 18 and 20 have
+reached end of life, and 18 was never tested. CI now tests Node.js 22, 24
+and 26. On Node.js 20 or older, most package managers warn when installing
+`@trendcraft/mcp`; some refuse (yarn 1, or npm and pnpm with
+`engine-strict`). The server is now built for Node.js 22 (esbuild target
+`node22`, was `node18`).
+
 ### Fixed — `calc_indicator` reported `volumeProfile` as an empty series
 
 `volumeProfile` returns one profile object, not a per-bar series, and

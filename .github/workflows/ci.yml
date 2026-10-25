@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [20, 22]
+        node-version: [22, 24, 26]
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -39,19 +39,19 @@ jobs:
       - run: pnpm test
 
       - name: Cross-validation (TA-Lib compatibility)
-        if: matrix.node-version == 22
+        if: matrix.node-version == 24
         run: cd packages/core && pnpm test:crossval
 
       - name: Bundle size check (core)
-        if: matrix.node-version == 22
+        if: matrix.node-version == 24
         run: cd packages/core && pnpm exec size-limit
 
       - name: Bundle size check (chart)
-        if: matrix.node-version == 22
+        if: matrix.node-version == 24
         run: cd packages/chart && pnpm size-check
 
       - name: Build chart examples
-        if: matrix.node-version == 22
+        if: matrix.node-version == 24
         # Each example installs with `pnpm install --ignore-workspace`, which
         # skips pnpm-workspace.yaml entirely. Previous fix attempts (pnpm
         # field in each package.json, .npmrc in each example, uppercase
@@ -83,7 +83,7 @@ jobs:
 
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
