@@ -836,12 +836,22 @@ export class PriceScale {
       return;
     }
 
+    // A non-finite bound (a bad value that slipped past the range
+    // reducers) would map every price to NaN and blank the pane. Keeping only
+    // the finite bound is no better: it collapses the range to a sliver
+    // around that bound and draws everything off-scale. Keep the current
+    // range instead.
+    if (!Number.isFinite(min) || !Number.isFinite(max)) return;
     let lo = min;
     let hi = max;
+    if (lo > hi) [lo, hi] = [hi, lo];
     if (lo === hi) {
-      // Avoid zero-height range
-      lo = lo * 0.99;
-      hi = hi * 1.01;
+      // Avoid a zero-height range. Widen additively around the value: a
+      // multiplicative widening does nothing at 0 and inverts the axis for a
+      // negative value.
+      const eps = Math.abs(lo) * 0.01 || 1;
+      lo -= eps;
+      hi += eps;
     }
 
     const range = hi - lo;
@@ -897,7 +907,10 @@ export class PriceScale {
   /** Generate nice tick values for the y-axis (memoized per min/max/maxTicks) */
   getTicks(maxTicks = 6): number[] {
     const key = `${this._min}:${this._max}:${maxTicks}`;
-    if (key === this._ticksCacheKey) return this._ticksCache;
+    // Return a copy on a cache hit as well: the array is public (PriceScale is
+    // exported from the headless entry), and a caller mutating the cached one
+    // would corrupt every later frame's ticks.
+    if (key === this._ticksCacheKey) return [...this._ticksCache];
 
     const range = this._max - this._min;
     if (range <= 0) {

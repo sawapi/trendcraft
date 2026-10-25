@@ -20,6 +20,21 @@ line, band, cloud and volume ranges and the sparkline scale skip non-finite
 values; and a pane merges only the finite bounds each series reports, so a
 custom renderer's range cannot drag it either.
 
+### Fixed — a flat price range drew on the pane edge or upside down
+
+A pane whose visible values were all equal had its range widened by
+multiplying, which does nothing at 0 (the line sat on the bottom edge and the
+axis had no labels) and inverted the axis for a negative value. The range is
+now widened additively around the value, and an inverted range is swapped.
+A range with a non-finite bound keeps the previous range rather than
+collapsing around the finite one.
+
+### Fixed — `PriceScale.getTicks()` returned its internal cache
+
+On a cache hit `getTicks` returned the array it keeps for later frames, so a
+caller that sorted or truncated the result emptied the axis until the range
+changed. It now returns a copy every time.
+
 ### Fixed — theme colours could inject markup into the info overlay
 
 The info overlay wrote some theme colours (`text`, `textSecondary`,
