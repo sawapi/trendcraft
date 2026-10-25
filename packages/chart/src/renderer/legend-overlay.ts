@@ -9,7 +9,7 @@
 
 import type { InternalSeries } from "../core/data-layer";
 import { DEFAULT_FONT_FAMILY } from "../core/font";
-import { escapeHtml } from "../core/html";
+import { cssColor, escapeHtml } from "../core/html";
 import { type ChartLocale, DEFAULT_LOCALE } from "../core/i18n";
 import type { ThemeColors } from "../core/types";
 
@@ -148,11 +148,11 @@ export class LegendOverlay {
 
   private _renderRow(s: InternalSeries): string {
     const rawLabel = s.config.label ?? "";
-    const color = escapeHtml(s.config.color ?? this._theme.text);
+    const t = cssColor(this._theme.text);
+    const color = cssColor(s.config.color ?? this._theme.text, t);
     const style = s.visible ? "" : "opacity:.35;text-decoration:line-through";
     const label = escapeHtml(rawLabel);
     const id = escapeHtml(s.id);
-    const t = escapeHtml(this._theme.text);
     const visAria = escapeHtml(this._locale.toggleVisibility(rawLabel));
     let actions = "";
     if (this._onEdit) {

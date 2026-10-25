@@ -6,7 +6,7 @@
 import type { InternalSeries } from "../core/data-layer";
 import { DEFAULT_FONT_FAMILY } from "../core/font";
 import { autoFormatPrice, formatVolume } from "../core/format";
-import { escapeHtml } from "../core/html";
+import { cssColor, escapeHtml } from "../core/html";
 import { type ChartLocale, DEFAULT_LOCALE } from "../core/i18n";
 import type { RendererRegistry } from "../core/renderer-registry";
 import { defaultRegistry } from "../core/series-registry";
@@ -99,10 +99,10 @@ export class InfoOverlay {
       const i = index as number;
       const candle = candles[i];
       const isUp = candle.close >= candle.open;
-      // Theme values are caller-supplied: escape before they enter innerHTML.
-      const color = escapeHtml(isUp ? this._theme.upColor : this._theme.downColor);
-      const muted = escapeHtml(this._theme.textSecondary);
-      const text = escapeHtml(this._theme.text);
+      // Theme values are caller-supplied: sanitise before they enter innerHTML.
+      const color = cssColor(isUp ? this._theme.upColor : this._theme.downColor);
+      const muted = cssColor(this._theme.textSecondary);
+      const text = cssColor(this._theme.text);
       const fmtP = (n: number) => escapeHtml(this._priceFormatter(n));
       const mainSeries = seriesByPane.get("main") ?? [];
 
@@ -193,11 +193,11 @@ export class InfoOverlay {
     candles: readonly CandleData[],
   ): string {
     if (paneId === "volume") {
-      const title = `<span style="color:${escapeHtml(this._theme.textSecondary)}">${escapeHtml(this._locale.volumePaneTitle)}</span>`;
+      const title = `<span style="color:${cssColor(this._theme.textSecondary)}">${escapeHtml(this._locale.volumePaneTitle)}</span>`;
       if (index === null) return title;
       const vol = candles[index]?.volume;
       if (vol === undefined || vol === null) return title;
-      return `${title}&nbsp;&nbsp;<span style="color:${escapeHtml(this._theme.text)}">${escapeHtml(formatVolume(vol))}</span>`;
+      return `${title}&nbsp;&nbsp;<span style="color:${cssColor(this._theme.text)}">${escapeHtml(formatVolume(vol))}</span>`;
     }
 
     const paneSeries = seriesByPane.get(paneId) ?? [];
@@ -207,7 +207,7 @@ export class InfoOverlay {
         .map((s) => {
           const label = s.config.label;
           if (!label) return "";
-          const color = escapeHtml(s.config.color ?? this._theme.text);
+          const color = cssColor(s.config.color ?? this._theme.text, cssColor(this._theme.text));
           return `<span style="color:${color}">${escapeHtml(label)}</span>`;
         })
         .filter(Boolean)
@@ -225,7 +225,7 @@ export class InfoOverlay {
     if (!point || point.value === null || point.value === undefined) return "";
 
     const label = escapeHtml(s.config.label ?? "?");
-    const color = escapeHtml(s.config.color ?? this._theme.text);
+    const color = cssColor(s.config.color ?? this._theme.text, cssColor(this._theme.text));
 
     // Check custom renderer formatValue first
     if (this._rendererRegistry) {
@@ -250,7 +250,7 @@ export class InfoOverlay {
         .filter(([, v]) => v !== null && v !== undefined)
         .map(([k, v]) => `${escapeHtml(k)}:${fmtP(v as number)}`)
         .join(" ");
-      return `<span style="color:${color}">${label}</span> <span style="color:${escapeHtml(this._theme.text)}">${parts}</span>`;
+      return `<span style="color:${color}">${label}</span> <span style="color:${cssColor(this._theme.text)}">${parts}</span>`;
     }
 
     return "";

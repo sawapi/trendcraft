@@ -197,6 +197,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security — a colour could inject CSS into the legend and info overlay
+
+Theme colours and series colours are written into `style` attributes of the
+legend and the crosshair info overlay. They were HTML-escaped, which kept
+them inside the attribute but not inside their declaration: a colour such as
+`red;background-image:url(https://…)`, or a bare `url(…)` as a series colour
+(the legend dot uses it as `background`), made the viewer's browser fetch
+that URL. Apps that let users choose themes or series colours were exposed.
+The `var()` / `env()` fallback forms (`var(--x, url(…))`) did the same.
+These colours are now passed through the browser's canvas colour parser and
+written in its canonical form (e.g. `#rrggbb`, `rgba(…)`), which cannot
+carry extra CSS; `currentColor` is kept as is. An unparseable series colour falls back to the theme text
+colour; an unparseable theme colour is left out, so the element inherits
+its colour. Canvas drawing is unaffected.
+
 ### Fixed — daily time-axis labels showed a time after a DST change
 
 Daily bars from real feeds are stamped at the exchange's local midnight in
