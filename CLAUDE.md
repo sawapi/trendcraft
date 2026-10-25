@@ -85,6 +85,7 @@ pnpm build        # Build core (vite)
 ```bash
 cd packages/chart
 pnpm test         # Run chart tests (vitest, 19 test files)
+pnpm test:e2e     # Browser tests (Playwright; see e2e/README.md)
 pnpm build        # Build chart (vite)
 pnpm dev          # Dev server with examples
 pnpm size-check   # Check bundle size limits (esbuild, brotli-compressed)

@@ -59,3 +59,7 @@ docs-site/
 packages/core/cross-validation/python/.venv/
 # doc-snippet harness temp output (auto-cleaned; ignore if a run is interrupted)
 .docsnippets-tmp/
+
+# Playwright
+test-results/
+playwright-report/

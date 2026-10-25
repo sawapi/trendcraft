@@ -69,9 +69,10 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p e2e/tsconfig.json",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:e2e": "playwright test",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "size-check": "size-limit",
@@ -169,6 +170,7 @@
     }
   ],
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "@size-limit/esbuild": "^12.1.0",
     "@size-limit/file": "^12.1.0",
     "@testing-library/react": "^16.3.2",
