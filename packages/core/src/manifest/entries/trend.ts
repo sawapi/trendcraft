@@ -20,6 +20,7 @@ export const TREND_MANIFESTS: IndicatorManifest[] = [
       "Whipsaws hard in choppy ranges (this is its main weakness)",
       "Late entries: the flip requires a close beyond the band — by which point price has already moved an ATR-chunk",
       "Smaller multiplier flips more often (more whipsaws); larger multiplier holds longer but reacts later",
+      "`direction` is 0 (and `supertrend` null) after the ATR warm-up until the close first breaks a band — typically 10–25 bars with the defaults, sometimes 50+. No direction is assumed before that, so the first defined direction is a real break",
     ],
     synergy: [
       "ADX > 20 or Choppiness Index regime filter to disable Supertrend entries in chop",

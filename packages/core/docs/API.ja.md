@@ -308,7 +308,7 @@ const custom = supertrend(candles, { period: 7, multiplier: 2 });
 ```typescript
 interface SupertrendValue {
   supertrend: number | null;  // スーパートレンド値（サポート/レジスタンス）
-  direction: 1 | -1 | 0;      // 1 = 強気, -1 = 弱気, 0 = 未定義
+  direction: 1 | -1 | 0;      // 1 = 強気, -1 = 弱気, 0 = 未定義（ウォームアップ中、またはまだバンドを抜けていない）
   upperBand: number | null;   // 上バンド
   lowerBand: number | null;   // 下バンド
 }

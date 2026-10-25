@@ -46,8 +46,8 @@ describe("supertrend", () => {
   });
 
   it("should calculate supertrend with upper and lower bands", () => {
-    // Create enough data for ATR calculation
-    const data = Array.from({ length: 15 }, (_, i) => ({
+    // Enough data for the ATR warm-up and a first band break after it
+    const data = Array.from({ length: 30 }, (_, i) => ({
       high: 100 + i * 2,
       low: 90 + i * 2,
       close: 95 + i * 2,
@@ -139,8 +139,8 @@ describe("supertrend", () => {
   });
 
   it("should detect trend direction based on price vs bands", () => {
-    // Create data for ATR warmup period
-    const data = Array.from({ length: 15 }, (_, i) => ({
+    // Enough data for the ATR warm-up and a first band break after it
+    const data = Array.from({ length: 30 }, (_, i) => ({
       high: 100 + i * 2,
       low: 90 + i * 2,
       close: 95 + i * 2,
@@ -200,5 +200,44 @@ describe("supertrend", () => {
       const rangeLarge = lastLarge.upperBand - lastLarge.lowerBand;
       expect(rangeLarge).toBeGreaterThan(rangeSmall);
     }
+  });
+
+  describe("no direction until the close first breaks a band", () => {
+    // A steady +1%/bar rise: the close stays between the bands for a few
+    // bars after the ATR warm-up, then breaks the (ratcheting) upper band.
+    const data = Array.from({ length: 60 }, (_, i) => {
+      const close = 100 * 1.01 ** i;
+      return { high: close * 1.005, low: close * 0.995, close };
+    });
+    const result = supertrend(makeCandles(data));
+    const dirs = result.map((r) => r.value.direction);
+
+    it("is 0, with no supertrend line, until the first break", () => {
+      const first = dirs.findIndex((d) => d !== 0);
+      expect(first).toBeGreaterThan(10); // past the ATR warm-up (period 10)
+      expect(result[10].value.upperBand).not.toBeNull(); // bands are defined
+      for (let i = 0; i < first; i++) expect(result[i].value.supertrend).toBeNull();
+      // The first direction is the break itself: close above the upper band.
+      expect(dirs[first]).toBe(1);
+      expect(data[first].close).toBeGreaterThan(result[first].value.upperBand as number);
+    });
+
+    it("reports no flip in an unbroken uptrend", () => {
+      // It used to seed down at bar 10 and flip up a few bars later — a
+      // reversal that never happened.
+      const defined = dirs.filter((d) => d !== 0);
+      expect(new Set(defined)).toEqual(new Set([1]));
+    });
+
+    it("in a downtrend, starts at the break below the lower band", () => {
+      const down = Array.from({ length: 40 }, (_, i) => {
+        const close = 100 * 0.99 ** i;
+        return { high: close * 1.005, low: close * 0.995, close };
+      });
+      const r2 = supertrend(makeCandles(down)).map((r) => r.value.direction);
+      const firstDown = r2.findIndex((d) => d !== 0);
+      expect(r2[firstDown]).toBe(-1);
+      expect(r2.slice(firstDown).every((d) => d === -1)).toBe(true);
+    });
   });
 });

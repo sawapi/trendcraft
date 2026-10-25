@@ -10,6 +10,30 @@ and 26. On Node.js 20 or older, most package managers warn when installing
 `trendcraft`; some refuse (yarn 1, or npm and pnpm with
 `engine-strict`). Nothing in the package itself changed.
 
+### Breaking — Supertrend has no direction until price first breaks a band
+
+`supertrend()` and `createSupertrend()` seeded the first bar after the ATR
+warm-up as a downtrend unless the close was already above the upper band
+(as TradingView's `ta.supertrend` does; pandas-ta seeds an uptrend
+instead). In an uptrend that seed was corrected a few bars later, and
+`supertrendFlip` / `detectCoachingSignals` reported the correction as a
+bullish reversal (bar 14 on a steady +1%/bar rise). `direction` now stays
+`0` — with `supertrend: null`; the bands are still reported — until the
+close first breaks the upper band (`1`) or the lower band (`-1`), so the
+first defined direction is a real break and the first flip a real
+reversal. The bands do not depend on the direction, so from that first
+break on the values are unchanged.
+
+The undirected stretch is not short: with the defaults (10, 3) on 70
+symbols' daily bars it lasted a median 12 bars after the bands appear,
+25 at the 90th percentile and up to 57. During it `supertrendBullish` and
+`supertrendBearish` are both false and a chart draws no Supertrend line.
+Code that assumed a direction on every bar after the warm-up must handle
+`0`. This deliberately departs from every implementation surveyed:
+TradingView seeds down, pandas-ta up, and Skender's Stock.Indicators
+seeds from the first bar's close against its `hl2` — which removes the
+fixed bias but still takes a direction from one bar's noise.
+
 ### Breaking — cross signals separate what is known at the cross from the outcome
 
 `validateCrossSignals()` graded each cross by the `holdingDays` bars after

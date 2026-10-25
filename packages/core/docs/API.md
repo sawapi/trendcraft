@@ -308,7 +308,7 @@ const custom = supertrend(candles, { period: 7, multiplier: 2 });
 ```typescript
 interface SupertrendValue {
   supertrend: number | null;  // Supertrend value (support/resistance)
-  direction: 1 | -1 | 0;      // 1 = bullish, -1 = bearish, 0 = undefined
+  direction: 1 | -1 | 0;      // 1 = bullish, -1 = bearish, 0 = undefined (warm-up, or no band broken yet)
   upperBand: number | null;   // Upper band
   lowerBand: number | null;   // Lower band
 }

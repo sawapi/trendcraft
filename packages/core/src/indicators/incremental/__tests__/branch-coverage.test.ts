@@ -2190,11 +2190,15 @@ describe("OBV (On Balance Volume) directional volume tracking", () => {
 // --- Supertrend additional coverage ---
 
 describe("Supertrend direction changes and band computation", () => {
-  it("initial direction is set on first valid ATR candle", () => {
+  it("direction stays 0 after the ATR warm-up until the close breaks a band", () => {
     const st = createSupertrend({ period: 3, multiplier: 2 });
-    for (let i = 0; i < 5; i++) st.next(makeCandle(i));
-    const state = st.getState();
-    expect(state.state.direction).not.toBe(0);
+    const first = st.next(makeRisingCandles(1)[0]);
+    expect(first.value.direction).toBe(0);
+    // A strong rise breaks the upper band within a few bars.
+    let dir = 0;
+    for (const c of makeRisingCandles(12).slice(1)) dir = st.next(c).value.direction;
+    expect(dir).toBe(1);
+    expect(st.getState().state.direction).toBe(1);
   });
 
   it("supertrend = lower band in uptrend (direction=1)", () => {

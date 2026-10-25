@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — a Supertrend with no direction yet is not drawn as a downtrend
+
+`trendcraft`'s `supertrend()` now reports `direction: 0` after its warm-up
+until price first breaks a band, with the bands already defined. The chart
+drew those bars as a downtrend — the upper band in the bearish colour,
+with a bearish cloud — and then switched colour at the first upward break,
+which looked like a reversal. Bars with no direction are now left blank,
+as missing values are.
+
 ### Breaking — Vue `<TrendChart @click>` receives the chart's click, not a DOM event
 
 `@click` on the Vue component used to fall through to the container `<div>`

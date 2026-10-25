@@ -25,9 +25,15 @@ export type SupertrendOptions = {
  * Supertrend value
  */
 export type SupertrendValue = {
-  /** Supertrend value (support when bullish, resistance when bearish) */
+  /**
+   * Supertrend value (support when bullish, resistance when bearish);
+   * `null` while `direction` is 0
+   */
   supertrend: number | null;
-  /** Trend direction: 1 = bullish (up), -1 = bearish (down), 0 = undefined */
+  /**
+   * Trend direction: 1 = bullish (up), -1 = bearish (down), 0 = undefined —
+   * during the ATR warm-up, and after it until the close first breaks a band
+   */
   direction: 1 | -1 | 0;
   /** Upper band value */
   upperBand: number | null;
@@ -49,6 +55,12 @@ export type SupertrendValue = {
  * Trend:
  * - Bullish when price closes above the upper band
  * - Bearish when price closes below the lower band
+ * - Undefined (`direction: 0`) until the first such close: no direction is
+ *   assumed before price has broken a band, so the first defined direction
+ *   is a real break rather than a seed that a trend later corrects. From
+ *   that bar on the result equals TradingView's `ta.supertrend`, which
+ *   seeds a downtrend instead. With the defaults this stretch typically
+ *   lasts 10–25 bars after the warm-up, sometimes 50+.
  *
  * @param candles - Array of candles (raw or normalized)
  * @param options - Supertrend options
@@ -144,8 +156,8 @@ export function supertrend(
     const prevDirection = directions[i - 1] ?? 0;
 
     if (prevDirection === 0) {
-      // Initial direction based on price vs bands
-      direction = candle.close > finalUpper ? 1 : -1;
+      // Undefined until the close first breaks a band
+      direction = candle.close > finalUpper ? 1 : candle.close < finalLower ? -1 : 0;
     } else if (prevDirection === 1) {
       // Was bullish
       if (candle.close < finalLower) {
@@ -163,7 +175,7 @@ export function supertrend(
     }
 
     // Determine supertrend value
-    const supertrendValue = direction === 1 ? finalLower : finalUpper;
+    const supertrendValue = direction === 0 ? null : direction === 1 ? finalLower : finalUpper;
 
     finalUpperBand.push(finalUpper);
     finalLowerBand.push(finalLower);

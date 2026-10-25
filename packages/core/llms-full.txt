@@ -85,7 +85,7 @@ Returns `Series<{ tenkan, kijun, senkouA, senkouB, chikou }>` (all `number | nul
 ### `supertrend(candles, options?)`
 Supertrend. Options: `period` (10), `multiplier` (3).
 
-Returns `Series<{ supertrend: number | null, direction: 1 | -1 | 0, upperBand, lowerBand }>`.
+Returns `Series<{ supertrend: number | null, direction: 1 | -1 | 0, upperBand, lowerBand }>`. `direction` is 0 and `supertrend` null until the close first breaks a band after the ATR warm-up (typically 10–25 bars with the defaults, sometimes 50+); no initial direction is assumed.
 
 ### `parabolicSar(candles, options?)`
 Parabolic SAR. Options: `step` (0.02), `max` (0.2).
