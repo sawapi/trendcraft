@@ -25,6 +25,9 @@ describe("fromCrossSignal", () => {
     type: "golden",
     isFake: false,
     score: 85,
+    realtimeScore: 55,
+    confirmedAt: 6000,
+    confirmedIdx: 10,
     details: {
       volumeConfirmed: true,
       trendConfirmed: true,
@@ -38,7 +41,8 @@ describe("fromCrossSignal", () => {
     const result = fromCrossSignal(goldenSignal, 100);
     expect(result.action).toBe("BUY");
     expect(result.direction).toBe("LONG");
-    expect(result.confidence).toBe(85);
+    // The realtime part only: the +30 for holding reads later bars.
+    expect(result.confidence).toBe(55);
     expect(result.time).toBe(1000);
     expect(result.prices?.entry).toBe(100);
     expect(result.reasons[0].source).toBe("cross");
@@ -50,19 +54,28 @@ describe("fromCrossSignal", () => {
       ...goldenSignal,
       type: "dead",
       score: 60,
+      realtimeScore: 30,
     };
     const result = fromCrossSignal(deadSignal);
     expect(result.action).toBe("SELL");
     expect(result.direction).toBe("SHORT");
-    expect(result.confidence).toBe(60);
+    expect(result.confidence).toBe(30);
     expect(result.prices).toBeUndefined();
   });
 
-  it("marks fake signals in metadata", () => {
-    const fakeSignal = { ...goldenSignal, isFake: true };
-    const result = fromCrossSignal(fakeSignal);
-    expect(result.metadata?.isFake).toBe(true);
-    expect(result.reasons[0].detail).toBe("potential fake signal");
+  it("carries nothing that reads the bars after the cross", () => {
+    // Stamped at the cross bar, so outcome labels would leak the future
+    // into anything that filters trade signals on them.
+    const later = { ...goldenSignal, isFake: true, score: 15 };
+    const later2 = { ...goldenSignal, isFake: false, score: 85 };
+    expect(fromCrossSignal(later)).toEqual(fromCrossSignal(later2));
+    const result = fromCrossSignal(goldenSignal);
+    expect(result.metadata).toEqual({
+      volumeConfirmed: true,
+      trendConfirmed: true,
+      pricePositionConfirmed: true,
+    });
+    expect(result.reasons[0].detail).toBeUndefined();
   });
 });
 

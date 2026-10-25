@@ -10,6 +10,30 @@ and 26. On Node.js 20 or older, most package managers warn when installing
 `trendcraft`; some refuse (yarn 1, or npm and pnpm with
 `engine-strict`). Nothing in the package itself changed.
 
+### Breaking — cross signals separate what is known at the cross from the outcome
+
+`validateCrossSignals()` graded each cross by the `holdingDays` bars after
+it (`isFake`, `score`, `details.holdingConfirmed`), yet presented the result
+as an assessment at the cross bar, and `fromCrossSignal()` turned that score
+into the `confidence` of a trade signal stamped at the cross. Filtering
+entries on them used the future: cutting the series at the cross changed
+`score` or `isFake` for 20 of 21 test signals.
+
+- `CrossSignalQuality` gains `realtimeScore` (15-70: the cross, volume, trend
+  and price position — known at the cross bar, and the score the
+  `validatedGoldenCross` / `validatedDeadCross` conditions gate on) and
+  `confirmedAt` / `confirmedIdx`: the bar from which `isFake` and `score` are
+  final (the reversal bar, or the `holdingDays`-th bar once the cross held),
+  `null` until then. `score` is `realtimeScore` plus 30 when the cross held.
+- A cross that reversed before the series ends is now settled
+  (`holdingConfirmed: false`, `isFake: true`) even when fewer than
+  `holdingDays` bars follow it; it used to stay `null`.
+- `fromCrossSignal()` sets `confidence` to `realtimeScore` and drops the
+  outcome fields: `metadata` is `{ volumeConfirmed, trendConfirmed,
+  pricePositionConfirmed }` (no `isFake` / `holdingConfirmed`) and the reason
+  no longer says "potential fake signal".
+- Code that builds a `CrossSignalQuality` object must add the three new
+  fields.
 ### Breaking — `dpo()` no longer reads future bars by default
 
 `dpo()` returned `Price[i] - SMA[i + shift]` at bar `i` (with

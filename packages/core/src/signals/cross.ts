@@ -196,28 +196,60 @@ export function deadCross(
 }
 
 /**
- * Cross signal quality assessment
+ * Cross signal quality assessment.
+ *
+ * `isFake`, `score`, `details.holdingConfirmed` and `details.daysUntilReverse`
+ * grade the cross by what price did **after** it, so they are outcome labels,
+ * not inputs to a decision at `time`: they are final only from `confirmedAt`.
+ * For a decision at the cross bar, use `realtimeScore` and the `details`
+ * fields known then (`volumeConfirmed`, `trendConfirmed`,
+ * `pricePositionConfirmed`).
  */
 export type CrossSignalQuality = {
   /** The timestamp of the cross event */
   time: number;
   /** Type of cross: golden or dead */
   type: "golden" | "dead";
-  /** Whether the signal is likely a fake (damashi) */
+  /**
+   * Whether the cross failed: it reversed within `holdingDays`, or — while
+   * that is still unknown — neither volume nor trend backed it. Reads bars
+   * after `time`; final from `confirmedAt`.
+   */
   isFake: boolean;
-  /** Quality score: 0-100 (higher = more reliable) */
+  /**
+   * Quality score, 0-100 (higher = more reliable): `realtimeScore` plus 30
+   * when the cross held for `holdingDays`. Reads bars after `time`; final
+   * from `confirmedAt`.
+   */
   score: number;
+  /**
+   * The part of `score` known at the cross bar, 15-70: 15 for the cross,
+   * plus volume (20), trend (20) and price position (15). The same score
+   * `validatedGoldenCross` / `validatedDeadCross` gate on.
+   */
+  realtimeScore: number;
+  /**
+   * Time of the bar from which `isFake`, `score` and `holdingConfirmed` are
+   * final: the bar the cross reversed on, or the `holdingDays`-th bar after
+   * it once it held. `null` while the series ends before either.
+   */
+  confirmedAt: number | null;
+  /** Index of the {@link CrossSignalQuality.confirmedAt} bar, or `null` */
+  confirmedIdx: number | null;
   /** Details of each filter check */
   details: {
     /** Volume is above average (confirms the cross) */
     volumeConfirmed: boolean;
     /** Mid-term trend direction matches the cross */
     trendConfirmed: boolean;
-    /** Cross was maintained for N days without reversal */
+    /** Cross was maintained for N days without reversal (reads bars after the cross) */
     holdingConfirmed: boolean | null;
     /** Price is above SMA (for GC) or below SMA (for DC) */
     pricePositionConfirmed: boolean;
-    /** Days until the next reverse cross (null if no reverse yet) */
+    /**
+     * Days until the next reverse cross (null if no reverse yet). Reads bars
+     * after the cross, possibly past `confirmedAt`: for annotation only.
+     */
     daysUntilReverse: number | null;
   };
 };
@@ -241,6 +273,11 @@ export type CrossValidationOptions = {
 /**
  * Validate cross signals and detect potential fake (damashi) signals
  *
+ * A post-hoc assessment: `isFake` and `score` look at the bars after each
+ * cross (see {@link CrossSignalQuality}), so filtering entries on them in a
+ * backtest or a screen uses the future. Filter on `realtimeScore`, or use
+ * `validatedGoldenCross` / `validatedDeadCross` as backtest conditions.
+ *
  * Uses multiple filters to assess signal quality:
  * 1. Volume confirmation: Cross occurs with above-average volume (20 points)
  * 2. Trend confirmation: Mid-term SMA slope matches cross direction (20 points)
@@ -254,8 +291,12 @@ export type CrossValidationOptions = {
  * @example
  * ```ts
  * const signals = validateCrossSignals(candles);
- * const reliableGC = signals.filter(s => s.type === 'golden' && !s.isFake);
- * const fakeSignals = signals.filter(s => s.isFake);
+ *
+ * // Decide at the cross bar: only what was known then
+ * const entries = signals.filter(s => s.type === 'golden' && s.realtimeScore >= 50);
+ *
+ * // Review afterwards: which crosses failed, once that is settled
+ * const fakes = signals.filter(s => s.confirmedAt !== null && s.isFake);
  * ```
  */
 export function validateCrossSignals(
@@ -312,7 +353,8 @@ export function validateCrossSignals(
     const trendConfirmed = checkTrendDirection(longSma, i, trendPeriod, type);
 
     // 3. Holding confirmation: cross maintained for N days (30 points)
-    const holdingConfirmed = checkHoldingDays(shortSma, longSma, i, holdingDays, type);
+    const holding = checkHoldingDays(shortSma, longSma, i, holdingDays, type);
+    const holdingConfirmed = holding.held;
 
     // 4. Price position: price above/below long SMA (15 points)
     const longSmaValue = longSma[i].value;
@@ -325,11 +367,11 @@ export function validateCrossSignals(
 
     // Calculate score (0-100)
     // Base: 15 points (for detecting the cross itself)
-    let score = 15;
-    if (volumeConfirmed) score += 20;
-    if (trendConfirmed) score += 20;
-    if (holdingConfirmed === true) score += 30;
-    if (pricePositionConfirmed) score += 15;
+    let realtimeScore = 15;
+    if (volumeConfirmed) realtimeScore += 20;
+    if (trendConfirmed) realtimeScore += 20;
+    if (pricePositionConfirmed) realtimeScore += 15;
+    const score = realtimeScore + (holdingConfirmed === true ? 30 : 0);
 
     // Signal is considered fake if:
     // - holdingConfirmed is false (reversed within N days), OR
@@ -343,6 +385,9 @@ export function validateCrossSignals(
       type,
       isFake,
       score,
+      realtimeScore,
+      confirmedAt: holding.decidedIdx === null ? null : normalized[holding.decidedIdx].time,
+      confirmedIdx: holding.decidedIdx,
       details: {
         volumeConfirmed,
         trendConfirmed,
@@ -357,11 +402,13 @@ export function validateCrossSignals(
 }
 
 /**
- * Check if cross is maintained for N days without reversal
- * Returns:
+ * Check if cross is maintained for N days without reversal.
+ * `held` is:
  * - true: cross maintained for N days
  * - false: cross reversed within N days
  * - null: not enough future data to determine
+ * and `decidedIdx` is the bar that settled it (the reversal bar, or the N-th
+ * bar after the cross), `null` while undetermined.
  */
 function checkHoldingDays(
   shortSma: Series<number | null>,
@@ -369,16 +416,12 @@ function checkHoldingDays(
   crossIdx: number,
   holdingDays: number,
   crossType: "golden" | "dead",
-): boolean | null {
+): { held: boolean | null; decidedIdx: number | null } {
   const endIdx = crossIdx + holdingDays;
 
-  // Not enough data to check
-  if (endIdx >= shortSma.length) {
-    return null;
-  }
-
-  // Check each day after the cross
-  for (let i = crossIdx + 1; i <= endIdx; i++) {
+  // Check each day after the cross; a reversal settles it even when the
+  // series ends before the N-th bar.
+  for (let i = crossIdx + 1; i <= Math.min(endIdx, shortSma.length - 1); i++) {
     const shortVal = shortSma[i].value;
     const longVal = longSma[i].value;
 
@@ -389,14 +432,16 @@ function checkHoldingDays(
     // For golden cross: short should stay above long
     // For dead cross: short should stay below long
     if (crossType === "golden" && shortVal < longVal) {
-      return false; // Reversed
+      return { held: false, decidedIdx: i }; // Reversed
     }
     if (crossType === "dead" && shortVal > longVal) {
-      return false; // Reversed
+      return { held: false, decidedIdx: i }; // Reversed
     }
   }
 
-  return true; // Maintained for N days
+  // Not enough data to check
+  if (endIdx >= shortSma.length) return { held: null, decidedIdx: null };
+  return { held: true, decidedIdx: endIdx }; // Maintained for N days
 }
 
 /**

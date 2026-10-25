@@ -2243,17 +2243,22 @@ const signals = validateCrossSignals(candles, {
 interface CrossSignalQuality {
   time: number;
   type: 'golden' | 'dead';
-  isFake: boolean;             // だましの可能性
-  score: number;               // 品質スコア (0-100)
+  isFake: boolean;             // だましの可能性（クロス後の値動きを使う。confirmedAt から確定）
+  score: number;               // 品質スコア (0-100) = realtimeScore + 維持なら30（confirmedAt から確定）
+  realtimeScore: number;       // クロスの足で分かる分 (15-70): 出来高・トレンド・価格位置
+  confirmedAt: number | null;  // isFake / score が確定する足の時刻。確定前は null
+  confirmedIdx: number | null;
   details: {
     volumeConfirmed: boolean;  // 出来高確認
     trendConfirmed: boolean;   // トレンド確認
-    holdingConfirmed: boolean | null;  // 5日間維持確認
+    holdingConfirmed: boolean | null;  // 5日間維持確認（クロス後の値動きを使う）
     pricePositionConfirmed: boolean;   // 価格位置確認
-    daysUntilReverse: number | null;   // 反転までの日数
+    daysUntilReverse: number | null;   // 反転までの日数（クロス後の値動きを使う。注記用）
   };
 }
 ```
+
+`isFake` と `score` はクロス後の値動きで評価するため、過去の振り返り用であり、`time` の時点の判断材料ではありません。クロスの時点で判断するなら `realtimeScore` で絞り込むか、同じスコアで判定するバックテスト条件 `validatedGoldenCross` / `validatedDeadCross` を使います。どのクロスが失敗したかを調べるときは、`confirmedAt` が入ってから `isFake` / `score` を読みます。
 
 ---
 

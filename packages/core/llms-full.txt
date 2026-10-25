@@ -464,7 +464,7 @@ Generic crossover detection. Returns `Signal[]` (`{ time, type: 'bullish' | 'bea
 MA cross signals. Returns `Signal[]`.
 
 ### `validateCrossSignals(candles, options)`
-Cross signals with quality assessment. Returns `CrossSignalQuality[]` with `isFake`, `volumeConfirmed`, `trendConfirmed`, etc.
+Cross signals with quality assessment. Returns `CrossSignalQuality[]`. `isFake` / `score` / `details.holdingConfirmed` read the bars after the cross and are final from `confirmedAt` (null until then) — post-hoc review only. `realtimeScore` (15-70) and `details.volumeConfirmed` / `trendConfirmed` / `pricePositionConfirmed` are known at the cross bar; use those for decisions.
 
 ## Signals — Divergence
 

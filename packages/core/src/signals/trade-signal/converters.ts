@@ -17,6 +17,12 @@ import { resolvePatternDirection } from "../patterns/types";
 /**
  * Convert a CrossSignalQuality to a TradeSignal
  *
+ * The trade signal is stamped at the cross bar, so it carries only what was
+ * known there: `confidence` is the signal's `realtimeScore`, and the
+ * metadata holds the volume / trend / price-position checks. The outcome
+ * fields (`isFake`, `score`, `holdingConfirmed`) read the bars after the
+ * cross and are left out.
+ *
  * @param signal - Cross signal quality result
  * @param entryPrice - Current price at signal time
  * @returns Unified trade signal
@@ -34,20 +40,18 @@ export function fromCrossSignal(signal: CrossSignalQuality, entryPrice?: number)
     time: signal.time,
     action: isGolden ? "BUY" : "SELL",
     direction: isGolden ? "LONG" : "SHORT",
-    confidence: signal.score,
+    confidence: signal.realtimeScore,
     prices: entryPrice ? { entry: entryPrice } : undefined,
     reasons: [
       {
         source: "cross",
         name: signal.type === "golden" ? "goldenCross" : "deadCross",
-        detail: signal.isFake ? "potential fake signal" : undefined,
       },
     ],
     metadata: {
-      isFake: signal.isFake,
       volumeConfirmed: signal.details.volumeConfirmed,
       trendConfirmed: signal.details.trendConfirmed,
-      holdingConfirmed: signal.details.holdingConfirmed,
+      pricePositionConfirmed: signal.details.pricePositionConfirmed,
     },
   };
 }
