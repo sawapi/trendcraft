@@ -109,7 +109,16 @@ export function renderCrosshair(
   ) {
     const candle = candles[viewportState.crosshairIndex];
     if (candle) {
-      drawTimeLabel(ctx, candle.time, x, timeAxisY, theme, fontSize, fontFamily);
+      drawTimeLabel(
+        ctx,
+        candle.time,
+        x,
+        timeAxisY,
+        theme,
+        fontSize,
+        fontFamily,
+        timeScale.timeZone,
+      );
     }
   }
 }
@@ -191,8 +200,9 @@ function drawTimeLabel(
   theme: ThemeColors,
   fontSize: number,
   fontFamily: string = DEFAULT_FONT_FAMILY,
+  timeZone?: string,
 ): void {
-  const label = formatCrosshairTime(time);
+  const label = formatCrosshairTime(time, timeZone);
   ctx.font = canvasFont(fontSize, fontFamily);
   const padX = 6;
   const padY = 3;

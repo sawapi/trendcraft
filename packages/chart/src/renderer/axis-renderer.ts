@@ -189,7 +189,7 @@ export function renderTimeAxis(
     const labelX = timeScale.indexToX(i);
     const label = timeFormatter
       ? timeFormatter(candle.time)
-      : autoFormatTime(candle.time, prevLabelTime, barIntervalMs);
+      : autoFormatTime(candle.time, prevLabelTime, barIntervalMs, timeScale.timeZone);
 
     const right = drawClampedAxisLabel(ctx, label, labelX, y + 6, x, x + width, lastRight);
     // A skipped label is not "the previous label": the next one is formatted
@@ -295,8 +295,15 @@ function renderTwoRowAxis(
   let lastTop = Number.NEGATIVE_INFINITY;
   for (const t of timeTicks) {
     lastTop =
-      drawClampedAxisLabel(ctx, formatShortTime(t.time), x + t.x, topY, x, rightBound, lastTop) ??
-      lastTop;
+      drawClampedAxisLabel(
+        ctx,
+        formatShortTime(t.time, timeScale.timeZone),
+        x + t.x,
+        topY,
+        x,
+        rightBound,
+        lastTop,
+      ) ?? lastTop;
   }
 
   // Lower row: date at day boundaries. Edge ticks are clamped inward (rather
@@ -306,7 +313,7 @@ function renderTwoRowAxis(
   let prevDateTime: number | null = null;
   let lastDate = Number.NEGATIVE_INFINITY;
   for (const d of dateTicks) {
-    const label = formatShortDate(d.time, prevDateTime);
+    const label = formatShortDate(d.time, prevDateTime, timeScale.timeZone);
     const right = drawClampedAxisLabel(ctx, label, x + d.x, bottomY, x, rightBound, lastDate);
     if (right !== null) {
       lastDate = right;

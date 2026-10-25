@@ -323,6 +323,7 @@ describe("applyOptions — every ChartOptions key is applied or warned", () => {
     fontSize: { value: 13, outcome: "applied" },
     priceFormatter: { value: (p: number) => String(p), outcome: "applied" },
     timeFormatter: { value: (t: number) => String(t), outcome: "applied" },
+    timeZone: { value: "UTC", outcome: "applied" },
     watermark: { value: "WM", outcome: "applied" },
     legend: { value: false, outcome: "applied" },
     volume: { value: false, outcome: "applied" },

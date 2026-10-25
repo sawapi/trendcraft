@@ -18,6 +18,7 @@ import { resolveRangeDuration } from "../core/range-utils";
 import { RendererRegistry } from "../core/renderer-registry";
 import { type PriceScale, TimeScale } from "../core/scale";
 import { defaultRegistry, type IntrospectionRule } from "../core/series-registry";
+import { isValidTimeZone } from "../core/time-zone";
 import type {
   CandleData,
   ChartErrorCode,
@@ -360,6 +361,7 @@ export class CanvasChart implements ChartInstance {
     this._fontFamily = options?.fontFamily ?? DEFAULT_OPTIONS.fontFamily;
     this._priceFormatter = options?.priceFormatter ?? autoFormatPrice;
     this._timeFormatter = options?.timeFormatter;
+    if (options?.timeZone !== undefined) this._setTimeZoneOption(options.timeZone);
     this._animationDuration = options?.animationDuration ?? 300;
     // lockOnLongPress is not kept here: the viewport owns it (see interactionOptionsOf).
     this._crosshairOpts = {
@@ -1030,6 +1032,15 @@ export class CanvasChart implements ChartInstance {
     this._animateToRange(() => this._timeScale.fitContent());
   }
 
+  /** Validate and apply the `timeZone` option ("" = browser local). */
+  private _setTimeZoneOption(timeZone: string): void {
+    if (timeZone !== "" && (typeof timeZone !== "string" || !isValidTimeZone(timeZone))) {
+      this._warn("timeZone: expected an IANA time zone name, ignoring", timeZone, "INVALID_OPTION");
+      return;
+    }
+    this._timeScale.timeZone = timeZone || undefined;
+  }
+
   /** Validate and apply the `timeScale.rightOffset` option.
    *  Returns false when the value was rejected (warn + keep previous). */
   private _setRightOffsetOption(offset: number): boolean {
@@ -1184,7 +1195,7 @@ export class CanvasChart implements ChartInstance {
    *
    * Runtime-capable fields: theme, chartType, volume, fontSize, fontFamily,
    * watermark, showSeriesBadges, seriesBadgeMode, animationDuration,
-   * maxCandles, legend, priceFormatter, timeFormatter, width, height,
+   * maxCandles, legend, priceFormatter, timeFormatter, timeZone, width, height,
    * priceAxisWidth, timeAxisHeight, crosshair, hotkeys, interaction,
    * scrollSensitivity, timeScale.sessionGaps, timeScale.rightOffset.
    *
@@ -1233,6 +1244,10 @@ export class CanvasChart implements ChartInstance {
     }
     if (opts.timeFormatter !== undefined) {
       this._timeFormatter = opts.timeFormatter;
+      this._needsRender = true;
+    }
+    if (opts.timeZone !== undefined) {
+      this._setTimeZoneOption(opts.timeZone);
       this._needsRender = true;
     }
 

@@ -5,6 +5,7 @@
  * PriceScale: price → y pixel
  */
 
+import { wallClock } from "./time-zone";
 import type { ScaleMode } from "./types";
 
 // ============================================
@@ -44,6 +45,11 @@ export class TimeScale {
   private _visibleCount = 100;
   /** Available width in pixels for data area */
   private _width = 0;
+  /**
+   * IANA zone the time labels and day boundaries read the wall clock in
+   * (the chart's `timeZone` option); undefined = the browser's local zone.
+   */
+  timeZone: string | undefined;
   /** Total number of candles */
   private _totalCount = 0;
   /** Bar spacing in pixels */
@@ -753,7 +759,7 @@ export class TimeScale {
   }
 
   /**
-   * Generate date ticks at local-TZ calendar-day boundaries within the
+   * Generate date ticks at calendar-day boundaries in {@link timeZone} within the
    * visible range. Requires prior {@link setTimeProportional}.
    */
   getDateTicks(): Array<{ time: number; x: number }> {
@@ -763,9 +769,9 @@ export class TimeScale {
     const end = Math.min(times.length - 1, this.endIndex - 1);
     if (end < start) return [];
     const out: Array<{ time: number; x: number }> = [];
-    let prevKey = start > 0 ? localDayKey(times[start - 1]) : -1;
+    let prevKey = start > 0 ? dayKey(times[start - 1], this.timeZone) : -1;
     for (let i = start; i <= end; i++) {
-      const key = localDayKey(times[i]);
+      const key = dayKey(times[i], this.timeZone);
       if (key !== prevKey) {
         out.push({ time: times[i], x: this.indexToX(i) });
         prevKey = key;
@@ -795,10 +801,10 @@ export class TimeScale {
   }
 }
 
-/** Local-TZ calendar day key (year*10000 + month*100 + date) */
-function localDayKey(time: number): number {
-  const d = new Date(time);
-  return d.getFullYear() * 10000 + d.getMonth() * 100 + d.getDate();
+/** Calendar day key (year*10000 + month*100 + date) in `timeZone` (local when omitted) */
+function dayKey(time: number, timeZone?: string): number {
+  const d = wallClock(time, timeZone);
+  return d.getUTCFullYear() * 10000 + d.getUTCMonth() * 100 + d.getUTCDate();
 }
 
 // ============================================

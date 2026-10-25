@@ -3,6 +3,8 @@
  * Provides auto-precision formatting and customization hooks.
  */
 
+import { wallClock } from "./time-zone";
+
 // ============================================
 // Price Formatting
 // ============================================
@@ -90,15 +92,21 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  * @param intervalMs - Optional dominant bar interval. When the series is
  *   daily-grained or coarser, the first label's wall-clock time is suppressed
  *   (see below). Omit to keep the legacy "show time if non-midnight" behavior.
+ * @param timeZone - IANA zone to read the wall clock in (browser local when omitted)
  * @returns Formatted string
  */
-export function autoFormatTime(time: number, prevTime: number | null, intervalMs?: number): string {
-  const d = new Date(time);
-  const year = d.getFullYear();
-  const month = d.getMonth();
-  const day = d.getDate();
-  const hours = d.getHours();
-  const minutes = d.getMinutes();
+export function autoFormatTime(
+  time: number,
+  prevTime: number | null,
+  intervalMs?: number,
+  timeZone?: string,
+): string {
+  const d = wallClock(time, timeZone);
+  const year = d.getUTCFullYear();
+  const month = d.getUTCMonth();
+  const day = d.getUTCDate();
+  const hours = d.getUTCHours();
+  const minutes = d.getUTCMinutes();
 
   if (prevTime === null) {
     // First label: show full date. The wall-clock time is suppressed for
@@ -113,15 +121,15 @@ export function autoFormatTime(time: number, prevTime: number | null, intervalMs
     return `${MONTH_NAMES[month]} ${day} ${pad2(hours)}:${pad2(minutes)}`;
   }
 
-  const prev = new Date(prevTime);
+  const prev = wallClock(prevTime, timeZone);
 
   // Year changed
-  if (prev.getFullYear() !== year) {
+  if (prev.getUTCFullYear() !== year) {
     return `${year}`;
   }
 
   // Month changed
-  if (prev.getMonth() !== month) {
+  if (prev.getUTCMonth() !== month) {
     return `${MONTH_NAMES[month]}`;
   }
 
@@ -134,14 +142,14 @@ export function autoFormatTime(time: number, prevTime: number | null, intervalMs
   // change, which the time-of-day test below would read as a session gap.
   const coarse = (intervalMs ?? 0) >= DAY_MS;
   const bigJump = !coarse && time - prevTime > 4 * 60 * 60 * 1000;
-  const prevTod = prev.getHours() * 60 + prev.getMinutes();
+  const prevTod = prev.getUTCHours() * 60 + prev.getUTCMinutes();
   const curTod = hours * 60 + minutes;
   const sameTimeOfDay = Math.abs(prevTod - curTod) < 60;
   const nearMidnight = hours === 0 && minutes < 30;
   const anchorTime = bigJump && !nearMidnight && !sameTimeOfDay;
 
-  // Day changed (local TZ)
-  if (prev.getDate() !== day) {
+  // Day changed
+  if (prev.getUTCDate() !== day) {
     return anchorTime
       ? `${MONTH_NAMES[month]} ${day} ${pad2(hours)}:${pad2(minutes)}`
       : `${MONTH_NAMES[month]} ${day}`;
@@ -159,26 +167,29 @@ export function autoFormatTime(time: number, prevTime: number | null, intervalMs
 }
 
 /**
- * Format a wall-clock time as a short axis label (HH:MM).
- * Uses 24-hour format in browser local TZ.
+ * Format a wall-clock time as a short axis label (HH:MM), 24-hour, in
+ * `timeZone` (browser local when omitted).
  */
-export function formatShortTime(time: number): string {
-  const d = new Date(time);
-  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+export function formatShortTime(time: number, timeZone?: string): string {
+  const d = wallClock(time, timeZone);
+  return `${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}`;
 }
 
 /**
  * Format a date as a short axis anchor ("Mar 16" or "2026" at year boundaries).
  * Locale-aware via the MONTH_NAMES table.
  */
-export function formatShortDate(time: number, prevTime: number | null = null): string {
-  const d = new Date(time);
-  if (prevTime !== null) {
-    const prev = new Date(prevTime);
-    if (prev.getFullYear() !== d.getFullYear()) return `${d.getFullYear()}`;
-    if (prev.getMonth() !== d.getMonth()) return `${MONTH_NAMES[d.getMonth()]} ${d.getDate()}`;
+export function formatShortDate(
+  time: number,
+  prevTime: number | null = null,
+  timeZone?: string,
+): string {
+  const d = wallClock(time, timeZone);
+  const label = `${MONTH_NAMES[d.getUTCMonth()]} ${d.getUTCDate()}`;
+  if (prevTime !== null && wallClock(prevTime, timeZone).getUTCFullYear() !== d.getUTCFullYear()) {
+    return `${d.getUTCFullYear()}`;
   }
-  return `${MONTH_NAMES[d.getMonth()]} ${d.getDate()}`;
+  return label;
 }
 
 /**
@@ -219,15 +230,16 @@ export function pickNiceStep(rangeMs: number, maxTicks: number): number {
 }
 
 /**
- * Format time for crosshair label (always show full detail).
+ * Format time for crosshair label (always show full detail), in `timeZone`
+ * (browser local when omitted).
  */
-export function formatCrosshairTime(time: number): string {
-  const d = new Date(time);
-  const y = d.getFullYear();
-  const m = pad2(d.getMonth() + 1);
-  const day = pad2(d.getDate());
-  const h = d.getHours();
-  const min = d.getMinutes();
+export function formatCrosshairTime(time: number, timeZone?: string): string {
+  const d = wallClock(time, timeZone);
+  const y = d.getUTCFullYear();
+  const m = pad2(d.getUTCMonth() + 1);
+  const day = pad2(d.getUTCDate());
+  const h = d.getUTCHours();
+  const min = d.getUTCMinutes();
 
   if (h === 0 && min === 0) {
     return `${y}-${m}-${day}`;
