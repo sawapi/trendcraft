@@ -90,7 +90,7 @@ tracking issue for a known bug; the spec for it is a `test.fail` until fixed.
 | Rendering | Flat or zero price range still draws an axis with ticks | covered by unit tests (`price-scale-degenerate.test.ts`) |
 | Rendering | Theme change reaches the legend | covered |
 | Rendering | Series `lineWidth` / `channelColors` / `markers` reach band, MACD, ichimoku, line | covered by unit tests (`series-config-reaches-renderer.test.ts`) |
-| Rendering | Hidden series keep their pane | todo (ops #25) |
+| Rendering | Hidden series keep their pane | covered by unit tests (`pane-teardown.test.ts`) |
 | Rendering | hmmRegime draws; volume-profile levels stay put on scroll | covered (hmmRegime); volume profile by unit tests (`heatmap-series.test.ts`) |
 | Pan / zoom | Wheel up zooms in | covered |
 | Pan / zoom | Mouse drag pans | covered |

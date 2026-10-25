@@ -28,6 +28,14 @@ lines, each bar at its own window's levels. `barColor` and `maxBarWidth`
 in `HeatmapRenderOptions` are documented as reserved: per-level volume bars
 are not drawn.
 
+### Fixed — removing a series could delete a pane a hidden series still used
+
+A pane was torn down when no *visible* series remained on it, so removing
+the last visible series dropped the pane under a hidden one, which could
+then never be shown again. A pane is now removed only when no series at all
+is assigned to it. A pane whose series are all hidden therefore stays, as
+an empty pane.
+
 ### Fixed — pressing the mouse did not stop a fling
 
 A trackpad flick keeps the chart scrolling after the gesture, and pressing
