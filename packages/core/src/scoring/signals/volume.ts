@@ -374,7 +374,7 @@ export const volumeSpike: SignalDefinition = {
   displayName: "Volume Spike",
   weight: 1.5,
   category: "volume",
-  evaluate: createVolumeSpikeEvaluator(1.5, 20),
+  evaluate: /* @__PURE__ */ createVolumeSpikeEvaluator(1.5, 20),
   requiredIndicators: ["volumeMa20"],
 };
 
@@ -383,7 +383,7 @@ export const volumeAnomaly2z: SignalDefinition = {
   displayName: "Volume Anomaly (2σ)",
   weight: 2.0,
   category: "volume",
-  evaluate: createVolumeAnomalyEvaluator(2, 20),
+  evaluate: /* @__PURE__ */ createVolumeAnomalyEvaluator(2, 20),
   requiredIndicators: ["volumeAnomaly"],
 };
 
@@ -392,7 +392,7 @@ export const bullishVolumeTrend: SignalDefinition = {
   displayName: "Bullish Volume",
   weight: 1.5,
   category: "volume",
-  evaluate: createBullishVolumeTrendEvaluator(20),
+  evaluate: /* @__PURE__ */ createBullishVolumeTrendEvaluator(20),
   requiredIndicators: ["volumeTrend"],
 };
 
@@ -401,7 +401,7 @@ export const cmfPositive: SignalDefinition = {
   displayName: "CMF > 0.1",
   weight: 1.5,
   category: "volume",
-  evaluate: createCmfPositiveEvaluator(0.1, 20),
+  evaluate: /* @__PURE__ */ createCmfPositiveEvaluator(0.1, 20),
   requiredIndicators: ["cmf20"],
 };
 
@@ -410,6 +410,6 @@ export const highVolumeUpCandle: SignalDefinition = {
   displayName: "High Vol Up Candle",
   weight: 1.5,
   category: "volume",
-  evaluate: createHighVolumeUpCandleEvaluator(1.5, 20),
+  evaluate: /* @__PURE__ */ createHighVolumeUpCandleEvaluator(1.5, 20),
   requiredIndicators: ["volumeMa20"],
 };

@@ -51,7 +51,7 @@ const BEARISH_PATTERNS: PatternType[] = [
   "crab_bearish",
   "shark_bearish",
 ];
-const ALL_PATTERNS: PatternType[] = [...BULLISH_PATTERNS, ...BEARISH_PATTERNS];
+const ALL_PATTERNS: PatternType[] = /* @__PURE__ */ BULLISH_PATTERNS.concat(BEARISH_PATTERNS);
 
 type CandleArray = Parameters<typeof detectDoubleTop>[0];
 
@@ -107,7 +107,7 @@ const PATTERN_DETECTORS: Record<
  * detector and leaves the condition false on every bar, so the strategy
  * registry builds its pattern enums from it.
  */
-export const PATTERN_TYPES: readonly PatternType[] = Object.keys(
+export const PATTERN_TYPES: readonly PatternType[] = /* @__PURE__ */ Object.keys(
   PATTERN_DETECTORS,
 ) as PatternType[];
 
@@ -167,13 +167,13 @@ export const HARMONIC_TYPES = [
  * Every harmonic name ends in one suffix or the other, so these are derived
  * rather than restated; a contract test asserts they partition the family.
  */
-export const BULLISH_HARMONIC_TYPES: readonly PatternType[] = HARMONIC_TYPES.filter((t) =>
-  t.endsWith("_bullish"),
+export const BULLISH_HARMONIC_TYPES: readonly PatternType[] = /* @__PURE__ */ HARMONIC_TYPES.filter(
+  (t) => t.endsWith("_bullish"),
 );
 
 /** See {@link BULLISH_HARMONIC_TYPES}. */
-export const BEARISH_HARMONIC_TYPES: readonly PatternType[] = HARMONIC_TYPES.filter((t) =>
-  t.endsWith("_bearish"),
+export const BEARISH_HARMONIC_TYPES: readonly PatternType[] = /* @__PURE__ */ HARMONIC_TYPES.filter(
+  (t) => t.endsWith("_bearish"),
 );
 
 /**
