@@ -99,7 +99,10 @@ export class InfoOverlay {
       const i = index as number;
       const candle = candles[i];
       const isUp = candle.close >= candle.open;
-      const color = isUp ? this._theme.upColor : this._theme.downColor;
+      // Theme values are caller-supplied: escape before they enter innerHTML.
+      const color = escapeHtml(isUp ? this._theme.upColor : this._theme.downColor);
+      const muted = escapeHtml(this._theme.textSecondary);
+      const text = escapeHtml(this._theme.text);
       const fmtP = (n: number) => escapeHtml(this._priceFormatter(n));
       const mainSeries = seriesByPane.get("main") ?? [];
 
@@ -125,11 +128,11 @@ export class InfoOverlay {
         const indicatorParts = mainSeries.map((s) => this.formatSeriesValue(s, i)).filter(Boolean);
         const l = this._locale;
         mainHtml = [
-          `<span style="color:${this._theme.textSecondary}">${escapeHtml(l.open)}</span> <span style="color:${color}">${fmtP(candle.open)}</span>`,
-          `<span style="color:${this._theme.textSecondary}">${escapeHtml(l.high)}</span> <span style="color:${color}">${fmtP(candle.high)}</span>`,
-          `<span style="color:${this._theme.textSecondary}">${escapeHtml(l.low)}</span> <span style="color:${color}">${fmtP(candle.low)}</span>`,
-          `<span style="color:${this._theme.textSecondary}">${escapeHtml(l.close)}</span> <span style="color:${color}">${fmtP(candle.close)}</span>`,
-          `<span style="color:${this._theme.textSecondary}">${escapeHtml(l.volume)}</span> <span style="color:${this._theme.text}">${fmtVol(candle.volume)}</span>`,
+          `<span style="color:${muted}">${escapeHtml(l.open)}</span> <span style="color:${color}">${fmtP(candle.open)}</span>`,
+          `<span style="color:${muted}">${escapeHtml(l.high)}</span> <span style="color:${color}">${fmtP(candle.high)}</span>`,
+          `<span style="color:${muted}">${escapeHtml(l.low)}</span> <span style="color:${color}">${fmtP(candle.low)}</span>`,
+          `<span style="color:${muted}">${escapeHtml(l.close)}</span> <span style="color:${color}">${fmtP(candle.close)}</span>`,
+          `<span style="color:${muted}">${escapeHtml(l.volume)}</span> <span style="color:${text}">${fmtVol(candle.volume)}</span>`,
           ...indicatorParts,
         ].join("&nbsp;&nbsp;");
       }
@@ -247,7 +250,7 @@ export class InfoOverlay {
         .filter(([, v]) => v !== null && v !== undefined)
         .map(([k, v]) => `${escapeHtml(k)}:${fmtP(v as number)}`)
         .join(" ");
-      return `<span style="color:${color}">${label}</span> <span style="color:${this._theme.text}">${parts}</span>`;
+      return `<span style="color:${color}">${label}</span> <span style="color:${escapeHtml(this._theme.text)}">${parts}</span>`;
     }
 
     return "";
@@ -262,5 +265,3 @@ export class InfoOverlay {
 }
 
 const fmtVol = (n: number) => escapeHtml(formatVolume(n));
-
-/** Prevent XSS from custom formatters */
