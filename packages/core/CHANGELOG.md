@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Breaking — requires Node.js 22 or later
+
+`engines.node` is now `>=22.0.0` (was `>=18.0.0`). Node.js 18 and 20 have
+reached end of life, and 18 was never tested. CI now tests Node.js 22, 24
+and 26. On Node.js 20 or older, most package managers warn when installing
+`trendcraft`; some refuse (yarn 1, or npm and pnpm with
+`engine-strict`). Nothing in the package itself changed.
+
 ### Fixed — `drawdownDistribution()` with equal depths or an invalid `numBins`
 
 When every depth was the same, the bins ran one unit wide past the data

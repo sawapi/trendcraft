@@ -197,6 +197,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Breaking — requires Node.js 22 or later
+
+`engines.node` is now `>=22.0.0` (was `>=18.0.0`). Node.js 18 and 20 have
+reached end of life, and 18 was never tested. CI now tests Node.js 22, 24
+and 26. On Node.js 20 or older, most package managers warn when installing
+`@trendcraft/chart`; some refuse (yarn 1, or npm and pnpm with
+`engine-strict`). Nothing in the package itself changed.
+
 ### Fixed — charts with many bars spent most of each frame on work they did not need
 
 Every frame, the price range of a pane decomposed each multi-channel

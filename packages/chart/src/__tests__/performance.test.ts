@@ -38,9 +38,9 @@ function generateLineData(count: number): DataPoint<number>[] {
  * accidental O(n^2) loop, not a constant-factor drift: that needs a benchmark.
  * The budgets leave wide headroom on a developer machine, but shared CI runners
  * run this file alongside the other test files and swing by far more: LTTB on
- * 100k points takes ~2ms locally and has measured 57ms on node 20 CI against a
- * 50ms budget, for a change that did not touch the chart. So on CI every budget
- * is multiplied by CI_SLACK.
+ * 100k points takes ~2ms locally and has measured 57ms on CI (when it ran
+ * Node 20) against a 50ms budget, for a change that did not touch the chart.
+ * So on CI every budget is multiplied by CI_SLACK.
  */
 const CI_SLACK = process.env.CI && process.env.CI !== "false" ? 3 : 1;
 
