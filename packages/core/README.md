@@ -2,7 +2,7 @@
 
 A zero-dependency TypeScript technical-analysis library: 130+ indicators, signal detection, backtesting, optimization, and live streaming.
 
-[日本語版 README](./README.ja.md)
+[日本語版 README](https://github.com/sawapi/trendcraft/blob/main/packages/core/README.ja.md)
 
 TrendCraft turns raw OHLCV candles into indicators, trading signals, and backtested strategies — all in pure TypeScript with no runtime dependencies. Every indicator returns the same `Series<T>` shape (`{ time, value }[]`), so results compose cleanly and work with any chart library or data pipeline. It runs in Node and the browser.
 
@@ -40,7 +40,7 @@ const result = TrendCraft.from(candles)
 console.log(`Return: ${result.totalReturnPercent.toFixed(2)}%  Sharpe: ${result.sharpeRatio.toFixed(3)}`);
 ```
 
-Runnable scripts live in [`examples/quick-start/`](./examples/quick-start/) (indicators, backtesting, optimization, screening, streaming).
+Runnable scripts live in [`examples/quick-start/`](https://github.com/sawapi/trendcraft/tree/main/packages/core/examples/quick-start) (indicators, backtesting, optimization, screening, streaming).
 
 ## What's inside
 
@@ -53,7 +53,7 @@ Runnable scripts live in [`examples/quick-start/`](./examples/quick-start/) (ind
 - **Streaming** — `createLiveCandle()` aggregates ticks or candles and drives 90+ incremental indicator factories bar-by-bar, with state save/restore for resumable sessions.
 - **Advanced analytics** — pairs trading / cointegration, cross-asset correlation, alpha-decay monitoring, strategy robustness scoring, and signal explainability.
 
-48 indicators are cross-validated against TA-Lib — see [`cross-validation/`](./cross-validation/).
+48 indicators are cross-validated against TA-Lib — see [`cross-validation/`](https://github.com/sawapi/trendcraft/tree/main/packages/core/cross-validation).
 
 ## Entry points
 
@@ -86,12 +86,12 @@ Three CLI tools ship with the package: `trendcraft-screen`, `trendcraft-backtest
 
 ## Documentation
 
-- [Guide](./docs/GUIDE.md) — usage walkthrough and concepts ([日本語](./docs/GUIDE.ja.md))
-- [API Reference](./docs/API.md) — full API surface ([日本語](./docs/API.ja.md))
-- [Cookbook](./docs/COOKBOOK.md) — practical recipes
-- [Migration: 0.3 → 0.4](./docs/migration-0.3-to-0.4.md)
-- [CHANGELOG](./CHANGELOG.md)
-- [llms.txt](./llms.txt) / [llms-full.txt](./llms-full.txt) — LLM-friendly summaries
+- [Guide](https://github.com/sawapi/trendcraft/blob/main/packages/core/docs/GUIDE.md) — usage walkthrough and concepts ([日本語](https://github.com/sawapi/trendcraft/blob/main/packages/core/docs/GUIDE.ja.md))
+- [API Reference](https://github.com/sawapi/trendcraft/blob/main/packages/core/docs/API.md) — full API surface ([日本語](https://github.com/sawapi/trendcraft/blob/main/packages/core/docs/API.ja.md))
+- [Cookbook](https://github.com/sawapi/trendcraft/blob/main/packages/core/docs/COOKBOOK.md) — practical recipes
+- [Migration: 0.3 → 0.4](https://github.com/sawapi/trendcraft/blob/main/packages/core/docs/migration-0.3-to-0.4.md)
+- [CHANGELOG](https://github.com/sawapi/trendcraft/blob/main/packages/core/CHANGELOG.md)
+- [llms.txt](https://github.com/sawapi/trendcraft/blob/main/packages/core/llms.txt) / [llms-full.txt](https://github.com/sawapi/trendcraft/blob/main/packages/core/llms-full.txt) — LLM-friendly summaries
 
 ## Disclaimer
 

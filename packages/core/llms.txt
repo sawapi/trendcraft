@@ -14,8 +14,8 @@ All functions accept candle data in the format `{ time: number | string | Date, 
 
 ## Documentation
 
-- [API Reference](https://github.com/sawapi/trendcraft/blob/main/docs/API.md): Complete API documentation with all function signatures, options, and examples
-- [README](https://github.com/sawapi/trendcraft/blob/main/README.md): Getting started guide with usage examples
+- [API Reference](https://github.com/sawapi/trendcraft/blob/main/packages/core/docs/API.md): Complete API documentation with all function signatures, options, and examples
+- [README](https://github.com/sawapi/trendcraft/blob/main/packages/core/README.md): Getting started guide with usage examples
 
 ## Quick Start
 
@@ -576,4 +576,4 @@ All indicators support `Result<Series<T>, TrendCraftError>` via safe variants fo
 
 Key types: `Candle`, `NormalizedCandle`, `Series<T>`, `IndicatorValue<T>`, `TradeSignal`, `BacktestResult`, `BacktestOptions`, `Condition`, `DrawdownPeriod`, `DrawdownSummary`, `PatternProjection`, `ScoringConfig`, `PipelineOptions`, `PipelineResult`, `SymbolData`, `BatchBacktestResult`, `PortfolioMetrics`, `EquityPoint`, `BatchBacktestOptions`, `PortfolioBacktestOptions`, `PortfolioBacktestResult`, `SignalExplanation`, `ConditionTrace`, `ExplainOptions`, `AlphaDecayResult`, `DecayObservation`, `DecayAssessment`, `QuickRobustnessResult`, `RobustnessResult`, `RobustnessGrade`, `PairsAnalysisResult`, `SpreadPoint`, `MeanReversionResult`, `CorrelationAnalysisResult`, `CorrelationPoint`, `LeadLagResult`, `DivergencePoint`, `AdaptiveRsiValue`, `AdaptiveBollingerValue`, `AdaptiveMaValue`, `AdaptiveStochasticsValue`, `VarResult`, `RiskParityResult`, `EquityCurveAnalysis`, `EquityCurveHealthResult`, `StrategyRotationResult`, `StressTestResult`, `StressTestSummary`, `ParetoResult`, `ParetoObjective`, `GarchResult`, `HarmonicPatternOptions`, `SlippageModel`, `VsaValue`, `WyckoffValue`
 
-See [API Reference](https://github.com/sawapi/trendcraft/blob/main/docs/API.md) for complete type definitions.
+See [API Reference](https://github.com/sawapi/trendcraft/blob/main/packages/core/docs/API.md) for complete type definitions.
