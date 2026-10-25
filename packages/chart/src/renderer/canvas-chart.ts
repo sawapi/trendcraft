@@ -962,6 +962,9 @@ export class CanvasChart implements ChartInstance {
   // ---- Public API: Layout ----
 
   setLayout(layout: LayoutConfig): void {
+    if (layout.panes.some((p) => p.yScale === "percent" || p.leftScale?.mode === "percent")) {
+      this._warn('setLayout: scale mode "percent" is not implemented and renders as "linear"');
+    }
     this._layout.setLayout(layout);
     this._needsRender = true;
   }

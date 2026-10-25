@@ -44,6 +44,13 @@ new one's callbacks, so the second range never applied and range-change
 events stayed suppressed. An animation started from an animation callback
 now runs normally.
 
+### Fixed — `"percent"` scale mode was silently linear
+
+`ScaleMode` accepts `"percent"`, but it was never implemented and rendered
+as `"linear"` without a word, and the dual-scale example in the guide used
+it. `setLayout` now emits a warning (`error` event) when a pane uses it, the
+type documents it as reserved, and the guide example uses `"linear"`.
+
 ### Fixed — pressing the mouse did not stop a fling
 
 A trackpad flick keeps the chart scrolling after the gesture, and pressing
