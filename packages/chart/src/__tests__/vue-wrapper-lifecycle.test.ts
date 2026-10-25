@@ -11,6 +11,8 @@
 
 import { mount } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { ChartEvent, CrosshairMoveData } from "../core/types";
+import { CHART_EVENTS, eventProp } from "../integration/chart-event-props";
 import { createMockChartInstance, type MockChartInstance } from "./helpers/mock-chart-instance";
 
 const { createChartMock } = vi.hoisted(() => ({
@@ -75,7 +77,8 @@ describe("Vue TrendChart lifecycle", () => {
 
   it("registers event listeners once on mount", () => {
     mount(TrendChart, { props: { candles: sampleCandles } });
-    // Vue wrapper subscribes unconditionally to all four events in onMounted
+    // Vue wrapper subscribes unconditionally to every event in onMounted
+    // (except the legend's edit/remove requests, which need a listener)
     expect(currentMock.__state.eventHandlers.get("crosshairMove")?.size).toBe(1);
     expect(currentMock.__state.eventHandlers.get("seriesAdded")?.size).toBe(1);
     expect(currentMock.__state.eventHandlers.get("seriesRemoved")?.size).toBe(1);
@@ -86,11 +89,12 @@ describe("Vue TrendChart lifecycle", () => {
     const wrapper = mount(TrendChart, { props: { candles: sampleCandles } });
     const handler = [...(currentMock.__state.eventHandlers.get("crosshairMove") ?? [])][0];
     expect(handler).toBeDefined();
-    handler?.({ time: 42, price: 100 });
+    const data: CrosshairMoveData = { time: 42, index: 3, ohlcv: null, paneId: "main" };
+    handler?.(data);
 
     const emitted = wrapper.emitted("crosshairMove");
     expect(emitted).toBeTruthy();
-    expect(emitted?.[0]?.[0]).toEqual({ time: 42, price: 100 });
+    expect(emitted?.[0]?.[0]).toEqual(data);
   });
 
   it("does not duplicate event registrations when props change", async () => {
@@ -169,5 +173,59 @@ describe("Vue TrendChart lifecycle", () => {
     expect(currentMock.applyOptions).toHaveBeenCalledWith({ watermark: "v2" });
 
     wrapper.unmount();
+  });
+});
+
+describe("Vue TrendChart — every chart event as an emit", () => {
+  const fire = (event: ChartEvent, data: unknown) => {
+    for (const h of currentMock.__state.eventHandlers.get(event) ?? []) h(data);
+  };
+
+  it("re-emits each chart event the parent listens to", () => {
+    // Listen to all fourteen (the legend requests need a listener to be
+    // subscribed at all).
+    const attrs = Object.fromEntries(CHART_EVENTS.map((e) => [eventProp(e), vi.fn()]));
+    const wrapper = mount(TrendChart, { props: { candles: sampleCandles }, attrs });
+    for (const e of CHART_EVENTS) {
+      const data = { event: e };
+      fire(e, data);
+      expect(wrapper.emitted(e)?.[0]?.[0], e).toEqual(data);
+    }
+  });
+
+  it("subscribes the legend's edit/remove requests only when the parent listens", () => {
+    // A listener makes the legend draw its ⚙ / ✕, so subscribing without one
+    // would show buttons that do nothing.
+    mount(TrendChart, { props: { candles: sampleCandles } });
+    expect(currentMock.__state.eventHandlers.get("seriesEditRequest")?.size ?? 0).toBe(0);
+    expect(currentMock.__state.eventHandlers.get("seriesRemoveRequest")?.size ?? 0).toBe(0);
+
+    currentMock = createMockChartInstance();
+    createChartMock.mockImplementation(() => currentMock);
+    mount(TrendChart, {
+      props: { candles: sampleCandles },
+      attrs: { onSeriesEditRequest: vi.fn() },
+    });
+    expect(currentMock.__state.eventHandlers.get("seriesEditRequest")?.size).toBe(1);
+    expect(currentMock.__state.eventHandlers.get("seriesRemoveRequest")?.size ?? 0).toBe(0);
+  });
+
+  it.each([
+    ["onSeriesRemoveRequestOnce", "@series-remove-request.once"],
+    ["onSeries-remove-request", "a hyphenated render-function key"],
+  ])("detects a legend listener bound as %s (%s)", (key) => {
+    // emit() resolves these keys, so the request must be subscribed for them.
+    mount(TrendChart, { props: { candles: sampleCandles }, attrs: { [key]: vi.fn() } });
+    expect(currentMock.__state.eventHandlers.get("seriesRemoveRequest")?.size).toBe(1);
+  });
+
+  it("emits the chart's click payload on @click, not the DOM MouseEvent", async () => {
+    const onClick = vi.fn();
+    const wrapper = mount(TrendChart, { props: { candles: sampleCandles }, attrs: { onClick } });
+    await wrapper.trigger("click");
+    expect(onClick).not.toHaveBeenCalled();
+    const data = { x: 1, y: 2, index: 0, time: 1 };
+    fire("click", data);
+    expect(onClick).toHaveBeenCalledWith(data);
   });
 });

@@ -54,7 +54,6 @@ import type {
 import type {
   BacktestResultData,
   CandleData,
-  ChartEventHandler,
   ChartInstance,
   ChartOptions,
   ChartPatternSignal,
@@ -70,6 +69,12 @@ import type {
   TradeMarker,
 } from "../src/core/types";
 import { createChart } from "../src/index";
+import {
+  CHART_EVENTS,
+  type ChartEventProps,
+  eventProp,
+  wantsEvent,
+} from "../src/integration/chart-event-props";
 
 export type IndicatorInput<T = unknown> = {
   data: DataPoint<T>[];
@@ -102,11 +107,7 @@ export type UseTrendChartOptions = {
   /** Chart options — runtime-capable fields (volume, watermark, fontSize, ...) are applied via applyOptions on change */
   options?: Reactive<Omit<ChartOptions, "theme"> | undefined>;
   fitOnLoad?: Reactive<boolean | undefined>;
-  onCrosshairMove?: ChartEventHandler<"crosshairMove">;
-  onSeriesAdded?: ChartEventHandler<"seriesAdded">;
-  onSeriesRemoved?: ChartEventHandler<"seriesRemoved">;
-  onError?: ChartEventHandler<"error">;
-};
+} & ChartEventProps;
 
 export type UseTrendChartResult = {
   /** Bind to a template element: `<div ref="containerRef" />`. */
@@ -138,11 +139,15 @@ export function useTrendChart(opts: UseTrendChartOptions): UseTrendChartResult {
 
     // Subscribe events unconditionally and read the callback at dispatch
     // time, so a callback supplied after mount is honoured and the
-    // registration count never depends on which callbacks were passed.
-    instance.on("crosshairMove", (d) => opts.onCrosshairMove?.(d));
-    instance.on("seriesAdded", (d) => opts.onSeriesAdded?.(d));
-    instance.on("seriesRemoved", (d) => opts.onSeriesRemoved?.(d));
-    instance.on("error", (d) => opts.onError?.(d));
+    // registration count never depends on which callbacks were passed —
+    // except the legend-action events, which show the legend's ⚙ / ✕ while
+    // subscribed and so need a handler at mount (see wantsEvent).
+    for (const e of CHART_EVENTS) {
+      if (!wantsEvent(e, opts[eventProp(e)])) continue;
+      // The prop for `e` holds `e`'s handler (ChartEventProps); the
+      // name-indexed read loses that pairing, hence the cast.
+      instance.on(e, (d) => (opts[eventProp(e)] as ((d: unknown) => void) | undefined)?.(d));
+    }
 
     // Seed initial state synchronously so first render sees data
     instance.setCandles(toValue(opts.candles));

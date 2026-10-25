@@ -12,7 +12,8 @@
 import { act, cleanup, render } from "@testing-library/react";
 import { createRef } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { CrosshairMoveData } from "../core/types";
+import type { ChartEvent, CrosshairMoveData } from "../core/types";
+import { CHART_EVENTS, eventProp } from "../integration/chart-event-props";
 import { createMockChartInstance, type MockChartInstance } from "./helpers/mock-chart-instance";
 
 const { createChartMock } = vi.hoisted(() => ({
@@ -184,5 +185,36 @@ describe("React TrendChart lifecycle", () => {
       handler?.(data);
     });
     expect(onCrosshairMove).toHaveBeenCalledWith(data);
+  });
+});
+
+describe("React TrendChart — every chart event as an on* prop", () => {
+  const fire = (event: ChartEvent, data: unknown) => {
+    for (const h of currentMock.__state.eventHandlers.get(event) ?? []) h(data);
+  };
+
+  it("forwards each chart event to its on* prop", () => {
+    // `click` → `onClick`, … for all fourteen events.
+    const handlers = Object.fromEntries(CHART_EVENTS.map((e) => [eventProp(e), vi.fn()]));
+    render(<TrendChart candles={sampleCandles} {...handlers} />);
+    for (const e of CHART_EVENTS) {
+      const data = { event: e };
+      act(() => fire(e, data));
+      expect(handlers[eventProp(e)], e).toHaveBeenCalledWith(data);
+    }
+  });
+
+  it("subscribes the legend's edit/remove requests only while a handler is given", () => {
+    // A listener makes the legend draw its ⚙ / ✕, so subscribing without a
+    // handler would show buttons that do nothing.
+    const listeners = () => currentMock.__state.eventHandlers.get("seriesEditRequest")?.size ?? 0;
+    const { rerender } = render(<TrendChart candles={sampleCandles} />);
+    expect(listeners()).toBe(0);
+    rerender(<TrendChart candles={sampleCandles} onSeriesEditRequest={vi.fn()} />);
+    expect(listeners()).toBe(1);
+    rerender(<TrendChart candles={sampleCandles} />);
+    expect(listeners()).toBe(0);
+    // Other events stay subscribed throughout, one listener each.
+    expect(currentMock.__state.eventHandlers.get("click")?.size).toBe(1);
   });
 });

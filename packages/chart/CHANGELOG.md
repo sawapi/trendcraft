@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Breaking — Vue `<TrendChart @click>` receives the chart's click, not a DOM event
+
+`@click` on the Vue component used to fall through to the container `<div>`
+and receive a DOM `MouseEvent`. The component now emits `click` itself (see
+below), so `@click` receives `ChartClickData` — `{ x, y, index, time }` plus
+the modifier keys — and fires only for clicks the drawing tool does not
+consume. Code that read `MouseEvent` fields such as `e.clientX` gets
+`undefined`; read `data.x` / `data.y` (relative to the chart), or listen on
+an element wrapping the component for the raw DOM event. React is
+unaffected: `<TrendChart onClick>` never reached the DOM.
+
+### Added — React/Vue wrappers forward every chart event
+
+The wrappers bridged only `crosshairMove`, `seriesAdded`, `seriesRemoved` and
+`error`, so reacting to a click on a candle meant dropping to
+`useTrendChart()` and `chart.on("click", …)`. Every chart event now has a
+prop — `onClick`, `onDoubleClick`, `onVisibleRangeChange`, `onResize`,
+`onPaneResize`, `onDataFiltered`, `onDrawingComplete`,
+`onDrawingToolChanged`, `onSeriesEditRequest`, `onSeriesRemoveRequest`
+alongside the existing four — and the Vue component re-emits each under its
+own name (`@click`, `@visible-range-change`, …), typed by `ChartEventMap`.
+`onSeriesEditRequest` / `onSeriesRemoveRequest` are subscribed only when
+given (in Vue, when the parent listens at mount), since a listener makes the
+legend show its ⚙ / ✕ buttons.
+
 ### Added — event handlers receive their event's payload type
 
 `chart.on()` and `chart.off()` used to type every handler's argument as
