@@ -590,7 +590,7 @@ export const MOMENTUM_MANIFESTS: IndicatorManifest[] = [
       "Zero crossings = cycle turning points",
     ],
     pitfalls: [
-      "DPO is plotted displaced into the past — the last `period/2 + 1` bars are simply undefined on a centered chart. Does NOT require future market data; it is just not aligned to the latest bar",
+      "The default value at a bar is the cycle reading for the bar `period/2 + 1` back (TA-Lib form), so it lags the price it describes. `centered: true` stamps it at that earlier bar instead, which reads future bars — chart display only, never a backtest or live signal",
       "Cycle detection assumes the period roughly matches the dominant cycle length; mismatched periods produce noise rather than signal",
       "Don't use as an entry trigger by itself — it's a context indicator",
     ],
@@ -598,6 +598,8 @@ export const MOMENTUM_MANIFESTS: IndicatorManifest[] = [
     timeframe: ["swing", "position"],
     paramHints: {
       period: "20 default — half-cycle lookback for the SMA, shifted back period/2+1 = 11 bars",
+      centered:
+        "false default (causal). true = classic centered chart line (StockCharts/TradingView 'Centered'), which uses future bars",
     },
   },
   {

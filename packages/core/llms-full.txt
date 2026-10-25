@@ -133,8 +133,8 @@ Triple EMA oscillator. Returns `Series<{ trix: number | null, signal: number | n
 ### `aroon(candles, { period })`
 Aroon indicator. Returns `Series<{ up, down, oscillator }>` (all `number | null`).
 
-### `dpo(candles, { period?, source? })`
-Detrended Price Oscillator. Removes trend by comparing price to a shifted SMA. Last `floor(period/2)+1` bars are null (no future SMA available). Returns `Series<number | null>`.
+### `dpo(candles, { period?, source?, centered? })`
+Detrended Price Oscillator. Compares the price `shift = floor(period/2)+1` bars back with the SMA centred on it. Default (causal, TA-Lib form): bar `i` = `Price[i-shift] - SMA[i]`. `centered: true` stamps the same value at bar `i-shift` (`Price[i] - SMA[i+shift]`, last `shift` bars null) — it reads future bars, so use it for chart display only. Returns `Series<number | null>`.
 
 ### `hurst(candles, { minWindow?, maxWindow?, source? })`
 Hurst Exponent via Rescaled Range (R/S) analysis. Measures persistence: H>0.5 trending, H<0.5 mean-reverting, H≈0.5 random. Defaults: minWindow=20, maxWindow=100. Returns `Series<number | null>` (values in [0,1]).

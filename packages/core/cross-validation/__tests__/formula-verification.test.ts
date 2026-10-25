@@ -152,19 +152,36 @@ describe("Heikin-Ashi", () => {
 });
 
 describe("DPO", () => {
-  it("matches close[i] - SMA[i + shift] where shift = floor(period/2) + 1", () => {
-    const period = 20;
-    const shift = Math.floor(period / 2) + 1; // 11
-    const result = dpo(candles, { period });
-
-    // Pre-calculate SMA
-    const smaValues: (number | null)[] = new Array(candles.length).fill(null);
+  const period = 20;
+  const shift = Math.floor(period / 2) + 1; // 11
+  /** SMA(period) of the close at every bar (candles load in beforeAll). */
+  function closeSma(): (number | null)[] {
+    const out: (number | null)[] = new Array(candles.length).fill(null);
     let sum = 0;
     for (let i = 0; i < candles.length; i++) {
       sum += candles[i].close;
       if (i >= period) sum -= candles[i - period].close;
-      if (i >= period - 1) smaValues[i] = sum / period;
+      if (i >= period - 1) out[i] = sum / period;
     }
+    return out;
+  }
+
+  it("default matches the TA_DPO formula (TA-Lib 0.8.1+): close[i - shift] - SMA[i]", () => {
+    const smaValues = closeSma();
+    const result = dpo(candles, { period });
+    for (let i = 0; i < candles.length; i++) {
+      const sma = smaValues[i];
+      if (i >= shift && sma !== null) {
+        expect(result[i].value).toBeCloseTo(candles[i - shift].close - sma, 10);
+      } else {
+        expect(result[i].value).toBeNull();
+      }
+    }
+  });
+
+  it("centered matches close[i] - SMA[i + shift] (StockCharts / TradingView centered)", () => {
+    const smaValues = closeSma();
+    const result = dpo(candles, { period, centered: true });
 
     for (let i = 0; i < candles.length; i++) {
       const smaIndex = i + shift;

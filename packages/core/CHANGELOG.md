@@ -10,6 +10,24 @@ and 26. On Node.js 20 or older, most package managers warn when installing
 `trendcraft`; some refuse (yarn 1, or npm and pnpm with
 `engine-strict`). Nothing in the package itself changed.
 
+### Breaking — `dpo()` no longer reads future bars by default
+
+`dpo()` returned `Price[i] - SMA[i + shift]` at bar `i` (with
+`shift = floor(period / 2) + 1`): the classic centered chart line, whose
+value at a bar depends on the `shift` bars after it. Used in a backtest or a
+screen, it leaked future prices into every decision. It now returns
+`Price[i - shift] - SMA[i]` — the same numbers, each stamped `shift` bars
+later at the bar where it is first known: TA-Lib's `TA_DPO` (added in
+TA-Lib 0.8.1) and StockCharts' "price `period/2 + 1` periods ago less the
+`period` SMA". Pass
+`centered: true` for the old values (for charting; StockCharts' and
+TradingView's centered line). `createDpo()` already computed these values
+but returned each with the time of the bar `shift` back; it now returns the
+current bar's time, matching the batch default bar for bar.
+The `dpo` indicator preset (`indicatorPresets`, used by `@trendcraft/chart`'s
+`connectIndicators`) follows the default, so charts draw the causal line;
+pass `centered: true` in its params for the classic one.
+
 ### Fixed — importing one function from `trendcraft` bundled the whole library
 
 `import { sma } from "trendcraft"` pulled about 400 kB (100 kB gzipped)

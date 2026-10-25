@@ -803,13 +803,14 @@ function buildIndicatorPresets(): Record<string, IndicatorPreset> {
         ],
       },
     ),
-    // DPO is batch-only (lookahead dependency incompatible with live mode)
+    // DPO is batch-only here (no createFactory) — the default batch form is
+    // causal, so `createDpo` could back a live preset later.
     dpo: {
       meta: DPO_META,
       defaultParams: { period: 20 },
       snapshotName: (p: Record<string, unknown>) => `dpo${p.period}`,
-      compute: typedCompute<{ period?: number; source?: PriceSource }>((c, p) =>
-        dpo(c, { period: p.period ?? 20, source: p.source }),
+      compute: typedCompute<{ period?: number; source?: PriceSource; centered?: boolean }>((c, p) =>
+        dpo(c, { period: p.period ?? 20, source: p.source, centered: p.centered }),
       ),
       category: "Momentum",
       name: "Detrended Price Oscillator",

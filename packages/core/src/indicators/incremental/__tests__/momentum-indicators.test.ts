@@ -244,38 +244,16 @@ describe("Mass Index incremental", () => {
 
 // ---- DPO ----
 describe("DPO incremental", () => {
-  it("matches batch output (delayed alignment)", () => {
+  it("matches the batch default bar for bar, stamped at the current bar", () => {
     const period = 20;
-    const _shift = Math.floor(period / 2) + 1; // 11
     const batch = dpo(candles, { period });
     const ind = createDpo({ period });
-
-    // Collect non-null incremental results keyed by time
-    const incResults = new Map<number, number>();
-    for (const candle of candles) {
-      const result = ind.next(candle);
-      if (result.value !== null) {
-        incResults.set(result.time, result.value);
-      }
-    }
-
-    // Compare with batch: for each non-null batch value, incremental should match
-    let matchCount = 0;
-    for (let i = 0; i < batch.length; i++) {
-      const bv = batch[i].value;
-      if (bv === null) continue;
-      const iv = incResults.get(batch[i].time);
-      if (iv !== undefined) {
-        expect(Math.abs(iv - bv)).toBeLessThan(1e-8);
-        matchCount++;
-      }
-    }
-    // Should have matched at least some values
-    expect(matchCount).toBeGreaterThan(0);
-
-    // Incremental can't compute DPO for the last `shift` bars (no future SMA)
-    // so matchCount should be total non-null minus those that incremental can't resolve
-    expect(matchCount).toBeGreaterThan(batch.length / 2);
+    candles.forEach((candle, i) => {
+      const r = ind.next(candle);
+      expect(r.time).toBe(candle.time);
+      if (batch[i].value === null) expect(r.value).toBeNull();
+      else expect(r.value).toBeCloseTo(batch[i].value as number, 8);
+    });
   });
   it("peek does not mutate state", () => peekTest(createDpo, [{ period: 20 }], 30));
   it("getState/fromState restores correctly", () =>

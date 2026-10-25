@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Changed — `calc_indicator("dpo")` is causal by default
+
+It follows `trendcraft`'s `dpo()`: each value is now stamped at the bar
+where it is first known (`Price[i - shift] - SMA[i]`, `shift` bars later
+than before), so it no longer reads future bars. Pass `centered: true` for
+the previous, centered series.
+
 ### Breaking — requires Node.js 22 or later
 
 `engines.node` is now `>=22.0.0` (was `>=18.0.0`). Node.js 18 and 20 have
