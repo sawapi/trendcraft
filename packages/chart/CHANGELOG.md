@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — theme colours could inject markup into the info overlay
+
+The info overlay wrote some theme colours (`text`, `textSecondary`,
+`upColor`, `downColor`) into `style` attributes through `innerHTML` without
+escaping them, while its other colours were escaped. An app that loads
+user-made themes could therefore have a colour such as `"><img …>` add
+elements to the page. Every theme colour is now escaped.
+
+The docs also described `formatInfoOverlay` as returning HTML. Its string has
+been shown as plain text since the overlay stopped interpreting caller
+markup, so returned tags appear literally; the docs now say so.
+
 ### Fixed — `applyOptions` now applies `hotkeys`, `interaction.wheelInertia`, `crosshair.lockOnLongPress` and `scrollSensitivity`
 
 These four were read once, at construction, into the viewport's interaction

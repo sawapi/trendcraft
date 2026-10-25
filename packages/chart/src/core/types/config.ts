@@ -56,7 +56,11 @@ export type ChartOptions = {
   scrollSensitivity?: number;
   /** Base chart type for price data (default: 'candlestick') */
   chartType?: ChartType;
-  /** Custom info overlay formatter. Return HTML string or null to use default. */
+  /**
+   * Custom main-pane info overlay formatter. The returned string is shown as
+   * plain text (set via `textContent`, so markup appears literally). Return
+   * null to use the default.
+   */
   formatInfoOverlay?: (data: InfoOverlayData) => string | null;
   /** Animation duration in ms for range transitions (default: 300, 0 to disable) */
   animationDuration?: number;

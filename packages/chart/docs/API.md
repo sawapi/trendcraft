@@ -80,7 +80,7 @@ All fields optional.
 | `volume` | `boolean` | `true` | Show volume pane |
 | `scrollSensitivity` | `number` | `0.3` | Scroll/pan sensitivity multiplier (clamped to a minimum of 0.1). Runtime-updatable via `applyOptions`; applies from the next gesture |
 | `chartType` | `'candlestick' \| 'line' \| 'mountain' \| 'ohlc'` | `'candlestick'` | Base chart type |
-| `formatInfoOverlay` | `(data: InfoOverlayData) => string \| null` | — | Custom info overlay HTML (one-time). Return `null` to use default. |
+| `formatInfoOverlay` | `(data: InfoOverlayData) => string \| null` | — | Custom main-pane info text (one-time). The string is shown as plain text: markup is displayed literally, not interpreted. Return `null` to use default. |
 | `animationDuration` | `number` | `300` | Range transition duration (ms). `0` disables |
 | `locale` | `Partial<ChartLocale>` | — | i18n string overrides (one-time) |
 | `maxCandles` | `number` | — | Cap on retained candles in live mode |
