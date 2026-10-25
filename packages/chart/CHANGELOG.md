@@ -16,6 +16,16 @@ intraday session gap and labelled the bar with a time ("Mar 10 13:00"),
 which then ran into its neighbours. Daily and coarser bars no longer get a
 time on any label, not just the first.
 
+### Fixed — time-axis labels overlapped
+
+The time axis placed labels at a fixed bar interval with no collision check,
+so a long label (a date with a time, often the left-edge one, which is
+pushed inward to stay readable) ran into the next. A label that would start
+within a few pixels of the previous one in its row is now skipped, and the
+next label is formatted against the last one actually shown. The two-row
+intraday axis (time-proportional layout) gets the same check as a
+safeguard; no overlap had been observed there.
+
 ### Fixed — `hmmRegimes()` series drew an empty pane
 
 The built-in `hmmRegime` rule looked for a `confidence` field that

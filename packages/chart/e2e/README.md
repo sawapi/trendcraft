@@ -20,7 +20,8 @@ chromium`).
 - `fixture/` — one page that mounts a chart built from `src/` (not `dist/`)
   with deterministic candles and exposes it as `window.__tc`
   (`chart`, `candles`, `events`, `ready`). Query params: `?bars=N`,
-  `?volume=0`.
+  `?volume=0`, `?sessionGaps=1` (time-proportional layout; intraday data
+  then uses the two-row time axis).
 - `specs/*.e2e.ts` — the tests. `helpers.ts` holds `openChart`,
   `logicalRange`, `chartBox`, `frames`, `isMoving`, `isFlinging`,
   `wheelFlick`, `scrollbarThumb` and `touchDriver` (multi-touch over the
@@ -104,6 +105,6 @@ tracking issue for a known bug; the spec for it is a `test.fail` until fixed.
 | Crosshair | Crosshair value clears past the last bar | todo (ops #18) |
 | Touch | Lifting one finger after a pinch leaves the other able to pan | covered |
 | Animation | An animation started from another's `onDone` runs | covered |
-| Axis | Labels do not overlap at any start offset; DST does not add times | todo (ops #14); DST by unit tests (`format-daily-dst.test.ts`) |
+| Axis | Labels do not overlap at any start offset, on the single- and two-row axes; DST does not add times | covered (overlap); DST by unit tests (`format-daily-dst.test.ts`) |
 | Sizing | `setWidth(0)` does not corrupt the viewport | todo (ops #18) |
 | Sparkline | Re-attach keeps its CSS size (bitmap does not grow) | todo (ops #98) |

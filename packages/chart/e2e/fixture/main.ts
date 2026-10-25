@@ -3,8 +3,10 @@
  *
  * Mounts one chart built from the package source (not dist) with
  * deterministic candles, and exposes it on `window.__tc` so specs can drive
- * the public API and read state back. `?bars=N` sets the candle count and
- * `?volume=0` hides the volume pane.
+ * the public API and read state back. `?bars=N` sets the candle count,
+ * `?volume=0` hides the volume pane, and `?sessionGaps=1` turns on the
+ * time-proportional layout (which also switches intraday data to the
+ * two-row time axis).
  */
 
 import type { CandleData, ChartInstance } from "../../src/index";
@@ -53,7 +55,10 @@ const params = new URLSearchParams(location.search);
 const bars = Number(params.get("bars") ?? 300);
 const candles = makeCandles(bars);
 const container = document.getElementById("chart") as HTMLElement;
-const chart = createChart(container, { volume: params.get("volume") !== "0" });
+const chart = createChart(container, {
+  volume: params.get("volume") !== "0",
+  timeScale: { sessionGaps: params.get("sessionGaps") === "1" },
+});
 chart.setCandles(candles);
 
 const events: Array<{ type: string; data: unknown }> = [];
