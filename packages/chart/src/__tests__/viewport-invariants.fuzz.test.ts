@@ -13,20 +13,10 @@
 
 import { describe, expect, it } from "vitest";
 import { TimeScale } from "../core/scale";
+import { checkInvariants, mulberry32 } from "./helpers/fuzz";
 
 const SEEDS = [0x9e3779b9, 0x85ebca6b, 0xc2b2ae35];
 const OPS_PER_SEED = 4000;
-
-function mulberry32(seed: number): () => number {
-  let a = seed >>> 0;
-  return () => {
-    a += 0x6d2b79f5;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
 
 type Op = { name: string; run: (ts: TimeScale, rnd: () => number) => void };
 
@@ -87,25 +77,6 @@ const OPS: Op[] = [
     run: (ts, r) => ts.setImmediate((r() - 0.5) * ts.totalCount * 2, 0.05 + r() * 900),
   },
 ];
-
-function checkInvariants(ts: TimeScale, log: string[], seed: number): void {
-  const fail = (what: string): never => {
-    throw new Error(
-      `invariant violated: ${what} (seed=0x${seed.toString(16)})\nlast ops: ${log.slice(-12).join(" → ")}\nstate: start=${ts.rawStartIndex} spacing=${ts.barSpacing} visible=${ts.visibleCount} total=${ts.totalCount} width=${ts.width}`,
-    );
-  };
-  if (!Number.isFinite(ts.rawStartIndex)) fail("rawStartIndex not finite");
-  if (!Number.isFinite(ts.barSpacing) || ts.barSpacing < 0.05) fail("barSpacing bad");
-  if (!Number.isInteger(ts.visibleCount) || ts.visibleCount < 0) fail("visibleCount bad");
-  if (!Number.isFinite(ts.endIndex) || ts.endIndex > ts.totalCount) fail("endIndex bad");
-  const lr = ts.getVisibleLogicalRange();
-  if (ts.width > 0 && !(Number.isFinite(lr.from) && Number.isFinite(lr.to) && lr.to > lr.from)) {
-    fail("logical range bad");
-  }
-  if (!Number.isFinite(ts.indexToX(0)) || !Number.isFinite(ts.xToIndex(0))) {
-    fail("coordinate transform not finite");
-  }
-}
 
 describe("viewport invariant fuzz (fixed seeds)", () => {
   for (const seed of SEEDS) {
