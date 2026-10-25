@@ -181,6 +181,7 @@ export function renderTimeAxis(
   // which is only populated in time-proportional layout mode and is 0 here.
   const barIntervalMs = estimateBarIntervalMs(candles);
 
+  let lastRight = Number.NEGATIVE_INFINITY;
   for (let i = firstAnchor; i < end && i < candles.length; i += labelInterval) {
     const candle = candles[i];
     if (!candle) continue;
@@ -189,11 +190,20 @@ export function renderTimeAxis(
     const label = timeFormatter
       ? timeFormatter(candle.time)
       : autoFormatTime(candle.time, prevLabelTime, barIntervalMs);
-    prevLabelTime = candle.time;
 
-    drawClampedAxisLabel(ctx, label, labelX, y + 6, x, x + width);
+    const right = drawClampedAxisLabel(ctx, label, labelX, y + 6, x, x + width, lastRight);
+    // A skipped label is not "the previous label": the next one is formatted
+    // against the last label actually shown, so a dropped month or date
+    // anchor is not silently implied.
+    if (right !== null) {
+      lastRight = right;
+      prevLabelTime = candle.time;
+    }
   }
 }
+
+/** Minimum horizontal gap, in px, between two time-axis labels. */
+const LABEL_GAP = 6;
 
 /**
  * Draw an axis label horizontally clamped inside `[leftBound, rightBound]`. A
@@ -201,6 +211,11 @@ export function renderTimeAxis(
  * clipping, so the first label is left-aligned (and nudged in) and one
  * overflowing the right edge is right-aligned; the rest stay centered. Mirrors
  * the inward-nudge the price axis does via textBaseline. Mutates ctx.textAlign.
+ *
+ * Skips the label, returning `null`, when it would start within LABEL_GAP of
+ * `prevRight` (the right edge of the previous label in the row): a clamped
+ * edge label grows inward and would otherwise run into its neighbour.
+ * Returns the drawn label's right edge.
  */
 function drawClampedAxisLabel(
   ctx: CanvasRenderingContext2D,
@@ -209,18 +224,26 @@ function drawClampedAxisLabel(
   y: number,
   leftBound: number,
   rightBound: number,
-): void {
-  const half = measureTextWidth(ctx, label) / 2;
+  prevRight = Number.NEGATIVE_INFINITY,
+): number | null {
+  const width = measureTextWidth(ctx, label);
+  const half = width / 2;
+  let align: CanvasTextAlign = "center";
+  let at = centerX;
+  let left = centerX - half;
   if (centerX - half < leftBound) {
-    ctx.textAlign = "left";
-    ctx.fillText(label, Math.max(centerX, leftBound + 2), y);
+    align = "left";
+    at = Math.max(centerX, leftBound + 2);
+    left = at;
   } else if (centerX + half > rightBound) {
-    ctx.textAlign = "right";
-    ctx.fillText(label, Math.min(centerX, rightBound - 2), y);
-  } else {
-    ctx.textAlign = "center";
-    ctx.fillText(label, centerX, y);
+    align = "right";
+    at = Math.min(centerX, rightBound - 2);
+    left = at - width;
   }
+  if (left < prevRight + LABEL_GAP) return null;
+  ctx.textAlign = align;
+  ctx.fillText(label, at, y);
+  return left + width;
 }
 
 /**
@@ -269,8 +292,11 @@ function renderTwoRowAxis(
   // midnight but without date context (the date row will anchor it below).
   const topY = y + 4;
   const rightBound = x + width;
+  let lastTop = Number.NEGATIVE_INFINITY;
   for (const t of timeTicks) {
-    drawClampedAxisLabel(ctx, formatShortTime(t.time), x + t.x, topY, x, rightBound);
+    lastTop =
+      drawClampedAxisLabel(ctx, formatShortTime(t.time), x + t.x, topY, x, rightBound, lastTop) ??
+      lastTop;
   }
 
   // Lower row: date at day boundaries. Edge ticks are clamped inward (rather
@@ -278,10 +304,14 @@ function renderTwoRowAxis(
   // boundary of a partial view stays fully readable.
   const bottomY = y + Math.max(18, height / 2);
   let prevDateTime: number | null = null;
+  let lastDate = Number.NEGATIVE_INFINITY;
   for (const d of dateTicks) {
     const label = formatShortDate(d.time, prevDateTime);
-    drawClampedAxisLabel(ctx, label, x + d.x, bottomY, x, rightBound);
-    prevDateTime = d.time;
+    const right = drawClampedAxisLabel(ctx, label, x + d.x, bottomY, x, rightBound, lastDate);
+    if (right !== null) {
+      lastDate = right;
+      prevDateTime = d.time;
+    }
   }
 }
 
