@@ -205,10 +205,14 @@ const live = createLiveCandle({
   maxHistory: 2000,
 });
 
+// initHistory: false — the chart was primed with setCandles(history) above.
+// The default would replace its candles with live.completedCandles, which is
+// empty here: createLiveCandle's `history` only warms up the indicators.
 const conn = connectIndicators(chart, {
   presets: indicatorPresets,
   candles: history,
   live,
+  initHistory: false,
 });
 conn.add("rsi");
 conn.add("bb"); // Bollinger Bands

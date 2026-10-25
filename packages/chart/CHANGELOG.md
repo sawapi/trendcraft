@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — docs: the live-data recipe blanked the chart
+
+COOKBOOK Recipe 8 set the chart's candles from `history` and then called
+`connectIndicators` without `initHistory: false`, so the call replaced
+them with the live candle's still-empty `completedCandles` and the price
+pane stayed blank until the first bar closed. The recipe now passes
+`initHistory: false`, as LIVE.md already did.
+
 ### Added — `timeZone` option
 
 The time axis and the crosshair time label always read the browser's local
