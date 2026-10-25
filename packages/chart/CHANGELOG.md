@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — docs: `llms-full.txt` links pointed at files npm does not ship
+
+`llms-full.txt` concatenates the docs at the package root, but kept their
+relative links (`./API.md#built-in-plugins`, `./LIVE.md`, `./assets/…`).
+The docs are not in the npm tarball, so from an installed package every
+one of them led nowhere. The generator now points them at the docs on
+GitHub (images at their raw URLs), and a test checks that each link in the
+file reaches a shipped file or an existing file and heading in the repo.
+
 ### Fixed — docs: the accessibility guide described announcements and focus that do not exist
 
 GUIDE's Accessibility section quoted an announcement with an indicator
