@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — `timeZone` option
+
+The time axis and the crosshair time label always read the browser's local
+zone, so the same bar showed a different date on machines in different
+zones, and could disagree with an app's own panel formatted in the
+exchange's zone (a US 5-minute bar at 20:55 UTC read "Nov 27 05:55" in
+Japan). The new `timeZone` option (an IANA name such as
+`"America/New_York"` or `"UTC"`) sets the zone that the single- and
+two-row time axis, the two-row axis's day boundaries and the crosshair
+label all read; `applyOptions` can change it at runtime, and `""` returns
+to the browser's zone (from the React/Vue wrappers too: pass `""`, not
+`undefined`). Without it nothing changes. An unknown name is
+ignored with an `INVALID_OPTION` warning. In the headless API,
+`formatCrosshairTime` and `autoFormatTime` take the zone as an optional last
+argument, and `TimeScale.timeZone` sets the zone `getDateTicks` uses. A custom `timeFormatter`
+still receives epoch ms and replaces only the axis labels. The
+`sessionGaps` `dayBoundary` mode and the `YTD` range keep using UTC days.
+
 ### Fixed — the scrollbar thumb could be drawn outside its track
 
 When the window started past the last bar (a right margin set through

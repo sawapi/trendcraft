@@ -74,7 +74,8 @@ All fields optional.
 | `fontFamily` | `string` | system UI stack | Font family for canvas axis/crosshair/overlay text and DOM legend/info overlays. Runtime-updatable via `applyOptions` |
 | `fontSize` | `number` | `11` | Font size (px). Runtime-updatable via `applyOptions` |
 | `priceFormatter` | `(price: number) => string` | auto-precision | Custom price formatter |
-| `timeFormatter` | `(time: number) => string` | smart date/time | Custom time formatter |
+| `timeFormatter` | `(time: number) => string` | smart date/time | Custom time-axis label formatter (receives epoch ms; does its own zone handling) |
+| `timeZone` | `string` | browser local | IANA zone (`"America/New_York"`, `"UTC"`) the time axis, its day boundaries and the crosshair time label read the clock in. `""` returns to the browser's zone via `applyOptions` (also from the React/Vue wrappers: pass `""`, not `undefined`); an unknown name is ignored with an `INVALID_OPTION` warning. Runtime-updatable |
 | `watermark` | `string` | — | Background watermark text |
 | `legend` | `boolean` | `true` | Show series legend |
 | `volume` | `boolean` | `true` | Show volume pane |
@@ -662,7 +663,7 @@ import {
 | Class | Purpose |
 |---|---|
 | `DataLayer` | Holds candles + series. Internal mutation API. |
-| `TimeScale` | Index ↔ pixel X conversion. Manages pan / zoom. |
+| `TimeScale` | Index ↔ pixel X conversion. Manages pan / zoom. Its `timeZone` field (IANA name, `undefined` = browser local) sets the zone `getDateTicks` finds day boundaries in. |
 | `PriceScale` | Price ↔ pixel Y. One per pane. |
 | `LayoutEngine` | Computes pane rectangles from `LayoutConfig` + canvas size. |
 | `Viewport` | Combines TimeScale / PriceScale / input handling. |
@@ -703,8 +704,9 @@ getDecimationTarget(dataCount: number, pixelWidth: number, minPixelsPerPoint?: n
 
 ```typescript
 autoFormatPrice(price: number): string
-autoFormatTime(time: number, prevTime: number | null, intervalMs?: number): string
-formatCrosshairTime(time: number): string
+autoFormatTime(time: number, prevTime: number | null, intervalMs?: number, timeZone?: string): string
+formatCrosshairTime(time: number, timeZone?: string): string
+// timeZone: IANA name the wall clock is read in; the browser's local zone when omitted.
 formatVolume(vol: number): string
 detectPrecision(values: number[]): number
 fixedPriceFormatter(precision: number): (price: number) => string

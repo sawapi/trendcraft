@@ -108,6 +108,7 @@ tracking issue for a known bug; the spec for it is a `test.fail` until fixed.
 | Touch | Lifting one finger after a pinch leaves the other able to pan | covered |
 | Animation | An animation started from another's `onDone` runs | covered |
 | Axis | Labels do not overlap at any start offset, on the single- and two-row axes; DST does not add times | covered (overlap); DST by unit tests (`format-daily-dst.test.ts`) |
+| Axis | The axis and crosshair label read the `timeZone` option, identically in any browser zone | covered |
 | Sizing | A zero-width data area does not lose the live edge | covered |
 | Rendering | A theme or series colour cannot inject CSS into the legend or info overlay | covered |
 | Sparkline | Re-attach keeps its CSS size (bitmap does not grow) | covered by unit tests (`sparkline-hidden.test.ts`) |
