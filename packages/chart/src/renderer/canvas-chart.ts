@@ -24,6 +24,8 @@ import type {
   ChartErrorCode,
   ChartErrorPayload,
   ChartEvent,
+  ChartEventHandler,
+  ChartEventMap,
   ChartInstance,
   ChartOptions,
   DataPoint,
@@ -237,10 +239,13 @@ export class CanvasChart implements ChartInstance {
   ];
 
   // Event listeners
-  private _listeners = new Map<ChartEvent, Set<(data: unknown) => void>>();
+  // Handlers of different events share one map; on() and _emit() pair each
+  // event with its own payload type (ChartEventMap), so the erased element
+  // type is never observed.
+  private _listeners = new Map<ChartEvent, Set<(data: never) => void>>();
 
-  private _emit(event: ChartEvent, data: unknown): void {
-    const handlers = this._listeners.get(event);
+  private _emit<E extends ChartEvent>(event: E, data: ChartEventMap[E]): void {
+    const handlers = this._listeners.get(event) as Set<ChartEventHandler<E>> | undefined;
     if (handlers) {
       for (const h of handlers) h(data);
     }
@@ -567,7 +572,7 @@ export class CanvasChart implements ChartInstance {
       getPriceScales: () => this._priceScales,
       getViewportState: () => this._viewport.state,
       addDrawing: (d) => this.addDrawing(d),
-      emit: (event, data) => this._emit(event as ChartEvent, data),
+      emit: (event, data) => this._emit(event, data),
       requestRender: () => {
         this._needsRender = true;
       },
@@ -1131,7 +1136,7 @@ export class CanvasChart implements ChartInstance {
 
   // ---- Public API: Events ----
 
-  on<E extends ChartEvent>(event: E, handler: (data: unknown) => void): void {
+  on<E extends ChartEvent>(event: E, handler: ChartEventHandler<E>): void {
     let set = this._listeners.get(event);
     if (!set) {
       set = new Set();
@@ -1144,7 +1149,7 @@ export class CanvasChart implements ChartInstance {
     }
   }
 
-  off<E extends ChartEvent>(event: E, handler: (data: unknown) => void): void {
+  off<E extends ChartEvent>(event: E, handler: ChartEventHandler<E>): void {
     const set = this._listeners.get(event);
     if (!set) return;
     const removed = set.delete(handler);
@@ -1615,7 +1620,7 @@ export class CanvasChart implements ChartInstance {
       viewportState: this._viewport.state,
       rendererRegistry: this._rendererRegistry,
       drawHelper: this._drawHelper,
-      emit: (event, data) => this._emit(event as ChartEvent, data),
+      emit: (event, data) => this._emit(event, data),
       drawingPreview: this._drawingTool?.buildPreview(),
       locale: this._locale,
       crosshair: this._crosshairOpts,

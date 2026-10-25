@@ -1,6 +1,6 @@
 // @vitest-environment node
 /**
- * Contract-wiring guard for the ChartEvent union.
+ * Contract-wiring guard for the ChartEvent names (the keys of ChartEventMap).
  *
  * Motivation: an audit found event names that were DECLARED in the ChartEvent
  * union (and documented / subscribed to) but never EMITTED anywhere in the
@@ -48,24 +48,21 @@ function parseFile(file: string): ts.SourceFile {
   return ts.createSourceFile(file, readFileSync(file, "utf8"), ts.ScriptTarget.Latest, true);
 }
 
-/** Extract the string-literal members of the `ChartEvent` union type alias. */
+/**
+ * Extract the event names: the keys of the `ChartEventMap` type literal
+ * (`ChartEvent` is `keyof ChartEventMap`).
+ */
 function extractChartEventUnion(): string[] {
   const sf = parseFile(EVENT_TYPES_FILE);
   let members: string[] | null = null;
   sf.forEachChild((node) => {
-    if (!ts.isTypeAliasDeclaration(node) || node.name.text !== "ChartEvent") return;
-    const collected: string[] = [];
-    const collect = (t: ts.TypeNode): void => {
-      if (ts.isUnionTypeNode(t)) {
-        for (const part of t.types) collect(part);
-      } else if (ts.isLiteralTypeNode(t) && ts.isStringLiteral(t.literal)) {
-        collected.push(t.literal.text);
-      }
-    };
-    collect(node.type);
-    members = collected;
+    if (!ts.isTypeAliasDeclaration(node) || node.name.text !== "ChartEventMap") return;
+    if (!ts.isTypeLiteralNode(node.type)) return;
+    members = node.type.members
+      .filter(ts.isPropertySignature)
+      .map((m) => (ts.isIdentifier(m.name) || ts.isStringLiteral(m.name) ? m.name.text : ""));
   });
-  if (!members) throw new Error(`ChartEvent type alias not found in ${EVENT_TYPES_FILE}`);
+  if (!members) throw new Error(`ChartEventMap type alias not found in ${EVENT_TYPES_FILE}`);
   return members;
 }
 
@@ -135,7 +132,7 @@ describe("ChartEvent contract wiring", () => {
       dead,
       `ChartEvent member(s) declared in core/types/event.ts but never emitted in src/ ` +
         `(dead contract surface — subscribers can register but the event never fires). ` +
-        `Either wire an emission site or remove the member from the union:\n  ${dead.join("\n  ")}`,
+        `Either wire an emission site or remove it from ChartEventMap:\n  ${dead.join("\n  ")}`,
     ).toEqual([]);
   });
 
@@ -144,8 +141,8 @@ describe("ChartEvent contract wiring", () => {
     const report = undeclared.map((s) => `  ${s.file}:${s.line} emits "${s.name}"`).join("\n");
     expect(
       undeclared,
-      `Emit site(s) using an event name that is not in the ChartEvent union ` +
-        `(no subscriber can type-safely listen for these). Add the name to the union ` +
+      `Emit site(s) using an event name that is not a ChartEventMap key ` +
+        `(no subscriber can type-safely listen for these). Add it to ChartEventMap ` +
         `in core/types/event.ts or fix the emit call:\n${report}`,
     ).toEqual([]);
   });

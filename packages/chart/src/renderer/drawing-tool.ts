@@ -9,6 +9,7 @@ import type { PointerInfo } from "../core/pointer";
 import type { PriceScale, TimeScale } from "../core/scale";
 import type { CandleData, Drawing, DrawingType } from "../core/types";
 import type { ViewportState } from "../core/viewport";
+import type { ChartEventEmitter } from "./event-emitter";
 
 export type DrawingToolDeps = {
   getCandles: () => readonly CandleData[];
@@ -17,7 +18,7 @@ export type DrawingToolDeps = {
   getPriceScales: () => Map<string, { left: PriceScale; right: PriceScale }>;
   getViewportState: () => ViewportState;
   addDrawing: (drawing: Drawing) => void;
-  emit: (event: string, data: unknown) => void;
+  emit: ChartEventEmitter;
   requestRender: () => void;
   locale: ChartLocale;
 };

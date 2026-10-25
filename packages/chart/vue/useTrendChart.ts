@@ -54,19 +54,16 @@ import type {
 import type {
   BacktestResultData,
   CandleData,
-  ChartErrorPayload,
+  ChartEventHandler,
   ChartInstance,
   ChartOptions,
   ChartPatternSignal,
   ChartType,
-  CrosshairMoveData,
   DataPoint,
   Drawing,
   LayoutConfig,
-  SeriesAddedData,
   SeriesConfig,
   SeriesHandle,
-  SeriesRemovedData,
   SignalMarker,
   ThemeColors,
   TimeframeOverlay,
@@ -105,10 +102,10 @@ export type UseTrendChartOptions = {
   /** Chart options — runtime-capable fields (volume, watermark, fontSize, ...) are applied via applyOptions on change */
   options?: Reactive<Omit<ChartOptions, "theme"> | undefined>;
   fitOnLoad?: Reactive<boolean | undefined>;
-  onCrosshairMove?: (data: CrosshairMoveData) => void;
-  onSeriesAdded?: (data: SeriesAddedData) => void;
-  onSeriesRemoved?: (data: SeriesRemovedData) => void;
-  onError?: (data: ChartErrorPayload) => void;
+  onCrosshairMove?: ChartEventHandler<"crosshairMove">;
+  onSeriesAdded?: ChartEventHandler<"seriesAdded">;
+  onSeriesRemoved?: ChartEventHandler<"seriesRemoved">;
+  onError?: ChartEventHandler<"error">;
 };
 
 export type UseTrendChartResult = {
@@ -142,10 +139,10 @@ export function useTrendChart(opts: UseTrendChartOptions): UseTrendChartResult {
     // Subscribe events unconditionally and read the callback at dispatch
     // time, so a callback supplied after mount is honoured and the
     // registration count never depends on which callbacks were passed.
-    instance.on("crosshairMove", (d) => opts.onCrosshairMove?.(d as CrosshairMoveData));
-    instance.on("seriesAdded", (d) => opts.onSeriesAdded?.(d as SeriesAddedData));
-    instance.on("seriesRemoved", (d) => opts.onSeriesRemoved?.(d as SeriesRemovedData));
-    instance.on("error", (d) => opts.onError?.(d as ChartErrorPayload));
+    instance.on("crosshairMove", (d) => opts.onCrosshairMove?.(d));
+    instance.on("seriesAdded", (d) => opts.onSeriesAdded?.(d));
+    instance.on("seriesRemoved", (d) => opts.onSeriesRemoved?.(d));
+    instance.on("error", (d) => opts.onError?.(d));
 
     // Seed initial state synchronously so first render sees data
     instance.setCandles(toValue(opts.candles));

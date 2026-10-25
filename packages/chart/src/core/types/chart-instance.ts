@@ -5,7 +5,7 @@
 
 import type { ChartOptions, ChartType, RangeDuration } from "./config";
 import type { Drawing, DrawingType } from "./drawing";
-import type { ChartEvent, LogicalRange, VisibleRangeChangeData } from "./event";
+import type { ChartEvent, ChartEventHandler, LogicalRange, VisibleRangeChangeData } from "./event";
 import type { CandleData, DataPoint, TimeValue } from "./fundamental";
 import type {
   BacktestResultData,
@@ -112,8 +112,8 @@ export type ChartInstance = {
   setCrosshair(time: TimeValue | null): void;
 
   // Events
-  on<E extends ChartEvent>(event: E, handler: (data: unknown) => void): void;
-  off<E extends ChartEvent>(event: E, handler: (data: unknown) => void): void;
+  on<E extends ChartEvent>(event: E, handler: ChartEventHandler<E>): void;
+  off<E extends ChartEvent>(event: E, handler: ChartEventHandler<E>): void;
 
   // Theme & Chart Type
   setTheme(theme: "dark" | "light" | ThemeColors): void;

@@ -28,15 +28,12 @@ import type { AnyPrimitivePlugin, AnySeriesRendererPlugin } from "../src/core/pl
 import type {
   BacktestResultData,
   CandleData,
-  ChartErrorPayload,
+  ChartEventMap,
   ChartOptions,
   ChartPatternSignal,
-  CrosshairMoveData,
   DataPoint,
   Drawing,
   LayoutConfig,
-  SeriesAddedData,
-  SeriesRemovedData,
   SignalMarker,
   ThemeColors,
   TimeframeOverlay,
@@ -80,10 +77,10 @@ export const TrendChart = defineComponent({
   },
   // Typed emits — the payloads are the chart's own event payloads.
   emits: {
-    crosshairMove: (_data: CrosshairMoveData) => true,
-    seriesAdded: (_data: SeriesAddedData) => true,
-    seriesRemoved: (_data: SeriesRemovedData) => true,
-    error: (_data: ChartErrorPayload) => true,
+    crosshairMove: (_data: ChartEventMap["crosshairMove"]) => true,
+    seriesAdded: (_data: ChartEventMap["seriesAdded"]) => true,
+    seriesRemoved: (_data: ChartEventMap["seriesRemoved"]) => true,
+    error: (_data: ChartEventMap["error"]) => true,
   },
   setup(props, { emit, expose }) {
     const { containerRef, chart } = useTrendChart({

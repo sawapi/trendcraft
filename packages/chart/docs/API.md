@@ -269,11 +269,11 @@ Draws higher-timeframe candles as a semi-transparent overlay on the main pane.
 ### Event methods
 
 ```typescript
-on<E extends ChartEvent>(event: E, handler: (data: unknown) => void): void
-off<E extends ChartEvent>(event: E, handler: (data: unknown) => void): void
+on<E extends ChartEvent>(event: E, handler: (data: ChartEventMap[E]) => void): void
+off<E extends ChartEvent>(event: E, handler: (data: ChartEventMap[E]) => void): void
 ```
 
-See [Event payloads](#event-payloads).
+The handler receives its event's payload type; see [Event payloads](#event-payloads). `ChartEventMap` maps each event name to its payload, and `ChartEventHandler<E>` is the handler type for event `E`.
 
 ### Theme and options methods
 
@@ -364,14 +364,16 @@ All time values are epoch milliseconds.
 | Event | Payload shape |
 |---|---|
 | `crosshairMove` | `CrosshairMoveData = { time, index, ohlcv, paneId }` |
-| `click` | `ChartClickData = { x, y, index, time, shiftKey, altKey, metaKey, ctrlKey }` |
+| `click` / `doubleClick` | `ChartClickData = { x, y, index, time, shiftKey, altKey, metaKey, ctrlKey }` |
 | `visibleRangeChange` | `VisibleRangeChangeData = { startTime, endTime, startIndex, endIndex, logicalRange? }` — time/index fields are clamped to the data; `logicalRange: { from, to }` carries the unclamped fractional window edges (always populated; a right-edge margin is only visible here) |
-| `resize` | `{ width: number, height: number }` |
-| `paneResize` | `{ paneId: string, height: number }` |
+| `resize` | `ChartResizeData = { width: number, height: number }` |
+| `paneResize` | `PaneResizeData = { paneId: string, height: number }` |
 | `seriesAdded` | `SeriesAddedData = { id: string, label: string }` |
 | `seriesRemoved` | `SeriesRemovedData = { id: string }` |
-| `dataFiltered` | `{ total: number, valid: number, removed: number }` |
+| `seriesEditRequest` / `seriesRemoveRequest` | `SeriesActionData = { seriesId: string, anchorEl: HTMLElement }` |
+| `dataFiltered` | `DataFilteredData = { total: number, valid: number, removed: number }` |
 | `drawingComplete` | `Drawing` |
+| `drawingToolChanged` | `DrawingToolChangedData = { tool: DrawingType \| null }` |
 | `error` | `ChartErrorPayload = { message: string, code?: ChartErrorCode, detail?: unknown }` |
 
 ## Connection APIs

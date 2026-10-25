@@ -38,19 +38,16 @@ import type {
 import type {
   BacktestResultData,
   CandleData,
-  ChartErrorPayload,
   ChartEvent,
+  ChartEventHandler,
   ChartInstance,
   ChartOptions,
   ChartPatternSignal,
   ChartType,
-  CrosshairMoveData,
   DataPoint,
   Drawing,
   LayoutConfig,
-  SeriesAddedData,
   SeriesConfig,
-  SeriesRemovedData,
   SignalMarker,
   ThemeColors,
   TimeframeOverlay,
@@ -89,10 +86,10 @@ export type UseTrendChartOptions = {
   theme?: "dark" | "light" | ThemeColors;
   options?: Omit<ChartOptions, "theme">;
   fitOnLoad?: boolean;
-  onCrosshairMove?: (data: CrosshairMoveData) => void;
-  onSeriesAdded?: (data: SeriesAddedData) => void;
-  onSeriesRemoved?: (data: SeriesRemovedData) => void;
-  onError?: (data: ChartErrorPayload) => void;
+  onCrosshairMove?: ChartEventHandler<"crosshairMove">;
+  onSeriesAdded?: ChartEventHandler<"seriesAdded">;
+  onSeriesRemoved?: ChartEventHandler<"seriesRemoved">;
+  onError?: ChartEventHandler<"error">;
 };
 
 export type UseTrendChartResult = {
@@ -163,19 +160,19 @@ export function useTrendChart(opts: UseTrendChartOptions): UseTrendChartResult {
 
   useEffect(() => {
     if (!chart) return;
-    const subscribe = <T>(
-      event: ChartEvent,
-      pick: (c: typeof callbacks.current) => ((data: T) => void) | undefined,
+    const subscribe = <E extends ChartEvent>(
+      event: E,
+      pick: (c: typeof callbacks.current) => ChartEventHandler<E> | undefined,
     ) => {
-      const h = (d: unknown) => pick(callbacks.current)?.(d as T);
+      const h: ChartEventHandler<E> = (d) => pick(callbacks.current)?.(d);
       chart.on(event, h);
       return () => chart.off(event, h);
     };
     const offs = [
-      subscribe<CrosshairMoveData>("crosshairMove", (c) => c.onCrosshairMove),
-      subscribe<SeriesAddedData>("seriesAdded", (c) => c.onSeriesAdded),
-      subscribe<SeriesRemovedData>("seriesRemoved", (c) => c.onSeriesRemoved),
-      subscribe<ChartErrorPayload>("error", (c) => c.onError),
+      subscribe("crosshairMove", (c) => c.onCrosshairMove),
+      subscribe("seriesAdded", (c) => c.onSeriesAdded),
+      subscribe("seriesRemoved", (c) => c.onSeriesRemoved),
+      subscribe("error", (c) => c.onError),
     ];
     return () => {
       for (const off of offs) off();
