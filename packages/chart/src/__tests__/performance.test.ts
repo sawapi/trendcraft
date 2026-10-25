@@ -33,6 +33,22 @@ function generateLineData(count: number): DataPoint<number>[] {
   }));
 }
 
+/**
+ * Timing policy (ops #128). These tests catch a gross regression, such as an
+ * accidental O(n^2) loop, not a constant-factor drift: that needs a benchmark.
+ * The budgets leave wide headroom on a developer machine, but shared CI runners
+ * run this file alongside the other test files and swing by far more: LTTB on
+ * 100k points takes ~2ms locally and has measured 57ms on node 20 CI against a
+ * 50ms budget, for a change that did not touch the chart. So on CI every budget
+ * is multiplied by CI_SLACK.
+ */
+const CI_SLACK = process.env.CI && process.env.CI !== "false" ? 3 : 1;
+
+/** A time budget in ms, widened on CI (see CI_SLACK). */
+function budget(ms: number): number {
+  return ms * CI_SLACK;
+}
+
 /** Run fn multiple times and return the median elapsed ms (avoids JIT warm-up outliers) */
 function medianMs(fn: () => void, runs = 5): number {
   const times: number[] = [];
@@ -57,36 +73,36 @@ describe("Performance", () => {
     const median = medianMs(() => dl.setCandles(candles));
 
     expect(dl.candleCount).toBe(SIZE);
-    expect(median).toBeLessThan(16);
+    expect(median).toBeLessThan(budget(16));
   });
 
-  it(`TimeScale scroll with ${SIZE} candles < 1ms`, () => {
+  it(`100 TimeScale scrolls with ${SIZE} candles < 16ms (median of 5 runs)`, () => {
     const ts = new TimeScale();
     ts.setWidth(1200);
     ts.setTotalCount(SIZE);
     ts.scrollToEnd();
 
-    const start = performance.now();
-    for (let i = 0; i < 100; i++) {
-      ts.scrollBy(10);
-    }
-    const elapsed = performance.now() - start;
+    const median = medianMs(() => {
+      for (let i = 0; i < 100; i++) {
+        ts.scrollBy(10);
+      }
+    });
 
-    expect(elapsed).toBeLessThan(16); // 100 scroll ops < 16ms
+    expect(median).toBeLessThan(budget(16));
   });
 
-  it(`TimeScale zoom with ${SIZE} candles < 1ms`, () => {
+  it(`100 TimeScale zooms with ${SIZE} candles < 16ms (median of 5 runs)`, () => {
     const ts = new TimeScale();
     ts.setWidth(1200);
     ts.setTotalCount(SIZE);
 
-    const start = performance.now();
-    for (let i = 0; i < 100; i++) {
-      ts.zoom(i % 2 === 0 ? 1.1 : 0.9);
-    }
-    const elapsed = performance.now() - start;
+    const median = medianMs(() => {
+      for (let i = 0; i < 100; i++) {
+        ts.zoom(i % 2 === 0 ? 1.1 : 0.9);
+      }
+    });
 
-    expect(elapsed).toBeLessThan(16);
+    expect(median).toBeLessThan(budget(16));
   });
 
   it(`LTTB decimation ${SIZE} → 800 points < 16ms (median of 5 runs)`, () => {
@@ -98,7 +114,7 @@ describe("Performance", () => {
     });
 
     expect(result.points.length).toBe(800);
-    expect(median).toBeLessThan(16);
+    expect(median).toBeLessThan(budget(16));
   });
 
   it(`Candle decimation ${SIZE} → 1000 bars < 16ms (median of 5 runs)`, () => {
@@ -110,10 +126,10 @@ describe("Performance", () => {
     });
 
     expect(result.candles.length).toBe(1000);
-    expect(median).toBeLessThan(16);
+    expect(median).toBeLessThan(budget(16));
   });
 
-  it(`DataLayer.indexAtTime binary search on ${SIZE} candles < 1ms (median of 5 runs)`, () => {
+  it(`10K DataLayer.indexAtTime lookups on ${SIZE} candles < 16ms (median of 5 runs)`, () => {
     const candles = generateCandles(SIZE);
     const dl = new DataLayer();
     dl.setCandles(candles);
@@ -126,7 +142,7 @@ describe("Performance", () => {
       }
     });
 
-    expect(median).toBeLessThan(16); // 10K lookups < 16ms
+    expect(median).toBeLessThan(budget(16));
   });
 
   // ---- Large-scale benchmarks (100k+) ----
@@ -135,10 +151,10 @@ describe("Performance", () => {
     const candles = generateCandles(LARGE);
     const dl = new DataLayer();
 
-    const median = medianMs(() => dl.setCandles(candles), 3);
+    const median = medianMs(() => dl.setCandles(candles));
 
     expect(dl.candleCount).toBe(LARGE);
-    expect(median).toBeLessThan(100);
+    expect(median).toBeLessThan(budget(100));
   });
 
   it(`LTTB decimation ${LARGE} → 1000 points < 50ms`, () => {
@@ -147,10 +163,10 @@ describe("Performance", () => {
     let result!: ReturnType<typeof lttb>;
     const median = medianMs(() => {
       result = lttb(data, 1000);
-    }, 3);
+    });
 
     expect(result.points.length).toBe(1000);
-    expect(median).toBeLessThan(50);
+    expect(median).toBeLessThan(budget(50));
   });
 
   it(`Candle decimation ${LARGE} → 1000 bars < 50ms`, () => {
@@ -159,26 +175,26 @@ describe("Performance", () => {
     let result!: ReturnType<typeof decimateCandles>;
     const median = medianMs(() => {
       result = decimateCandles(candles, 0, LARGE, 1000);
-    }, 3);
+    });
 
     expect(result.candles.length).toBe(1000);
-    expect(median).toBeLessThan(50);
+    expect(median).toBeLessThan(budget(50));
   });
 
-  it(`DataLayer.indexAtTime binary search on ${LARGE} candles < 1ms (10K lookups)`, () => {
+  it(`10K DataLayer.indexAtTime lookups on ${LARGE} candles < 16ms (median of 5 runs)`, () => {
     const candles = generateCandles(LARGE);
     const dl = new DataLayer();
     dl.setCandles(candles);
 
     const midTime = candles[Math.floor(LARGE / 2)].time;
 
-    const start = performance.now();
-    for (let i = 0; i < 10_000; i++) {
-      dl.indexAtTime(midTime);
-    }
-    const elapsed = performance.now() - start;
+    const median = medianMs(() => {
+      for (let i = 0; i < 10_000; i++) {
+        dl.indexAtTime(midTime);
+      }
+    });
 
-    expect(elapsed).toBeLessThan(16);
+    expect(median).toBeLessThan(budget(16));
   });
 
   it(`TimeScale operations with ${LARGE} candles < 16ms (median of 5 runs)`, () => {
@@ -194,17 +210,17 @@ describe("Performance", () => {
       }
     });
 
-    expect(median).toBeLessThan(16);
+    expect(median).toBeLessThan(budget(16));
   });
 
   it(`DataLayer.setCandles with ${XLARGE} candles < 500ms`, () => {
     const candles = generateCandles(XLARGE);
     const dl = new DataLayer();
 
-    const median = medianMs(() => dl.setCandles(candles), 3);
+    const median = medianMs(() => dl.setCandles(candles));
 
     expect(dl.candleCount).toBe(XLARGE);
-    expect(median).toBeLessThan(500);
+    expect(median).toBeLessThan(budget(500));
   });
 
   it(`LTTB decimation ${XLARGE} → 2000 points < 200ms`, () => {
@@ -213,10 +229,10 @@ describe("Performance", () => {
     let result!: ReturnType<typeof lttb>;
     const median = medianMs(() => {
       result = lttb(data, 2000);
-    }, 3);
+    });
 
     expect(result.points.length).toBe(2000);
-    expect(median).toBeLessThan(200);
+    expect(median).toBeLessThan(budget(200));
   });
 
   it(`updateCandle throughput: 1000 updates < 25ms (${SIZE} base)`, () => {
@@ -239,8 +255,7 @@ describe("Performance", () => {
       }
     }, 5);
 
-    // 25ms threshold absorbs node 22 / shared CI runner jitter.
     // updateCandle is a hot path, so we keep an upper bound rather than skip.
-    expect(median).toBeLessThan(25);
+    expect(median).toBeLessThan(budget(25));
   });
 });
