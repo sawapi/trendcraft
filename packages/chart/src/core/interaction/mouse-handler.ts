@@ -16,6 +16,16 @@ export function attachMouseHandlers(
   const { el, timeScale, panes, scrollbar, gapAtY, resizePanes } = ctx;
 
   const onMouseDown = (e: MouseEvent) => {
+    // Grabbing the chart stops a running fling, as a finger down does
+    // (touch-handler's onTouchStart). Also drop the wheel session's pending
+    // velocity, or its settle timer would restart the fling after the press.
+    // Remember whether a loop was running: its settle step is now owed by
+    // this gesture's end (endDragGesture).
+    ctx.drag.interruptedInertia = ctx.pan.raf !== null || ctx.zoom.raf !== null;
+    inertia.stopPan();
+    inertia.stopZoom();
+    ctx.pan.velocity = 0;
+    ctx.wheel.panVelocity = 0;
     el.focus();
     const rect = el.getBoundingClientRect();
     const mx = e.clientX - rect.left;
@@ -125,12 +135,17 @@ export function attachMouseHandlers(
   const endDragGesture = () => {
     // Only a gesture that actually MOVED the viewport settles the clamp
     // envelope: a plain click (mousedown+up without movement) or an
-    // untouched scrollbar thumb must not dissolve an in-bounds grant.
-    if (ctx.drag.viewportMutated) {
+    // untouched scrollbar thumb must not dissolve an in-bounds grant. A
+    // press that stopped a fling or bounce settles too: the stopped loop
+    // would have, and otherwise an overscroll is left stranded.
+    if (ctx.drag.viewportMutated || ctx.drag.interruptedInertia) {
       // Bounce-back if overscrolled via mouse drag. The inertia loop
       // handles both spring-back and velocity flick; velocity is zeroed
       // because mouse drag doesn't track flick speed.
-      if (ctx.viewState.isDragging && Math.abs(timeScale.overscroll) > 0.1) {
+      if (
+        (ctx.viewState.isDragging || ctx.drag.interruptedInertia) &&
+        Math.abs(timeScale.overscroll) > 0.1
+      ) {
         inertia.stopPan();
         ctx.pan.velocity = 0;
         inertia.startPan();
@@ -141,6 +156,7 @@ export function attachMouseHandlers(
       }
     }
     ctx.drag.viewportMutated = false;
+    ctx.drag.interruptedInertia = false;
     ctx.viewState.isDragging = false;
     ctx.endScrollbarDrag();
     ctx.paneResize.gap = null;

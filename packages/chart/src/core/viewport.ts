@@ -95,6 +95,7 @@ export class Viewport {
      */
     scrollbarGrabOffsetFrac: null,
     viewportMutated: false,
+    interruptedInertia: false,
   };
 
   private _onUpdate: (() => void) | null = null;

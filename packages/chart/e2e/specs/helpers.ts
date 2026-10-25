@@ -105,3 +105,30 @@ export async function wheelFlick(page: Page, deltaX = -40): Promise<void> {
     "wheelFlick pushed the view to the start of the data; use a smaller deltaX",
   ).toBeGreaterThan(1);
 }
+
+/**
+ * Multi-touch through the DevTools protocol (Playwright's touchscreen only
+ * taps). `touch("touchStart" | "touchMove", points)` sends every point still
+ * down; `touch("touchEnd", [point])` lifts just that point, so a two-finger
+ * gesture can drop to one finger. Coordinates are relative to the chart
+ * canvas.
+ */
+type TouchPoint = { id: number; x: number; y: number };
+type TouchSend = (
+  type: "touchStart" | "touchMove" | "touchEnd",
+  points: TouchPoint[],
+) => Promise<unknown>;
+
+export async function touchDriver(page: Page): Promise<TouchSend> {
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 5 });
+  const box = await chartBox(page);
+  return (
+    type: "touchStart" | "touchMove" | "touchEnd",
+    points: Array<{ id: number; x: number; y: number }>,
+  ) =>
+    cdp.send("Input.dispatchTouchEvent", {
+      type,
+      touchPoints: points.map((p) => ({ id: p.id, x: box.x + p.x, y: box.y + p.y })),
+    });
+}

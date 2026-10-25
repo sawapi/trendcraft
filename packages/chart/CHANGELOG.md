@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — pressing the mouse did not stop a fling
+
+A trackpad flick keeps the chart scrolling after the gesture, and pressing
+the mouse button did not stop it, so the chart flew out from under the
+cursor (releasing did not stop it either). A press now stops it, as a touch
+already did. A click or tap that stops a fling or an edge bounce now also
+finishes what that motion would have: an overscroll still springs back to
+the edge, where a tap used to leave it stuck past it.
+
 ### Fixed — `markers` on line series never drew
 
 Both config resolvers (`addIndicator`'s introspection and

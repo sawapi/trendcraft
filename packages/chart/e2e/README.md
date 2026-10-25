@@ -22,8 +22,8 @@ chromium`).
   (`chart`, `candles`, `events`, `ready`). Query params: `?bars=N`,
   `?volume=0`.
 - `specs/*.e2e.ts` — the tests. `helpers.ts` holds `openChart`,
-  `logicalRange`, `chartBox`, `frames`, `isMoving`, `isFlinging` and
-  `wheelFlick`.
+  `logicalRange`, `chartBox`, `frames`, `isMoving`, `isFlinging`,
+  `wheelFlick` and `touchDriver` (multi-touch over the DevTools protocol).
 - `vite.config.ts` — serves the fixture on port 5310. The config never reuses
   a server already on that port, so stop any stray one first.
 
@@ -94,7 +94,8 @@ tracking issue for a known bug; the spec for it is a `test.fail` until fixed.
 | Pan / zoom | Wheel up zooms in | covered |
 | Pan / zoom | Mouse drag pans | covered |
 | Pan / zoom | A horizontal wheel flick starts a fling | covered |
-| Pan / zoom | Mouse press stops a wheel fling | known bug (ops #36) |
+| Pan / zoom | Mouse press stops a wheel fling | covered |
+| Pan / zoom | A click, tap or long-press during an edge bounce still settles at the edge | covered |
 | Pan / zoom | Scrollbar drag and Home key keep the zoom level | todo (ops #28) |
 | Pan / zoom | Scroll-to-end keeps the right offset exactly | todo (ops #16) |
 | Pan / zoom | Scrollbar thumb stays inside the track | todo (ops #18) |
