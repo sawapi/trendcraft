@@ -38,10 +38,17 @@ export function assertCandleCount(count: number): void {
   }
 }
 
-// Length validation is handled by the tool handler (assertCandleCount) so that
-// the surfaced error follows the canonical INVALID_INPUT envelope instead of a
-// raw zod blob.
-export const candlesArraySchema = z.array(candleSchema);
+/**
+ * The upper bound sits on the array schemas themselves: zod (>= 4.6.6)
+ * checks it before walking the elements, while an unbounded array records
+ * one issue per invalid element, so a huge array of bad bars could exhaust
+ * memory before any handler ran (GHSA-mrhx-c7xc-m3w5). Its message is the
+ * handler's INVALID_INPUT wording; the handlers keep assertCandleCount for
+ * the lower bound and for candles that arrive by reference.
+ */
+const MAX_CANDLES_MESSAGE = `INVALID_INPUT: candles must contain at most ${MAX_CANDLES} entries`;
+
+export const candlesArraySchema = z.array(candleSchema).max(MAX_CANDLES, MAX_CANDLES_MESSAGE);
 
 export type Candle = z.infer<typeof candleSchema>;
 
@@ -70,7 +77,9 @@ export const candleTupleSchema = z.union([
   ]),
 ]);
 
-export const candlesTupleArraySchema = z.array(candleTupleSchema);
+export const candlesTupleArraySchema = z
+  .array(candleTupleSchema)
+  .max(MAX_CANDLES, MAX_CANDLES_MESSAGE);
 
 export type CandleTuple = z.infer<typeof candleTupleSchema>;
 

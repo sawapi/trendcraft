@@ -37,7 +37,14 @@ workflows. Examples of what matters here:
 - Input that makes an indicator or backtest hang (for example a regular
   expression or loop with super-linear cost).
 
+A vulnerability in a dependency is in scope when the dependency range a
+published package declares itself (its `package.json` `dependencies`)
+allows an affected version. `trendcraft` and `@trendcraft/chart` have no
+runtime dependencies; `@trendcraft/mcp` does. Advisories deeper in the
+tree are handled by refreshing the lockfile and, where needed, raising a
+direct dependency's floor.
+
 Out of scope: trading losses from the library's analysis, which is not
-financial advice; vulnerabilities in dependencies already reported upstream
+financial advice; vulnerabilities in development-only dependencies
 (Dependabot tracks those); and the example apps under `packages/*/examples/`,
 which are demos and not published.

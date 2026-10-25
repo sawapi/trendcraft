@@ -2,6 +2,29 @@
 
 ## Unreleased
 
+### Security — a large `candles` array could exhaust the server's memory
+
+An array schema in `zod` records one issue per invalid element
+(GHSA-mrhx-c7xc-m3w5). The tool inputs `candles` and `candlesArray` were
+unbounded arrays of that kind, validated before the handlers checked the
+100,000-bar limit, so a client sending a huge array of invalid bars could
+exhaust the server's memory. Both schemas now carry the 100,000 bound, and
+`zod` is now `^4.6.7`, which checks a bound before walking the elements
+(4.6.6 fixed that order). An oversized array is therefore rejected by the
+SDK's input validation, before any tool handler runs: the error text
+(`INVALID_INPUT: candles must contain at most 100000 entries`) is the same,
+but it arrives as an input-validation error rather than from the tool.
+
+### Security — requires `@modelcontextprotocol/sdk` 1.32.1 or later
+
+The dependency range was `^1.29.0`, which admits SDK versions with known
+advisories (GHSA-46jr-4wx8-v453, GHSA-22jm-h49p-29qw, GHSA-6qxp-vccf-f47h,
+GHSA-rvq5-wwqv-78pq, GHSA-6prh-2h8m-c8cw; fixed by 1.32.0). They concern
+the SDK's HTTP and OAuth transports, its bearer authentication and its
+experimental tasks; `trendcraft-mcp` serves over stdio only and uses none
+of them, so it was not exposed. The range is now `^1.32.1`, so an install
+can no longer resolve an affected version.
+
 ### Changed — `calc_indicator("dpo")` is causal by default
 
 It follows `trendcraft`'s `dpo()`: each value is now stamped at the bar
