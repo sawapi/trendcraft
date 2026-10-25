@@ -53,9 +53,7 @@ test.describe("pan and zoom", () => {
       .toBeGreaterThan(0);
   });
 
-  test("the crosshair over the right margin emits one move with no candle (ops #18 D5)", async ({
-    page,
-  }) => {
+  test("the crosshair over the right margin emits one move with no candle", async ({ page }) => {
     await openChart(page, "?volume=0");
     // 300 bars; show 250..330, so the right eighth of the data area is margin.
     await page.evaluate(() => window.__tc.chart.setVisibleLogicalRange(250, 330));
@@ -96,10 +94,10 @@ test.describe("pan and zoom", () => {
     expect(travel).toBeGreaterThan(5);
   });
 
-  // ops #36: a press used to leave the fling running. The test above guards
+  // A press used to leave the fling running. The test above guards
   // the setup, and the skip keeps a fling that never started from passing
   // vacuously.
-  test("pressing the mouse stops a wheel fling (ops #36)", async ({ page }) => {
+  test("pressing the mouse stops a wheel fling", async ({ page }) => {
     await openChart(page);
     const box = await chartBox(page);
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 3);

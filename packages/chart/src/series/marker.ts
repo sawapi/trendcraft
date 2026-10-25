@@ -32,7 +32,7 @@ export function renderMarkers(
   ctx.fillStyle = opts.color;
   // One path and one fill for all dots. A dot within a pixel of the last one
   // drawn covers the same pixels, so it is skipped: zoomed out to 0.1px
-  // spacing, most dots are (ops #124).
+  // spacing, most dots are.
   ctx.beginPath();
   let lastX = Number.NaN;
   let lastY = 0;

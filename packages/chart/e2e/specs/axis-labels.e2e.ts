@@ -83,13 +83,13 @@ async function overlapsAcrossOffsets(page: Page, minRows: number, span: number):
 }
 
 test.describe("time axis labels", () => {
-  test("single-row axis: labels never overlap, at any start offset (ops #14)", async ({ page }) => {
+  test("single-row axis: labels never overlap, at any start offset", async ({ page }) => {
     await openChart(page, "?volume=0");
     await loadIntraday(page);
     expect(await overlapsAcrossOffsets(page, 1, 80)).toEqual([]);
   });
 
-  test("two-row axis: neither row overlaps, at any start offset (ops #14)", async ({ page }) => {
+  test("two-row axis: neither row overlaps, at any start offset", async ({ page }) => {
     // The time-proportional layout puts intraday data on the two-row axis
     // (times above, dates below). A 200-bar view spans 2-3 sessions, so the
     // date row carries more than one label.

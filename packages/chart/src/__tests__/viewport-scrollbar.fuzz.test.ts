@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 /**
  * Randomized scrollbar fuzz through the DOM handlers — fixed seeds,
- * CI-resident (ops #17).
+ * CI-resident.
  *
  * viewport-invariants.fuzz drives TimeScale directly, so the scrollbar's
  * pointer paths (thumb grab → drag → release, track click) were never in a

@@ -5,7 +5,7 @@ const width = (r: { from: number; to: number }) => r.to - r.from;
 
 test.describe("navigation keeps the zoom", () => {
   // 20,000 bars fitted to the view is ~0.35 px per bar, below the 2 px floor
-  // that setVisibleRange clamps to. A pan must not snap it back (ops #28).
+  // that setVisibleRange clamps to. A pan must not snap it back.
   test.beforeEach(async ({ page }) => {
     await openChart(page, "?bars=20000&volume=0");
     await page.evaluate(() => window.__tc.chart.fitContent());
@@ -15,7 +15,7 @@ test.describe("navigation keeps the zoom", () => {
     await expect.poll(() => isMoving(page), { intervals: [50] }).toBe(false);
   });
 
-  test("End then Home move to each end without zooming in (ops #28)", async ({ page }) => {
+  test("End then Home move to each end without zooming in", async ({ page }) => {
     const fitted = await logicalRange(page);
     await page.evaluate(() => (document.querySelector("#chart canvas") as HTMLElement).focus());
     // The fitted view starts at bar 0; go to the end first so Home has to move.
@@ -26,7 +26,7 @@ test.describe("navigation keeps the zoom", () => {
     expect(width(await logicalRange(page))).toBeCloseTo(width(fitted), 0);
   });
 
-  test("dragging the scrollbar thumb pans without zooming in (ops #28)", async ({ page }) => {
+  test("dragging the scrollbar thumb pans without zooming in", async ({ page }) => {
     const fitted = await logicalRange(page);
     const thumb = await scrollbarThumb(page);
     await page.mouse.move(thumb.x, thumb.y);
@@ -40,9 +40,7 @@ test.describe("navigation keeps the zoom", () => {
   });
 });
 
-test("End lands the window's right edge exactly on the right offset (ops #16)", async ({
-  page,
-}) => {
+test("End lands the window's right edge exactly on the right offset", async ({ page }) => {
   await openChart(page, "?volume=0");
   const bars = await page.evaluate(() => {
     window.__tc.chart.applyOptions({ timeScale: { rightOffset: 5 } });

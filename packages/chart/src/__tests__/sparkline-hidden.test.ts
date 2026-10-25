@@ -152,7 +152,7 @@ describe("sparkline sizing without a layout box", () => {
     handle.destroy();
   });
 
-  it("re-attaching a never laid-out canvas keeps the author's size (ops #98)", () => {
+  it("re-attaching a never laid-out canvas keeps the author's size", () => {
     // What the group wrappers do: a standalone sparkline, then destroy() and
     // add() to a group — and React StrictMode repeats it.
     const canvas = makeCanvas();

@@ -18,14 +18,14 @@ describe("renderHeatmap", () => {
     const ps = makePriceScale(300, 100, 200);
     renderHeatmap(ctx, new Map([["poc", [null, null, 150, 160, 170]]]), ts, ps, 800);
     expect(ctx.stroke).toHaveBeenCalledTimes(1);
-    // Each bar's level is drawn at its own price (ops #33).
+    // Each bar's level is drawn at its own price.
     const ys = new Set(
       (ctx.lineTo as unknown as { mock: { calls: number[][] } }).mock.calls.map((c) => c[1]),
     );
     expect(ys.size).toBe(3);
   });
 
-  it("draws each bar's level at the same place whatever the scroll position (ops #33)", () => {
+  it("draws each bar's level at the same place whatever the scroll position", () => {
     const poc = Array.from({ length: 200 }, (_, i) => 100 + i * 0.1);
     const yOfBar = (start: number) => {
       const ctx = mockCtx();

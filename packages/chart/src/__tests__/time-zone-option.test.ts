@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 /**
- * The `timeZone` option at construction (ops #89): a known zone is applied,
+ * The `timeZone` option at construction: a known zone is applied,
  * an unknown one or a non-string is ignored with a warning.
  */
 

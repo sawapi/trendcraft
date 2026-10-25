@@ -55,13 +55,13 @@ function draw(data: DataPoint<unknown>[], userConfig: SeriesConfig) {
 }
 
 describe("SeriesConfig reaches the renderer", () => {
-  it("markers survive introspect and draw a dot per bar (ops #19)", () => {
+  it("markers survive introspect and draw a dot per bar", () => {
     const data = series((i) => 100 + i * 0.5);
     expect(introspect(data, { markers: true }).config.markers).toBe(true);
     expect(draw(data, { markers: true }).arcs()).toBeGreaterThan(0);
   });
 
-  it("markers survive buildSeriesConfig (connectIndicators path) (ops #19)", () => {
+  it("markers survive buildSeriesConfig (connectIndicators path)", () => {
     const config = buildSeriesConfig(
       { overlay: true, label: "SMA" } as never,
       "sma_20",
@@ -72,7 +72,7 @@ describe("SeriesConfig reaches the renderer", () => {
     expect(config.markers).toEqual({ radius: 4 });
   });
 
-  it("band strokes use the configured lineWidth (ops #21)", () => {
+  it("band strokes use the configured lineWidth", () => {
     const rec = draw(
       series((i) => ({ upper: 120 + i * 0.1, middle: 110, lower: 100 - i * 0.1 })),
       { lineWidth: 4 },
@@ -89,7 +89,7 @@ describe("SeriesConfig reaches the renderer", () => {
     expect(rec.strokes.every((s) => s.width === 1)).toBe(true);
   });
 
-  it("MACD lines use the configured lineWidth (ops #21)", () => {
+  it("MACD lines use the configured lineWidth", () => {
     const rec = draw(
       series((i) => ({
         macd: Math.sin(i),
@@ -101,7 +101,7 @@ describe("SeriesConfig reaches the renderer", () => {
     expect(rec.strokes.filter((s) => s.width === 4).length).toBe(2);
   });
 
-  it("Ichimoku lines use channelColors and lineWidth (ops #20)", () => {
+  it("Ichimoku lines use channelColors and lineWidth", () => {
     const channelColors = {
       tenkan: "#ff0000",
       kijun: "#00ff00",

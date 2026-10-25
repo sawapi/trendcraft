@@ -38,9 +38,7 @@ function retainedShare(a: number[], b: number[]): number {
 const twoFrames = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
 
 test.describe("price range", () => {
-  test("a non-finite high in a live update does not blank the chart (ops #31)", async ({
-    page,
-  }) => {
+  test("a non-finite high in a live update does not blank the chart", async ({ page }) => {
     await openChart(page, "?volume=0");
     const before = await pixels(page);
     await page.evaluate(() => {
@@ -53,9 +51,7 @@ test.describe("price range", () => {
     expect(retainedShare(before, await pixels(page))).toBeGreaterThan(0.95);
   });
 
-  test("a non-finite value in an indicator does not blank the chart (ops #31)", async ({
-    page,
-  }) => {
+  test("a non-finite value in an indicator does not blank the chart", async ({ page }) => {
     await openChart(page, "?volume=0");
     const before = await pixels(page);
     await page.evaluate(() => {

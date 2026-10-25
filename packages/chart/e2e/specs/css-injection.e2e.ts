@@ -5,7 +5,7 @@ import { chartBox, frames, openChart } from "./helpers";
 // Colours are caller-supplied (an app may let users build themes or pick
 // series colours) and end up in `style` attributes of the legend and info
 // overlay. A value that is not a colour must not add CSS declarations: these
-// would make the viewer's browser fetch an arbitrary URL (ops #121).
+// would make the viewer's browser fetch an arbitrary URL.
 const EXFIL = "/tc-css-exfil/";
 const EXTRA_DECLARATION = `red;background-image:url(${EXFIL}decl)`;
 const BARE_URL = `url(${EXFIL}bare)`;

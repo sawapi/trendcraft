@@ -1,9 +1,9 @@
-/** An animation started from another's callbacks was dropped (ops #26). */
+/** An animation started from another's callbacks was dropped. */
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ViewTransition } from "../core/animation";
 
-describe("re-entrant animations (ops #26)", () => {
+describe("re-entrant animations", () => {
   let now = 0;
   let queued: FrameRequestCallback[] = [];
   const flush = () => {

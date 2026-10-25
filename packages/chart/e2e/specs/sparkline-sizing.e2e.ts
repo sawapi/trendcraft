@@ -4,7 +4,7 @@ import { frames } from "./helpers";
 // A canvas's CSS box is either set by the page's CSS or, with none, taken
 // from its bitmap size. The sparkline writes a DPR-scaled bitmap, so it pins
 // an inline px size only in the second case; pinning a CSS-sized canvas
-// froze it at the width measured at first render (ops #123).
+// froze it at the width measured at first render.
 test.use({ deviceScaleFactor: 2 });
 
 const DATA = [1, 3, 2, 5, 4, 6, 5, 7];

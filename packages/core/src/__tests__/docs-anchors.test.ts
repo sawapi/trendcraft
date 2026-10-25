@@ -3,7 +3,7 @@
  * In-page link check: every `](#anchor)` in the package docs must name a
  * heading in the same file, by GitHub's anchor rules. A heading that gains
  * arguments or a parenthetical (`## Meta-Strategy (Equity Curve Trading)`)
- * silently strands the table-of-contents links to it (ops #126).
+ * silently strands the table-of-contents links to it.
  */
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";

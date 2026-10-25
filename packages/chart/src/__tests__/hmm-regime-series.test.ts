@@ -1,4 +1,4 @@
-/** hmmRegimes() output matched no rule and drew nothing (ops #32). */
+/** hmmRegimes() output matched no rule and drew nothing. */
 
 import { describe, expect, it } from "vitest";
 import type { InternalSeries } from "../core/data-layer";
@@ -8,7 +8,7 @@ import { introspect } from "../integration/series-introspector";
 import { dispatchSeries } from "../renderer/series-dispatcher";
 import { makePriceScale, makeTimeScale, mockCtx } from "./helpers/mock-ctx";
 
-describe("hmmRegime (ops #32)", () => {
+describe("hmmRegime", () => {
   // The shape of trendcraft's HmmRegimeValue.
   const data: DataPoint<unknown>[] = Array.from({ length: 20 }, (_, i) => ({
     time: i * 60_000,

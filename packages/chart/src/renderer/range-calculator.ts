@@ -64,7 +64,7 @@ export function computeSeriesRange(
   rendererRegistry?: RendererRegistry,
 ): [number, number] {
   // The rule and channels cached on the series, as the renderers use them:
-  // decomposing the whole series here ran once per frame (ops #124).
+  // decomposing the whole series here ran once per frame.
   const rule = s._rule !== undefined ? s._rule : defaultRegistry.detect(s.data);
 
   // Check custom renderer for priceRange (by series type or rule name)

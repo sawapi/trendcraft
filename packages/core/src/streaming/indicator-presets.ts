@@ -272,7 +272,7 @@ export const indicatorPresets: Record<string, IndicatorPreset> =
 
 // Built in a function, not as a plain literal: the entries' helper calls would
 // run at module load and pin every indicator they reference into any bundle
-// that imports anything from "trendcraft" (ops #90).
+// that imports anything from "trendcraft".
 function buildIndicatorPresets(): Record<string, IndicatorPreset> {
   return {
     // ============================================

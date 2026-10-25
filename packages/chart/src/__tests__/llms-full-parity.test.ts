@@ -65,7 +65,7 @@ describe("llms-full.txt parity", () => {
     expect(actual).toBe(expected);
   });
 
-  // llms-full.txt ships at the package root, without docs/ (ops #127).
+  // llms-full.txt ships at the package root, without docs/.
   it("links only to shipped files or to files that exist in the repo", () => {
     const text = readFileSync(join(root, "llms-full.txt"), "utf8");
     const repoPath =
