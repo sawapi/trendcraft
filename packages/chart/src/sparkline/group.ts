@@ -44,6 +44,18 @@ type Entry = {
    */
   authorWidth: number;
   authorHeight: number;
+  /**
+   * Whether the page's CSS (or an inline style) sets the canvas's width /
+   * height, rather than its bitmap size; undefined until the canvas first
+   * has a layout box to probe. Only a canvas sized by its bitmap needs the
+   * inline px size setupCanvas pins, and pinning one that CSS sizes would
+   * freeze it at the width it had at first render.
+   */
+  cssSizedW?: boolean;
+  cssSizedH?: boolean;
+  /** Whether setupCanvas wrote the inline width / height (destroy() removes it). */
+  pinnedW: boolean;
+  pinnedH: boolean;
   /** Whether the last render found a real layout box to size from. */
   laidOut: boolean;
 };
@@ -90,9 +102,23 @@ function setupCanvas(entry: Entry): {
   ctx: CanvasRenderingContext2D | null;
 } {
   const { canvas } = entry;
-  const dpr = safeDevicePixelRatio();
-  const rect = canvas.getBoundingClientRect();
+  let rect = canvas.getBoundingClientRect();
   const laidOut = rect.width > 0 || canvas.clientWidth > 0;
+  // An inline style sizes the canvas; without one, only a layout box can
+  // tell whether the page's CSS does.
+  if (canvas.style.width) entry.cssSizedW ??= true;
+  if (canvas.style.height) entry.cssSizedH ??= true;
+  if (laidOut && (entry.cssSizedW === undefined || entry.cssSizedH === undefined)) {
+    entry.cssSizedW ??= probeCssSized(canvas, "width", rect.width);
+    entry.cssSizedH ??= probeCssSized(canvas, "height", rect.height);
+    rect = canvas.getBoundingClientRect();
+  }
+  // While that is unknown nothing is pinned, so the bitmap may be what sizes
+  // the canvas: keep it at 1x so the canvas does not show at dpr times its
+  // size. The first render with a layout box (add() schedules one) switches
+  // to the full device pixel ratio.
+  const dpr =
+    entry.cssSizedW === undefined || entry.cssSizedH === undefined ? 1 : safeDevicePixelRatio();
   // Never fall back to canvas.width / canvas.height: those hold the
   // DPR-scaled bitmap this function wrote on the previous pass. Reading one
   // back as a CSS size re-multiplies it by dpr, so a canvas with no layout
@@ -124,14 +150,38 @@ function setupCanvas(entry: Entry): {
   const targetH = Math.round(cssHeight * dpr);
   if (canvas.width !== targetW) canvas.width = targetW;
   if (canvas.height !== targetH) canvas.height = targetH;
-  // Author CSS may set this; ensure CSS size matches.
-  if (!canvas.style.width) canvas.style.width = `${cssWidth}px`;
-  if (!canvas.style.height) canvas.style.height = `${cssHeight}px`;
+  // A canvas sized by its bitmap would grow to the DPR-scaled bitmap: pin
+  // its CSS size. One sized by CSS is left alone so it keeps following it.
+  if (entry.cssSizedW === false && !canvas.style.width) {
+    canvas.style.width = `${cssWidth}px`;
+    entry.pinnedW = true;
+  }
+  if (entry.cssSizedH === false && !canvas.style.height) {
+    canvas.style.height = `${cssHeight}px`;
+    entry.pinnedH = true;
+  }
   const ctx = canvas.getContext("2d");
   if (ctx) {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
   return { cssWidth, cssHeight, laidOut, ctx };
+}
+
+/**
+ * Whether CSS, not the bitmap, sets the canvas's laid-out width / height:
+ * grow the bitmap by one pixel and see whether the box moves. Resetting the bitmap size clears it; the caller
+ * renders right after.
+ */
+function probeCssSized(
+  canvas: HTMLCanvasElement,
+  axis: "width" | "height",
+  before: number,
+): boolean {
+  const bitmap = canvas[axis];
+  canvas[axis] = bitmap + 1;
+  const after = canvas.getBoundingClientRect()[axis];
+  canvas[axis] = bitmap;
+  return after === before;
 }
 
 /**
@@ -148,10 +198,13 @@ function readAuthorSize(canvas: HTMLCanvasElement, attr: "width" | "height"): nu
 
 /**
  * Put back the author's `width`/`height` attributes (or remove the ones the
- * renders added), undoing the DPR-scaled bitmap size written over them.
+ * renders added), undoing the DPR-scaled bitmap size written over them, and
+ * remove the inline size setupCanvas pinned.
  */
 function restoreAuthorSize(entry: Entry): void {
   const { canvas } = entry;
+  if (entry.pinnedW) canvas.style.width = "";
+  if (entry.pinnedH) canvas.style.height = "";
   for (const [attr, px] of [
     ["width", entry.authorWidth],
     ["height", entry.authorHeight],
@@ -463,13 +516,15 @@ export function createSparklineGroup(groupOpts: SparklineGroupOptions): Sparklin
       // with the DPR-scaled bitmap size.
       authorWidth: readAuthorSize(canvas, "width"),
       authorHeight: readAuthorSize(canvas, "height"),
+      pinnedW: false,
+      pinnedH: false,
       laidOut: false,
     };
     entries.set(id, entry);
     renderEntry(entry, themeColors);
     // If the canvas had no layout box at add() time, the size above is a
-    // fallback rather than a measurement. Defer a second render to next frame,
-    // when the canvas is likely laid out.
+    // fallback rather than a measurement, drawn at 1x. Defer a second render
+    // to next frame, when the canvas is likely laid out.
     if (!entry.laidOut) {
       const raf =
         typeof requestAnimationFrame !== "undefined"
@@ -478,7 +533,7 @@ export function createSparklineGroup(groupOpts: SparklineGroupOptions): Sparklin
       raf(() => {
         if (!entries.has(id)) return;
         const rect = canvas.getBoundingClientRect();
-        if (rect.width > 0 && Math.abs(rect.width - entry.cssWidth) > 0.5) {
+        if (rect.width > 0) {
           renderEntry(entry, themeColors);
         }
       });
