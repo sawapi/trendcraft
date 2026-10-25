@@ -17,11 +17,13 @@ chromium`).
 
 ## Layout
 
-- `fixture/` — one page that mounts a chart built from `src/` (not `dist/`)
+- `fixture/` — `index.html` mounts a chart built from `src/` (not `dist/`)
   with deterministic candles and exposes it as `window.__tc`
   (`chart`, `candles`, `events`, `ready`). Query params: `?bars=N`,
   `?volume=0`, `?sessionGaps=1` (time-proportional layout; intraday data
-  then uses the two-row time axis).
+  then uses the two-row time axis). `sparkline.html` is an empty page with
+  the sparkline API on `window.__spark`; specs build the canvases, and its
+  `.fluid` class is a stylesheet-sized canvas.
 - `specs/*.e2e.ts` — the tests. `helpers.ts` holds `openChart`,
   `logicalRange`, `chartBox`, `frames`, `isMoving`, `isFlinging`,
   `wheelFlick`, `scrollbarThumb` and `touchDriver` (multi-touch over the
@@ -107,4 +109,6 @@ tracking issue for a known bug; the spec for it is a `test.fail` until fixed.
 | Animation | An animation started from another's `onDone` runs | covered |
 | Axis | Labels do not overlap at any start offset, on the single- and two-row axes; DST does not add times | covered (overlap); DST by unit tests (`format-daily-dst.test.ts`) |
 | Sizing | `setWidth(0)` does not corrupt the viewport | todo (ops #18) |
-| Sparkline | Re-attach keeps its CSS size (bitmap does not grow) | todo (ops #98) |
+| Rendering | A theme or series colour cannot inject CSS into the legend or info overlay | covered |
+| Sparkline | Re-attach keeps its CSS size (bitmap does not grow) | covered by unit tests (`sparkline-hidden.test.ts`) |
+| Sparkline | A CSS-sized canvas follows its container; one sized by its bitmap keeps its CSS size at any DPR, hidden or not | covered |

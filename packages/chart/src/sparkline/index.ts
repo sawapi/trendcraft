@@ -6,6 +6,12 @@
  * canvas drawing routine for line (+ optional fill) or compact candles, plus a
  * group wrapper that delegates hover for shared tooltip handling.
  *
+ * Sizing: a canvas whose CSS gives it a definite width / height (e.g.
+ * `width: 100%`) follows that box; call `render()` after it changes to redraw
+ * at the new size. A canvas with no CSS size keeps its `width` / `height`
+ * attributes (or 80×30) as its CSS size, pinned inline. One sized only by
+ * `max-width` counts as the latter and stays at its first measured width.
+ *
  * @example Vanilla, single sparkline
  * ```ts
  * import { createSparkline } from '@trendcraft/chart/sparkline';

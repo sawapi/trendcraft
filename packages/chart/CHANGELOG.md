@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — a CSS-sized sparkline stopped following its container
+
+Every render wrote the measured size into the canvas's inline
+`style.width` / `style.height` whenever they were empty, so a canvas sized
+by a stylesheet (say `width: 100%`) was frozen at the width it had at first
+render and no longer followed its container; one hidden at first render
+stayed at the 80×30 fallback after it was shown. The pinned size also
+survived `destroy()`. The inline size is now written only when the canvas
+is sized by its own bitmap (no CSS size), which is found by probing the
+first time the canvas has a layout box, and `destroy()` removes it. Until
+that probe has run (a canvas created hidden or detached without an inline
+size), the sparkline draws at 1x rather than the device pixel ratio, so it
+cannot show at a multiple of its size; the render scheduled for the next
+frame, or any later render, draws it sharp.
+
+A canvas follows its container when CSS gives it a definite width (e.g.
+`width: 100%`). One sized only by `max-width` (with no width) is still
+sized by its bitmap, so it stays pinned at its first measured width, as
+before.
+
 ### Fixed — a re-attached sparkline could double its bitmap each time
 
 Rendering writes the DPR-scaled bitmap size onto the canvas's `width` /

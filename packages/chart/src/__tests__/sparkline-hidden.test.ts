@@ -106,11 +106,12 @@ describe("sparkline sizing without a layout box", () => {
     const canvas = makeCanvas();
     const handle = createSparkline(canvas, { type: "line", data });
 
-    // No layout box and no author-declared size: the 80x30 fallback applies.
-    expect(canvas.width).toBe(160);
+    // No layout box and no author-declared size: the 80x30 fallback applies,
+    // at 1x until a layout box shows whether CSS or the bitmap sizes it.
+    expect(canvas.width).toBe(80);
     for (let i = 0; i < 8; i++) handle.render();
-    expect(canvas.width).toBe(160);
-    expect(canvas.height).toBe(60);
+    expect(canvas.width).toBe(80);
+    expect(canvas.height).toBe(30);
 
     handle.destroy();
   });
@@ -121,11 +122,12 @@ describe("sparkline sizing without a layout box", () => {
     canvas.setAttribute("height", "40");
     const handle = createSparkline(canvas, { type: "line", data });
 
-    expect(canvas.width).toBe(240); // 120 css * dpr 2
-    expect(canvas.height).toBe(80);
+    // At 1x until there is a layout box (see above).
+    expect(canvas.width).toBe(120);
+    expect(canvas.height).toBe(40);
     for (let i = 0; i < 5; i++) handle.render();
-    expect(canvas.width).toBe(240);
-    expect(canvas.height).toBe(80);
+    expect(canvas.width).toBe(120);
+    expect(canvas.height).toBe(40);
 
     handle.destroy();
   });
@@ -165,9 +167,10 @@ describe("sparkline sizing without a layout box", () => {
     const group = createSparklineGroup({ container: document.body });
     for (let i = 0; i < 3; i++) {
       const handle = group.add(canvas, { type: "line", data });
-      // Previously: 320, 640, 1280 — the last bitmap read back as the author's size.
-      expect(canvas.width).toBe(160);
-      expect(canvas.height).toBe(60);
+      // Previously: 320, 640, 1280 — the last bitmap read back as the author's
+      // size. 1x, since the height has no CSS and no layout box to probe.
+      expect(canvas.width).toBe(80);
+      expect(canvas.height).toBe(30);
       handle.destroy();
     }
     group.destroy();
