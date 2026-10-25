@@ -95,6 +95,7 @@ export class Viewport {
      */
     scrollbarGrabOffsetFrac: null,
     viewportMutated: false,
+    interruptedInertia: false,
   };
 
   private _onUpdate: (() => void) | null = null;
@@ -138,7 +139,9 @@ export class Viewport {
       newStart = targetCenter - Math.floor(visible / 2);
     }
     newStart = Math.max(0, Math.min(maxStart, newStart));
-    timeScale.setVisibleRange(newStart, newStart + visible);
+    // A drag only moves the window: keep the zoom (setVisibleRange would
+    // re-derive and clamp the spacing, zooming a fitted view back in).
+    timeScale.panTo(newStart);
   }
 
   /**

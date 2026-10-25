@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — pressing the mouse did not stop a fling
+
+A trackpad flick keeps the chart scrolling after the gesture, and pressing
+the mouse button did not stop it, so the chart flew out from under the
+cursor (releasing did not stop it either). A press now stops it, as a touch
+already did. A click or tap that stops a fling or an edge bounce now also
+finishes what that motion would have: an overscroll still springs back to
+the edge, where a tap used to leave it stuck past it.
+
+### Fixed — scrollbar drag and the Home key zoomed in
+
+Dragging the scrollbar and pressing Home went through the range-setting
+path, which clamps the bar spacing to at least 2 px. On a fitted or
+zoomed-out view below that (e.g. thousands of bars), a pan therefore zoomed
+in many times over. Both now only move the window and keep the zoom.
+
+### Fixed — lifting one finger of a pinch froze the other
+
+After a two-finger pinch, lifting one finger ended the whole gesture, so the
+remaining finger could not pan (and the page could not scroll either) until
+it was lifted and placed again. The remaining finger now pans.
+
 ### Fixed — `markers` on line series never drew
 
 Both config resolvers (`addIndicator`'s introspection and

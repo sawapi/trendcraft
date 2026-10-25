@@ -105,3 +105,64 @@ export async function wheelFlick(page: Page, deltaX = -40): Promise<void> {
     "wheelFlick pushed the view to the start of the data; use a smaller deltaX",
   ).toBeGreaterThan(1);
 }
+
+/**
+ * Multi-touch through the DevTools protocol (Playwright's touchscreen only
+ * taps). `touch("touchStart" | "touchMove", points)` sends every point still
+ * down; `touch("touchEnd", [point])` lifts just that point, so a two-finger
+ * gesture can drop to one finger. Coordinates are relative to the chart
+ * canvas.
+ */
+type TouchPoint = { id: number; x: number; y: number };
+type TouchSend = (
+  type: "touchStart" | "touchMove" | "touchEnd",
+  points: TouchPoint[],
+) => Promise<unknown>;
+
+export async function touchDriver(page: Page): Promise<TouchSend> {
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 5 });
+  const box = await chartBox(page);
+  return (
+    type: "touchStart" | "touchMove" | "touchEnd",
+    points: Array<{ id: number; x: number; y: number }>,
+  ) =>
+    cdp.send("Input.dispatchTouchEvent", {
+      type,
+      touchPoints: points.map((p) => ({ id: p.id, x: box.x + p.x, y: box.y + p.y })),
+    });
+}
+
+/**
+ * Centre x (page coordinates) of the scrollbar thumb, found by its colour on
+ * the scrollbar's middle row. The thumb's rect is not public API.
+ */
+export async function scrollbarThumb(page: Page): Promise<{ x: number; y: number }> {
+  const local = await page.evaluate(() => {
+    const canvas = document.querySelector("#chart canvas") as HTMLCanvasElement;
+    const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
+    // The scrollbar is the last ~14 px strip above the canvas's bottom edge.
+    for (let y = canvas.height - 1; y > canvas.height - 30; y--) {
+      const row = ctx.getImageData(0, y, canvas.width, 1).data;
+      let first = -1;
+      let last = -1;
+      for (let x = 0; x < canvas.width; x++) {
+        // DARK_THEME scrollbar thumb fill (66,69,81), with a small tolerance
+        // for colour management; the track (30,34,45) and the thumb border
+        // (98,101,112) are well outside it.
+        const d =
+          Math.abs(row[x * 4] - 66) + Math.abs(row[x * 4 + 1] - 69) + Math.abs(row[x * 4 + 2] - 81);
+        if (d <= 15) {
+          if (first < 0) first = x;
+          last = x;
+        }
+      }
+      if (first >= 0) return { x: (first + last) / 2, y };
+    }
+    return null;
+  });
+  expect(local, "scrollbar thumb not found").not.toBeNull();
+  const box = await chartBox(page);
+  const p = local as { x: number; y: number };
+  return { x: box.x + p.x, y: box.y + p.y };
+}

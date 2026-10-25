@@ -385,6 +385,19 @@ export class TimeScale {
     this.clamp();
   }
 
+  /**
+   * Navigate to a start index, keeping the current zoom. For pan gestures
+   * (scrollbar drag, Home key): unlike {@link setVisibleRange}, which
+   * re-derives spacing from the range and clamps it to [2, 50] px, this never
+   * snaps a sub-2px fitted or zoomed-out view back in. Like any explicit
+   * navigation it releases a viewport grant.
+   */
+  panTo(index: number): void {
+    this._granted = null;
+    this._startIndex = index;
+    this.clamp();
+  }
+
   /** Start index {@link scrollToEnd} lands on: last candles pinned to the
    *  right edge plus the configured right offset, resolved through virtual
    *  units so session-gap layouts map correctly. Single owner of the "end"

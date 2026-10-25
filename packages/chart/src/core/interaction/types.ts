@@ -41,6 +41,13 @@ export type DragState = {
    * grant. Reset at gesture start and after gesture end.
    */
   viewportMutated: boolean;
+  /**
+   * True when the gesture's press stopped a running pan / zoom inertia loop
+   * (a fling or a bounce-back). That loop would have ratified the resting
+   * position, or finished bouncing, when it ended; the gesture end must do
+   * it instead, even for a plain click or tap that moved nothing.
+   */
+  interruptedInertia: boolean;
   scrollbarDragging: boolean;
   /** See Viewport._scrollbarGrabOffsetFrac for semantics. */
   scrollbarGrabOffsetFrac: number | null;

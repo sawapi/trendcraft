@@ -22,8 +22,9 @@ chromium`).
   (`chart`, `candles`, `events`, `ready`). Query params: `?bars=N`,
   `?volume=0`.
 - `specs/*.e2e.ts` — the tests. `helpers.ts` holds `openChart`,
-  `logicalRange`, `chartBox`, `frames`, `isMoving`, `isFlinging` and
-  `wheelFlick`.
+  `logicalRange`, `chartBox`, `frames`, `isMoving`, `isFlinging`,
+  `wheelFlick`, `scrollbarThumb` and `touchDriver` (multi-touch over the
+  DevTools protocol).
 - `vite.config.ts` — serves the fixture on port 5310. The config never reuses
   a server already on that port, so stop any stray one first.
 
@@ -94,13 +95,14 @@ tracking issue for a known bug; the spec for it is a `test.fail` until fixed.
 | Pan / zoom | Wheel up zooms in | covered |
 | Pan / zoom | Mouse drag pans | covered |
 | Pan / zoom | A horizontal wheel flick starts a fling | covered |
-| Pan / zoom | Mouse press stops a wheel fling | known bug (ops #36) |
-| Pan / zoom | Scrollbar drag and Home key keep the zoom level | todo (ops #28) |
+| Pan / zoom | Mouse press stops a wheel fling | covered |
+| Pan / zoom | A click, tap or long-press during an edge bounce still settles at the edge | covered |
+| Pan / zoom | Scrollbar drag and Home / End keep the zoom level | covered |
 | Pan / zoom | Scroll-to-end keeps the right offset exactly | todo (ops #16) |
 | Pan / zoom | Scrollbar thumb stays inside the track | todo (ops #18) |
 | Crosshair | Pointer move emits `crosshairMove` with the bar index | covered |
 | Crosshair | Crosshair value clears past the last bar | todo (ops #18) |
-| Touch | Lifting one finger after a pinch leaves the other able to pan | todo (ops #35) |
+| Touch | Lifting one finger after a pinch leaves the other able to pan | covered |
 | Animation | An animation started from another's `onDone` runs | todo (ops #26) |
 | Axis | Labels do not overlap at any start offset; DST does not add times | todo (ops #14, #88) |
 | Sizing | `setWidth(0)` does not corrupt the viewport | todo (ops #18) |

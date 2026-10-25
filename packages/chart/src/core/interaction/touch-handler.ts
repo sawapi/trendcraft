@@ -14,6 +14,10 @@ export function attachTouchHandlers(
   const { el, timeScale, scrollbar } = ctx;
 
   const onTouchStart = (e: TouchEvent) => {
+    // A finger down stops a fling or bounce; remember it so the touch end
+    // still settles (see DragState.interruptedInertia). Only the first
+    // finger's press can interrupt one, so keep an earlier finger's record.
+    if (ctx.pan.raf !== null) ctx.drag.interruptedInertia = true;
     inertia.stopPan();
     if (e.touches.length === 1) {
       const now = Date.now();
@@ -163,27 +167,57 @@ export function attachTouchHandlers(
     }
   };
 
-  const onTouchEnd = () => {
+  const onTouchEnd = (e: TouchEvent) => {
+    // Lifting one finger of a pinch is not the end of the gesture: the
+    // remaining finger(s) carry on. `touchcancel` always ends it.
+    if (e.type === "touchend" && e.touches.length > 0 && !ctx.drag.scrollbarDragging) {
+      if (e.touches.length === 1) {
+        // Pinch -> one finger: re-arm a pan from where that finger is now.
+        const touch = e.touches[0];
+        ctx.viewState.isDragging = true;
+        ctx.touch.lastDist = 0;
+        ctx.pan.lastTouchX = touch.clientX;
+        ctx.pan.lastTouchMoveTime = Date.now();
+        ctx.pan.velocity = 0;
+        ctx.drag.startX = touch.clientX;
+        ctx.drag.startIndex = timeScale.rawStartIndex;
+      } else {
+        // Three fingers -> two: keep pinching from the current spread.
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        ctx.touch.lastDist = Math.sqrt(dx * dx + dy * dy);
+      }
+      return;
+    }
     if (ctx.touch.longPressTimer) {
       clearTimeout(ctx.touch.longPressTimer);
       ctx.touch.longPressTimer = null;
     }
 
     // Only a gesture that actually moved the viewport settles the clamp
-    // envelope — a tap or long-press crosshair must not dissolve a grant.
-    if (ctx.drag.viewportMutated) {
+    // envelope — a tap or long-press crosshair must not dissolve a grant —
+    // unless the touch stopped a fling or bounce whose settling it now owes.
+    if (ctx.drag.viewportMutated || ctx.drag.interruptedInertia) {
       let settled = true;
-      if (ctx.viewState.isDragging && !ctx.touch.longPressCrosshairLocked) {
-        if (Math.abs(ctx.pan.velocity) > 3 || Math.abs(timeScale.overscroll) > 0.1) {
-          inertia.startPan();
-          settled = false; // the inertia loop ratifies when it terminates
-        }
+      const overscrolled = Math.abs(timeScale.overscroll) > 0.1;
+      const panning = ctx.viewState.isDragging && !ctx.touch.longPressCrosshairLocked;
+      if (panning && (Math.abs(ctx.pan.velocity) > 3 || overscrolled)) {
+        inertia.startPan();
+        settled = false; // the inertia loop ratifies when it terminates
+      } else if (ctx.drag.interruptedInertia && overscrolled) {
+        // The touch stopped a bounce and then held still or locked the
+        // crosshair: still owe the spring-back, but with no flick (a
+        // crosshair session's finger velocity is not a pan).
+        ctx.pan.velocity = 0;
+        inertia.startPan();
+        settled = false;
       }
       if (settled) {
         timeScale.ratifySettledPosition();
       }
     }
     ctx.drag.viewportMutated = false;
+    ctx.drag.interruptedInertia = false;
     ctx.viewState.isDragging = false;
     // A scrollbar drag started by touch has no mouseup to release it. Without
     // this the flag survives the gesture, and onTouchMove's scrollbar branch

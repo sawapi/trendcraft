@@ -66,20 +66,17 @@ test.describe("pan and zoom", () => {
     expect(travel).toBeGreaterThan(5);
   });
 
-  // Known bug, ops #36: pressing the mouse does not stop an inertial fling.
-  // Only the wheel starts one (a trackpad flick); a mouse drag releases with
-  // no velocity. Once fixed, this test passes, which test.fail reports as a
-  // failure: then drop .fail. The test above guards the setup, and the skip
-  // below keeps a fling that never started from counting as the expected
-  // failure.
-  test.fail("pressing the mouse stops a wheel fling (ops #36)", async ({ page }) => {
+  // ops #36: a press used to leave the fling running. The test above guards
+  // the setup, and the skip keeps a fling that never started from passing
+  // vacuously.
+  test("pressing the mouse stops a wheel fling (ops #36)", async ({ page }) => {
     await openChart(page);
     const box = await chartBox(page);
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 3);
     await wheelFlick(page);
     let moving = false;
     for (let i = 0; i < 30 && !moving; i++) moving = await isFlinging(page);
-    test.skip(!moving, "the fling did not start, so the bug cannot be observed");
+    test.skip(!moving, "the fling did not start, so the press cannot be observed");
 
     // Grab the chart while it is still moving.
     await page.mouse.down();
