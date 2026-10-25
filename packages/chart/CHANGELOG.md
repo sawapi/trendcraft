@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — `hmmRegimes()` series drew an empty pane
+
+The built-in `hmmRegime` rule looked for a `confidence` field that
+`hmmRegimes()` never emits, so its output matched no rule and drew nothing;
+the rule's draw branch also fed whole objects to the area renderer.
+`hmmRegimes()` output is now detected and drawn as an area of the regime
+index. The rule no longer captures `volatilityRegime()` output, which it
+used to mislabel and draw blank. The regime heatmap plugin now takes a
+regime's confidence from its state probability when there is no
+`confidence` field, so its shading and badge percentage work with
+`hmmRegimes()`.
+
 ### Fixed — pressing the mouse did not stop a fling
 
 A trackpad flick keeps the chart scrolling after the gesture, and pressing
