@@ -197,6 +197,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — docs: `llms-full.txt` links pointed at files npm does not ship
+
+`llms-full.txt` concatenates the docs at the package root, but kept their
+relative links (`./API.md#built-in-plugins`, `./LIVE.md`, `./assets/…`).
+The docs are not in the npm tarball, so from an installed package every
+one of them led nowhere. The generator now points them at the docs on
+GitHub (images at their raw URLs), and a test checks that each link in the
+file reaches a shipped file or an existing file and heading in the repo.
+
 ### Fixed — docs: the accessibility guide described announcements and focus that do not exist
 
 GUIDE's Accessibility section quoted an announcement with an indicator
@@ -1506,7 +1515,7 @@ Initial public release.
 
 A conceptual walkthrough of `@trendcraft/chart`. If you just want to get pixels on screen, the README's Quick Start is the place to start. This guide is for when you need to understand _why_ the chart behaves the way it does, or you're reaching for a less-common feature.
 
-![NVDA daily with a 5/20/60 SMA ribbon, RSI, and MACD](./assets/hero-candle.png)
+![NVDA daily with a 5/20/60 SMA ribbon, RSI, and MACD](https://raw.githubusercontent.com/sawapi/trendcraft/main/packages/chart/docs/assets/hero-candle.png)
 
 ## Table of Contents
 
@@ -1645,7 +1654,7 @@ chart.addIndicator(mySecondarySeries, { pane: 'main', scaleId: 'left' });
 
 ## Auto-detection from `__meta`
 
-![Five indicators auto-placed from their metadata — SMA, Bollinger Bands, RSI, Stochastics, MACD](./assets/auto-detection.png)
+![Five indicators auto-placed from their metadata — SMA, Bollinger Bands, RSI, Stochastics, MACD](https://raw.githubusercontent.com/sawapi/trendcraft/main/packages/chart/docs/assets/auto-detection.png)
 
 When you pass an indicator series to `addIndicator()`, the chart does two things:
 
@@ -1755,9 +1764,9 @@ import {
 } from '@trendcraft/chart';
 ```
 
-See [API.md#built-in-plugins](./API.md#built-in-plugins) for the full list. Each `connect*` returns an update handle (`update()`, `remove()`) so the layer can refresh when new data arrives.
+See [API.md#built-in-plugins](https://github.com/sawapi/trendcraft/blob/main/packages/chart/docs/API.md#built-in-plugins) for the full list. Each `connect*` returns an update handle (`update()`, `remove()`) so the layer can refresh when new data arrives.
 
-Four indicators (`autoTrendLine`, `channelLine`, `fibonacciRetracement`, `fibonacciExtension`) have an even lighter delivery: their shape maps directly to the chart's built-in drawing types, so small helpers (`addAutoFibRetracement` etc.) convert swing anchors into `Drawing` objects you manage via `chart.addDrawing` / `removeDrawing`. See [API.md#drawing-auto-injection-helpers](./API.md#drawing-auto-injection-helpers).
+Four indicators (`autoTrendLine`, `channelLine`, `fibonacciRetracement`, `fibonacciExtension`) have an even lighter delivery: their shape maps directly to the chart's built-in drawing types, so small helpers (`addAutoFibRetracement` etc.) convert swing anchors into `Drawing` objects you manage via `chart.addDrawing` / `removeDrawing`. See [API.md#drawing-auto-injection-helpers](https://github.com/sawapi/trendcraft/blob/main/packages/chart/docs/API.md#drawing-auto-injection-helpers).
 
 ## Theming
 
@@ -1833,7 +1842,7 @@ Subscribe via `chart.on(event, handler)`. Unsubscribe via `chart.off`. Events ar
 
 ## Live data
 
-For live feeds, combine `trendcraft`'s `createLiveCandle` with `connectIndicators`. Full walkthrough in [LIVE.md](./LIVE.md).
+For live feeds, combine `trendcraft`'s `createLiveCandle` with `connectIndicators`. Full walkthrough in [LIVE.md](https://github.com/sawapi/trendcraft/blob/main/packages/chart/docs/LIVE.md).
 
 At a glance:
 
@@ -1932,7 +1941,7 @@ Or if you're driving the chart from a longer-lived parent component, keep the in
 
 # @trendcraft/chart — API Reference
 
-Complete API surface for `@trendcraft/chart`. This is the reference; for conceptual material see [GUIDE.md](./GUIDE.md). For live streaming patterns see [LIVE.md](./LIVE.md). For extending the chart see [PLUGINS.md](./PLUGINS.md).
+Complete API surface for `@trendcraft/chart`. This is the reference; for conceptual material see [GUIDE.md](https://github.com/sawapi/trendcraft/blob/main/packages/chart/docs/GUIDE.md). For live streaming patterns see [LIVE.md](https://github.com/sawapi/trendcraft/blob/main/packages/chart/docs/LIVE.md). For extending the chart see [PLUGINS.md](https://github.com/sawapi/trendcraft/blob/main/packages/chart/docs/PLUGINS.md).
 
 ## Entry Points
 
@@ -2228,7 +2237,7 @@ addRule(rule: IntrospectionRule): void
 addPreset(name: string, preset: IndicatorPreset): void
 ```
 
-See [PLUGINS.md](./PLUGINS.md) for plugin authoring details.
+See [PLUGINS.md](https://github.com/sawapi/trendcraft/blob/main/packages/chart/docs/PLUGINS.md) for plugin authoring details.
 
 ### Export and lifecycle
 
@@ -2317,7 +2326,7 @@ function connectIndicators(
 ): IndicatorConnection
 ```
 
-Unified indicator wiring for both static and live modes. See [LIVE.md](./LIVE.md#connectindicators--one-api-for-static-and-live) for the full walkthrough.
+Unified indicator wiring for both static and live modes. See [LIVE.md](https://github.com/sawapi/trendcraft/blob/main/packages/chart/docs/LIVE.md#connectindicators--one-api-for-static-and-live) for the full walkthrough.
 
 `ConnectIndicatorsOptions`:
 
@@ -2457,7 +2466,7 @@ defineSeriesRenderer<TConfig>(plugin: SeriesRendererPlugin<TConfig>): SeriesRend
 definePrimitive<TState>(plugin: PrimitivePlugin<TState>): PrimitivePlugin<TState>
 ```
 
-Identity functions that give you type inference. See [PLUGINS.md](./PLUGINS.md).
+Identity functions that give you type inference. See [PLUGINS.md](https://github.com/sawapi/trendcraft/blob/main/packages/chart/docs/PLUGINS.md).
 
 ```typescript
 declare class DrawHelper {
@@ -3501,7 +3510,7 @@ For reference, TrendCraft's own shipped plugins (`regime-heatmap`, `smc-layer`, 
 
 # @trendcraft/chart Cookbook
 
-Practical recipes for common charting tasks. Each recipe is self-contained and copy-paste ready. For the conceptual model see [GUIDE.md](./GUIDE.md); for the full reference see [API.md](./API.md); for live data see [LIVE.md](./LIVE.md); for custom rendering see [PLUGINS.md](./PLUGINS.md).
+Practical recipes for common charting tasks. Each recipe is self-contained and copy-paste ready. For the conceptual model see [GUIDE.md](https://github.com/sawapi/trendcraft/blob/main/packages/chart/docs/GUIDE.md); for the full reference see [API.md](https://github.com/sawapi/trendcraft/blob/main/packages/chart/docs/API.md); for live data see [LIVE.md](https://github.com/sawapi/trendcraft/blob/main/packages/chart/docs/LIVE.md); for custom rendering see [PLUGINS.md](https://github.com/sawapi/trendcraft/blob/main/packages/chart/docs/PLUGINS.md).
 
 ---
 
@@ -3730,7 +3739,7 @@ function cleanup() {
 }
 ```
 
-See [LIVE.md](./LIVE.md) for backfill, reconnect, and pre-formed candle inputs.
+See [LIVE.md](https://github.com/sawapi/trendcraft/blob/main/packages/chart/docs/LIVE.md) for backfill, reconnect, and pre-formed candle inputs.
 
 ---
 
@@ -3866,7 +3875,7 @@ chart.registerPrimitive(createSupportZone({ lo: 138, hi: 143 }));
 
 `render(context, state)` receives the live `priceScale` (use `priceScale.priceToY(price)`) and `pane` rect (`pane.x`, `pane.y`, `pane.width`, `pane.height`). State comes from `defaultState`; update it by re-registering the plugin under the same `name`, or via the optional `update(state)` hook called before each frame. Remove with `chart.removePrimitive("supportZone")`.
 
-For series-type plugins (e.g. footprint candles), use `defineSeriesRenderer`. See [PLUGINS.md](./PLUGINS.md).
+For series-type plugins (e.g. footprint candles), use `defineSeriesRenderer`. See [PLUGINS.md](https://github.com/sawapi/trendcraft/blob/main/packages/chart/docs/PLUGINS.md).
 
 ---
 
@@ -3951,7 +3960,7 @@ const decimated = lttb(series, 480);
 
 ## See also
 
-- [GUIDE.md](./GUIDE.md) — the mental model
-- [API.md](./API.md) — every exported symbol
-- [LIVE.md](./LIVE.md) — streaming / reconnect / backfill
-- [PLUGINS.md](./PLUGINS.md) — custom renderers and primitives
+- [GUIDE.md](https://github.com/sawapi/trendcraft/blob/main/packages/chart/docs/GUIDE.md) — the mental model
+- [API.md](https://github.com/sawapi/trendcraft/blob/main/packages/chart/docs/API.md) — every exported symbol
+- [LIVE.md](https://github.com/sawapi/trendcraft/blob/main/packages/chart/docs/LIVE.md) — streaming / reconnect / backfill
+- [PLUGINS.md](https://github.com/sawapi/trendcraft/blob/main/packages/chart/docs/PLUGINS.md) — custom renderers and primitives
