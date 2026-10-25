@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — docs: the accessibility guide described announcements and focus that do not exist
+
+GUIDE's Accessibility section quoted an announcement with an indicator
+value and a date (`"RSI: 42.5 at 2026-04-15"`) and said the chart container
+is focusable. The live region announces the crosshair candle's OHLCV
+(`"O 142.30, H 144.10, L 141.80, C 143.55, V 1,204,000"`, labels from
+`locale`), and the focusable element is the chart's canvas, so focusing the
+container did nothing. The section now says so and shows how to focus the
+canvas from code. The guide's bundle-size figure is also updated (~44 kB).
+
 ### Fixed — docs: the live-data recipe blanked the chart
 
 COOKBOOK Recipe 8 set the chart's candles from `history` and then called
