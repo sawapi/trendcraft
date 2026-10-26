@@ -1006,7 +1006,6 @@ export type {
   PresetCondition,
   PriceLevels,
   PriceSource,
-  RebalanceConfig,
   Result,
   ReturnsOptions,
   RiskBasedSizingOptions,

@@ -5745,7 +5745,6 @@ const batchResult = batchBacktest(datasets, deadCrossCondition(5, 25), goldenCro
 const portfolioResult = portfolioBacktest(datasets, deadCrossCondition(5, 25), goldenCrossCondition(5, 25), {
   capital: 3_000_000,
   allocation: { type: 'equal' },
-  maxPositions: 5,
   tradeOptions: {
     direction: 'short',
     stopLoss: 5,
@@ -5753,6 +5752,10 @@ const portfolioResult = portfolioBacktest(datasets, deadCrossCondition(5, 25), g
   },
 });
 ```
+
+`portfolioBacktest` は各銘柄を固定の配分で独立にバックテストし、リバランスはしません。次の 2 つのオプションは型にはありますが未対応で、指定するとエラーになります。
+- `maxPositions`: 実際の同時保有数は `peakConcurrentPositions` で確認してください。
+- `maxPortfolioDrawdown`: `portfolio.maxDrawdown` で確認するか、ライブ運用の停止には `createPortfolioGuard` を使ってください。
 
 ### ショート戦略レシピ
 

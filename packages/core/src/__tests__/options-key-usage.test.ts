@@ -58,14 +58,8 @@ const ALLOWLIST: Record<string, string[]> = {
   // riskParityAllocation does not read this option". Kept for API compat.
   RiskParityOptions: ["riskFreeRate"],
   // Known-dead, documented in source. `positionSizing` is `@deprecated Was
-  // never wired into the engine. Use tradeOptions.sizing`. The other three are
-  // documented on the option type and in the `portfolioBacktest` summary as
-  // "accepted but not yet enforced": symbols are backtested independently
-  // against a fixed allocation, so nothing limits concurrent positions, nothing
-  // halts the run on drawdown, and no rebalance ever happens (`rebalanceCount`
-  // is always 0). Kept so the field names stay discoverable when the behaviour
-  // lands.
-  PortfolioBacktestOptions: ["positionSizing", "maxPositions", "maxPortfolioDrawdown", "rebalance"],
+  // never wired into the engine. Use tradeOptions.sizing`.
+  PortfolioBacktestOptions: ["positionSizing"],
   // Heuristic gap, key IS consumed: incremental indicators accept
   // structurally-identical inline `{ warmUp?: NormalizedCandle[]; … }` params
   // without ever referencing the WarmUpOptions name (e.g.

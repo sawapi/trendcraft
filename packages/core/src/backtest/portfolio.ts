@@ -132,6 +132,38 @@ export function batchBacktest(
 // ============================================
 
 /**
+ * Reject the portfolio options that are declared but not implemented yet,
+ * and the removed `rebalance`.
+ * Symbols are backtested independently against a fixed allocation, so a run
+ * that ignored them would report the figures of a different strategy from
+ * the one asked for.
+ */
+function assertSupportedPortfolioOptions(options: PortfolioBacktestOptions): void {
+  // Every option set is reported at once, so fixing one does not just reveal the next.
+  const problems: string[] = [];
+  if (options.maxPositions !== undefined) {
+    problems.push(
+      "`maxPositions`: not supported yet — symbols are backtested independently, so nothing limits concurrent positions; leave it unset and read `peakConcurrentPositions` for the number actually held.",
+    );
+  }
+  if (options.maxPortfolioDrawdown !== undefined) {
+    problems.push(
+      "`maxPortfolioDrawdown`: not supported yet — the run is never halted on drawdown; leave it unset and read `portfolio.maxDrawdown`, or halt live trading with `createPortfolioGuard({ maxPortfolioDrawdown })`.",
+    );
+  }
+  // `rebalance` was removed from the type. A caller without types (or with
+  // old ones) would otherwise have it silently ignored again.
+  if ((options as { rebalance?: unknown }).rebalance !== undefined) {
+    problems.push(
+      "`rebalance`: removed — the allocation is fixed for the whole run; to rebalance, run a new backtest per period with the weights you want.",
+    );
+  }
+  if (problems.length > 0) {
+    throw new Error(`portfolioBacktest: unsupported options —\n${problems.join("\n")}`);
+  }
+}
+
+/**
  * Run a portfolio backtest with weight-based capital allocation and exposure constraints.
  *
  * Unlike `batchBacktest()`, this applies portfolio-level allocation and exposure
@@ -142,10 +174,14 @@ export function batchBacktest(
  * Symbols are currently backtested independently against their allocated
  * capital (no shared capital pool or signal competition yet).
  *
- * Three options are accepted but not yet enforced: `maxPositions` (concurrent
- * positions are reported via `peakConcurrentPositions` instead),
- * `maxPortfolioDrawdown` (the run always goes to completion), and `rebalance`
- * (allocation never changes, so `rebalanceCount` is always 0).
+ * Two options are declared but not supported yet, and passing either throws
+ * rather than running a backtest that silently ignores it: `maxPositions`
+ * (read `peakConcurrentPositions` for the number actually held) and
+ * `maxPortfolioDrawdown` (the run always goes to completion). The allocation
+ * is fixed for the whole run; nothing rebalances.
+ *
+ * @throws If `maxPositions` or `maxPortfolioDrawdown` is set, or the removed
+ *   `rebalance`
  *
  * @param datasets - Array of symbol data
  * @param entryCondition - Entry condition
@@ -164,7 +200,6 @@ export function batchBacktest(
  *   {
  *     capital: 3_000_000,
  *     allocation: { type: "equal" },
- *     maxPositions: 5, // accepted but not yet enforced
  *     maxSymbolExposure: 25,
  *     tradeOptions: { stopLoss: 5, takeProfit: 15 },
  *   },
@@ -185,11 +220,8 @@ export function portfolioBacktest(
   }
   assertUniqueSymbols(datasets);
   assertNoWarmup(options.tradeOptions ?? {});
+  assertSupportedPortfolioOptions(options);
 
-  // `maxPositions`, `maxPortfolioDrawdown` and `rebalance` are documented on
-  // the option type but not yet wired through the backtest loop, so they are
-  // deliberately not read here — see the option type's JSDoc for what each one
-  // will do once it lands.
   const { capital, allocation, maxSymbolExposure = 100, tradeOptions = {} } = options;
 
   // Calculate target weights
@@ -260,9 +292,6 @@ export function portfolioBacktest(
     portfolio,
     equityCurve,
     allTrades: allTradesWithSymbol,
-    // Allocation is fixed for the whole run, so no rebalance ever happens.
-    // Reporting a calendar estimate here claimed events that never took place.
-    rebalanceCount: 0,
     peakConcurrentPositions,
   };
 }
