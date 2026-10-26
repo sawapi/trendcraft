@@ -16,6 +16,14 @@ overrides:
   # GHSA-r5fr-rjxr-66jc / GHSA-f23m-r3pf-42rh: lodash <= 4.17.23 is vulnerable.
   # Pulled in transitively (build-time only) via vite-plugin-dts -> @microsoft/api-extractor.
   lodash: ^4.18.0
+  # The root devDependency pins @types/node to the oldest supported Node major
+  # (engines.node >=22); that alone is what the typecheck reads. This override
+  # only keeps a second copy out of the lockfile: pnpm 10 picks the
+  # auto-installed optional @types/node peer of vite / vitest / api-extractor
+  # from the newest version in the graph, ignoring the workspace root's range.
+  # pnpm 11.18+ fixes that, so drop this entry after moving to it. Bump
+  # together with engines.node and the root devDependency.
+  "@types/node": ^22.20.5
   # Advisories in transitive dev/build dependencies that the parents' own
   # ranges still allow (Dependabot cannot bump these). Drop an entry once its
   # parent requires a fixed version.
