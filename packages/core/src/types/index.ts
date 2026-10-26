@@ -200,7 +200,6 @@ export type {
   PortfolioBacktestOptions,
   PortfolioBacktestResult,
   PortfolioMetrics,
-  RebalanceConfig,
   SymbolBacktestResult,
   SymbolData,
 } from "./portfolio";

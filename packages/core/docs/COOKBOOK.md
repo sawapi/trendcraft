@@ -591,10 +591,10 @@ Capital the exposure cap keeps out of the market is held as portfolio cash: it
 stays in `result.equityCurve` and in `portfolio.finalCapital`, so a tighter cap
 dilutes the return rather than reading as a loss.
 
-`maxPositions`, `maxPortfolioDrawdown` and `rebalance` are accepted by the
-options type but not yet enforced — the symbols are backtested independently
-against a fixed allocation, nothing halts the run on drawdown, and
-`rebalanceCount` is always 0.
+`maxPositions` and `maxPortfolioDrawdown` are declared on the options type
+but not supported yet, and passing either throws. The symbols are backtested
+independently against a fixed allocation that never rebalances, and nothing
+halts the run on drawdown.
 
 ---
 

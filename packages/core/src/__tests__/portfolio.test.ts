@@ -186,7 +186,6 @@ describe("portfolioBacktest", () => {
     const result = portfolioBacktest(datasets, entry, exit, {
       capital: 3_000_000,
       allocation: { type: "equal" },
-      maxPositions: 3,
       tradeOptions: { stopLoss: 5 },
     });
 
@@ -195,8 +194,7 @@ describe("portfolioBacktest", () => {
     expect(result.portfolio.tradeCount).toBeGreaterThan(0);
     // Recount the peak from the per-symbol trades: the most positions open at
     // any entry, where a position exiting on that bar no longer counts. The
-    // seeded fixture has all three symbols in at once (maxPositions is not
-    // enforced yet, so it does not bound this).
+    // seeded fixture has all three symbols in at once.
     const trades = result.symbols.flatMap((sr) => sr.result.trades);
     const recount = Math.max(
       ...trades.map(
@@ -205,7 +203,6 @@ describe("portfolioBacktest", () => {
     );
     expect(result.peakConcurrentPositions).toBe(recount);
     expect(result.peakConcurrentPositions).toBe(3);
-    expect(result.rebalanceCount).toBe(0); // No rebalance configured
   });
 
   it("should support fixed weight allocation", () => {
@@ -239,30 +236,48 @@ describe("portfolioBacktest", () => {
     }
   });
 
-  it("reports no rebalances, because none happen", () => {
-    // `rebalance` is accepted but not yet enforced. It used to report a
-    // calendar estimate (span / 30 days), which named events that never took
-    // place: the allocation is fixed for the whole run.
-    const datasets = createDatasets(); // 200 daily candles ≈ ~6-7 months
-    const entry = goldenCross(5, 25);
-    const exit = deadCross(5, 25);
+  // Each of these used to be accepted and silently ignored, so a run that
+  // asked for, say, at most 3 positions reported the figures of a strategy
+  // with no such limit.
+  for (const [name, value, instead] of [
+    ["maxPositions", 3, "peakConcurrentPositions"],
+    ["maxPortfolioDrawdown", 15, "createPortfolioGuard"],
+  ] as const) {
+    it(`rejects ${name}, which is not supported yet`, () => {
+      expect(() =>
+        portfolioBacktest(createDatasets(), goldenCross(5, 25), deadCross(5, 25), {
+          capital: 3_000_000,
+          allocation: { type: "equal" },
+          [name]: value,
+        }),
+      ).toThrow(new RegExp(`\`${name}\`: not supported yet[^\\n]*${instead}`));
+    });
+  }
+
+  it("names every unsupported option at once", () => {
+    // Reporting only the first would make a caller fix one and hit the next.
+    expect(() =>
+      portfolioBacktest(createDatasets(), goldenCross(5, 25), deadCross(5, 25), {
+        capital: 3_000_000,
+        allocation: { type: "equal" },
+        maxPositions: 3,
+        maxPortfolioDrawdown: 15,
+        rebalance: { frequency: "monthly" },
+      } as unknown as Parameters<typeof portfolioBacktest>[3]),
+    ).toThrow(/`maxPositions`[\s\S]*`maxPortfolioDrawdown`[\s\S]*`rebalance`: removed/);
+  });
+
+  it("rejects the removed rebalance option instead of ignoring it", () => {
+    // It is gone from the type, but a caller without types would otherwise
+    // have it silently ignored, as before.
     const options = {
       capital: 3_000_000,
-      allocation: { type: "equal" as const },
-    };
-
-    const withRebalance = portfolioBacktest(datasets, entry, exit, {
-      ...options,
-      rebalance: { frequency: "monthly" as const },
-    });
-    const without = portfolioBacktest(datasets, entry, exit, options);
-
-    expect(withRebalance.rebalanceCount).toBe(0);
-    // Trades happen, so equal curves mean the option really changed nothing.
-    expect(without.portfolio.tradeCount).toBeGreaterThan(0);
-    // Passing the option changes nothing about the simulation.
-    expect(withRebalance.equityCurve).toEqual(without.equityCurve);
-    expect(withRebalance.portfolio).toEqual(without.portfolio);
+      allocation: { type: "equal" },
+      rebalance: { frequency: "monthly" },
+    } as unknown as Parameters<typeof portfolioBacktest>[3];
+    expect(() =>
+      portfolioBacktest(createDatasets(), goldenCross(5, 25), deadCross(5, 25), options),
+    ).toThrow(/`rebalance`: removed/);
   });
 });
 

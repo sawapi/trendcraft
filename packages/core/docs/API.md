@@ -5796,7 +5796,6 @@ const batchResult = batchBacktest(datasets, deadCrossCondition(5, 25), goldenCro
 const portfolioResult = portfolioBacktest(datasets, deadCrossCondition(5, 25), goldenCrossCondition(5, 25), {
   capital: 3_000_000,
   allocation: { type: 'equal' },
-  maxPositions: 5,
   tradeOptions: {
     direction: 'short',
     stopLoss: 5,
@@ -5804,6 +5803,10 @@ const portfolioResult = portfolioBacktest(datasets, deadCrossCondition(5, 25), g
   },
 });
 ```
+
+`portfolioBacktest` backtests each symbol independently against a fixed allocation; nothing rebalances. Two options are declared but not supported yet, and passing either throws:
+- `maxPositions`: read `peakConcurrentPositions` for the number of positions actually held.
+- `maxPortfolioDrawdown`: read `portfolio.maxDrawdown`, or halt live trading with `createPortfolioGuard`.
 
 ### Short Strategy Recipes
 

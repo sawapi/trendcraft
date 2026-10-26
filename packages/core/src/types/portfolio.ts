@@ -128,24 +128,6 @@ export type AllocationStrategy =
   | { type: "riskParity"; riskBudget?: number };
 
 /**
- * Rebalance configuration.
- *
- * Accepted by `portfolioBacktest` but not yet enforced — allocation is fixed
- * for the whole run, so passing this changes nothing about the simulation.
- */
-export type RebalanceConfig = {
-  /**
-   * Intended rebalance frequency (not yet enforced)
-   * - "monthly": first trading day of each month
-   * - "quarterly": every 3 months
-   * - "threshold": when drift exceeds `driftThreshold`
-   */
-  frequency: "monthly" | "quarterly" | "threshold";
-  /** Drift threshold in percent to trigger rebalance (only for "threshold" mode) */
-  driftThreshold?: number;
-};
-
-/**
  * Options for portfolio-level backtest with shared capital
  */
 export type PortfolioBacktestOptions = {
@@ -153,7 +135,11 @@ export type PortfolioBacktestOptions = {
   capital: number;
   /** Allocation strategy */
   allocation: AllocationStrategy;
-  /** Maximum concurrent positions (default: number of symbols) */
+  /**
+   * Maximum concurrent positions. Not supported yet: symbols are backtested
+   * independently, so `portfolioBacktest` throws when this is set. Read
+   * `peakConcurrentPositions` for the number actually held.
+   */
   maxPositions?: number;
   /**
    * Maximum per-symbol exposure in percent of total capital (default: 100,
@@ -163,18 +149,12 @@ export type PortfolioBacktestOptions = {
    */
   maxSymbolExposure?: number;
   /**
-   * Maximum portfolio drawdown in percent. Accepted but not yet enforced: the
-   * backtest always runs to completion, and nothing in the result flags the
-   * breach. Read `portfolio.maxDrawdown` and decide for yourself. (The
-   * same-named option on the live `PortfolioGuardOptions` is enforced — this
-   * one is the backtest's, and is not.)
+   * Maximum portfolio drawdown in percent. Not supported yet: the backtest
+   * always runs to completion, so `portfolioBacktest` throws when this is set.
+   * Read `portfolio.maxDrawdown` instead. (The same-named option on the live
+   * `PortfolioGuardOptions` is enforced — this one is the backtest's.)
    */
   maxPortfolioDrawdown?: number;
-  /**
-   * Rebalance configuration. Accepted but not yet enforced — see
-   * {@link RebalanceConfig}.
-   */
-  rebalance?: RebalanceConfig;
   /** Per-trade backtest options (SL, TP, trailing, commissions, sizing, etc.) */
   tradeOptions?: Omit<BacktestOptions, "capital" | "warmupBars">;
   /**
@@ -196,11 +176,6 @@ export type PortfolioBacktestResult = {
   equityCurve: EquityPoint[];
   /** All trades across all symbols, sorted by entry time */
   allTrades: (Trade & { symbol: string })[];
-  /**
-   * Number of times rebalance occurred. Always 0: rebalancing is not yet
-   * implemented, so the allocation set at the start holds for the whole run.
-   */
-  rebalanceCount: number;
   /** Peak concurrent positions held */
   peakConcurrentPositions: number;
 };

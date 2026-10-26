@@ -184,6 +184,25 @@ rule treats a return to the peak as recovered. `duration` therefore changes
 only when equity touches its peak value more than once before falling;
 `drawdown`, `recoveryDays` and `recovered` are unchanged.
 
+### Breaking — `portfolioBacktest` rejects the options it does not support, and drops `rebalance`
+
+`maxPositions`, `maxPortfolioDrawdown` and `rebalance` were accepted and
+silently ignored. Each symbol is backtested independently against a fixed
+allocation, so a run that asked for at most 3 concurrent positions reported
+the figures of a strategy with no such limit.
+
+- `maxPositions` and `maxPortfolioDrawdown` stay on the type for when the
+  behaviour is implemented. Passing either now throws, and the error names
+  every one passed and says what to do instead: read
+  `peakConcurrentPositions`, read `portfolio.maxDrawdown`, or use
+  `createPortfolioGuard` for a live halt.
+- `rebalance`, the `RebalanceConfig` type and the always-0
+  `PortfolioBacktestResult.rebalanceCount` are removed. The allocation is
+  fixed for the whole run, and periodic rebalancing is not planned for this
+  engine. Passing `rebalance` from untyped code throws instead of being
+  ignored. To rebalance, run a new backtest per period with the weights you
+  want.
+
 ### Fixed — importing one function from `trendcraft` bundled the whole library
 
 `import { sma } from "trendcraft"` pulled about 400 kB (100 kB gzipped)
