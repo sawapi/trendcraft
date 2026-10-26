@@ -9,6 +9,7 @@ import type { EChartsOption } from "echarts";
 import ReactECharts from "echarts-for-react";
 import { useMemo } from "react";
 import type { TradeAnalysis } from "trendcraft";
+import { formatProfitFactor } from "../../utils/metricFormat";
 
 // Day of week labels (0=Sunday)
 const DAY_LABELS: Record<number, string> = {
@@ -371,7 +372,9 @@ export function TradeAnalysisPanel({ analysis, trades }: Props) {
           </div>
           <div className="analysis-stat">
             <span className="analysis-stat-label">Profit Factor</span>
-            <span className="analysis-stat-value">{analysis.overall.profitFactor.toFixed(2)}</span>
+            <span className="analysis-stat-value">
+              {formatProfitFactor(analysis.overall.profitFactor)}
+            </span>
           </div>
         </div>
       </div>

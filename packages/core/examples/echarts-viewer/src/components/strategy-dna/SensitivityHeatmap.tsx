@@ -3,6 +3,7 @@
  */
 
 import { useEffect, useRef } from "react";
+import { finitePlotter, formatMetric } from "../../utils/metricFormat";
 import type { SensitivityData } from "../../utils/strategyDna";
 
 interface Props {
@@ -64,20 +65,23 @@ export function SensitivityHeatmap({
         const xLabels = pair.xValues.map(String);
         const yLabels = pair.yValues.map(String);
 
+        // A no-loss cell's mean profit factor is Infinity: color it as the
+        // finite maximum and show the real value in the tooltip.
+        const metricValues = pair.data.map((d) => d.metric);
+        const plot = finitePlotter(metricValues);
         const heatmapData = pair.data.map((d) => [
           pair.xValues.indexOf(d.x),
           pair.yValues.indexOf(d.y),
-          Number(d.metric.toFixed(3)),
+          Number(plot(d.metric).toFixed(3)),
+          d.metric,
         ]);
-
-        const metricValues = pair.data.map((d) => d.metric);
 
         chart.setOption({
           tooltip: {
             position: "top",
             formatter: (params: { data: number[] }) => {
-              const [xi, yi, val] = params.data;
-              return `${pair.paramX}=${xLabels[xi]}, ${pair.paramY}=${yLabels[yi]}<br/>Score: ${val}`;
+              const [xi, yi, , raw] = params.data;
+              return `${pair.paramX}=${xLabels[xi]}, ${pair.paramY}=${yLabels[yi]}<br/>Score: ${formatMetric(raw, 3)}`;
             },
           },
           xAxis: {
@@ -97,8 +101,10 @@ export function SensitivityHeatmap({
             splitArea: { show: true },
           },
           visualMap: {
-            min: Math.min(...metricValues),
-            max: Math.max(...metricValues),
+            // Color by the plotted value, not the raw one in the last dimension.
+            dimension: 2,
+            min: Math.min(...metricValues.map(plot)),
+            max: Math.max(...metricValues.map(plot)),
             calculable: true,
             orient: "horizontal",
             left: "center",
@@ -136,12 +142,14 @@ export function SensitivityHeatmap({
         if (!single) return;
 
         const safeZone = data.safeZones.find((s) => s.paramName === selectedParam);
+        const plot = finitePlotter(single.data.map((d) => d.metric));
 
         chart.setOption({
           tooltip: {
             trigger: "axis",
-            formatter: (params: { name: string; value: number }[]) => {
-              return `${selectedParam}=${params[0].name}<br/>Score: ${params[0].value.toFixed(3)}`;
+            formatter: (params: { name: string; dataIndex: number }[]) => {
+              const raw = single.data[params[0].dataIndex].metric;
+              return `${selectedParam}=${params[0].name}<br/>Score: ${formatMetric(raw, 3)}`;
             },
           },
           xAxis: {
@@ -159,7 +167,8 @@ export function SensitivityHeatmap({
             {
               type: "bar",
               data: single.data.map((d) => ({
-                value: Number(d.metric.toFixed(3)),
+                // Infinity (a no-loss mean profit factor) is drawn at the finite maximum.
+                value: Number(plot(d.metric).toFixed(3)),
                 itemStyle: {
                   color:
                     safeZone && d.value >= safeZone.min && d.value <= safeZone.max

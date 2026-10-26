@@ -4,6 +4,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import type { OptimizationResultEntry } from "trendcraft";
+import { formatMetric, formatProfitFactor } from "../../utils/metricFormat";
 
 type SortKey =
   | "score"
@@ -21,13 +22,13 @@ interface ResultsTableProps {
 }
 
 const COLUMNS: { key: SortKey; label: string; format: (v: number) => string }[] = [
-  { key: "score", label: "Score", format: (v) => v.toFixed(3) },
+  { key: "score", label: "Score", format: (v) => formatMetric(v, 3) },
   { key: "returns", label: "Return%", format: (v) => `${v >= 0 ? "+" : ""}${v.toFixed(1)}%` },
   { key: "sharpe", label: "Sharpe", format: (v) => v.toFixed(2) },
   { key: "maxDrawdown", label: "MaxDD%", format: (v) => `-${v.toFixed(1)}%` },
   { key: "winRate", label: "WinR%", format: (v) => `${v.toFixed(0)}%` },
   { key: "tradeCount", label: "Trades", format: (v) => String(Math.round(v)) },
-  { key: "profitFactor", label: "PF", format: (v) => v.toFixed(2) },
+  { key: "profitFactor", label: "PF", format: formatProfitFactor },
 ];
 
 function getMetricValue(entry: OptimizationResultEntry, key: SortKey): number {
@@ -58,7 +59,9 @@ export function ResultsTable({ results, topN = 5, onSelectResult }: ResultsTable
     copy.sort((a, b) => {
       const va = getMetricValue(a, sortKey);
       const vb = getMetricValue(b, sortKey);
-      return sortAsc ? va - vb : vb - va;
+      // Tie-safe compare: `va - vb` is NaN for two Infinity profit factors.
+      if (va === vb) return 0;
+      return (sortAsc ? va < vb : va > vb) ? -1 : 1;
     });
     return copy;
   }, [results, sortKey, sortAsc]);

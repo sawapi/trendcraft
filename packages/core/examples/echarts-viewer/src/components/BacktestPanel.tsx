@@ -8,6 +8,7 @@ import { useMemo, useState } from "react";
 import { ENTRY_CONDITIONS, EXIT_CONDITIONS, useBacktest } from "../hooks/useBacktest";
 import { useChartStore } from "../store/chartStore";
 import { buildEquityCurve } from "../utils/backtestMarkers";
+import { formatProfitFactor } from "../utils/metricFormat";
 import { TradeAnalysisPanel } from "./backtest/TradeAnalysisPanel";
 
 type BacktestTab = "summary" | "analysis";
@@ -357,7 +358,9 @@ export function BacktestPanel() {
                   </div>
                   <div className="result-item">
                     <span className="result-label">PF</span>
-                    <span className="result-value">{backtestResult.profitFactor.toFixed(2)}</span>
+                    <span className="result-value">
+                      {formatProfitFactor(backtestResult.profitFactor)}
+                    </span>
                   </div>
                 </div>
               </div>

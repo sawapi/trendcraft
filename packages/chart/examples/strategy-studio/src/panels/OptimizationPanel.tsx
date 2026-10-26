@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ParameterRange, StrategyJSON } from "trendcraft";
 import { NumInput } from "../components/NumInput";
+import { formatMetric } from "../lib/metric-format";
 import {
   autoDeriveRange,
   combinationCount,
@@ -406,7 +407,7 @@ function ResultBody({
       <div className="meta-strategy-caption">
         {result.result.validCombinations} of {result.result.totalCombinations} combos passed
         constraints · best {result.metric}:{" "}
-        {result.result.bestScore !== null ? result.result.bestScore.toFixed(2) : "—"}
+        {result.result.bestScore !== null ? formatMetric(result.result.bestScore, 2) : "—"}
       </div>
       <div className="optimization-result-scroll">
         <table className="optimization-result-table">
@@ -434,7 +435,7 @@ function ResultBody({
                     {entry.params[t.key] ?? "—"}
                   </td>
                 ))}
-                <td className="num">{entry.score.toFixed(2)}</td>
+                <td className="num">{formatMetric(entry.score, 2)}</td>
                 <td className="num">{entry.backtest.trades.length}</td>
               </tr>
             ))}
