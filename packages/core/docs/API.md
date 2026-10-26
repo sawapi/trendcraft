@@ -7048,6 +7048,8 @@ console.log(analysis.improvement.maxDrawdown); // positive = improvement
 | `minWinRate` | `40` | Minimum win rate (percent, 40 = 40%) to continue |
 | `filteredSizeFactor` | `0` | Size factor when filtered (0 = skip) |
 
+`analysis.filtered` is rebuilt from the kept trades and has no bar timeline. Its `maxDrawdown`, `sharpeRatio`, `sortinoRatio` and `calmarRatio` are therefore measured trade by trade, while `result` measures them from per-bar equity. Its `drawdownPeriods` is empty and `equityCurve` is absent. Do not compare those fields with `result` / `analysis.original` directly. Use `analysis.improvement`, which measures both sides trade by trade (positive = better on every field), so a filter that skips nothing shows 0 throughout.
+
 The health checks read the strategy's own equity curve — every trade at full size, including the ones the filter declines, reconstructed from `result.trades` (one point per trade; the mark-to-market `result.equityCurve` is not used) — never the filtered curve. A drawdown or MA pause therefore ends as soon as the strategy itself recovers, and `filteredSizeFactor` only changes the size of a filtered trade, not which trades are filtered.
 
 ### `equityCurveHealth(result, options?)`

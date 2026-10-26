@@ -13,13 +13,8 @@
  * @packageDocumentation
  */
 
-import { reportedProfitFactor } from "../analysis/return-metrics";
 import { depthPercent, maxDrawdownPercent } from "../backtest/drawdown-tracker";
-import {
-  annualizedRatios,
-  computeExtendedMetrics,
-  ZERO_EXTENDED_METRICS,
-} from "../backtest/engine-utils";
+import { calculateStats } from "../backtest/engine-utils";
 import type { BacktestResult, EquityPoint, Trade } from "../types";
 
 // ---------------------------------------------------------------------------
@@ -49,13 +44,25 @@ export type EquityCurveFilterOptions = {
 
 /** Result of equity curve filter analysis */
 export type EquityCurveAnalysis = {
-  /** Original backtest result */
+  /** Original backtest result, as passed in */
   original: BacktestResult;
-  /** Filtered backtest result */
+  /**
+   * Filtered backtest result, rebuilt from its trades. It has no bar
+   * timeline, so `maxDrawdown` is measured on equity after each trade,
+   * `sharpeRatio` / `sortinoRatio` on per-trade returns and `calmarRatio`
+   * from that drawdown; `drawdownPeriods` is empty and `equityCurve` absent.
+   * The original measures those from its per-bar equity, so compare them
+   * through `improvement`, not against `original` directly.
+   */
   filtered: BacktestResult;
   /** Number of trades skipped or reduced */
   tradesSkipped: number;
-  /** Improvement metrics (filtered - original) */
+  /**
+   * Improvement metrics, positive = better on every field: filtered −
+   * original, except `maxDrawdown`, which is original − filtered. The
+   * original is rebuilt from its trades the way `filtered` is, so both sides
+   * are measured alike and a filter that skips nothing improves nothing.
+   */
   improvement: {
     returnPercent: number;
     maxDrawdown: number;
@@ -152,8 +159,17 @@ function getRollingWinRate(trades: Trade[], endIndex: number, window: number): n
   return (wins / slice.length) * 100;
 }
 
+/**
+ * A run of `trades` as a `BacktestResult`, through the engine's own
+ * `calculateStats` so it is computed and rounded the way `runBacktest` does.
+ * Trades are all it has — no bar timeline — so the figures that the engine
+ * reads from per-bar equity are measured trade by trade instead:
+ * `maxDrawdown` on equity after each trade, `sharpeRatio` / `sortinoRatio` on
+ * per-trade returns, and `calmarRatio` from that drawdown. `drawdownPeriods`
+ * is empty (its `durationBars` / `recoveryBars` count bars) and
+ * `equityCurve` is absent.
+ */
 function rebuildResult(trades: Trade[], original: BacktestResult): BacktestResult {
-  const initialCapital = original.initialCapital;
   // Preserve the backtest's time window — the filter removes trades
   // but doesn't change the underlying candle span, so CAGR / exposure
   // must be recomputed against the *same* (firstBarTime, lastBarTime).
@@ -162,73 +178,20 @@ function rebuildResult(trades: Trade[], original: BacktestResult): BacktestResul
       ? { firstTime: original.firstBarTime, lastTime: original.lastBarTime }
       : undefined;
 
-  if (trades.length === 0) {
-    return {
-      ...original,
-      finalCapital: initialCapital,
-      totalReturn: 0,
-      totalReturnPercent: 0,
-      tradeCount: 0,
-      winRate: 0,
-      maxDrawdown: 0,
-      sharpeRatio: 0,
-      ...ZERO_EXTENDED_METRICS,
-      profitFactor: 0,
-      avgHoldingDays: 0,
-      trades: [],
-      drawdownPeriods: [],
-    };
-  }
-
-  const totalReturn = trades.reduce((sum, t) => sum + t.return, 0);
-  const finalCapital = initialCapital + totalReturn;
-  const wins = trades.filter((t) => t.return > 0);
-
-  // Max drawdown from equity curve
-  const maxDrawdown = maxDrawdownPercent(buildEquityCurve(trades, initialCapital));
-
-  // Sharpe from the trade returns, annualised by the frequency those trades
-  // actually occurred at — the shared owner the unfiltered backtest uses, so
-  // `original` and `filtered` stay comparable cell-by-cell.
-  const tradeReturns = trades.map((t) => t.returnPercent / 100);
-  const { sharpeRatio: sharpe } = annualizedRatios(trades, tradeReturns, span);
-
-  // Reuse the canonical metric helper so filter results match the
-  // shape an unfiltered backtest produces — important for the panel
-  // that diffs `original` vs `filtered` cell-by-cell.
-  const extended = computeExtendedMetrics(
+  const curve = buildEquityCurve(trades, original.initialCapital);
+  const result = calculateStats(
     trades,
-    tradeReturns,
-    initialCapital,
-    finalCapital,
-    maxDrawdown,
+    trades.map((t) => t.returnPercent / 100),
+    original.initialCapital,
+    curve[curve.length - 1],
+    maxDrawdownPercent(curve),
+    original.settings,
+    [],
     span,
   );
-
-  return {
-    initialCapital,
-    finalCapital,
-    totalReturn,
-    totalReturnPercent: (totalReturn / initialCapital) * 100,
-    tradeCount: trades.length,
-    // winRate and maxDrawdown follow the BacktestResult contract: percentage
-    // (0-100), not fraction (0-1). Aligning with runBacktest so callers can
-    // compare both shapes directly (e.g. applyEquityCurveFilter.improvement).
-    winRate: (wins.length / trades.length) * 100,
-    maxDrawdown,
-    sharpeRatio: sharpe,
-    ...extended,
-    firstBarTime: original.firstBarTime,
-    lastBarTime: original.lastBarTime,
-    profitFactor: reportedProfitFactor(
-      trades.reduce((s, t) => s + Math.max(t.return, 0), 0),
-      -trades.reduce((s, t) => s + Math.min(t.return, 0), 0),
-    ),
-    avgHoldingDays: trades.reduce((sum, t) => sum + t.holdingDays, 0) / trades.length,
-    trades,
-    settings: original.settings,
-    drawdownPeriods: [],
-  };
+  // calculateStats reads the window from `span`, which is left out when it
+  // is degenerate; the filtered run still covers the original's bars.
+  return { ...result, firstBarTime: original.firstBarTime, lastBarTime: original.lastBarTime };
 }
 
 function scaleTrade(trade: Trade, factor: number): Trade {
@@ -356,20 +319,25 @@ export function applyEquityCurveFilter(
   }
 
   const filtered = rebuildResult(filteredTrades, result);
+  // Compare like with like: the original's own Sharpe and drawdown come from
+  // its per-bar equity, which the filtered run does not have. Measured
+  // against that, a filter that skips nothing "improved" the drawdown and
+  // Sharpe; rebuilt the same way, it improves nothing.
+  const baseline = rebuildResult(result.trades, result);
 
   return {
     original: result,
     filtered,
     tradesSkipped: skipped,
     improvement: {
-      returnPercent: filtered.totalReturnPercent - result.totalReturnPercent,
-      maxDrawdown: result.maxDrawdown - filtered.maxDrawdown,
-      sharpeRatio: filtered.sharpeRatio - result.sharpeRatio,
+      returnPercent: filtered.totalReturnPercent - baseline.totalReturnPercent,
+      maxDrawdown: baseline.maxDrawdown - filtered.maxDrawdown,
+      sharpeRatio: filtered.sharpeRatio - baseline.sharpeRatio,
       // Both sides with no losing trade are equal (Infinity − Infinity is NaN).
       profitFactor:
-        filtered.profitFactor === result.profitFactor
+        filtered.profitFactor === baseline.profitFactor
           ? 0
-          : filtered.profitFactor - result.profitFactor,
+          : filtered.profitFactor - baseline.profitFactor,
     },
   };
 }
