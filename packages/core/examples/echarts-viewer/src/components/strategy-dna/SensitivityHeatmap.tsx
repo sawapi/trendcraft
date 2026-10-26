@@ -124,7 +124,9 @@ export function SensitivityHeatmap({
             textStyle: { color: "#aaa", fontSize: 9 },
             itemHeight: 8,
           },
-          grid: { top: 10, right: 10, bottom: 50, left: 60 },
+          // echarts 6 shrinks the grid to keep axis names inside the canvas,
+          // which squeezes the heatmap; keep the fixed pixel grid (as in v5).
+          grid: { top: 10, right: 10, bottom: 50, left: 60, outerBoundsMode: "none" },
           series: [
             {
               type: "heatmap",
