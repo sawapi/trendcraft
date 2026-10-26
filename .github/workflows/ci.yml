@@ -72,7 +72,7 @@ jobs:
         # Each example installs with `pnpm install --ignore-workspace`, which
         # skips pnpm-workspace.yaml entirely. Previous fix attempts (pnpm
         # field in each package.json, .npmrc in each example, uppercase
-        # NPM_CONFIG env var) all proved ineffective against pnpm 10.33's
+        # NPM_CONFIG env var) all proved ineffective against pnpm 10's
         # strict-dep-builds enforcement on GH Actions runners.
         #
         # Use the lowercase env var form that pnpm docs actually prescribe
