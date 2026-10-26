@@ -177,7 +177,7 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vue/test-utils": "^2.5.1",
-    "happy-dom": "^20.9.0",
+    "happy-dom": "^21.0.4",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "size-limit": "^13.1.1",

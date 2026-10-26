@@ -4,6 +4,11 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    # Match pnpm-workspace.yaml's minimumReleaseAge, so version-update PRs
+    # don't open before their versions can be installed. Security updates
+    # ignore cooldown; exempt such a fix with minimumReleaseAgeExclude.
+    cooldown:
+      default-days: 3
     groups:
       # react and react-dom must move in lockstep — @testing-library/react
       # refuses to run when their versions disagree.
