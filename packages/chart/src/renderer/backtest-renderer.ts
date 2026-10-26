@@ -7,36 +7,10 @@ import type { DataLayer } from "../core/data-layer";
 import { canvasFont, DEFAULT_FONT_FAMILY } from "../core/font";
 import { measureTextWidth } from "../core/format";
 import type { PriceScale, TimeScale } from "../core/scale";
-import type { PaneRect, ThemeColors } from "../core/types";
+import type { BacktestResultData, PaneRect, ThemeColors } from "../core/types";
 
 /** Simplified backtest result shape (compatible with trendcraft BacktestResult) */
-export type BacktestResultData = {
-  initialCapital: number;
-  finalCapital: number;
-  totalReturnPercent: number;
-  tradeCount: number;
-  winRate: number;
-  maxDrawdown: number;
-  sharpeRatio: number;
-  profitFactor: number;
-  trades: {
-    entryTime: number;
-    entryPrice: number;
-    exitTime: number;
-    exitPrice: number;
-    returnPercent: number;
-    direction?: string;
-    exitReason?: string;
-  }[];
-  drawdownPeriods: {
-    startTime: number;
-    troughTime: number;
-    recoveryTime?: number;
-    maxDepthPercent: number;
-    peakEquity: number;
-    troughEquity: number;
-  }[];
-};
+export type { BacktestResultData } from "../core/types";
 
 const EXIT_REASON_COLORS: Record<string, string> = {
   signal: "#2196F3",
@@ -197,6 +171,16 @@ export function renderEquityCurve(
 }
 
 /**
+ * Profit factor as summary text. TrendCraft reports a run with no losing
+ * trade as `Infinity`, which `JSON.stringify` writes as `null`; both read
+ * as "∞" rather than toFixed's "Infinity" (or a throw on `null`).
+ */
+function formatProfitFactor(pf: number | null): string {
+  if (pf === null || pf === Number.POSITIVE_INFINITY) return "∞";
+  return Number.isFinite(pf) ? pf.toFixed(2) : "—";
+}
+
+/**
  * Render backtest summary bar at the top of the equity pane.
  */
 export function renderBacktestSummary(
@@ -229,7 +213,11 @@ export function renderBacktestSummary(
       value: `${result.maxDrawdown.toFixed(1)}%`,
       color: theme.downColor,
     },
-    { label: locale?.pf ?? "PF", value: result.profitFactor.toFixed(2), color: theme.text },
+    {
+      label: locale?.pf ?? "PF",
+      value: formatProfitFactor(result.profitFactor),
+      color: theme.text,
+    },
     { label: locale?.trades ?? "Trades", value: `${result.tradeCount}`, color: theme.text },
   ];
 

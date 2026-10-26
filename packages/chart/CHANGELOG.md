@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — a backtest with no losing trade shows PF ∞
+
+`trendcraft` now reports the profit factor of a backtest with no losing
+trade as `Infinity`; it used to report 999.99. The backtest summary bar drew
+that value as "PF: Infinity", and threw on the `null` that `JSON.stringify`
+turns it into. Both now draw as "PF: ∞".
+
 ### Fixed — a Supertrend with no direction yet is not drawn as a downtrend
 
 `trendcraft`'s `supertrend()` now reports `direction: 0` after its warm-up
