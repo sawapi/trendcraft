@@ -2,7 +2,7 @@
  * 05 — Streaming Pipeline
  *
  * Process candles one-by-one with incremental indicators and streaming conditions.
- * Run: npx tsx examples/quick-start/05-streaming.ts
+ * Run (from packages/core): pnpm exec tsx examples/quick-start/05-streaming.ts
  */
 import { incremental, type NormalizedCandle, streaming } from "../../src";
 

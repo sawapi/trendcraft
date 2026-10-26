@@ -62,7 +62,7 @@
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
-    "analyze": "npx tsx bin/trendcraft-analyze.ts",
+    "analyze": "tsx bin/trendcraft-analyze.ts",
     "test:crossval": "vitest run cross-validation",
     "bench": "vitest bench --reporter=verbose",
     "size": "size-limit",

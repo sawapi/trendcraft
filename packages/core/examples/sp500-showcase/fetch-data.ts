@@ -1,13 +1,12 @@
-#!/usr/bin/env npx tsx
 /**
  * Fetch historical OHLCV data from Alpaca API and save as CSV
  *
  * Usage:
- *   # Set environment variables (or use alpaca-demo/.env)
+ *   # Set environment variables (or put them in .env, see .env.example)
  *   export ALPACA_API_KEY=your_key
  *   export ALPACA_API_SECRET=your_secret
  *
- *   npx tsx fetch-data.ts
+ *   pnpm exec tsx fetch-data.ts
  *
  * Downloads 10 years of daily data for SPY, QQQ, IWM, DIA and
  * sector ETFs into ./data/ as CSV files.
@@ -16,7 +15,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-// Load .env: local first, then fall back to alpaca-demo/.env
+// Load .env next to this script; environment variables take precedence
 function loadEnvFile(path: string): void {
   if (!existsSync(path)) return;
   const content = readFileSync(path, "utf-8");
@@ -29,7 +28,6 @@ function loadEnvFile(path: string): void {
 }
 
 loadEnvFile(resolve(import.meta.dirname, ".env"));
-loadEnvFile(resolve(import.meta.dirname, "../alpaca-demo/.env"));
 
 const DATA_URL = process.env.ALPACA_DATA_URL ?? "https://data.alpaca.markets";
 

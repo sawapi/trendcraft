@@ -1,10 +1,10 @@
 /**
  * Indicator Manifest — LLM-facing metadata for indicators.
  *
- * Used by runtime LLM agents (e.g. alpaca-demo strategy generator) and
- * future MCP servers as prompt context. Describes when/why an indicator
- * is useful, common signals, pitfalls, and synergies — judgment context
- * that cannot be derived from function signatures or JSDoc alone.
+ * Used by LLM clients (e.g. through the @trendcraft/mcp server) as prompt
+ * context. Describes when/why an indicator is useful, common signals,
+ * pitfalls, and synergies — judgment context that cannot be derived from
+ * function signatures or JSDoc alone.
  *
  * `kind` joins to `SeriesMeta.kind` from indicator-meta.ts (single
  * source of identity). This module ships as a separate entry point

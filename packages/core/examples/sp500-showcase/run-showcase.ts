@@ -1,4 +1,3 @@
-#!/usr/bin/env npx tsx
 /**
  * S&P 500 Backtest Showcase
  *
@@ -7,8 +6,8 @@
  * pairs trading analysis, and cross-asset correlation.
  *
  * Prerequisites:
- *   1. Fetch data first: npx tsx fetch-data.ts
- *   2. Run showcase:     npx tsx run-showcase.ts
+ *   1. Fetch data first: pnpm exec tsx fetch-data.ts
+ *   2. Run showcase:     pnpm exec tsx run-showcase.ts
  *
  * Output: ./reports/showcase-report.md
  */
@@ -105,13 +104,13 @@ const STRATEGIES: StrategyDef[] = [
 function loadAllData(): Map<string, NormalizedCandle[]> {
   if (!existsSync(DATA_DIR)) {
     console.error(`Data directory not found: ${DATA_DIR}`);
-    console.error("Run 'npx tsx fetch-data.ts' first.");
+    console.error("Run 'pnpm exec tsx fetch-data.ts' first.");
     process.exit(1);
   }
 
   const files = readdirSync(DATA_DIR).filter((f) => f.endsWith(".csv"));
   if (files.length === 0) {
-    console.error("No CSV files found. Run 'npx tsx fetch-data.ts' first.");
+    console.error("No CSV files found. Run 'pnpm exec tsx fetch-data.ts' first.");
     process.exit(1);
   }
 
