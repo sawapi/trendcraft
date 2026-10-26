@@ -9,6 +9,12 @@ updates:
     # ignore cooldown; exempt such a fix with minimumReleaseAgeExclude.
     cooldown:
       default-days: 3
+    ignore:
+      # @types/node tracks the oldest supported Node major (engines.node);
+      # raise its major by hand together with engines.node and the
+      # @types/node override in pnpm-workspace.yaml.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
     groups:
       # react and react-dom must move in lockstep — @testing-library/react
       # refuses to run when their versions disagree.
