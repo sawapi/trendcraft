@@ -64,7 +64,7 @@
     "format": "biome format --write .",
     "analyze": "npx tsx bin/trendcraft-analyze.ts",
     "test:crossval": "vitest run cross-validation",
-    "bench": "vitest bench",
+    "bench": "vitest bench --reporter=verbose",
     "size": "size-limit",
     "qa:indicators": "node scripts/qa-sweep.mjs",
     "verify:publish": "node scripts/verify-publish.mjs",
@@ -129,11 +129,11 @@
   "devDependencies": {
     "@size-limit/esbuild": "^14.3.0",
     "@size-limit/file": "^14.3.0",
-    "@vitest/coverage-v8": "^4.1.12",
+    "@vitest/coverage-v8": "^5.0.5",
     "size-limit": "^14.3.0",
     "vite": "^8.3.5",
     "vite-plugin-dts": "^5.1.2",
-    "vitest": "^4.1.12"
+    "vitest": "^5.0.5"
   },
   "engines": {
     "node": ">=22.0.0"
