@@ -176,6 +176,11 @@ export type PortfolioBacktestResult = {
   equityCurve: EquityPoint[];
   /** All trades across all symbols, sorted by entry time */
   allTrades: (Trade & { symbol: string })[];
-  /** Peak concurrent positions held */
+  /**
+   * Most positions held at once across all symbols. Fills on the same bar
+   * are ordered by when in the bar they happen (open, during the bar, close).
+   * Where two fill during the bar, the entry counts first, so the figure errs
+   * high. A partially closed position still counts once.
+   */
   peakConcurrentPositions: number;
 };
