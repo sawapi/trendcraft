@@ -1,4 +1,5 @@
 import type { SensitivityData } from "trendcraft";
+import { formatMetric, metricScaler } from "../../lib/metric-format";
 
 /**
  * Linear interpolation between blue (low) and red (high) for a metric
@@ -148,17 +149,15 @@ function SingleParamBars({ data, paramName }: { data: SensitivityData; paramName
   const safeZone = data.safeZones.find((z) => z.paramName === paramName);
   if (!single || single.data.length === 0) return null;
 
-  const max = Math.max(...single.data.map((d) => d.metric));
-  const min = Math.min(...single.data.map((d) => d.metric));
-  // Normalize bars against absolute span so negative metrics still
+  // Normalize bars against the absolute span so negative metrics still
   // render with a visible bar (drawdowns etc.).
-  const span = max - min || 1;
+  const scale = metricScaler(single.data.map((d) => d.metric));
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 2, marginTop: 4 }}>
       {single.data.map((d) => {
         const inSafeZone = safeZone && d.value >= safeZone.min && d.value <= safeZone.max;
-        const widthPct = ((d.metric - min) / span) * 100;
+        const widthPct = scale(d.metric) * 100;
         return (
           <div
             key={d.value}
@@ -202,7 +201,7 @@ function SingleParamBars({ data, paramName }: { data: SensitivityData; paramName
                 flexShrink: 0,
               }}
             >
-              {d.metric.toFixed(3)}
+              {formatMetric(d.metric, 3)}
             </span>
           </div>
         );
@@ -246,10 +245,7 @@ function PairHeatmapTable({
 
   const metricByCell = new Map<string, number>();
   for (const d of pair.data) metricByCell.set(`${d.x}|${d.y}`, d.metric);
-  const metricValues = pair.data.map((d) => d.metric);
-  const minM = Math.min(...metricValues);
-  const maxM = Math.max(...metricValues);
-  const span = maxM - minM || 1;
+  const scale = metricScaler(pair.data.map((d) => d.metric));
 
   return (
     <div style={{ overflowX: "auto" }}>
@@ -311,11 +307,11 @@ function PairHeatmapTable({
                     </td>
                   );
                 }
-                const norm = (m - minM) / span;
+                const norm = scale(m);
                 return (
                   <td
                     key={xv}
-                    title={`${x}=${xv}, ${y}=${yv}: ${m.toFixed(3)}`}
+                    title={`${x}=${xv}, ${y}=${yv}: ${formatMetric(m, 3)}`}
                     style={{
                       padding: 0,
                       width: 44,
@@ -327,7 +323,7 @@ function PairHeatmapTable({
                       fontSize: 9,
                     }}
                   >
-                    {m.toFixed(2)}
+                    {formatMetric(m, 2)}
                   </td>
                 );
               })}

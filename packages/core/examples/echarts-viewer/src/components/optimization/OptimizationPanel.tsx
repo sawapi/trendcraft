@@ -13,6 +13,7 @@ import {
   type WalkForwardConfig,
 } from "../../hooks/useOptimization";
 import { useChartStore } from "../../store/chartStore";
+import { formatMetric } from "../../utils/metricFormat";
 import { renderGroupedOptions } from "../BacktestPanel";
 import { ResultsTable } from "./ResultsTable";
 
@@ -554,7 +555,7 @@ export function OptimizationPanel() {
                     label="Best Score"
                     value={
                       gridSearchResult.bestScore !== null
-                        ? gridSearchResult.bestScore.toFixed(3)
+                        ? formatMetric(gridSearchResult.bestScore, 3)
                         : "—"
                     }
                     color="var(--success)"
