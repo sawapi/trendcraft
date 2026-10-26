@@ -36,10 +36,10 @@ importers:
         version: 1.64.1
       '@size-limit/esbuild':
         specifier: ^13.1.1
-        version: 13.1.1(size-limit@13.1.1)
+        version: 13.1.1(size-limit@14.3.0)
       '@size-limit/file':
         specifier: ^13.1.1
-        version: 13.1.1(size-limit@13.1.1)
+        version: 13.1.1(size-limit@14.3.0)
       '@testing-library/react':
         specifier: ^16.3.3
         version: 16.3.3(@testing-library/dom@10.4.1)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -62,8 +62,8 @@ importers:
         specifier: ^19.3.1
         version: 19.3.1(react@19.3.1)
       size-limit:
-        specifier: ^13.1.1
-        version: 13.1.1
+        specifier: ^14.3.0
+        version: 14.3.0
       trendcraft:
         specifier: workspace:*
         version: link:../core
@@ -118,16 +118,16 @@ importers:
     devDependencies:
       '@size-limit/esbuild':
         specifier: ^13.1.1
-        version: 13.1.1(size-limit@13.1.1)
+        version: 13.1.1(size-limit@14.3.0)
       '@size-limit/file':
         specifier: ^13.1.1
-        version: 13.1.1(size-limit@13.1.1)
+        version: 13.1.1(size-limit@14.3.0)
       '@vitest/coverage-v8':
         specifier: ^4.1.12
         version: 4.1.12(vitest@4.1.12)
       size-limit:
-        specifier: ^13.1.1
-        version: 13.1.1
+        specifier: ^14.3.0
+        version: 14.3.0
       vite:
         specifier: ^8.3.4
         version: 8.3.4(@types/node@26.6.5)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.9.1)
@@ -1010,10 +1010,6 @@ packages:
     resolution: {integrity: sha512-nEh+kZOPY1w+gcCMobZ6ETUp9WfibndnosbpwB1iJk/8Gt5ZF2bhS6+B6bPYz424KtwsR6Rflc3tCz1/ghX2dQ==}
     engines: {node: '>=4.0'}
 
-  bytes-iec@3.1.1:
-    resolution: {integrity: sha512-fey6+4jDK7TFtFg/klGSvNKJctyU7n2aQdnM+CO0ruLPbqqMOM8Tio0Pc+deqUeVKX1tL5DQep1zQ7+37aTAsA==}
-    engines: {node: '>= 0.8'}
-
   bytes@3.1.2:
     resolution: {integrity: sha512-/Nf7TyzTx6S3yRJObOAV7956r8cr2+Oj8AC5dt8wSP3BQAoeX58NoHyCU8P8zGkNXStjTSi6fzO6F0pBdcYbEg==}
     engines: {node: '>= 0.8'}
@@ -1774,9 +1770,9 @@ packages:
     resolution: {integrity: sha512-bzyZ1e88w9O1iNJbKnOlvYTrWPDl46O1bG0D3XInv+9tkPrxrN8jUUTiFlDkkmKWgn1M6CfIA13SuGqOa9Korw==}
     engines: {node: '>=14'}
 
-  size-limit@13.1.1:
-    resolution: {integrity: sha512-Yl3CuQFSB3TSirrg9jyD/ahEUa6+aoMWj4UuucW36XunEsBfYhRACZRQr7vaUKoLkS88Njw0czdpDQFfbvCc+Q==}
-    engines: {node: ^22.18.0 || ^24.0.0 || >=26.0.0}
+  size-limit@14.3.0:
+    resolution: {integrity: sha512-SoT7DtEYQ9AkOIyrNmmHu8IyJyA3P/Q6EUVjUUinT0iBuaI6IOpWxwyI+teUxg8WdLwcTwbu9moKvw/LGlCE7g==}
+    engines: {node: ^22.19.0 || ^24.5.0 || >=26.0.0}
     hasBin: true
 
   slice-ansi@7.1.2:
@@ -2511,15 +2507,15 @@ snapshots:
       - '@types/node'
     optional: true
 
-  '@size-limit/esbuild@13.1.1(size-limit@13.1.1)':
+  '@size-limit/esbuild@13.1.1(size-limit@14.3.0)':
     dependencies:
       esbuild: 0.28.2
       nanoid: 6.0.2
-      size-limit: 13.1.1
+      size-limit: 14.3.0
 
-  '@size-limit/file@13.1.1(size-limit@13.1.1)':
+  '@size-limit/file@13.1.1(size-limit@14.3.0)':
     dependencies:
-      size-limit: 13.1.1
+      size-limit: 14.3.0
 
   '@standard-schema/spec@1.1.0': {}
 
@@ -2801,8 +2797,6 @@ snapshots:
   buffer-image-size@0.6.4:
     dependencies:
       '@types/node': 25.9.9
-
-  bytes-iec@3.1.1: {}
 
   bytes@3.1.2: {}
 
@@ -3603,9 +3597,8 @@ snapshots:
 
   signal-exit@4.1.0: {}
 
-  size-limit@13.1.1:
+  size-limit@14.3.0:
     dependencies:
-      bytes-iec: 3.1.1
       lilconfig: 3.1.4
       nanospinner: 1.2.2
 

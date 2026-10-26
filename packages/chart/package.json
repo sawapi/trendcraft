@@ -180,7 +180,7 @@
     "happy-dom": "^21.0.4",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
-    "size-limit": "^13.1.1",
+    "size-limit": "^14.3.0",
     "trendcraft": "workspace:*",
     "vite": "^8.3.4",
     "vite-plugin-dts": "^5.1.2",
