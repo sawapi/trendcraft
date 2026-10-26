@@ -227,7 +227,7 @@ export function findIntegerRangeViolation(
   const byKey = new Map(tunables.map((t) => [t.key, t]));
   for (const r of ranges) {
     const t = byKey.get(r.name);
-    if (!t || t.schema.integer !== true) continue;
+    if (t?.schema.integer !== true) continue;
     for (const field of ["min", "max", "step"] as const) {
       const value = r[field];
       if (!Number.isInteger(value)) {
