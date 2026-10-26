@@ -182,7 +182,7 @@
     "react-dom": "^19.3.1",
     "size-limit": "^14.3.0",
     "trendcraft": "workspace:*",
-    "vite": "^8.3.4",
+    "vite": "^8.3.5",
     "vite-plugin-dts": "^5.1.2",
     "vitest": "^4.1.12",
     "vue": "^3.5.44"
