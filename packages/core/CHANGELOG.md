@@ -131,6 +131,35 @@ A no-loss run is often one or two lucky trades. Optimizing on
 `profitFactor` now ranks it first, as 999.99 nearly always did, so add a
 trade-count constraint such as `constraint("tradeCount", ">=", 30)`.
 
+### Changed — `applyEquityCurveFilter` compares the filtered run with the original measured alike
+
+A filter that skipped nothing reported an improvement. On one run it showed a
+drawdown 6.03 points lower and a Sharpe 4.88 higher. The original's Sharpe,
+Sortino, drawdown and Calmar come from its per-bar equity. The filtered run
+only has trades, so it measures them trade by trade, and `improvement`
+subtracted one basis from the other.
+
+`improvement` is now measured against the original rebuilt from its trades
+the same way, so a no-op filter improves nothing on every field. The values
+of `improvement.maxDrawdown` and `improvement.sharpeRatio` change for every
+filter. `returnPercent` and `profitFactor` change only by rounding.
+
+The `filtered` result is also built by the engine's own statistics instead of
+a hand-written copy. Money, percentages and ratios are rounded to 2 decimals
+and `avgHoldingDays` to 1, as in `runBacktest`, and a run with no trades left
+no longer carries the original's fields.
+
+`filtered` still differs from `original` in what needs a bar timeline:
+- `maxDrawdown` is measured on equity after each trade.
+- `sharpeRatio` and `sortinoRatio` are measured on per-trade returns.
+- `calmarRatio` comes from that drawdown.
+- `drawdownPeriods` is empty, because its `durationBars` and
+  `recoveryBars` count bars.
+- `equityCurve` is absent.
+
+Compare those fields through `improvement`, not against `original`
+directly.
+
 ### Fixed — importing one function from `trendcraft` bundled the whole library
 
 `import { sma } from "trendcraft"` pulled about 400 kB (100 kB gzipped)

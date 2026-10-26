@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { EMPTY_EXTENDED_METRICS_FIXTURE } from "../../backtest/__tests__/backtest-result-fixture";
+import { deadCross, goldenCross } from "../../backtest/conditions/ma-cross";
+import { runBacktest } from "../../backtest/engine";
 import type { BacktestResult, Trade } from "../../types";
 import { applyEquityCurveFilter, equityCurveHealth } from "../equity-curve";
 
@@ -247,12 +249,17 @@ describe("applyEquityCurveFilter", () => {
     const analysis = applyEquityCurveFilter(result, { type: "ma", maPeriod: 5 });
 
     // Sign convention: positive = filter improved the metric. For maxDrawdown
-    // (lower is better) the formula is `original − filtered`. This invariant
-    // holds regardless of whether the filter actually helped on this data.
+    // (lower is better) the formula is `original − filtered`, with the
+    // original rebuilt from its trades like `filtered` (a filter that skips
+    // nothing gives exactly that rebuild). This invariant holds regardless of
+    // whether the filter actually helped on this data.
+    const rebuiltOriginal = applyEquityCurveFilter(result, { type: "drawdown", maxDrawdown: 100 });
+    expect(rebuiltOriginal.tradesSkipped).toBe(0);
     expect(analysis.improvement.maxDrawdown).toBeCloseTo(
-      result.maxDrawdown - analysis.filtered.maxDrawdown,
+      rebuiltOriginal.filtered.maxDrawdown - analysis.filtered.maxDrawdown,
       10,
     );
+    expect(analysis.improvement.maxDrawdown).not.toBe(0);
   });
 
   it("all losses → most trades skipped", () => {
@@ -368,5 +375,56 @@ describe("applyEquityCurveFilter profit factor", () => {
     expect(analysis.tradesSkipped).toBe(0);
     expect(analysis.filtered.profitFactor).toBe(1.83);
     expect(analysis.improvement.profitFactor).toBe(0);
+  });
+});
+
+describe("applyEquityCurveFilter rebuilds the result the way the engine does", () => {
+  it("reports a filter that skips nothing with the original's figures", () => {
+    // A seeded zig-zag market so the cross pair trades several times, at
+    // prices that leave unrounded ratios.
+    let price = 100;
+    let seed = 7;
+    const candles = Array.from({ length: 300 }, (_, i) => {
+      seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+      price = Math.max(1, price + Math.sin(i / 9) * 1.7 + (seed / 2 ** 32 - 0.5) * 2.3);
+      return {
+        time: Date.UTC(2024, 0, 1) + i * 86_400_000,
+        open: price,
+        high: price * 1.01,
+        low: price * 0.99,
+        close: price,
+        volume: 1000,
+      };
+    });
+    const original = runBacktest(candles, goldenCross(5, 20), deadCross(5, 20), {
+      capital: 1_000_000,
+    });
+    const analysis = applyEquityCurveFilter(original, { type: "drawdown", maxDrawdown: 99 });
+
+    // Stimulus: trades happened and none were skipped.
+    expect(original.tradeCount).toBeGreaterThan(3);
+    expect(analysis.tradesSkipped).toBe(0);
+    const { filtered } = analysis;
+    for (const key of [
+      "tradeCount",
+      "finalCapital",
+      "totalReturn",
+      "totalReturnPercent",
+      "winRate",
+      "profitFactor",
+      "avgHoldingDays",
+    ] as const) {
+      expect(filtered[key], key).toBe(original[key]);
+    }
+    // The original's Sharpe and drawdown come from per-bar equity; measured
+    // against those, this no-op filter "improved" the drawdown by 6.03 points
+    // and the Sharpe by 4.88. Rebuilt alike, it improves nothing.
+    expect(original.maxDrawdown).not.toBe(filtered.maxDrawdown);
+    expect(analysis.improvement).toEqual({
+      returnPercent: 0,
+      maxDrawdown: 0,
+      sharpeRatio: 0,
+      profitFactor: 0,
+    });
   });
 });

@@ -6989,6 +6989,8 @@ console.log(analysis.improvement.maxDrawdown); // 正の値 = 改善
 | `minWinRate` | `40` | 継続に必要な最小勝率（%、40 = 40%） |
 | `filteredSizeFactor` | `0` | フィルター時のサイズ係数（0 = スキップ） |
 
+`analysis.filtered` は残ったトレードから組み直した結果で、バー単位の時系列を持ちません。そのため `maxDrawdown`・`sharpeRatio`・`sortinoRatio`・`calmarRatio` はトレード単位で測っており、バーごとの資産から測る `result` とは基準が違います。`drawdownPeriods` は空で、`equityCurve` はありません。これらは `result` / `analysis.original` と直接比べず、両者を同じトレード単位で測った `analysis.improvement`（どの項目も正の値 = 改善）を使ってください。何も除外しないフィルターでは、すべて 0 になります。
+
 健全性の判定は戦略自身のエクイティカーブ（フィルターが見送ったものも含む全トレードを等倍で積み上げた曲線。`result.trades` から 1 トレード 1 点で再構成し、時価評価の `result.equityCurve` は使いません）に対して行い、フィルター後の曲線は使いません。したがってドローダウンや MA による一時停止は戦略自身が回復した時点で解除され、`filteredSizeFactor` はフィルターされたトレードのサイズだけを変え、どのトレードがフィルターされるかは変えません。
 
 ### `equityCurveHealth(result, options?)`
