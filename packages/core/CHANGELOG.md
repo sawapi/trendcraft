@@ -74,7 +74,12 @@ but returned each with the time of the bar `shift` back; it now returns the
 current bar's time, matching the batch default bar for bar.
 The `dpo` indicator preset (`indicatorPresets`, used by `@trendcraft/chart`'s
 `connectIndicators`) follows the default, so charts draw the causal line;
-pass `centered: true` in its params for the classic one.
+pass `centered: true` in its params for the classic one. Its instance name
+(`snapshotName`, used by `conn.get` / `conn.remove`) gains a `c` when
+centered (`dpo20c`), instead of a centered DPO beside the causal one coming
+out as `dpo20#2`. `centered` is not in the preset's `paramSchema`, to keep
+look-ahead values out of one-click settings panels (and `ParamSchema` is
+numeric-only).
 
 ### Breaking — a profit factor with no losing trade is `Infinity` everywhere
 

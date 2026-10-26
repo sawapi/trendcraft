@@ -808,13 +808,19 @@ function buildIndicatorPresets(): Record<string, IndicatorPreset> {
     dpo: {
       meta: DPO_META,
       defaultParams: { period: 20 },
-      snapshotName: (p: Record<string, unknown>) => `dpo${p.period}`,
+      // The name is the instance id (conn.get / conn.remove): a centered DPO,
+      // which reads future bars, should say so rather than be "dpo20#2" next
+      // to the causal "dpo20" (and stays apart if dpo gains a live factory).
+      snapshotName: (p: Record<string, unknown>) =>
+        `dpo${p.period}${p.centered === true ? "c" : ""}`,
       compute: typedCompute<{ period?: number; source?: PriceSource; centered?: boolean }>((c, p) =>
         dpo(c, { period: p.period ?? 20, source: p.source, centered: p.centered }),
       ),
       category: "Momentum",
       name: "Detrended Price Oscillator",
       description: "Removes trend to identify cycles by comparing price to a displaced MA.",
+      // `centered` is left out on purpose, to keep look-ahead values out of
+      // one-click settings (and ParamSchema is numeric-only). Pass it in params.
       paramSchema: [period(20)],
     },
     ultimateOscillator: withCompute(
