@@ -8,13 +8,15 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "capture": "bash ./capture.sh"
+    "capture": "bash ./capture.sh",
+    "fetch-data": "tsx fetch-data.ts"
   },
   "dependencies": {
     "@trendcraft/chart": "link:../..",
     "trendcraft": "link:../../../core"
   },
   "devDependencies": {
+    "tsx": "^4.23.15",
     "typescript": "^5.9.3",
     "vite": "^6.4.5"
   },
