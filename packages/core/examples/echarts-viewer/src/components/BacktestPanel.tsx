@@ -137,6 +137,7 @@ export function BacktestPanel() {
           showSymbol: true,
           symbolSize: 4,
           lineStyle: { width: 1.5, color: "#4ecdc4" },
+          itemStyle: { color: "#4ecdc4" },
           areaStyle: {
             color: {
               type: "linear",
