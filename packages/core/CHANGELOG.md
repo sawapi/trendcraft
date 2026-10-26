@@ -203,6 +203,26 @@ the figures of a strategy with no such limit.
   ignored. To rebalance, run a new backtest per period with the weights you
   want.
 
+### Fixed — `portfolioBacktest` miscounted `peakConcurrentPositions`
+
+The count ordered same-bar fills by timestamp alone, with exits first, and
+counted every Trade as a position:
+- **Undercount, by 1.** Take a limit or stop entry with
+  `fillMode: "same-bar-close"`, filled during a bar on which another symbol
+  exits at the close. Both are held from the fill to the close, yet the
+  exit counted first.
+- **Overcount.** A partial take profit or scale-out records one Trade per
+  slice, each with the position's entry time. Each slice counted as a
+  position of its own.
+
+Fills on one bar are now ordered by when in the bar they happen. Entries:
+a market order at the open (`next-bar-open`) or the close
+(`same-bar-close`), a limit or stop order during the bar (at the open or
+close with `timeInForce` `"opg"` / `"cls"`). Exits: as the
+engine fills them. When an entry and an exit both fill during the bar,
+OHLC cannot say which came first, so the entry counts first and the peak
+errs high. Each position counts once, from entry to its final exit.
+
 ### Fixed — importing one function from `trendcraft` bundled the whole library
 
 `import { sma } from "trendcraft"` pulled about 400 kB (100 kB gzipped)

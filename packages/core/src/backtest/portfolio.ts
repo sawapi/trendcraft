@@ -234,9 +234,8 @@ export function portfolioBacktest(
   }
 
   // Run independent backtests per symbol with allocated capital
-  // (Phase 2 simplified: independent runs with weight-based allocation + position limits)
+  // (Phase 2 simplified: independent runs with weight-based allocation + exposure cap)
   const symbolResults: SymbolBacktestResult[] = [];
-  let peakConcurrentPositions = 0;
 
   // Capital each symbol is actually started with, after the exposure cap. It
   // is what the merged equity curve must fill in before a symbol's first bar,
@@ -265,22 +264,8 @@ export function portfolioBacktest(
   const deployed = Object.values(effectiveCapitals).reduce((s, c) => s + c, 0);
   const idleCash = capital - deployed;
 
-  // Track concurrent positions from all trades
   const allTradesWithSymbol = mergeAndSortTrades(symbolResults);
-  const positionEvents: { time: number; delta: number }[] = [];
-  for (const trade of allTradesWithSymbol) {
-    positionEvents.push({ time: trade.entryTime, delta: 1 });
-    positionEvents.push({ time: trade.exitTime, delta: -1 });
-  }
-  positionEvents.sort((a, b) => a.time - b.time || a.delta - b.delta);
-
-  let concurrent = 0;
-  for (const ev of positionEvents) {
-    concurrent += ev.delta;
-    if (concurrent > peakConcurrentPositions) {
-      peakConcurrentPositions = concurrent;
-    }
-  }
+  const peakConcurrentPositions = countPeakConcurrentPositions(allTradesWithSymbol, tradeOptions);
 
   // Build equity curve and portfolio metrics
   const equityCurve = buildMergedEquityCurve(symbolResults, datasets, effectiveCapitals, idleCash);
@@ -415,6 +400,95 @@ function calculateWeights(
   }
 
   return weights;
+}
+
+/** When within a bar a fill happens: at the open, during the bar, or at the close. */
+enum BarPhase {
+  Open = 0,
+  Intrabar = 1,
+  Close = 2,
+}
+
+const INTRABAR_EXITS: ReadonlySet<string> = new Set([
+  "stopLoss",
+  "takeProfit",
+  "trailing",
+  "breakeven",
+]);
+
+/**
+ * The most positions held at once across all symbols.
+ *
+ * Trades carry only a bar timestamp, so fills on the same bar are ordered by
+ * when within the bar the engine makes them:
+ * - Entries: a market order fills at the next bar's open (`next-bar-open`)
+ *   or at the signal bar's close (`same-bar-close`); a limit or stop order
+ *   fills during the bar, except with `timeInForce: "opg"` (at the open) or
+ *   `"cls"` (at the close).
+ * - Exits: a partial take profit or scale-out that closes the position fills
+ *   during the bar with `slTpMode: "intraday"`, else at the close, whatever
+ *   the fill mode; `endOfData` fills at the last close. Every other exit is
+ *   deferred to the next bar's open under `next-bar-open`; under
+ *   `same-bar-close` a stop, take profit, trailing or breakeven exit fills
+ *   during the bar with `"intraday"`, and the rest at the close.
+ *
+ * Within one phase an exit is counted before an entry, except during the
+ * bar, where OHLC cannot tell which came first: there the entry counts first,
+ * so the peak errs high rather than low. A partial exit leaves the position
+ * open, so each position counts once, from its entry to its final
+ * (non-partial) exit.
+ */
+function countPeakConcurrentPositions(
+  trades: Trade[],
+  tradeOptions: PortfolioBacktestOptions["tradeOptions"] = {},
+): number {
+  const fillMode = tradeOptions.fillMode ?? "next-bar-open";
+  const intraday = (tradeOptions.slTpMode ?? "close-only") === "intraday";
+  const orderType = tradeOptions.orderType;
+  const tif = tradeOptions.timeInForce;
+
+  const entryPhase =
+    orderType !== undefined && orderType.type !== "market"
+      ? tif === "opg"
+        ? BarPhase.Open
+        : tif === "cls"
+          ? BarPhase.Close
+          : BarPhase.Intrabar
+      : fillMode === "same-bar-close"
+        ? BarPhase.Close
+        : BarPhase.Open;
+
+  const exitPhase = (reason: Trade["exitReason"]): BarPhase => {
+    if (reason === "partialTakeProfit" || reason === "scaleOut") {
+      return intraday ? BarPhase.Intrabar : BarPhase.Close;
+    }
+    if (reason === "endOfData") return BarPhase.Close;
+    if (fillMode === "next-bar-open") return BarPhase.Open;
+    return intraday && reason !== undefined && INTRABAR_EXITS.has(reason)
+      ? BarPhase.Intrabar
+      : BarPhase.Close;
+  };
+
+  const events: { time: number; phase: BarPhase; delta: number }[] = [];
+  for (const trade of trades) {
+    if (trade.isPartial) continue;
+    events.push({ time: trade.entryTime, phase: entryPhase, delta: 1 });
+    events.push({ time: trade.exitTime, phase: exitPhase(trade.exitReason), delta: -1 });
+  }
+  events.sort(
+    (a, b) =>
+      a.time - b.time ||
+      a.phase - b.phase ||
+      (a.phase === BarPhase.Intrabar ? b.delta - a.delta : a.delta - b.delta),
+  );
+
+  let concurrent = 0;
+  let peak = 0;
+  for (const ev of events) {
+    concurrent += ev.delta;
+    if (concurrent > peak) peak = concurrent;
+  }
+  return peak;
 }
 
 /**
