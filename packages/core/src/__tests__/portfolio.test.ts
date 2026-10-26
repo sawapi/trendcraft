@@ -1,12 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  alwaysFalse,
-  alwaysTrue,
-  deadCross,
-  goldenCross,
-  rsiAbove,
-  rsiBelow,
-} from "../backtest/conditions";
+import { alwaysFalse, alwaysTrue, deadCross, goldenCross } from "../backtest/conditions";
 import { batchBacktest, portfolioBacktest } from "../backtest/portfolio";
 import { mulberry32 } from "../core/random";
 import type { NormalizedCandle, SymbolData } from "../types";
@@ -25,8 +18,13 @@ function generateCandles(
   const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
   for (let i = 0; i < count; i++) {
-    const change =
-      trend === "up"
+    // An unbroken climb never lets the 5-bar MA dip under the 25-bar one, so
+    // goldenCross(5, 25) would never fire: the up trend pulls back for the
+    // last 6 bars of every 30.
+    const pullback = trend === "up" && i % 30 >= 24;
+    const change = pullback
+      ? random() * 3 - 3.5
+      : trend === "up"
         ? random() * 3 - 0.5 // Bias up
         : trend === "down"
           ? random() * 3 - 2.5 // Bias down
@@ -76,6 +74,8 @@ describe("batchBacktest", () => {
     // Each symbol should get equal capital (3M / 3 = 1M each)
     for (const sr of result.symbols) {
       expect(sr.result.initialCapital).toBe(1_000_000);
+      // Every symbol trades, so the ordering and tagging checks below see all three.
+      expect(sr.result.tradeCount, sr.symbol).toBeGreaterThan(0);
     }
 
     // Portfolio metrics
@@ -95,16 +95,20 @@ describe("batchBacktest", () => {
       );
     }
 
-    // Each trade should have a symbol tag
-    for (const trade of result.allTrades) {
-      expect(["AAPL", "MSFT", "GOOG"]).toContain(trade.symbol);
+    // Each trade carries the tag of the symbol that made it
+    for (const sr of result.symbols) {
+      const tagged = result.allTrades.filter((t) => t.symbol === sr.symbol);
+      expect(
+        tagged.map((t) => t.entryTime),
+        sr.symbol,
+      ).toEqual(sr.result.trades.map((t) => t.entryTime));
     }
   });
 
   it("should support custom allocation weights", () => {
     const datasets = createDatasets();
-    const entry = rsiBelow(30);
-    const exit = rsiAbove(70);
+    const entry = goldenCross(5, 25);
+    const exit = deadCross(5, 25);
 
     const result = batchBacktest(datasets, entry, exit, {
       capital: 1_000_000,
@@ -115,6 +119,8 @@ describe("batchBacktest", () => {
     expect(result.symbols[0].result.initialCapital).toBe(500_000);
     expect(result.symbols[1].result.initialCapital).toBe(300_000);
     expect(result.symbols[2].result.initialCapital).toBe(200_000);
+    // The weights size real positions, not idle sleeves.
+    for (const sr of result.symbols) expect(sr.result.tradeCount, sr.symbol).toBeGreaterThan(0);
   });
 
   it("should throw on empty datasets", () => {
@@ -148,6 +154,9 @@ describe("batchBacktest", () => {
 
     expect(result.symbols).toHaveLength(1);
     expect(result.portfolio.initialCapital).toBe(1_000_000);
+    // With no trades both sides would be the untouched 1,000,000.
+    expect(result.symbols[0].result.tradeCount).toBeGreaterThan(0);
+    expect(result.symbols[0].result.finalCapital).not.toBeCloseTo(1_000_000, 0);
     // Single-symbol portfolio result should match the individual result
     expect(result.portfolio.finalCapital).toBeCloseTo(result.symbols[0].result.finalCapital, 0);
   });
@@ -162,6 +171,7 @@ describe("batchBacktest", () => {
     });
 
     const sumTrades = result.symbols.reduce((s, sr) => s + sr.result.tradeCount, 0);
+    for (const sr of result.symbols) expect(sr.result.tradeCount, sr.symbol).toBeGreaterThan(0);
     expect(result.portfolio.tradeCount).toBe(sumTrades);
     expect(result.allTrades.length).toBe(sumTrades);
   });
@@ -182,8 +192,19 @@ describe("portfolioBacktest", () => {
 
     expect(result.symbols).toHaveLength(3);
     expect(result.portfolio.initialCapital).toBe(3_000_000);
-    expect(typeof result.peakConcurrentPositions).toBe("number");
-    expect(result.peakConcurrentPositions).toBeGreaterThanOrEqual(0);
+    expect(result.portfolio.tradeCount).toBeGreaterThan(0);
+    // Recount the peak from the per-symbol trades: the most positions open at
+    // any entry, where a position exiting on that bar no longer counts. The
+    // seeded fixture has all three symbols in at once (maxPositions is not
+    // enforced yet, so it does not bound this).
+    const trades = result.symbols.flatMap((sr) => sr.result.trades);
+    const recount = Math.max(
+      ...trades.map(
+        (t) => trades.filter((u) => u.entryTime <= t.entryTime && t.entryTime < u.exitTime).length,
+      ),
+    );
+    expect(result.peakConcurrentPositions).toBe(recount);
+    expect(result.peakConcurrentPositions).toBe(3);
     expect(result.rebalanceCount).toBe(0); // No rebalance configured
   });
 
@@ -237,6 +258,8 @@ describe("portfolioBacktest", () => {
     const without = portfolioBacktest(datasets, entry, exit, options);
 
     expect(withRebalance.rebalanceCount).toBe(0);
+    // Trades happen, so equal curves mean the option really changed nothing.
+    expect(without.portfolio.tradeCount).toBeGreaterThan(0);
     // Passing the option changes nothing about the simulation.
     expect(withRebalance.equityCurve).toEqual(without.equityCurve);
     expect(withRebalance.portfolio).toEqual(without.portfolio);
