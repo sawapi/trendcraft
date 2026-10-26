@@ -172,7 +172,7 @@
   "devDependencies": {
     "@playwright/test": "^1.64.1",
     "@size-limit/esbuild": "^13.1.1",
-    "@size-limit/file": "^13.1.1",
+    "@size-limit/file": "^14.3.0",
     "@testing-library/react": "^16.3.3",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",

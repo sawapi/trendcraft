@@ -128,7 +128,7 @@
   ],
   "devDependencies": {
     "@size-limit/esbuild": "^13.1.1",
-    "@size-limit/file": "^13.1.1",
+    "@size-limit/file": "^14.3.0",
     "@vitest/coverage-v8": "^4.1.12",
     "size-limit": "^13.1.1",
     "vite": "^8.3.4",
