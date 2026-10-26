@@ -28,6 +28,7 @@ export type BacktestResultData = {
   winRate: number;
   maxDrawdown: number;
   sharpeRatio: number;
+  /** `Infinity` (or `null` after a JSON round trip) when no trade lost; drawn as "∞" */
   profitFactor: number;
   trades: {
     entryTime: number;

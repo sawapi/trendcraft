@@ -291,3 +291,30 @@ describe("renderBacktestSummary", () => {
     expect(texts.some((t) => t.startsWith("W:"))).toBe(true);
   });
 });
+
+describe("renderBacktestSummary profit factor", () => {
+  const drawn = (profitFactor: number | null): string[] => {
+    const ctx = mockCtx();
+    const texts: string[] = [];
+    (ctx.fillText as ReturnType<typeof vi.fn>).mockImplementation((t: string) => texts.push(t));
+    renderBacktestSummary(
+      ctx,
+      { ...baseResult(), profitFactor: profitFactor as number },
+      0,
+      0,
+      DARK_THEME,
+      11,
+    );
+    return texts;
+  };
+
+  it("draws a no-loss profit factor as ∞, also after a JSON round trip", () => {
+    // TrendCraft reports a run with no losing trade as Infinity; JSON turns it into null.
+    expect(drawn(Number.POSITIVE_INFINITY)).toContain("∞");
+    expect(drawn(null)).toContain("∞");
+  });
+
+  it("still draws a finite profit factor to 2 decimals", () => {
+    expect(drawn(1.8)).toContain("1.80");
+  });
+});
