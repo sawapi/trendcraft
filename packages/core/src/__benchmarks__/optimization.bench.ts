@@ -4,7 +4,7 @@
  * Compares grid search with and without IndicatorCache.
  */
 
-import { bench, describe } from "vitest";
+import { test } from "vitest";
 import { runBacktest } from "../backtest";
 import {
   and,
@@ -28,17 +28,18 @@ const strategies = [
   { entry: rsiBelow(30), exit: rsiAbove(70) },
 ];
 
-describe("Optimization - 5 strategies x 500 candles", () => {
-  bench("without cache", () => {
-    for (const s of strategies) {
-      runBacktest(candles, s.entry, s.exit, { capital: 100000 });
-    }
-  });
-
-  bench("with cache", () => {
-    const cache = new IndicatorCache();
-    for (const s of strategies) {
-      runBacktest(candles, s.entry, s.exit, { capital: 100000 }, cache);
-    }
-  });
+test("Optimization - 5 strategies x 500 candles", async ({ bench }) => {
+  await bench.compare(
+    bench("without cache", () => {
+      for (const s of strategies) {
+        runBacktest(candles, s.entry, s.exit, { capital: 100000 });
+      }
+    }),
+    bench("with cache", () => {
+      const cache = new IndicatorCache();
+      for (const s of strategies) {
+        runBacktest(candles, s.entry, s.exit, { capital: 100000 }, cache);
+      }
+    }),
+  );
 });
