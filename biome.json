@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.5.14/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.6.2/schema.json",
   "vcs": {
     "enabled": true,
     "clientKind": "git",
@@ -11,7 +11,8 @@
     "rules": {
       "preset": "recommended",
       "complexity": {
-        "noForEach": "off"
+        "noForEach": "off",
+        "useMathMinMax": "off"
       },
       "style": {
         "noNonNullAssertion": "warn",
@@ -48,8 +49,10 @@
       "!**/examples/alpaca-demo/data",
       "!**/examples/docs-screenshots/data",
       "!**/qa-report.json",
-      "!**/qa-report.json",
-      "!**/manifest/sources"
+      "!**/manifest/sources",
+      "!**/*.md",
+      "!**/*.yaml",
+      "!**/*.yml"
     ]
   },
   "overrides": [
@@ -80,6 +83,9 @@
           },
           "suspicious": {
             "noExplicitAny": "off"
+          },
+          "correctness": {
+            "noComponentHookFactories": "off"
           }
         }
       }
