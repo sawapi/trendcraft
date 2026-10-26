@@ -524,7 +524,14 @@ export type BacktestResult = {
   firstBarTime: number;
   /** Time of the last candle the backtest ran over (epoch ms). See `firstBarTime`. */
   lastBarTime: number;
-  /** Profit factor */
+  /**
+   * Profit factor — gross profit / gross loss, rounded to 2 decimals.
+   * `Infinity` when there is profit but no losing trade (a trade with
+   * `return < 0`; a breakeven trade is not one), 0 when there is neither.
+   *
+   * `JSON.stringify` writes `Infinity` as `null`; code that serializes a
+   * result should read `null` back as "no losing trade".
+   */
   profitFactor: number;
   /** Average holding days */
   avgHoldingDays: number;

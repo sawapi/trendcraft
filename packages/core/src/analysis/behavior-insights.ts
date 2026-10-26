@@ -132,7 +132,10 @@ function addOverallStats(
   }
 
   // Profit factor
-  if (stats.profitFactor >= 1.5 && stats.profitFactor < Number.POSITIVE_INFINITY) {
+  // With no losing trade the profit factor is Infinity, not a ratio to quote.
+  // A losing trade is what makes it a ratio (see calculateTradeStats).
+  const hasLoss = trades.some((t) => t.returnPercent < 0);
+  if (hasLoss && stats.profitFactor >= 1.5) {
     insights.push({
       type: "strength",
       title: "Positive profit factor",

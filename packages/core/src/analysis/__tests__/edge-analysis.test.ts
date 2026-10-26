@@ -118,8 +118,8 @@ describe("calculateTradeStats", () => {
 
     expect(stats.winRate).toBe(100);
     expect(stats.lossCount).toBe(0);
-    // Profit factor should be capped at 999.99
-    expect(stats.profitFactor).toBe(999.99);
+    // No losing trade: the ratio has no denominator
+    expect(stats.profitFactor).toBe(Number.POSITIVE_INFINITY);
   });
 
   it("should handle all losing trades", () => {

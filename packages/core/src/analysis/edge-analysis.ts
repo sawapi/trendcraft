@@ -23,6 +23,7 @@ import {
   type TradeAnalysis,
   type TradeStats,
 } from "./edge-analysis-types";
+import { reportedProfitFactor } from "./return-metrics";
 
 // Re-export types for public API
 export type {
@@ -87,7 +88,7 @@ export function calculateTradeStats(trades: Trade[]): TradeStats {
 
   // Expectancy = (Win% × AvgWin) + (Loss% × AvgLoss)
   const expectancy = (winRate / 100) * avgWin + (lossRate / 100) * avgLoss;
-  const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : grossProfit > 0 ? 999.99 : 0;
+  const profitFactor = reportedProfitFactor(grossProfit, grossLoss);
 
   // Calculate streaks
   const wins = trades.map((t) => t.returnPercent > 0);
@@ -102,7 +103,7 @@ export function calculateTradeStats(trades: Trade[]): TradeStats {
     avgWin: Math.round(avgWin * 100) / 100,
     avgLoss: Math.round(avgLoss * 100) / 100,
     expectancy: Math.round(expectancy * 100) / 100,
-    profitFactor: Math.round(profitFactor * 100) / 100,
+    profitFactor,
     maxConsecutiveWins: streaks.maxWin,
     maxConsecutiveLosses: streaks.maxLoss,
   };

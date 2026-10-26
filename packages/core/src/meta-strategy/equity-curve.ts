@@ -13,7 +13,7 @@
  * @packageDocumentation
  */
 
-import { profitFactorFromReturns } from "../analysis/return-metrics";
+import { reportedProfitFactor } from "../analysis/return-metrics";
 import { depthPercent, maxDrawdownPercent } from "../backtest/drawdown-tracker";
 import {
   annualizedRatios,
@@ -60,6 +60,10 @@ export type EquityCurveAnalysis = {
     returnPercent: number;
     maxDrawdown: number;
     sharpeRatio: number;
+    /**
+     * `Infinity` when only the filtered run has no losing trade, `-Infinity`
+     * when only the original has none, 0 when both have none
+     */
     profitFactor: number;
   };
 };
@@ -216,7 +220,10 @@ function rebuildResult(trades: Trade[], original: BacktestResult): BacktestResul
     ...extended,
     firstBarTime: original.firstBarTime,
     lastBarTime: original.lastBarTime,
-    profitFactor: profitFactorFromReturns(trades.map((t) => t.return)),
+    profitFactor: reportedProfitFactor(
+      trades.reduce((s, t) => s + Math.max(t.return, 0), 0),
+      -trades.reduce((s, t) => s + Math.min(t.return, 0), 0),
+    ),
     avgHoldingDays: trades.reduce((sum, t) => sum + t.holdingDays, 0) / trades.length,
     trades,
     settings: original.settings,
@@ -358,7 +365,11 @@ export function applyEquityCurveFilter(
       returnPercent: filtered.totalReturnPercent - result.totalReturnPercent,
       maxDrawdown: result.maxDrawdown - filtered.maxDrawdown,
       sharpeRatio: filtered.sharpeRatio - result.sharpeRatio,
-      profitFactor: filtered.profitFactor - result.profitFactor,
+      // Both sides with no losing trade are equal (Infinity − Infinity is NaN).
+      profitFactor:
+        filtered.profitFactor === result.profitFactor
+          ? 0
+          : filtered.profitFactor - result.profitFactor,
     },
   };
 }

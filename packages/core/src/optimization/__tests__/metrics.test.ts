@@ -10,6 +10,7 @@ import {
   calculateRecoveryFactor,
   calculateSharpeRatio,
   checkConstraint,
+  compareMetricBestFirst,
 } from "../metrics";
 
 /**
@@ -366,5 +367,26 @@ describe("Optimization Metrics", () => {
       const returns = calculateDailyReturns(result, candles, 100_000);
       expect(returns[1]).toBeCloseTo(-0.1, 12);
     });
+  });
+});
+
+describe("compareMetricBestFirst", () => {
+  const { POSITIVE_INFINITY: INF, NaN: NAN } = Number;
+
+  it("ranks Infinity above every finite value and NaN last", () => {
+    const sorted = [2, NAN, INF, -1, INF, 5].sort((a, b) => compareMetricBestFirst(a, b));
+    expect(sorted.slice(0, 5)).toEqual([INF, INF, 5, 2, -1]);
+    expect(sorted[5]).toBeNaN();
+  });
+
+  it("ties equal infinities instead of returning NaN", () => {
+    expect(compareMetricBestFirst(INF, INF)).toBe(0);
+    expect(compareMetricBestFirst(NAN, NAN)).toBe(0);
+  });
+
+  it("ranks smaller first when minimizing, still with NaN last", () => {
+    const sorted = [3, NAN, 1, 2].sort((a, b) => compareMetricBestFirst(a, b, true));
+    expect(sorted.slice(0, 3)).toEqual([1, 2, 3]);
+    expect(sorted[3]).toBeNaN();
   });
 });

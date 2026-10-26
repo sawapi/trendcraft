@@ -43,6 +43,7 @@ import type {
   OptimizationResultEntry,
   WalkForwardResult,
 } from "../types/optimization";
+import { compareMetricBestFirst } from "./metrics";
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -79,6 +80,10 @@ export interface SafeZone {
   max: number;
 }
 
+/**
+ * Mean metric per parameter value (and per value pair). A cell that holds a
+ * combination with no losing trade has a mean profit factor of `Infinity`.
+ */
 export interface SensitivityData {
   singleParams: SensitivitySingle[];
   pairwise: SensitivityPair[];
@@ -127,7 +132,7 @@ const MINIMIZING_METRICS: ReadonlySet<OptimizationMetric> = new Set(["maxDrawdow
 function compareDescByMetric(metric: OptimizationMetric) {
   const minimize = MINIMIZING_METRICS.has(metric);
   return (a: OptimizationResultEntry, b: OptimizationResultEntry) =>
-    minimize ? a.metrics[metric] - b.metrics[metric] : b.metrics[metric] - a.metrics[metric];
+    compareMetricBestFirst(a.metrics[metric], b.metrics[metric], minimize);
 }
 
 // ── Genome ─────────────────────────────────────────────────────────

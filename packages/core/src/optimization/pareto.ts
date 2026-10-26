@@ -20,7 +20,12 @@ import type {
 import { err, ok, type Result, tcError } from "../types/result";
 import { DEFAULT_BACKTEST_CAPITAL } from "./constants";
 import { generateParameterCombinations, type StrategyFactory } from "./grid-search";
-import { calculateAllMetrics, checkConstraint, getMetricValue } from "./metrics";
+import {
+  calculateAllMetrics,
+  checkConstraint,
+  compareMetricBestFirst,
+  getMetricValue,
+} from "./metrics";
 
 /**
  * Get the objective value, flipping sign for minimize objectives
@@ -166,7 +171,8 @@ export function crowdingDistance(
     const sorted = [...frontIndices].sort((a, b) => {
       const va = getObjectiveValue(entries[a].metrics, obj);
       const vb = getObjectiveValue(entries[b].metrics, obj);
-      return va - vb;
+      // Ascending; not `va - vb`, which is NaN for two equal infinities.
+      return compareMetricBestFirst(va, vb, true);
     });
 
     // Boundary solutions get infinite distance
@@ -177,7 +183,9 @@ export function crowdingDistance(
     const minVal = getObjectiveValue(entries[sorted[0]].metrics, obj);
     const maxVal = getObjectiveValue(entries[sorted[n - 1]].metrics, obj);
     const range = maxVal - minVal;
-    if (range === 0) continue;
+    // An infinite objective (a profit factor with no losing trade) leaves
+    // no finite scale to normalise gaps by; only the boundaries count.
+    if (range === 0 || !Number.isFinite(range)) continue;
 
     // Interior solutions: distance += normalized gap to neighbors
     for (let i = 1; i < n - 1; i++) {

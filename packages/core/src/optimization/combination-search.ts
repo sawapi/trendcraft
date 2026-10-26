@@ -11,7 +11,12 @@ import { IndicatorCache } from "../core/indicator-cache";
 import type { BacktestOptions, Condition, NormalizedCandle } from "../types";
 import type { OptimizationConstraint, OptimizationMetric } from "../types/optimization";
 import { DEFAULT_BACKTEST_CAPITAL } from "./constants";
-import { calculateAllMetrics, checkConstraint, getMetricValue } from "./metrics";
+import {
+  calculateAllMetrics,
+  checkConstraint,
+  compareMetricBestFirst,
+  getMetricValue,
+} from "./metrics";
 
 /**
  * Condition definition for combination search
@@ -123,11 +128,12 @@ export type CombinationSearchResult = {
   metric: OptimizationMetric;
   /** Total combinations tested */
   totalCombinations: number;
-  /** Valid combinations (passed constraints and scored finitely) */
+  /** Valid combinations (passed constraints and scored, i.e. not NaN) */
   validCombinations: number;
   /**
-   * All results sorted by score, best first. Non-finite scores are excluded
-   * unless `keepAllResults` is set, in which case they sort to the end.
+   * All results sorted by score, best first. `Infinity` (a profit factor with
+   * no losing trade) sorts first; `NaN` scores are excluded unless
+   * `keepAllResults` is set, in which case they sort to the end.
    */
   results: CombinationResultEntry[];
 };
@@ -373,20 +379,21 @@ export function combinationSearch(
           passedConstraints,
         };
 
-        // Only keep valid, finite-scored results unless keepAllResults is
-        // true. Calmar / MAR / Recovery return NaN when maxDD <= 0, so a
-        // training window with no drawdown scores every combination NaN.
-        // Letting those through would leave `validCombinations` counting
+        // Only keep valid, scored results unless keepAllResults is true.
+        // Calmar / MAR / Recovery return NaN when maxDD <= 0, so a training
+        // window with no drawdown scores every combination NaN. Letting
+        // those through would leave `validCombinations` counting
         // combinations that can never be selected — `score > bestScore` is
         // false for NaN, so the search would report `bestScore: null`
-        // alongside a non-zero `validCombinations`.
-        const finiteScore = Number.isFinite(score);
-        if (keepAllResults || (passedConstraints && finiteScore)) {
+        // alongside a non-zero `validCombinations`. Infinity is a score: a
+        // profit factor with no losing trade, ranked above every finite one.
+        const scored = !Number.isNaN(score);
+        if (keepAllResults || (passedConstraints && scored)) {
           results.push(entry);
         }
 
-        // Update best if passes constraints AND has a finite score.
-        if (passedConstraints && finiteScore) {
+        // Update best if passes constraints AND has a score.
+        if (passedConstraints && scored) {
           validCombinations++;
           if (score > bestScore) {
             bestScore = score;
@@ -400,17 +407,9 @@ export function combinationSearch(
     }
   }
 
-  // Sort results by score (descending). NaN scores sink to the end:
-  // any comparison involving NaN returns false, so the comparator
-  // falls through, but explicit handling makes the order deterministic.
-  results.sort((a, b) => {
-    const aFinite = Number.isFinite(a.score);
-    const bFinite = Number.isFinite(b.score);
-    if (aFinite && bFinite) return b.score - a.score;
-    if (aFinite) return -1;
-    if (bFinite) return 1;
-    return 0;
-  });
+  // Sort results by score, best first: Infinity (a profit factor with no
+  // losing trade) on top, NaN (an undefined ratio) at the end.
+  results.sort((a, b) => compareMetricBestFirst(a.score, b.score));
 
   return {
     bestResult,

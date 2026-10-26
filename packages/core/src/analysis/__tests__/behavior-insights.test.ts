@@ -202,3 +202,19 @@ describe("generateBehaviorInsights", () => {
     }
   });
 });
+
+describe("generateBehaviorInsights profit factor", () => {
+  it("does not quote a no-loss profit factor as a ratio", () => {
+    // With no losing trade the profit factor is Infinity, not a ratio;
+    // "Profit factor of Infinity" would describe nothing real.
+    const trades = Array.from({ length: 10 }, () => makeWinTrade(5));
+    const titles = generateBehaviorInsights(trades).map((i) => i.title);
+    expect(titles).not.toContain("Positive profit factor");
+  });
+
+  it("still reports a real ratio of 1.5 or more", () => {
+    const trades = [...Array.from({ length: 6 }, () => makeWinTrade(5)), makeLossTrade(-3)];
+    const titles = generateBehaviorInsights(trades).map((i) => i.title);
+    expect(titles).toContain("Positive profit factor");
+  });
+});

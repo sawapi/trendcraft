@@ -534,3 +534,43 @@ describe("Grid Search Optimization", () => {
     });
   });
 });
+
+describe("gridSearch ranks a profit factor with no losing trade first", () => {
+  // Price climbs to 119 at bar 19, falls to 100 by bar 29, then climbs again.
+  // Each combination makes one trade, held 5 bars: entering at 5 wins (no
+  // losing trade, profit factor Infinity), entering at 18 loses (0).
+  const candles: NormalizedCandle[] = Array.from({ length: 45 }, (_, i) => {
+    const price = i < 20 ? 100 + i : i < 30 ? 119 - (i - 19) * 1.9 : 100 + (i - 29);
+    return {
+      time: Date.UTC(2024, 0, 1) + i * 86_400_000,
+      open: price,
+      high: price,
+      low: price,
+      close: price,
+      volume: 1000,
+    };
+  });
+  const createStrategy = (params: Record<string, number>) => ({
+    entry: {
+      type: "preset",
+      name: "enterAt",
+      evaluate: (_i, _c, index) => index === params.enterAt,
+    } as PresetCondition,
+    exit: {
+      type: "preset",
+      name: "exitAfter",
+      evaluate: (_i, _c, index) => index === params.enterAt + 5,
+    } as PresetCondition,
+  });
+
+  it("picks the no-loss combination as best and sorts the loser last", () => {
+    // enterAt 5 and 18: one never loses, the other only loses.
+    const result = gridSearch(candles, createStrategy, [param("enterAt", 5, 18, 13)], {
+      metric: "profitFactor",
+    });
+    expect(result.validCombinations).toBe(2);
+    expect(result.bestParams).toEqual({ enterAt: 5 });
+    expect(result.bestScore).toBe(Number.POSITIVE_INFINITY);
+    expect(result.results.map((r) => r.score)).toEqual([Number.POSITIVE_INFINITY, 0]);
+  });
+});

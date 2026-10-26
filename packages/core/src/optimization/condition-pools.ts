@@ -43,7 +43,7 @@ export function formatCombinationResult(entry: CombinationResultEntry): string {
     `Trades: ${entry.metrics.tradeCount}`,
     `Sharpe: ${entry.metrics.sharpe.toFixed(2)}`,
     `Max DD: ${entry.metrics.maxDrawdown.toFixed(2)}%`,
-    `PF: ${entry.metrics.profitFactor.toFixed(2)}`,
+    `PF: ${Number.isFinite(entry.metrics.profitFactor) ? entry.metrics.profitFactor.toFixed(2) : "∞"}`,
   ];
   return lines.join("\n");
 }

@@ -334,6 +334,26 @@ export function getMetricValue(
 }
 
 /**
+ * Order metric values best-first: larger before smaller, `Infinity` (a
+ * profit factor with no losing trade) above every finite value, and `NaN`
+ * (an undefined ratio) last. Plain `b - a` returns `NaN` for two equal
+ * infinities, which leaves `Array.prototype.sort` order unspecified.
+ *
+ * @param a - First metric value
+ * @param b - Second metric value
+ * @param minimize - Rank smaller values first instead (e.g. `maxDrawdown`)
+ * @returns Negative when `a` ranks first, positive when `b` does, 0 when tied
+ * @internal
+ */
+export function compareMetricBestFirst(a: number, b: number, minimize = false): number {
+  const aNaN = Number.isNaN(a);
+  const bNaN = Number.isNaN(b);
+  if (aNaN || bNaN) return aNaN === bNaN ? 0 : aNaN ? 1 : -1;
+  if (a === b) return 0;
+  return (minimize ? a < b : a > b) ? -1 : 1;
+}
+
+/**
  * Compare metric value against constraint
  * @param value Metric value
  * @param operator Comparison operator

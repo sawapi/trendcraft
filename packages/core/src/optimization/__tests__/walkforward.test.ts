@@ -2,7 +2,11 @@ import { describe, expect, it, vi } from "vitest";
 import { deadCross, goldenCross } from "../../backtest/conditions/ma-cross";
 import { mulberry32 } from "../../core/random";
 import type { BacktestOptions, NormalizedCandle, PresetCondition } from "../../types";
-import type { WalkForwardPeriod, WalkForwardResult } from "../../types/optimization";
+import type {
+  OptimizationMetric,
+  WalkForwardPeriod,
+  WalkForwardResult,
+} from "../../types/optimization";
 import { param } from "../grid-search";
 import {
   calculatePeriodCount,
@@ -13,6 +17,7 @@ import {
   walkForwardAnalysis,
   wfeRatio,
 } from "../walkforward";
+import { aggregateInOutMetrics } from "../walkforward-shared";
 
 const MS_PER_YEAR = 365.25 * 24 * 60 * 60 * 1000;
 
@@ -712,5 +717,49 @@ describe("Walk-Forward Analysis — indicator warm-up", () => {
     expect(() =>
       walkForwardAnalysis(candles, crossStrategy, ranges, { ...options, warmupBars: -1 }),
     ).toThrow(/warmupBars/);
+  });
+});
+
+describe("aggregateInOutMetrics with a profit factor of Infinity", () => {
+  // A period with no losing trade has a profit factor of Infinity: a value,
+  // not missing data like NaN.
+  const INF = Number.POSITIVE_INFINITY;
+  const m = (profitFactor: number): Record<OptimizationMetric, number> => ({
+    sharpe: 1,
+    calmar: 1,
+    mar: 1,
+    profitFactor,
+    recoveryFactor: 1,
+    returns: 1,
+    winRate: 50,
+    tradeCount: 3,
+    maxDrawdown: 5,
+  });
+
+  it("carries a no-loss period into the average instead of dropping it", () => {
+    const { avgInSample } = aggregateInOutMetrics([m(INF), m(0), m(0)], [m(1)], "profitFactor");
+    // Dropping the Infinity period averaged the best period away to 0.
+    expect(avgInSample.profitFactor).toBe(INF);
+  });
+
+  it("averages Infinity, not 0, when every period had no losing trade", () => {
+    const { avgInSample, stabilityRatio } = aggregateInOutMetrics(
+      [m(INF), m(INF)],
+      [m(INF)],
+      "profitFactor",
+    );
+    expect(avgInSample.profitFactor).toBe(INF);
+    // Both sides without a loss: as stable as it gets, not Infinity / Infinity = NaN.
+    expect(stabilityRatio).toBe(1);
+  });
+
+  it("scores no stability when only the in-sample side never lost", () => {
+    const { stabilityRatio } = aggregateInOutMetrics([m(INF)], [m(1.5)], "profitFactor");
+    expect(stabilityRatio).toBe(0);
+  });
+
+  it("still drops an undefined (NaN) period", () => {
+    const { avgInSample } = aggregateInOutMetrics([m(Number.NaN), m(2)], [m(2)], "profitFactor");
+    expect(avgInSample.profitFactor).toBe(2);
   });
 });

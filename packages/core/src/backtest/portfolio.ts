@@ -6,7 +6,11 @@
  *          cap. The allocation is fixed for the whole run; nothing rebalances.
  */
 
-import { periodsPerYearFromSpan, sharpeFromReturns } from "../analysis/return-metrics";
+import {
+  periodsPerYearFromSpan,
+  reportedProfitFactor,
+  sharpeFromReturns,
+} from "../analysis/return-metrics";
 import type { IndicatorCache } from "../core/indicator-cache";
 import type {
   BatchBacktestOptions,
@@ -503,7 +507,7 @@ function calculatePortfolioMetrics(
 
   const totalProfit = winningTrades.reduce((s, t) => s + t.return, 0);
   const totalLoss = Math.abs(losingTrades.reduce((s, t) => s + t.return, 0));
-  const profitFactor = totalLoss > 0 ? totalProfit / totalLoss : totalProfit > 0 ? 999.99 : 0;
+  const profitFactor = reportedProfitFactor(totalProfit, totalLoss);
 
   const avgHoldingDays =
     tradeCount > 0 ? allTrades.reduce((s, t) => s + t.holdingDays, 0) / tradeCount : 0;
@@ -539,7 +543,7 @@ function calculatePortfolioMetrics(
     winRate: Math.round(winRate * 100) / 100,
     maxDrawdown: Math.round(maxDrawdown * 100) / 100,
     sharpeRatio: Math.round(sharpeRatio * 100) / 100,
-    profitFactor: Math.round(Math.min(profitFactor, 999.99) * 100) / 100,
+    profitFactor,
     avgHoldingDays: Math.round(avgHoldingDays * 10) / 10,
   };
 }
