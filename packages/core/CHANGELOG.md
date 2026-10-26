@@ -160,6 +160,25 @@ no longer carries the original's fields.
 Compare those fields through `improvement`, not against `original`
 directly.
 
+### Changed — `stressTest` measures its worst drawdown with the shared drawdown tracker
+
+`stressTest(...).worstCase` was found by a separate scan of the stressed
+equity curve. It now comes from `drawdownFromEquityCurve`, the same tracker
+that `runBacktest` reports its drawdowns from, so recovery is measured against
+the drawdown's own starting peak by construction.
+
+On 100,000 random return series (flat bars, exact round trips, wipe-outs,
+empty and one-bar series) the result matches the old scan exactly, with one
+deliberate difference. `worstCase.duration` now starts at the last bar at
+which equity stood at its peak. That covers both equity that stayed at the
+peak (a flat stretch) and equity that came back to it exactly. This is how
+pyfolio's `get_max_drawdown_underwater` measures it. The old scan started
+at the first such bar, so it counted the flat bars, or an earlier dip that
+had already recovered, as part of the decline, although its own recovery
+rule treats a return to the peak as recovered. `duration` therefore changes
+only when equity touches its peak value more than once before falling;
+`drawdown`, `recoveryDays` and `recovered` are unchanged.
+
 ### Fixed — importing one function from `trendcraft` bundled the whole library
 
 `import { sma } from "trendcraft"` pulled about 400 kB (100 kB gzipped)

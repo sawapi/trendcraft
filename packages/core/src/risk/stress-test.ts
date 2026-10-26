@@ -7,8 +7,13 @@
  * @packageDocumentation
  */
 
-import { depthPercent } from "../backtest/drawdown-tracker";
+import {
+  depthPercent,
+  drawdownFromEquityCurve,
+  maxDrawdownPercent,
+} from "../backtest/drawdown-tracker";
 import { type AnnualizationOptions, annualizationFactor } from "../calendar";
+import type { DrawdownPeriod } from "../types";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -44,7 +49,12 @@ export type StressTestResult = {
   worstCase: {
     /** Depth of the worst drawdown, as a fraction of its starting peak */
     drawdown: number;
-    /** Bars from the peak that started the worst drawdown to its trough */
+    /**
+     * Bars from the peak that started the worst drawdown to its trough. The
+     * drawdown starts at the last bar at which equity stood at that peak,
+     * whether it stayed there (a flat stretch) or came back to it exactly,
+     * as in pyfolio.
+     */
     duration: number;
     /**
      * Bars from that trough back to the drawdown's own starting peak. When the
@@ -225,19 +235,12 @@ export function calculateMetricsFromReturns(
     return { totalReturn: 0, maxDrawdown: 0, sharpe: 0 };
   }
 
-  // Compounded total return
-  let equity = 1;
-  let peak = 1;
-  let maxDd = 0;
+  // Compounded equity, starting at 1
+  const curve = [1];
+  for (const r of returns) curve.push(curve[curve.length - 1] * (1 + r));
+  const maxDd = maxDrawdownPercent(curve) / 100;
 
-  for (const r of returns) {
-    equity *= 1 + r;
-    if (equity > peak) peak = equity;
-    const dd = depthPercent(peak, equity) / 100;
-    if (dd > maxDd) maxDd = dd;
-  }
-
-  const totalReturn = equity - 1;
+  const totalReturn = curve[curve.length - 1] - 1;
 
   // Annualized Sharpe ratio
   const mean = returns.reduce((s, v) => s + v, 0) / returns.length;
@@ -292,46 +295,33 @@ export function stressTest(
     equityCurve.push(equityCurve[equityCurve.length - 1] * (1 + r));
   }
 
-  // Worst-case drawdown with duration and recovery
-  let peak = equityCurve[0];
-  let peakIdx = 0;
+  // Worst-case drawdown from the shared tracker, the single owner of every
+  // drawdown figure: recovery is measured against the drawdown's own starting
+  // peak by construction. Bars are indexed by position.
+  const { periods } = drawdownFromEquityCurve(
+    equityCurve,
+    equityCurve.map((_, i) => ({ time: i })),
+  );
+  let worst: DrawdownPeriod | undefined;
   let worstDd = 0;
-  let worstDdStart = 0;
-  let worstDdEnd = 0;
-
-  for (let i = 1; i < equityCurve.length; i++) {
-    if (equityCurve[i] > peak) {
-      peak = equityCurve[i];
-      peakIdx = i;
-    }
-    const dd = depthPercent(peak, equityCurve[i]) / 100;
+  for (const p of periods) {
+    // The period's maxDepthPercent is rounded; rank by the exact depth.
+    const dd = depthPercent(p.peakEquity, p.troughEquity) / 100;
     if (dd > worstDd) {
       worstDd = dd;
-      worstDdStart = peakIdx;
-      worstDdEnd = i;
+      worst = p;
     }
   }
 
-  // Recovery is measured against the peak that STARTED the worst drawdown, not
-  // against `peak`, which by now holds the maximum of the whole curve. Once the
-  // curve recovers and goes on to make new highs, the two differ and waiting for
-  // the running maximum reports the time to a new all-time high instead of the
-  // time to recover the drawdown.
-  const ddPeak = equityCurve[worstDdStart];
-  const troughIdx = worstDdEnd;
-  let recoveryDays = 0;
-  let recovered = worstDd === 0;
-  for (let i = troughIdx + 1; !recovered && i < equityCurve.length; i++) {
-    recoveryDays++;
-    if (equityCurve[i] >= ddPeak) recovered = true;
-  }
-
-  const worstCase = {
-    drawdown: worstDd,
-    duration: worstDdEnd - worstDdStart,
-    recoveryDays,
-    recovered,
-  };
+  const lastIdx = equityCurve.length - 1;
+  const worstCase = worst
+    ? {
+        drawdown: worstDd,
+        duration: worst.troughTime - worst.startTime,
+        recoveryDays: (worst.recoveryTime ?? lastIdx) - worst.troughTime,
+        recovered: worst.recoveryTime !== undefined,
+      }
+    : { drawdown: 0, duration: 0, recoveryDays: 0, recovered: true };
 
   // Survival rate: 1.0 if equity never goes below 0, 0.0 if it does
   const survivalRate = equityCurve.every((v) => v > 0) ? 1.0 : 0.0;
