@@ -22,7 +22,7 @@ The scenes live at [`packages/chart/examples/docs-screenshots/`](../../examples/
 ```bash
 cd packages/chart/examples/docs-screenshots
 pnpm install --ignore-workspace
-npx tsx fetch-data.ts   # first time only — fetches NVDA bars from Alpaca
+pnpm fetch-data         # first time only — fetches NVDA bars from Alpaca
 pnpm capture            # writes every PNG into this directory
 pnpm capture hero       # one scene
 ```

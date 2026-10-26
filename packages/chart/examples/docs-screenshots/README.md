@@ -7,7 +7,7 @@ Unlike the other examples (`simple-chart`, `simple-react-chart`, `simple-vue-cha
 ## Prerequisites
 
 - `agent-browser` CLI on PATH (`npm i -g agent-browser && agent-browser install`).
-- Alpaca API credentials in `packages/core/examples/alpaca-demo/.env` (this script reuses them to avoid stashing another copy).
+- Alpaca market-data API credentials (a free paper account is enough), either as `ALPACA_API_KEY` / `ALPACA_API_SECRET` in the environment or in `.env` here (copy `.env.example`; `.env` is gitignored).
 
 ## First-time setup
 
@@ -16,11 +16,11 @@ cd packages/chart/examples/docs-screenshots
 pnpm install --ignore-workspace
 
 # Pull NVDA 1Day from 2022-01-01 to today into data/nvda-1day.json.
-# Override via args: npx tsx fetch-data.ts <SYMBOL> <TIMEFRAME> <START> <END>
-npx tsx fetch-data.ts
+# Override via args: pnpm fetch-data <SYMBOL> <TIMEFRAME> <START> <END>
+pnpm fetch-data
 ```
 
-The fetcher delegates to `alpaca-demo`'s `fetchHistoricalBars` so the data is validated (gaps / duplicates / OHLC sanity) before write. Writes to `data/<symbol>-<timeframe>.json`; ignored by git.
+The fetcher pulls split-adjusted IEX bars and rejects out-of-order or duplicate bars and inconsistent OHLCV before writing. Writes to `data/<symbol>-<timeframe>.json`; ignored by git.
 
 ## Browse the scenes
 
