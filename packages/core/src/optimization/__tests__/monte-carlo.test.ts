@@ -615,3 +615,26 @@ describe("Monte Carlo Simulation", () => {
     });
   });
 });
+
+describe("calculateStatistics with infinite values", () => {
+  // A resample with no losing trade has a profit factor of Infinity. It is a
+  // value, as in numpy: ranked, and carried through the mean.
+  const INF = Number.POSITIVE_INFINITY;
+
+  it("ranks Infinity in the median and percentiles and carries it into the mean", () => {
+    const stats = calculateStatistics([1, 2, 3, INF, INF]);
+    expect(stats.median).toBe(3);
+    expect(stats.percentile95).toBe(INF);
+    expect(stats.min).toBe(1);
+    expect(stats.max).toBe(INF);
+    // A mean over the finite values alone would say 2 and hide 40% of the samples.
+    expect(stats.mean).toBe(INF);
+    expect(stats.stdDev).toBeNaN();
+  });
+
+  it("does not interpolate between two infinities into NaN", () => {
+    const stats = calculateStatistics([1, INF, INF, INF]);
+    expect(stats.percentile75).toBe(INF);
+    expect(stats.median).toBe(INF);
+  });
+});

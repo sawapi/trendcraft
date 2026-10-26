@@ -95,7 +95,7 @@ export type PortfolioMetrics = {
   maxDrawdown: number;
   /** Portfolio-level Sharpe ratio */
   sharpeRatio: number;
-  /** Portfolio-level profit factor */
+  /** Portfolio-level profit factor (`Infinity` when no trade lost; see `BacktestResult.profitFactor`) */
   profitFactor: number;
   /** Average holding days across all trades */
   avgHoldingDays: number;

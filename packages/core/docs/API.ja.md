@@ -3005,7 +3005,7 @@ interface BacktestResult {
   largestLossPercent: number;        // 最大負けトレード (%, 正の値)
   firstBarTime: number;              // 最初のローソク足時刻 (エポックms)
   lastBarTime: number;               // 最後のローソク足時刻 (エポックms)
-  profitFactor: number;              // プロフィットファクター
+  profitFactor: number;              // プロフィットファクター（小数 2 桁。負けトレードなしは Infinity、利益もなければ 0）
   avgHoldingDays: number;            // 平均保有日数
   trades: Trade[];                   // 取引詳細
   settings: BacktestSettings;        // 使用した設定（再現性のため）
@@ -3055,6 +3055,8 @@ interface Trade {
   mfeUtilization?: number;       // 実現リターン ÷ MFE
 }
 ```
+
+`profitFactor` は、利益があって負けトレード（`return < 0` のトレード。損益ゼロは含みません）がないとき `Infinity` になり、どの有限の比率よりも上に順位付けされます。`gridSearch` などの最適化と `calculateStatistics` はそのように順位付けし、numpy と同じく `Infinity` を含む平均は `Infinity` になります。ウォークフォワードの平均は、指標が `NaN` の期間を除きます（numpy の `nanmean` と同じ）が、`calculateStatistics` と感度分析の平均は除きません。`JSON.stringify` は `Infinity` を `null` として書き出すので、結果を JSON に保存するコードでは `null` を「負けトレードなし」と読み戻してください。負けなしの結果は 1〜2 回の幸運なトレードであることが多いので、`profitFactor` で最適化するときは `constraint("tradeCount", ">=", 30)` のような取引回数の制約を付けてください。
 
 ---
 
@@ -4346,6 +4348,12 @@ console.log(summary.sharpe95CI);   // { lower: 0.4, upper: 1.8 }
 const stats = calculateStatistics([1, 2, 3, 4, 5]);
 console.log(stats.mean);    // 3
 console.log(stats.median);  // 3
+
+// Infinity（負けトレードなしの profit factor）も numpy と同じく 1 つの値として扱います。
+// 中央値・パーセンタイルの順位に入り、平均にもそのまま反映されます
+const pf = calculateStatistics([1, 2, 3, Infinity, Infinity]);
+pf.median; // 3
+pf.mean;   // Infinity（stdDev は NaN）
 ```
 
 ---

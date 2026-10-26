@@ -96,17 +96,18 @@ export const OPTIMIZATION_METRICS = /* @__PURE__ */ Object.keys(
 ) as OptimizationMetric[];
 
 /**
- * Mean across only the finite entries; returns 0 when no finite
- * value exists. This is the right behavior for averaging optimization
- * metrics where NaN means "undefined for this period" (e.g. Calmar
- * with maxDD=0): treating NaN as 0 would silently bias the average,
- * dropping the period from the denominator preserves "no data" semantics.
+ * Mean across the defined entries (numpy `nanmean`); returns 0 when every
+ * value is NaN. NaN means "undefined for this period" (e.g. Calmar with
+ * maxDD=0): treating it as 0 would silently bias the average, so dropping
+ * the period from the denominator preserves "no data" semantics. Infinity
+ * is a value, not missing data — a profit factor with no losing trade — so
+ * it stays in, and one such period makes the average Infinity.
  */
-function averageFinite(values: number[]): number {
+function averageDefined(values: number[]): number {
   let sum = 0;
   let count = 0;
   for (const v of values) {
-    if (Number.isFinite(v)) {
+    if (!Number.isNaN(v)) {
       sum += v;
       count++;
     }
@@ -155,28 +156,32 @@ export function aggregateInOutMetrics(
   // params whose primary metric was never measurable. Excluding NaN
   // periods from the denominator preserves "no data" semantics.
   for (const key of OPTIMIZATION_METRICS) {
-    avgInSample[key] = averageFinite(inSampleMetrics.map((m) => m[key]));
-    avgOutOfSample[key] = averageFinite(outOfSampleMetrics.map((m) => m[key]));
+    avgInSample[key] = averageDefined(inSampleMetrics.map((m) => m[key]));
+    avgOutOfSample[key] = averageDefined(outOfSampleMetrics.map((m) => m[key]));
   }
 
   // Calculate stability ratio for primary metric. If the primary
   // metric was undefined (NaN) on every in-sample or out-of-sample
   // period, `avgIn` / `avgOut` will be 0 (the "no data" sentinel
-  // from `averageFinite`) — but that 0 has different meaning from a
-  // measured 0. Distinguish by counting finite samples explicitly so
+  // from `averageDefined`) — but that 0 has different meaning from a
+  // measured 0. Distinguish by counting defined samples explicitly so
   // the absence-of-data case yields stabilityRatio = 0 (no claim of
   // stability) rather than the spurious 1 produced by the avgIn===0
   // branch below.
-  const inFiniteCount = inSampleMetrics.filter((m) => Number.isFinite(m[primaryMetric])).length;
-  const outFiniteCount = outOfSampleMetrics.filter((m) => Number.isFinite(m[primaryMetric])).length;
+  const inDefinedCount = inSampleMetrics.filter((m) => !Number.isNaN(m[primaryMetric])).length;
+  const outDefinedCount = outOfSampleMetrics.filter((m) => !Number.isNaN(m[primaryMetric])).length;
   const avgIn = avgInSample[primaryMetric];
   const avgOut = avgOutOfSample[primaryMetric];
 
   let stabilityRatio: number;
-  if (inFiniteCount === 0 || outFiniteCount === 0) {
+  if (inDefinedCount === 0 || outDefinedCount === 0) {
     // Primary metric never measurable on at least one side — cannot
     // make a stability claim either way.
     stabilityRatio = 0;
+  } else if (avgIn === avgOut) {
+    // Includes Infinity on both sides (no losing trade in or out of
+    // sample), where the ratio below would be Infinity / Infinity = NaN.
+    stabilityRatio = 1;
   } else if (avgIn === 0) {
     stabilityRatio = avgOut >= 0 ? 1 : 0;
   } else if (avgIn < 0 && avgOut < 0) {

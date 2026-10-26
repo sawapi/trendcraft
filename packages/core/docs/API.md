@@ -3027,7 +3027,7 @@ interface BacktestResult {
   largestLossPercent: number;        // Largest losing trade (%, positive value)
   firstBarTime: number;              // First candle time (epoch ms)
   lastBarTime: number;               // Last candle time (epoch ms)
-  profitFactor: number;              // Profit factor
+  profitFactor: number;              // Profit factor (2 dp); Infinity when no trade lost, 0 with no profit either
   avgHoldingDays: number;            // Average holding days
   trades: Trade[];                   // Trade details
   settings: BacktestSettings;        // Settings used (for reproducibility)
@@ -3077,6 +3077,8 @@ interface Trade {
   mfeUtilization?: number;       // Actual return / MFE
 }
 ```
+
+`profitFactor` is `Infinity` when there is profit but no losing trade (a trade with `return < 0`; a breakeven trade is not one), so a no-loss run ranks above every finite ratio. `gridSearch`, the other optimizers and `calculateStatistics` rank it that way, and a mean over values that include it is `Infinity`, as in numpy. Walk-forward averages also skip periods where a metric is `NaN` (like numpy's `nanmean`); `calculateStatistics` and the sensitivity means do not. `JSON.stringify` writes `Infinity` as `null`, so code that serializes a result should read `null` back as "no losing trade". A no-loss run is often one or two lucky trades, so when optimizing on `profitFactor` add a trade-count constraint such as `constraint("tradeCount", ">=", 30)`.
 
 ---
 
@@ -4382,6 +4384,12 @@ console.log(summary.sharpe95CI);   // { lower: 0.4, upper: 1.8 }
 const stats = calculateStatistics([1, 2, 3, 4, 5]);
 console.log(stats.mean);    // 3
 console.log(stats.median);  // 3
+
+// Infinity (a profit factor with no losing trade) is a value, as in numpy:
+// it ranks in the median and percentiles and carries through the mean
+const pf = calculateStatistics([1, 2, 3, Infinity, Infinity]);
+pf.median; // 3
+pf.mean;   // Infinity (stdDev NaN)
 ```
 
 ---

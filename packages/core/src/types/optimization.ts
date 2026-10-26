@@ -149,9 +149,14 @@ export type WalkForwardResult = {
   periods: WalkForwardPeriod[];
   /** Aggregate metrics across all periods */
   aggregateMetrics: {
-    /** Average in-sample metrics */
+    /**
+     * Average in-sample metrics across all periods. A period where a metric
+     * is undefined (NaN) is left out of its mean; a period with no losing
+     * trade has a profit factor of `Infinity`, which makes that mean
+     * `Infinity`.
+     */
     avgInSample: Record<OptimizationMetric, number>;
-    /** Average out-of-sample metrics */
+    /** Average out-of-sample metrics across all periods (same rule as `avgInSample`) */
     avgOutOfSample: Record<OptimizationMetric, number>;
     /** Stability ratio (out-of-sample / in-sample performance) */
     stabilityRatio: number;
@@ -297,6 +302,7 @@ export type MonteCarloResult = {
     sharpe: number;
     maxDrawdown: number;
     totalReturnPercent: number;
+    /** `Infinity` when no trade lost (see `BacktestResult.profitFactor`) */
     profitFactor: number;
   };
   /** Statistics for each metric across simulations */
@@ -304,6 +310,11 @@ export type MonteCarloResult = {
     sharpe: MetricStatistics;
     maxDrawdown: MetricStatistics;
     totalReturnPercent: MetricStatistics;
+    /**
+     * Over the per-sample profit factors. A sample with no losing trade is
+     * `Infinity`: it ranks in the median and percentiles but is left out of
+     * the mean and standard deviation (see `calculateStatistics`).
+     */
     profitFactor: MetricStatistics;
   };
   /** Number of simulations run */
@@ -517,9 +528,14 @@ export type AWFResult = {
   skippedPeriods: AWFSkippedPeriod[];
   /** Aggregate performance metrics */
   aggregateMetrics: {
-    /** Average in-sample metrics across all periods */
+    /**
+     * Average in-sample metrics across all periods. A period where a metric
+     * is undefined (NaN) is left out of its mean; a period with no losing
+     * trade has a profit factor of `Infinity`, which makes that mean
+     * `Infinity`.
+     */
     avgInSample: Record<OptimizationMetric, number>;
-    /** Average out-of-sample metrics across all periods */
+    /** Average out-of-sample metrics across all periods (same rule as `avgInSample`) */
     avgOutOfSample: Record<OptimizationMetric, number>;
     /** Stability ratio (OOS / IS performance) */
     stabilityRatio: number;

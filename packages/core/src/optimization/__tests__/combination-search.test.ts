@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { NormalizedCandle, PresetCondition } from "../../types";
-import type { ConditionDefinition } from "../combination-search";
+import type { CombinationResultEntry, ConditionDefinition } from "../combination-search";
 import { combinationSearch } from "../combination-search";
+import { formatCombinationResult } from "../condition-pools";
 import { DEFAULT_BACKTEST_CAPITAL } from "../constants";
 
 /**
@@ -301,5 +302,23 @@ describe("combinationSearch — non-finite scores and the winning entry", () => 
     for (const entry of result.results) {
       expect(entry.backtest.initialCapital).toBe(DEFAULT_BACKTEST_CAPITAL);
     }
+  });
+});
+
+describe("formatCombinationResult with a profit factor of Infinity", () => {
+  it("shows ∞ rather than toFixed's 'Infinity'", () => {
+    const text = formatCombinationResult({
+      entryDisplay: "a",
+      exitDisplay: "b",
+      metrics: {
+        returns: 1,
+        winRate: 100,
+        tradeCount: 2,
+        sharpe: 1,
+        maxDrawdown: 0,
+        profitFactor: Number.POSITIVE_INFINITY,
+      },
+    } as unknown as CombinationResultEntry);
+    expect(text).toContain("PF: ∞");
   });
 });

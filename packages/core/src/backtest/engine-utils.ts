@@ -5,6 +5,7 @@
 
 import {
   periodsPerYearFromSpan,
+  reportedProfitFactor,
   sharpeFromReturns,
   sortinoFromReturns,
 } from "../analysis/return-metrics";
@@ -548,8 +549,7 @@ export function calculateStats(
 
   const totalProfit = winningTrades.reduce((sum, t) => sum + t.return, 0);
   const totalLoss = Math.abs(losingTrades.reduce((sum, t) => sum + t.return, 0));
-  // Cap profit factor at 999.99 to avoid Infinity (causes JSON serialization issues)
-  const profitFactor = totalLoss > 0 ? totalProfit / totalLoss : totalProfit > 0 ? 999.99 : 0;
+  const profitFactor = reportedProfitFactor(totalProfit, totalLoss);
 
   const avgHoldingDays = trades.reduce((sum, t) => sum + t.holdingDays, 0) / trades.length;
 
@@ -577,7 +577,7 @@ export function calculateStats(
     ...extended,
     firstBarTime: span?.firstTime ?? 0,
     lastBarTime: span?.lastTime ?? 0,
-    profitFactor: Math.round(profitFactor * 100) / 100,
+    profitFactor,
     avgHoldingDays: Math.round(avgHoldingDays * 10) / 10,
     trades,
     settings,

@@ -402,3 +402,44 @@ describe("portfolioBacktest capital accounting", () => {
     expect(lastEquity).toBeCloseTo(result.portfolio.finalCapital, 2);
   });
 });
+
+describe("portfolioBacktest profit factor", () => {
+  const DAY = 24 * 60 * 60 * 1000;
+  const bars = (prices: number[]): NormalizedCandle[] =>
+    prices.map((p, i) => ({
+      time: Date.UTC(2024, 0, 1) + i * DAY,
+      open: p,
+      high: p,
+      low: p,
+      close: p,
+      volume: 1000,
+    }));
+  const run = (b: number[]) =>
+    portfolioBacktest(
+      [
+        { symbol: "A", candles: bars([100, 100, 100, 300, 300]) },
+        { symbol: "B", candles: bars(b) },
+      ],
+      alwaysTrue(),
+      alwaysFalse(),
+      {
+        capital: 2_000_000,
+        allocation: { type: "equal" },
+        tradeOptions: { fillMode: "same-bar-close", slTpMode: "close-only" },
+      },
+    );
+
+  it("reports a large ratio as it is, like runBacktest", () => {
+    // A gains 2,000,000 and B loses 100: a ratio of 20,000. It used to be
+    // capped at 999.99, which also stood for a run with no loss at all.
+    const result = run([100, 100, 100, 99.99, 99.99]);
+    expect(result.portfolio.tradeCount).toBe(2);
+    expect(result.portfolio.profitFactor).toBeCloseTo(20_000, 0);
+  });
+
+  it("reports Infinity when no trade lost", () => {
+    const result = run([100, 100, 100, 110, 110]);
+    expect(result.portfolio.tradeCount).toBe(2);
+    expect(result.portfolio.profitFactor).toBe(Number.POSITIVE_INFINITY);
+  });
+});

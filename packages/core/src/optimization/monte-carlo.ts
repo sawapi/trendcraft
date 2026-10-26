@@ -10,7 +10,11 @@
  *   drawdown varies — used for sequence-risk analysis.
  */
 
-import { periodsPerYearFromSpan, sharpeFromReturns } from "../analysis/return-metrics";
+import {
+  periodsPerYearFromSpan,
+  reportedProfitFactor,
+  sharpeFromReturns,
+} from "../analysis/return-metrics";
 import { depthPercent } from "../backtest/drawdown-tracker";
 import { mulberry32 } from "../core/random";
 import type { BacktestResult, Trade } from "../types";
@@ -67,12 +71,19 @@ function getPercentile(sorted: number[], p: number): number {
   const index = (p / 100) * (n - 1);
   const lower = Math.floor(index);
   const upper = Math.ceil(index);
-  if (lower === upper) return sorted[lower];
+  // Equal neighbours need no interpolation; for two infinities it would give NaN.
+  if (lower === upper || sorted[lower] === sorted[upper]) return sorted[lower];
   return sorted[lower] + (index - lower) * (sorted[upper] - sorted[lower]);
 }
 
 /**
- * Calculate statistics from array of values
+ * Calculate statistics from array of values.
+ *
+ * `Infinity` (a profit factor with no losing trade) is a value like any
+ * other, as in numpy: it ranks above every finite value in the median,
+ * percentiles and max, a single one makes the mean `Infinity`, and the
+ * standard deviation is then `NaN` (undefined). Read the median when
+ * infinite samples are possible.
  */
 export function calculateStatistics(values: number[]): MetricStatistics {
   if (values.length === 0) {
@@ -89,7 +100,8 @@ export function calculateStatistics(values: number[]): MetricStatistics {
     };
   }
 
-  const sorted = [...values].sort((a, b) => a - b);
+  // Not `a - b`: two equal infinities would compare as NaN.
+  const sorted = [...values].sort((a, b) => (a === b ? 0 : a < b ? -1 : 1));
   const n = sorted.length;
 
   // Mean
@@ -196,7 +208,7 @@ function recalculateMetricsFromTrades(
   // Calculate profit factor
   const profits = trades.filter((t) => t.pnl > 0).reduce((sum, t) => sum + t.pnl, 0);
   const losses = Math.abs(trades.filter((t) => t.pnl <= 0).reduce((sum, t) => sum + t.pnl, 0));
-  const profitFactor = losses > 0 ? profits / losses : profits > 0 ? 999.99 : 0;
+  const profitFactor = reportedProfitFactor(profits, losses);
 
   const totalReturnPercent = ((capital - initialCapital) / initialCapital) * 100;
 

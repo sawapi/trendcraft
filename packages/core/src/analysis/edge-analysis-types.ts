@@ -30,7 +30,7 @@ export type TradeStats = {
   avgLoss: number;
   /** Expected value per trade (avgWin * winRate + avgLoss * lossRate) */
   expectancy: number;
-  /** Profit factor (gross profit / gross loss) */
+  /** Profit factor (gross profit / gross loss); `Infinity` when no trade lost (see `BacktestResult.profitFactor`) */
   profitFactor: number;
   /** Maximum consecutive winning trades */
   maxConsecutiveWins: number;

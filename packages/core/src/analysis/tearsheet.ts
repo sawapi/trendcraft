@@ -52,7 +52,7 @@ export type TearsheetReport = {
   sortinoRatio: number;
   calmarRatio: number;
   maxDrawdownPercent: number;
-  /** Trade-based profit factor (winning trade P&L / losing trade P&L). */
+  /** Trade-based profit factor (winning trade P&L / losing trade P&L); `Infinity` when no trade lost (see `BacktestResult.profitFactor`). */
   profitFactor: number;
   winRatePercent: number;
   tradeCount: number;

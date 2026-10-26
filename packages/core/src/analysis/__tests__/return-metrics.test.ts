@@ -8,6 +8,7 @@ import {
   payoffRatioFromReturns,
   percentileLinear,
   profitFactorFromReturns,
+  reportedProfitFactor,
   rollingSharpe,
   rollingVolatility,
   tailRatio,
@@ -186,5 +187,20 @@ describe("captureRatios", () => {
     // Benchmark never negative -> the down leg is empty.
     const { down } = captureRatios([0.01, 0.02], [0.01, 0.02], 1);
     expect(Number.isNaN(down)).toBe(true);
+  });
+});
+
+describe("reportedProfitFactor", () => {
+  it("is the ratio, rounded and uncapped, when there is a loss", () => {
+    expect(reportedProfitFactor(30, 10)).toBe(3);
+    expect(reportedProfitFactor(20_000, 1)).toBe(20_000);
+    expect(reportedProfitFactor(550, 300)).toBe(1.83);
+  });
+
+  it("is Infinity with profit and no loss, and 0 with neither", () => {
+    expect(reportedProfitFactor(5, 0)).toBe(Number.POSITIVE_INFINITY);
+    expect(reportedProfitFactor(0, 0)).toBe(0);
+    // The same convention as the raw-returns helper (quantstats).
+    expect(profitFactorFromReturns([0.01, 0.02])).toBe(Number.POSITIVE_INFINITY);
   });
 });

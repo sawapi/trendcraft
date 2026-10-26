@@ -160,11 +160,10 @@ export function gainToPainRatio(returns: number[]): number {
  * zero.
  *
  * This is the profit factor used by `commonSenseRatio` and `cpcIndex` on
- * periodic returns, and by the meta-strategy module on per-trade P&L — the
- * arithmetic is the same for any signed series. The backtest engine's
- * `BacktestResult.profitFactor` reports 999.99 instead of `Infinity` for the
- * no-loss case only (a finite ratio can exceed it); the portfolio backtest
- * caps the ratio itself at 999.99.
+ * periodic returns, and by `rotateStrategies` to rank strategies on per-trade
+ * P&L. Result objects (`BacktestResult.profitFactor` and the other reported
+ * metrics) use the same no-loss `Infinity`, with the ratio rounded to 2
+ * decimals.
  *
  * @param returns - Signed values (periodic returns as fractions, or trade P&L)
  * @returns Returns-based profit factor
@@ -178,6 +177,22 @@ export function profitFactorFromReturns(returns: number[]): number {
   }
   if (losses === 0) return gains === 0 ? 0 : Number.POSITIVE_INFINITY;
   return gains / losses;
+}
+
+/**
+ * Profit factor as reported on result objects (`BacktestResult`,
+ * `PortfolioBacktestResult`, trade stats, Monte Carlo samples) —
+ * `grossProfit / grossLoss` rounded to 2 decimals, `Infinity` when there is
+ * profit but no loss, and `0` when there is neither.
+ *
+ * @param grossProfit - Sum of winning amounts (>= 0)
+ * @param grossLoss - Absolute sum of losing amounts (>= 0)
+ * @returns Reported profit factor
+ * @internal
+ */
+export function reportedProfitFactor(grossProfit: number, grossLoss: number): number {
+  if (grossLoss > 0) return Math.round((grossProfit / grossLoss) * 100) / 100;
+  return grossProfit > 0 ? Number.POSITIVE_INFINITY : 0;
 }
 
 /**

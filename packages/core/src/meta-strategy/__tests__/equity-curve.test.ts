@@ -36,8 +36,13 @@ function makeResult(trades: Trade[]): BacktestResult {
     maxDrawdown: 10,
     sharpeRatio: 1.0,
     ...EMPTY_EXTENDED_METRICS_FIXTURE,
+    // The engine's convention: Infinity when nothing lost.
     profitFactor:
-      grossLoss > 0 ? grossProfit / grossLoss : grossProfit > 0 ? Number.POSITIVE_INFINITY : 0,
+      grossLoss > 0
+        ? Math.round((grossProfit / grossLoss) * 100) / 100
+        : grossProfit > 0
+          ? Number.POSITIVE_INFINITY
+          : 0,
     avgHoldingDays:
       trades.length > 0 ? trades.reduce((s, t) => s + t.holdingDays, 0) / trades.length : 0,
     trades,
@@ -337,5 +342,31 @@ describe("rebuildResult unit alignment with runBacktest", () => {
     expect(analysis.filtered.winRate).toBeLessThanOrEqual(100);
     expect(analysis.filtered.maxDrawdown).toBeGreaterThanOrEqual(0);
     expect(analysis.filtered.maxDrawdown).toBeLessThanOrEqual(100);
+  });
+});
+
+describe("applyEquityCurveFilter profit factor", () => {
+  it("reports a no-loss filtered result the way the engine does", () => {
+    // Nothing loses and nothing is filtered, so both sides are the same run.
+    // Infinity − Infinity is NaN; equal sides are no improvement.
+    const result = makeResult(Array.from({ length: 30 }, (_, i) => makeTrade(i, 100)));
+    const analysis = applyEquityCurveFilter(result, { type: "drawdown", maxDrawdown: 10 });
+    expect(analysis.tradesSkipped).toBe(0);
+    expect(analysis.filtered.profitFactor).toBe(Number.POSITIVE_INFINITY);
+    expect(analysis.improvement.profitFactor).toBe(0);
+    expect(JSON.parse(JSON.stringify(analysis.improvement)).profitFactor).toBe(0);
+  });
+
+  it("rounds the rebuilt ratio the way the engine does", () => {
+    // 550 / 300 = 1.8333…; the engine reports 1.83. Unrounded, a filter that
+    // skips nothing showed an improvement of 0.0033.
+    const trades = [makeTrade(0, 100), makeTrade(1, -300), makeTrade(2, 450)];
+    const analysis = applyEquityCurveFilter(makeResult(trades), {
+      type: "drawdown",
+      maxDrawdown: 50,
+    });
+    expect(analysis.tradesSkipped).toBe(0);
+    expect(analysis.filtered.profitFactor).toBe(1.83);
+    expect(analysis.improvement.profitFactor).toBe(0);
   });
 });

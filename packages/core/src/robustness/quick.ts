@@ -167,7 +167,7 @@ function scoreTradeConsistency(result: BacktestResult): DimensionScore {
     name: "Trade Consistency",
     score: Math.round(Math.max(0, Math.min(100, score)) * 10) / 10,
     weight: 0.35,
-    detail: `Win: ${result.winRate.toFixed(1)}%, PF: ${result.profitFactor.toFixed(2)}, MaxLosStreak: ${maxLosStreak}`,
+    detail: `Win: ${result.winRate.toFixed(1)}%, PF: ${Number.isFinite(result.profitFactor) ? result.profitFactor.toFixed(2) : "∞"}, MaxLosStreak: ${maxLosStreak}`,
   };
 }
 

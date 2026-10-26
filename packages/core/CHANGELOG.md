@@ -76,6 +76,57 @@ The `dpo` indicator preset (`indicatorPresets`, used by `@trendcraft/chart`'s
 `connectIndicators`) follows the default, so charts draw the causal line;
 pass `centered: true` in its params for the classic one.
 
+### Breaking — a profit factor with no losing trade is `Infinity` everywhere
+
+A profit factor with profit but no losing trade was reported three ways.
+`runBacktest`, `calculateTradeStats` and the Monte Carlo samples gave the
+finite stand-in 999.99, which a real ratio can exceed, so ranking by profit
+factor put a no-loss run below a large ratio. `applyEquityCurveFilter`'s
+`filtered` result gave `Infinity`, so `improvement.profitFactor` came out as
+`Infinity` (or `NaN`) next to an original of 999.99. `portfolioBacktest`
+capped every ratio at 999.99. Rounding differed too: the rebuilt and Monte
+Carlo results were not rounded, so a filter that skipped nothing still
+reported an improvement.
+
+Every result now reports the ratio rounded to 2 decimals, `Infinity` when
+there is profit but no losing trade (`return < 0`; a breakeven trade is not
+one), and 0 when there is neither. `Infinity` for no loss matches quantstats
+(single series) and vectorbt, and is what `profitFactorFromReturns` and
+`rotateStrategies` already used. What changes:
+
+- `BacktestResult.profitFactor`, `PortfolioBacktestResult.portfolio.profitFactor`,
+  `calculateTradeStats(...).profitFactor`, `report(...).profitFactor` and
+  Monte Carlo `originalResult.profitFactor` are `Infinity` instead of 999.99
+  when no trade lost. `JSON.stringify` writes `Infinity` as `null`: code
+  that stores results as JSON should read `null` back as "no losing trade".
+- `portfolioBacktest` reports ratios above 999.99 as they are.
+- `gridSearch` and `combinationSearch` rank `Infinity` first and can pick it
+  as the best score; they used to drop every non-finite score. `NaN` (an
+  undefined Calmar, MAR or recovery factor) is still dropped.
+- Means treat `Infinity` as a value, as numpy does, so one infinite value
+  makes the mean `Infinity`. Walk-forward averages also skip periods where a
+  metric is `NaN` (like numpy's `nanmean`); `calculateStatistics` and the
+  sensitivity means do not. `calculateStatistics` (and Monte Carlo `statistics.profitFactor`)
+  ranks it in the median, percentiles and max, and one infinite sample makes
+  `mean` `Infinity` and `stdDev` `NaN`; read the median instead.
+  Interpolating between two infinities no longer gives `NaN`.
+  `extractSensitivityData`'s cell means are `Infinity` when the cell holds a
+  no-loss combination.
+- `applyEquityCurveFilter(...).improvement.profitFactor` is 0 when neither
+  side lost, and the rebuilt ratio is rounded like the original.
+- Walk-forward `aggregateMetrics` no longer drops a period with no losing
+  trade from the average: it used to leave out every non-finite value, so
+  the best period vanished and a run that never lost averaged 0. A no-loss
+  period now makes the average profit factor `Infinity`, and
+  `stabilityRatio` is 1 when both sides are `Infinity` (it was 0).
+- `formatCombinationResult` and `quickRobustnessScore`'s detail text show `PF: ∞`.
+- `generateBehaviorInsights` no longer reports a no-loss profit factor as a
+  "Positive profit factor" strength.
+
+A no-loss run is often one or two lucky trades. Optimizing on
+`profitFactor` now ranks it first, as 999.99 nearly always did, so add a
+trade-count constraint such as `constraint("tradeCount", ">=", 30)`.
+
 ### Fixed — importing one function from `trendcraft` bundled the whole library
 
 `import { sma } from "trendcraft"` pulled about 400 kB (100 kB gzipped)
@@ -599,9 +650,8 @@ input order, a `NaN` metric ranks last, and a weight can no longer land one
 ulp above 1 after the minimum-allocation redistribution. `metricValue` still
 reports `Infinity` for a profit factor with no losing trade — the value
 `profitFactorFromReturns`, which now computes it, gives — and `null` in JSON.
-Note that the backtest engine's `BacktestResult.profitFactor` reports 999.99
-instead of `Infinity` for the no-loss case only (a finite ratio can exceed
-it), while the portfolio backtest caps the ratio itself at 999.99.
+`BacktestResult.profitFactor` now follows the same convention (see "a profit
+factor with no losing trade is `Infinity` everywhere" above).
 
 ### Fixed — `rotateStrategies` dropped zero-weight rows when redistributing below-minimum weights
 
