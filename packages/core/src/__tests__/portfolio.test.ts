@@ -307,6 +307,39 @@ describe("portfolioBacktest capital accounting", () => {
     }
   });
 
+  it("does not count a position that exits on the bar another one enters", () => {
+    // A holds bars 1–3 and B bars 3–5: A's exit and B's entry share bar 3, so
+    // at most one position is ever open. Counting the entry before the exit
+    // would report 2. The two symbols are told apart by their bar counts.
+    const isA = (candles: NormalizedCandle[]) => candles.length === 8;
+    const result = portfolioBacktest(
+      [
+        { symbol: "A", candles: flatBars(8) },
+        { symbol: "B", candles: flatBars(9) },
+      ],
+      {
+        type: "preset",
+        name: "entry",
+        evaluate: (_i, _c, index, candles) => index === (isA(candles) ? 1 : 3),
+      },
+      {
+        type: "preset",
+        name: "exit",
+        evaluate: (_i, _c, index, candles) => index === (isA(candles) ? 3 : 5),
+      },
+      {
+        capital: 2_000_000,
+        allocation: { type: "equal" },
+        tradeOptions: { fillMode: "same-bar-close", slTpMode: "close-only" },
+      },
+    );
+    const [first, second] = result.allTrades;
+    // Stimulus: one trade exits on the bar the other enters.
+    expect(result.allTrades).toHaveLength(2);
+    expect(first.exitTime).toBe(second.entryTime);
+    expect(result.peakConcurrentPositions).toBe(1);
+  });
+
   it("rejects a dataset list that names the same symbol twice", () => {
     // Capital, allocation weights and the merged equity curve are keyed by
     // symbol, so a repeat collapses datasets on those paths while every sleeve
