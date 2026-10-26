@@ -351,3 +351,26 @@ export function createMarkLine(values: number[]): SeriesItem {
     data: values.map((v) => ({ yAxis: v })),
   };
 }
+
+/**
+ * Give each line series that sets `lineStyle.color` the same `itemStyle.color`.
+ *
+ * ECharts takes a line series' colour from `itemStyle.color` (or the palette),
+ * never from `lineStyle.color`; that colour paints the symbol in the legend
+ * icon, the tooltip marker and any data points. A line coloured only through
+ * `lineStyle` therefore shows the next palette colour there. An explicit
+ * `itemStyle.color` is kept.
+ *
+ * @example
+ * ```ts
+ * syncLineItemColors([{ type: "line", lineStyle: { color: "#f00" } }]);
+ * // → [{ type: "line", lineStyle: { color: "#f00" }, itemStyle: { color: "#f00" } }]
+ * ```
+ */
+export function syncLineItemColors(series: SeriesItem[]): SeriesItem[] {
+  return series.map((s) => {
+    const lineColor = s?.type === "line" ? s.lineStyle?.color : undefined;
+    if (lineColor === undefined || s.itemStyle?.color !== undefined) return s;
+    return { ...s, itemStyle: { ...s.itemStyle, color: lineColor } };
+  });
+}

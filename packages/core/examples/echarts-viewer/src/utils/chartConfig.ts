@@ -26,6 +26,7 @@ import {
   type SeriesItem,
   type SubchartContext,
   type SubchartLegend,
+  syncLineItemColors,
 } from "./chartColors";
 import { buildOverlaySeries } from "./overlaySeriesBuilder";
 import {
@@ -666,7 +667,7 @@ export function buildChartOption(
     grid: grids,
     xAxis: xAxes,
     yAxis: yAxes,
-    series,
+    series: syncLineItemColors(series),
     dataZoom: [
       {
         type: "inside",
