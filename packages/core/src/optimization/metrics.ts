@@ -337,7 +337,8 @@ export function getMetricValue(
  * Order metric values best-first: larger before smaller, `Infinity` (a
  * profit factor with no losing trade) above every finite value, and `NaN`
  * (an undefined ratio) last. Plain `b - a` returns `NaN` for two equal
- * infinities, which leaves `Array.prototype.sort` order unspecified.
+ * infinities (sorted as a tie, so harmless) and for `NaN` against any value,
+ * which leaves a `NaN` wherever the sort happens to put it.
  *
  * @param a - First metric value
  * @param b - Second metric value

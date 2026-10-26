@@ -108,7 +108,11 @@ export interface DnaGradeItem {
   /** 0..100 score; weighted by `available: true` items into the overall grade. */
   score: number;
   description: string;
-  /** `false` when the input that would produce this item wasn't supplied. */
+  /**
+   * `false` when the input that would produce this item wasn't supplied, or
+   * when the item is undefined for that input (Parameter Sensitivity on a
+   * grid whose metric has a non-finite value). See `description` for which.
+   */
   available: boolean;
 }
 
@@ -513,10 +517,13 @@ function computeWinRateStdDev(wf: WalkForwardResult): number {
 
 /**
  * Compute an A–F robustness grade across four dimensions, using only
- * the inputs supplied. Items whose corresponding input is missing are
- * marked `available: false` and excluded from the weighted-average
- * overall (the remaining weights renormalize to 1, so a one-input
- * grade isn't penalized for the missing dimensions).
+ * the inputs supplied. Items whose corresponding input is missing, or
+ * that are undefined for it, are marked `available: false` and excluded
+ * from the weighted-average overall (the remaining weights renormalize to
+ * 1, so a grade isn't penalized for a dimension it cannot measure).
+ * Parameter Sensitivity is undefined when a grid result's metric is not
+ * finite — a profit factor with no losing trade is `Infinity` — since the
+ * coefficient of variation of such a spread is `NaN`.
  *
  * Weights: WF stability 30%, MC significance 30%, parameter
  * sensitivity 20%, win-rate stability 20%.
@@ -571,7 +578,21 @@ export function computeDnaGrade(
     });
   }
 
-  if (gridSearch && gridSearch.results.length > 1) {
+  const nonFinite = gridSearch
+    ? gridSearch.results.filter((r) => !Number.isFinite(r.metrics[gridSearch.metric])).length
+    : 0;
+  if (gridSearch && gridSearch.results.length > 1 && nonFinite > 0) {
+    // A spread over values that include Infinity (a profit factor with no
+    // losing trade) has no coefficient of variation; scoring the NaN would
+    // grade the strategy F, as maximally parameter-sensitive.
+    items.push({
+      label: "Parameter Sensitivity",
+      grade: "F",
+      score: 0,
+      description: `CV undefined: ${nonFinite} of ${gridSearch.results.length} combinations have a non-finite ${gridSearch.metric} (a profit factor with no losing trade is Infinity)`,
+      available: false,
+    });
+  } else if (gridSearch && gridSearch.results.length > 1) {
     const cv = computeCV(gridSearch.results, gridSearch.metric);
     const s = paramSensitivityScore(cv);
     items.push({
