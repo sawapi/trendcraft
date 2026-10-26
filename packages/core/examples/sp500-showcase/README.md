@@ -12,15 +12,17 @@ Demonstrates TrendCraft's full analysis pipeline:
 ## Quick Start
 
 ```bash
-# 1. Set Alpaca API credentials (or use alpaca-demo/.env)
+# 0. Install the workspace once, from the repo root: pnpm install --frozen-lockfile
+
+# 1. Set Alpaca API credentials (or copy .env.example to .env and fill it in)
 export ALPACA_API_KEY=your_key
 export ALPACA_API_SECRET=your_secret
 
 # 2. Fetch data
-npx tsx fetch-data.ts
+pnpm exec tsx fetch-data.ts
 
 # 3. Run showcase
-npx tsx run-showcase.ts
+pnpm exec tsx run-showcase.ts
 ```
 
 The report is saved to `reports/showcase-report.md`.

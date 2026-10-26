@@ -2,7 +2,7 @@
  * 04 — Stock Screening
  *
  * Screen multiple "stocks" against technical conditions.
- * Run: npx tsx examples/quick-start/04-screening.ts
+ * Run (from packages/core): pnpm exec tsx examples/quick-start/04-screening.ts
  */
 import { bollingerBands, type NormalizedCandle, rsi, sma } from "../../src";
 

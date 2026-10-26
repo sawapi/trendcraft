@@ -2,7 +2,7 @@
  * 03 — Grid Search Optimization
  *
  * Find optimal RSI thresholds and stop-loss via parameter grid search.
- * Run: npx tsx examples/quick-start/03-optimization.ts
+ * Run (from packages/core): pnpm exec tsx examples/quick-start/03-optimization.ts
  */
 import { gridSearch, type NormalizedCandle, rsiAbove, rsiBelow } from "../../src";
 

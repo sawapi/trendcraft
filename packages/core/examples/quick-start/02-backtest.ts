@@ -2,7 +2,7 @@
  * 02 — Backtest a Golden Cross Strategy
  *
  * Run a simple SMA golden cross / dead cross backtest with stop-loss.
- * Run: npx tsx examples/quick-start/02-backtest.ts
+ * Run (from packages/core): pnpm exec tsx examples/quick-start/02-backtest.ts
  */
 import {
   and,

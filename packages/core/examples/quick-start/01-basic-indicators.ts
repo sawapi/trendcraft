@@ -2,7 +2,7 @@
  * 01 — Basic Indicators
  *
  * Calculate SMA, RSI, MACD, and Bollinger Bands on sample data.
- * Run: npx tsx examples/quick-start/01-basic-indicators.ts
+ * Run (from packages/core): pnpm exec tsx examples/quick-start/01-basic-indicators.ts
  */
 import { bollingerBands, ema, macd, type NormalizedCandle, rsi, sma } from "../../src";
 
