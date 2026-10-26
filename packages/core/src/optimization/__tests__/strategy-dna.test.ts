@@ -473,6 +473,26 @@ describe("computeDnaGrade", () => {
     expect(mcItem?.grade).toBe("A");
   });
 
+  it("leaves parameter sensitivity out when a combination's profit factor is Infinity", () => {
+    // A combination with no losing trade has a profit factor of Infinity, so
+    // the spread has no coefficient of variation. Scoring the NaN graded the
+    // strategy F, as if it were maximally parameter-sensitive.
+    const grid: GridSearchResult = {
+      ...baseGridResult,
+      metric: "profitFactor",
+      results: [
+        ...baseGridResult.results.slice(1),
+        makeEntry({ fast: 5, slow: 25 }, Number.POSITIVE_INFINITY),
+      ],
+    };
+    const psItem = computeDnaGrade(grid, null, null).items.find(
+      (it) => it.label === "Parameter Sensitivity",
+    );
+    expect(psItem?.available).toBe(false);
+    expect(psItem?.description).toContain("1 of 12");
+    expect(psItem?.description).not.toContain("NaN");
+  });
+
   it("computes parameter sensitivity from grid search results when available", () => {
     const out = computeDnaGrade(baseGridResult, null, null);
     const psItem = out.items.find((it) => it.label === "Parameter Sensitivity");

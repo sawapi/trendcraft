@@ -120,6 +120,10 @@ one), and 0 when there is neither. `Infinity` for no loss matches quantstats
   period now makes the average profit factor `Infinity`, and
   `stabilityRatio` is 1 when both sides are `Infinity` (it was 0).
 - `formatCombinationResult` and `quickRobustnessScore`'s detail text show `PF: ∞`.
+- `computeDnaGrade` marks "Parameter Sensitivity" unavailable when a grid
+  result's metric is not finite. Its coefficient of variation came out `NaN`
+  as soon as one combination had no losing trade, which graded the strategy
+  F ("CV: NaN"), as if it were maximally parameter-sensitive.
 - `generateBehaviorInsights` no longer reports a no-loss profit factor as a
   "Positive profit factor" strength.
 
