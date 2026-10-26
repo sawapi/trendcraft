@@ -77,6 +77,16 @@ describe("getIndicatorPreset", () => {
     expect(fromNull).toBe(fromUndefined);
   });
 
+  it("dpo preset snapshotName tells a centered DPO from the causal one", () => {
+    // The name is the instance id. A centered DPO, which reads future bars,
+    // was "dpo20#2" beside the causal "dpo20", saying nothing about which is
+    // which.
+    const sn = indicatorPresets.dpo.snapshotName as (p: Record<string, unknown>) => string;
+    expect(sn({ period: 20 })).toBe("dpo20");
+    expect(sn({ period: 20, centered: true })).toBe("dpo20c");
+    expect(sn({ period: 20, centered: false })).toBe("dpo20");
+  });
+
   it("emv preset snapshotName includes volumeDivisor so different scales don't share state", () => {
     // Resuming an EMV state captured at one volumeDivisor under a different
     // divisor would mix scales (the buffer / sum are accumulated under the
