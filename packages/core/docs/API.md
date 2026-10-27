@@ -924,7 +924,7 @@ const custom = volumeProfile(candles, { period: 20, levels: 24, valueAreaPercent
 |--------|------|---------|-------------|
 | `period` | `number` | all candles | Lookback period (last N candles; omit to use the entire array) |
 | `levels` | `number` | `24` | Number of price levels (integer, at least 2) |
-| `valueAreaPercent` | `number` | `0.7` | Value Area fraction (0-1) |
+| `valueAreaPercent` | `number` | `0.7` | Value Area fraction, in (0, 1] |
 
 **Returns:** `VolumeProfileValue`
 
@@ -1187,7 +1187,7 @@ const custom = marketProfile(candles, { tickSize: 0.5, valueAreaPercent: 0.70 })
 |--------|------|---------|-------------|
 | `tickSize` | `number` | `auto` | Price bucket size (0 = auto-detect) |
 | `sessionResetPeriod` | `'session' \| number` | `'session'` | Session reset logic |
-| `valueAreaPercent` | `number` | `0.70` | Percentage of TPOs for Value Area (70%) |
+| `valueAreaPercent` | `number` | `0.70` | Fraction of TPOs for the Value Area, in (0, 1] (0.70 = 70%) |
 
 **Returns:** `Series<MarketProfileValue>`
 

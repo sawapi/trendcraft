@@ -14,6 +14,7 @@ import type {
   VolumePriceLevel,
   VolumeProfileValue,
 } from "../../types";
+import { assertInRange, assertPositive } from "../../utils/validate-number";
 import { assertPeriod } from "../../utils/validate-period";
 
 /**
@@ -63,6 +64,8 @@ export function volumeProfile(
   options: VolumeProfileOptions = {},
 ): VolumeProfileValue {
   const { levels = 24, valueAreaPercent = 0.7, period } = options;
+  assertPositive("Volume profile valueAreaPercent", valueAreaPercent);
+  assertInRange("Volume profile valueAreaPercent", valueAreaPercent, 0, 1);
   assertLevels(levels);
   if (period !== undefined) assertPeriod("Volume profile period", period);
 
@@ -101,6 +104,8 @@ export function volumeProfileSeries(
   options: VolumeProfileOptions = {},
 ): Series<VolumeProfileValue | null> {
   const { period = 20, levels = 24, valueAreaPercent = 0.7 } = options;
+  assertPositive("Volume profile valueAreaPercent", valueAreaPercent);
+  assertInRange("Volume profile valueAreaPercent", valueAreaPercent, 0, 1);
   assertLevels(levels);
   assertPeriod("Volume profile period", period);
 

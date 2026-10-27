@@ -8,6 +8,7 @@
 import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
+import { assertFinite } from "../../utils/validate-number";
 import { assertPeriod } from "../../utils/validate-period";
 import { STC_META } from "../indicator-meta";
 
@@ -77,6 +78,7 @@ export function schaffTrendCycle(
     factor = 0.5,
     source = "close",
   } = options;
+  assertFinite("Schaff Trend Cycle factor", factor);
 
   assertPeriod("Schaff Trend Cycle fastPeriod", fastPeriod);
   assertPeriod("Schaff Trend Cycle slowPeriod", slowPeriod);

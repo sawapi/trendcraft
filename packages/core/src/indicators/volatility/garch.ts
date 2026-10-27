@@ -13,6 +13,8 @@ import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 import { logReturnOrZero } from "../../utils/statistics";
+import { assertDecayFactor, assertPositive } from "../../utils/validate-number";
+import { assertPeriod } from "../../utils/validate-period";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -85,6 +87,8 @@ export function nelderMead(
 ): NelderMeadResult {
   const maxIter = options?.maxIter ?? 200;
   const tol = options?.tol ?? 1e-6;
+  assertPeriod("Nelder-Mead maxIter", maxIter);
+  assertPositive("Nelder-Mead tol", tol);
   const n = initial.length;
 
   // Reflection / expansion / contraction / shrink coefficients
@@ -220,6 +224,8 @@ export function garch(returns: number[], options?: GarchOptions): GarchResult {
 
   const maxIterations = options?.maxIterations ?? 100;
   const tolerance = options?.tolerance ?? 1e-6;
+  assertPeriod("GARCH maxIterations", maxIterations);
+  assertPositive("GARCH tolerance", tolerance);
   const sqrtAnnualization = Math.sqrt(annualizationFactor(options));
 
   // Reject non-finite inputs upfront. A single NaN / Infinity in `returns`
@@ -376,6 +382,7 @@ export function garch(returns: number[], options?: GarchOptions): GarchResult {
  */
 export function ewmaVolatility(returns: number[], options?: EwmaVolatilityOptions): Series<number> {
   const lambda = options?.lambda ?? 0.94;
+  assertDecayFactor("EWMA lambda", lambda);
   const T = returns.length;
 
   if (T === 0) return [];

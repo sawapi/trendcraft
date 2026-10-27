@@ -8,6 +8,8 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertNonNegative } from "../../utils/validate-number";
+import { assertPeriod } from "../../utils/validate-period";
 
 /**
  * Individual FVG gap
@@ -98,8 +100,8 @@ export function fairValueGap(
 ): Series<FvgValue> {
   const { minGapPercent = 0, maxActiveFvgs = 10, partialFill = true } = options;
 
-  if (minGapPercent < 0) throw new Error("minGapPercent must be non-negative");
-  if (maxActiveFvgs < 1) throw new Error("maxActiveFvgs must be at least 1");
+  assertNonNegative("minGapPercent", minGapPercent);
+  assertPeriod("maxActiveFvgs", maxActiveFvgs);
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
 

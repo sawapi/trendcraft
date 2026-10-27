@@ -8,6 +8,7 @@
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertInRange } from "../../utils/validate-number";
 import { assertPeriod } from "../../utils/validate-period";
 import { dmi } from "../momentum/dmi";
 
@@ -96,6 +97,12 @@ export function adaptiveStochastics(
   const dSmoothing = options.dSmoothing ?? 3;
 
   assertPeriod("Adaptive Stochastics minPeriod", minPeriod, 2);
+  assertPeriod("Adaptive Stochastics maxPeriod", maxPeriod, 2);
+  assertPeriod("Adaptive Stochastics basePeriod", basePeriod);
+  assertPeriod("Adaptive Stochastics adxPeriod", adxPeriod);
+  assertPeriod("Adaptive Stochastics kSmoothing", kSmoothing);
+  assertPeriod("Adaptive Stochastics dSmoothing", dSmoothing);
+  assertInRange("Adaptive Stochastics adxThreshold", adxThreshold, 0, 100);
   if (maxPeriod < minPeriod) {
     throw new Error("Adaptive Stochastics maxPeriod must be >= minPeriod");
   }

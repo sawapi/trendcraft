@@ -9,6 +9,7 @@
  */
 
 import type { NormalizedCandle } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 
 // ============================================
 // Types
@@ -27,6 +28,25 @@ export type FeatureOptions = {
 // ============================================
 // Feature Extraction
 // ============================================
+
+/**
+ * Validate the feature-extraction windows. Exported so the candle-level entry
+ * points can reject a bad option before they return early on empty input.
+ *
+ * @param options - The options to validate
+ * @throws Error naming the first invalid window
+ *
+ * @example
+ * ```ts
+ * assertFeatureOptions({ volatilityWindow: 20 }); // ok
+ * assertFeatureOptions({ volatilityWindow: 0 }); // throws: must be at least 1
+ * ```
+ */
+export function assertFeatureOptions(options?: FeatureOptions): void {
+  assertPeriod("HMM returnLookback", options?.returnLookback ?? 1);
+  assertPeriod("HMM volatilityWindow", options?.volatilityWindow ?? 20);
+  assertPeriod("HMM volumeWindow", options?.volumeWindow ?? 20);
+}
 
 /**
  * Extract feature vectors from normalized candles for HMM input.
@@ -52,6 +72,7 @@ export type FeatureOptions = {
  * ```
  */
 export function extractFeatures(candles: NormalizedCandle[], options?: FeatureOptions): number[][] {
+  assertFeatureOptions(options);
   const returnLookback = options?.returnLookback ?? 1;
   const volatilityWindow = options?.volatilityWindow ?? 20;
   const volumeWindow = options?.volumeWindow ?? 20;

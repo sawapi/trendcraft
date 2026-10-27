@@ -9,6 +9,7 @@ import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { centeredMoments } from "../../core/statistics";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series, VolumeAnomalyValue } from "../../types";
+import { assertPositive } from "../../utils/validate-number";
 import { assertPeriod } from "../../utils/validate-period";
 import { VOLUME_ANOMALY_META } from "../indicator-meta";
 
@@ -69,6 +70,9 @@ export function volumeAnomaly(
     useZScore = true,
     zScoreThreshold = 2.0,
   } = options;
+  assertPositive("Volume anomaly highThreshold", highThreshold);
+  assertPositive("Volume anomaly extremeThreshold", extremeThreshold);
+  assertPositive("Volume anomaly zScoreThreshold", zScoreThreshold);
 
   assertPeriod("Volume anomaly period", period);
 

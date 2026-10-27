@@ -923,7 +923,7 @@ const custom = volumeProfile(candles, { period: 20, levels: 24, valueAreaPercent
 |------------|------|---------|------|
 | `period` | `number` | 全期間（省略時は全キャンドル対象） | 参照期間（末尾からのキャンドル数） |
 | `levels` | `number` | `24` | 価格レベル数（2 以上の整数） |
-| `valueAreaPercent` | `number` | `0.7` | Value Area計算の割合（0-1の小数） |
+| `valueAreaPercent` | `number` | `0.7` | Value Area計算の割合（0より大きく1以下の小数） |
 
 **戻り値:** `VolumeProfileValue`
 
@@ -1162,9 +1162,9 @@ const custom = marketProfile(candles, { tickSize: 0.5, valueAreaPercent: 0.70 })
 **オプション:**
 | オプション | 型 | デフォルト | 説明 |
 |-----------|------|-----------|------|
-| `tickSize` | `number` | `auto` | 価格帯のティックサイズ |
+| `tickSize` | `number` | `auto` | 価格帯のティックサイズ（0 = 自動検出） |
 | `sessionResetPeriod` | `'session' \| number` | `'session'` | セッションリセット期間 |
-| `valueAreaPercent` | `number` | `0.70` | Value Areaの割合 |
+| `valueAreaPercent` | `number` | `0.70` | Value Areaの割合（0より大きく1以下、0.70 = 70%） |
 
 **戻り値:** `Series<MarketProfileValue>`
 

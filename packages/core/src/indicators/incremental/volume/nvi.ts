@@ -18,6 +18,7 @@
  */
 
 import type { NormalizedCandle } from "../../../types";
+import { assertPositive } from "../../../utils/validate-number";
 import { type IndicatorSnapshot, makeSnapshot, resolveResume } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
 
@@ -71,6 +72,7 @@ export function createNvi(
   });
 
   const initialValue = params.initialValue;
+  assertPositive("NVI initialValue", initialValue);
 
   let prevClose: number | null;
   let prevVolume: number | null;

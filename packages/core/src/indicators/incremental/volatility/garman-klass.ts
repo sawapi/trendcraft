@@ -16,6 +16,7 @@
  */
 
 import type { NormalizedCandle } from "../../../types";
+import { assertPositive } from "../../../utils/validate-number";
 import { CircularBuffer } from "../circular-buffer";
 import {
   type IndicatorSnapshot,
@@ -87,6 +88,7 @@ export function createGarmanKlass(
     "must be a positive integer",
   );
   const annualFactor = params.annualFactor;
+  assertPositive("Garman-Klass annualFactor", annualFactor);
 
   const LN2_COEFF = 2 * Math.LN2 - 1;
 

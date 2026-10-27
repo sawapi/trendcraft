@@ -36,6 +36,7 @@
  */
 
 import type { NormalizedCandle } from "../../../types";
+import { assertNonNegative } from "../../../utils/validate-number";
 import { assertPeriod } from "../../../utils/validate-period";
 import { CircularBuffer } from "../circular-buffer";
 import { createSwingPoints, type SwingPointsState } from "../price/swing-points";
@@ -133,7 +134,7 @@ export function createLiquiditySweep(
   assertPeriod("swingPeriod", swingPeriod);
   assertPeriod("maxRecoveryBars", maxRecoveryBars);
   assertPeriod("maxTrackedSweeps", maxTrackedSweeps);
-  if (minSweepDepth < 0) throw new Error("minSweepDepth must be non-negative");
+  assertNonNegative("minSweepDepth", minSweepDepth);
 
   const bufferCapacity = swingPeriod + 1;
 

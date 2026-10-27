@@ -575,6 +575,15 @@ export function requireParam<TParams, K extends keyof TParams>(
     );
   }
   const narrowed = value as NonNullable<TParams[K]>;
+  // A numeric option is never meaningful as NaN or ±Infinity, and a predicate
+  // written as a bare comparison (`v > 0`) lets Infinity through. Rejecting
+  // non-finite numbers here keeps every incremental factory in step with the
+  // batch indicators, which reject them through `assertFinite`.
+  if (typeof value === "number" && !Number.isFinite(value)) {
+    throw new Error(
+      `${indicator}: option "${String(key)}" failed validation (must be a finite number)`,
+    );
+  }
   if (validate && !validate(narrowed)) {
     throw new Error(
       `${indicator}: option "${String(key)}" failed validation${

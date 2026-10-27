@@ -22,6 +22,7 @@
  */
 
 import type { NormalizedCandle } from "../../../types";
+import { assertPositive } from "../../../utils/validate-number";
 import { CircularBuffer } from "../circular-buffer";
 import type { SmaState } from "../moving-average/sma";
 import { createSma } from "../moving-average/sma";
@@ -266,6 +267,10 @@ export function createVsa(
   const lowVolumeThreshold = params.lowVolumeThreshold;
   const wideSpreadThreshold = params.wideSpreadThreshold;
   const narrowSpreadThreshold = params.narrowSpreadThreshold;
+  assertPositive("VSA highVolumeThreshold", highVolumeThreshold);
+  assertPositive("VSA lowVolumeThreshold", lowVolumeThreshold);
+  assertPositive("VSA wideSpreadThreshold", wideSpreadThreshold);
+  assertPositive("VSA narrowSpreadThreshold", narrowSpreadThreshold);
 
   // The 'test' rule scans the 10 bars BEFORE the current one, and the
   // current bar is pushed before classification, so the buffer must

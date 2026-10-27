@@ -14,6 +14,7 @@
  */
 
 import type { NormalizedCandle } from "../../../types";
+import { assertPositive } from "../../../utils/validate-number";
 import { assertPeriod } from "../../../utils/validate-period";
 import { type IndicatorSnapshot, makeSnapshot, resolveResume } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -120,6 +121,7 @@ export function createOpeningRange(
   });
 
   const minutes = params.minutes;
+  assertPositive("Opening Range minutes", minutes);
   const sessionResetPeriod = params.sessionResetPeriod;
   if (typeof sessionResetPeriod === "number") {
     assertPeriod("Opening Range sessionResetPeriod", sessionResetPeriod);

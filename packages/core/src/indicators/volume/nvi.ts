@@ -8,6 +8,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertPositive } from "../../utils/validate-number";
 
 /**
  * NVI options
@@ -45,6 +46,7 @@ export function nvi(
   options: NviOptions = {},
 ): Series<number | null> {
   const { initialValue = 1000 } = options;
+  assertPositive("NVI initialValue", initialValue);
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
   const result: Series<number | null> = [];

@@ -695,6 +695,23 @@ describe("bar-count options that had no guard", () => {
 const none: NormalizedCandle[] = [];
 const twoBars = candles.slice(0, 2);
 const ENTRY_CHECKED: Array<[fn: string, label: string, run: (period: number) => unknown]> = [
+  ["adaptiveRsi", "Adaptive RSI basePeriod", (p) => adaptiveRsi(none, { basePeriod: p })],
+  ["adaptiveRsi", "Adaptive RSI volLookback", (p) => adaptiveRsi(none, { volLookback: p })],
+  [
+    "adaptiveStochastics",
+    "Adaptive Stochastics basePeriod",
+    (p) => adaptiveStochastics(none, { basePeriod: p }),
+  ],
+  [
+    "adaptiveStochastics",
+    "Adaptive Stochastics kSmoothing",
+    (p) => adaptiveStochastics(none, { kSmoothing: p }),
+  ],
+  [
+    "adaptiveStochastics",
+    "Adaptive Stochastics dSmoothing",
+    (p) => adaptiveStochastics(none, { dSmoothing: p }),
+  ],
   ["andrewsPitchfork", "leftBars", (p) => andrewsPitchfork(none, { leftBars: p })],
   ["autoTrendLine", "rightBars", (p) => autoTrendLine(none, { rightBars: p })],
   ["channelLine", "leftBars", (p) => channelLine(none, { leftBars: p })],
@@ -714,7 +731,7 @@ const ENTRY_CHECKED: Array<[fn: string, label: string, run: (period: number) => 
     (p) => calculateAtrPercent(twoBars, { atrPeriod: p }),
   ],
   ["atrPercentSeries", "ATR filter atrPeriod", (p) => atrPercentSeries(none, p)],
-  ["zigzag", "ZigZag atrPeriod", (p) => zigzag(candles, { atrPeriod: p })],
+  ["zigzag", "Zigzag atrPeriod", (p) => zigzag(candles, { atrPeriod: p })],
   ["srZones", "S/R zones swingLookback", (p) => srZones(none, { swingLookback: p })],
   ["vwap", "VWAP period", (p) => vwap(candles, { period: p })],
   ["emaRibbon", "EMA Ribbon period", (p) => emaRibbon(none, { periods: [p, 10] })],
@@ -881,6 +898,7 @@ describe("period guard inventory", () => {
     "momentum/adxr.ts": ["adxPeriod", "dmiPeriod"], // dmi() runs first, unconditionally
     "momentum/kst.ts": ["rocPeriods", "smaPeriods"], // checked per entry at entry
     "moving-average/ema-ribbon.ts": ["periods"], // checked per entry at entry
+    "regime/hmm-features.ts": ["returnLookback"], // checked at entry by assertFeatureOptions
     "volatility/chandelier-exit.ts": ["lookback"], // checked at entry as hlLookback
   };
 
@@ -893,6 +911,10 @@ describe("period guard inventory", () => {
         const name = part.split("=")[0].split(":")[0].trim();
         if (new RegExp(`^${NAME_PART}$`).test(name)) destructured.add(name);
       }
+    }
+    // The adaptive family reads its options one by one: `options.x ?? default`.
+    for (const m of text.matchAll(/const (\w+) = options\??\.\w+ \?\?/g)) {
+      if (new RegExp(`^${NAME_PART}$`).test(m[1])) destructured.add(m[1]);
     }
     const checked = integerChecked(text);
     const bounded = new Set(boundedOptions(text));

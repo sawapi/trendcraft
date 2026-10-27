@@ -73,6 +73,10 @@ export function adaptiveRsi(
   const volLookback = options.volLookback ?? 100;
 
   assertPeriod("Adaptive RSI minPeriod", minPeriod, 2);
+  assertPeriod("Adaptive RSI maxPeriod", maxPeriod, 2);
+  assertPeriod("Adaptive RSI basePeriod", basePeriod);
+  assertPeriod("Adaptive RSI atrPeriod", atrPeriod);
+  assertPeriod("Adaptive RSI volLookback", volLookback);
   if (maxPeriod < minPeriod) {
     throw new Error("Adaptive RSI maxPeriod must be >= minPeriod");
   }

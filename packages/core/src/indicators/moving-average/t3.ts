@@ -10,6 +10,7 @@
 import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
+import { assertInRange } from "../../utils/validate-number";
 import { T3_META } from "../indicator-meta";
 
 /**
@@ -52,6 +53,7 @@ export function t3(
   options: T3Options = {},
 ): Series<number | null> {
   const { period = 5, vFactor = 0.7, source = "close" } = options;
+  assertInRange("T3 vFactor", vFactor, 0, 1);
 
   if (period < 1) {
     throw new Error("T3 period must be at least 1");

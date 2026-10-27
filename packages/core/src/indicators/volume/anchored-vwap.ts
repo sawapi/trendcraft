@@ -9,6 +9,8 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertInRange } from "../../utils/validate-number";
+import { assertPeriod } from "../../utils/validate-period";
 
 /**
  * Anchored VWAP options
@@ -79,6 +81,8 @@ export function anchoredVwap(
   options: AnchoredVwapOptions,
 ): Series<AnchoredVwapValue> {
   const { anchorTime, bands = 0 } = options;
+  assertPeriod("Anchored VWAP bands", bands, 0);
+  assertInRange("Anchored VWAP bands", bands, 0, 2);
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
 

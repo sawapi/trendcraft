@@ -12,6 +12,7 @@ import type {
   NormalizedCandle,
   Series,
 } from "../../types";
+import { assertPositive } from "../../utils/validate-number";
 import { assertPeriod } from "../../utils/validate-period";
 import { BB_META } from "../indicator-meta";
 
@@ -42,9 +43,7 @@ export function bollingerBands(
 
   assertPeriod("Bollinger Bands period", period);
 
-  if (stdDev <= 0) {
-    throw new Error("Standard deviation multiplier must be positive");
-  }
+  assertPositive("Standard deviation multiplier", stdDev);
 
   // Normalize if needed
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);

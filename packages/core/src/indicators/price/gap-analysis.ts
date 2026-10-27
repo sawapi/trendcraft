@@ -8,6 +8,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertNonNegative } from "../../utils/validate-number";
 import { GAP_ANALYSIS_META } from "../indicator-meta";
 
 /**
@@ -61,6 +62,7 @@ export function gapAnalysis(
   options: GapAnalysisOptions = {},
 ): Series<GapValue> {
   const { minGapPercent = 0.5 } = options;
+  assertNonNegative("Gap Analysis minGapPercent", minGapPercent);
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
 

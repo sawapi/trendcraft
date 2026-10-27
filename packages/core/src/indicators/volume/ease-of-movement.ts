@@ -8,6 +8,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertPositive } from "../../utils/validate-number";
 import { assertPeriod } from "../../utils/validate-period";
 import { EMV_META } from "../indicator-meta";
 
@@ -71,6 +72,7 @@ export function easeOfMovement(
   const volumeDivisor = options.volumeDivisor ?? 100_000_000;
 
   assertPeriod("EMV period", period);
+  assertPositive("EMV volumeDivisor", volumeDivisor);
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
 

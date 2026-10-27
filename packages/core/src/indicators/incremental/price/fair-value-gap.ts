@@ -15,6 +15,7 @@
  */
 
 import type { NormalizedCandle } from "../../../types";
+import { assertNonNegative } from "../../../utils/validate-number";
 import { type IndicatorSnapshot, makeSnapshot, resolveResume } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
 
@@ -111,6 +112,7 @@ export function createFairValueGap(
   });
 
   const minGapPercent = params.minGapPercent;
+  assertNonNegative("minGapPercent", minGapPercent);
   const maxActiveFvgs = params.maxActiveFvgs;
   const partialFill = params.partialFill;
 

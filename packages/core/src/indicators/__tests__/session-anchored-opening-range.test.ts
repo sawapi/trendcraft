@@ -171,26 +171,18 @@ describe("session-anchored opening range", () => {
   });
 
   describe("a range window no bar can fall into", () => {
-    // `minutes` of zero, negative or NaN leaves the range unformed. Reporting
-    // the untouched sentinels would emit ±Infinity as a price level and make
-    // every close a breakout "above" it.
+    // `minutes` of zero, negative or NaN cannot form a range. It used to report
+    // no range; it is an invalid option, so both paths now reject it up front
+    // rather than return a series that looks like a quiet market.
     const open = nyOpenUtc(2);
     const candles = [bar(open, 105, 95), bar(open + 40 * MINUTE, 110, 100, 108)];
 
     for (const minutes of [0, -5, Number.NaN]) {
-      it(`reports no range for minutes: ${minutes}`, () => {
-        const result = openingRange(candles, { session: NY_REGULAR, minutes });
-
-        for (const point of result) {
-          expect(point.value).toEqual({ high: null, low: null, breakout: null });
-        }
-      });
-
-      it(`matches the non-session path for minutes: ${minutes}`, () => {
-        const withSession = openingRange(candles, { session: NY_REGULAR, minutes });
-        const withoutSession = openingRange(candles, { minutes });
-
-        expect(withSession.map((p) => p.value)).toEqual(withoutSession.map((p) => p.value));
+      it(`rejects minutes: ${minutes} with or without a session`, () => {
+        expect(() => openingRange(candles, { session: NY_REGULAR, minutes })).toThrow(
+          /Opening Range minutes must be/,
+        );
+        expect(() => openingRange(candles, { minutes })).toThrow(/Opening Range minutes must be/);
       });
     }
   });

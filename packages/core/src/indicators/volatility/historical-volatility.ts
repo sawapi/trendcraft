@@ -8,6 +8,7 @@
 import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
+import { assertPositive } from "../../utils/validate-number";
 import { assertPeriod } from "../../utils/validate-period";
 import { HV_META } from "../indicator-meta";
 
@@ -52,6 +53,7 @@ export function historicalVolatility(
   options: HistoricalVolatilityOptions = {},
 ): Series<number | null> {
   const { period = 20, annualFactor = 252, source = "close" } = options;
+  assertPositive("Historical Volatility annualFactor", annualFactor);
 
   assertPeriod("Historical Volatility period", period, 2);
 

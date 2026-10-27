@@ -8,6 +8,8 @@
  */
 
 import { mulberry32, randNormal } from "../../ml/tensor";
+import { assertInteger, assertPositive } from "../../utils/validate-number";
+import { assertPeriod } from "../../utils/validate-period";
 
 // ============================================
 // Types
@@ -293,6 +295,38 @@ function initializeModel(
   };
 }
 
+/** Defaults shared by validation and fitting, so the two cannot drift apart. */
+const HMM_DEFAULTS = {
+  numStates: 3,
+  maxIterations: 100,
+  tolerance: 1e-6,
+  seed: 42,
+  numRestarts: 5,
+  varianceFloor: 1e-6,
+} as const;
+
+/**
+ * Validate the Baum-Welch options. Exported so the candle-level entry points
+ * can reject a bad option before they return early on empty input.
+ *
+ * @param options - The options to validate
+ * @throws Error naming the first invalid option
+ *
+ * @example
+ * ```ts
+ * assertHmmOptions({ numStates: 3 }); // ok
+ * assertHmmOptions({ numStates: 1 }); // throws: HMM numStates must be at least 2
+ * ```
+ */
+export function assertHmmOptions(options?: HmmOptions): void {
+  assertPeriod("HMM numStates", options?.numStates ?? HMM_DEFAULTS.numStates, 2);
+  assertPeriod("HMM maxIterations", options?.maxIterations ?? HMM_DEFAULTS.maxIterations);
+  assertPositive("HMM tolerance", options?.tolerance ?? HMM_DEFAULTS.tolerance);
+  assertInteger("HMM seed", options?.seed ?? HMM_DEFAULTS.seed);
+  assertPeriod("HMM numRestarts", options?.numRestarts ?? HMM_DEFAULTS.numRestarts);
+  assertPositive("HMM varianceFloor", options?.varianceFloor ?? HMM_DEFAULTS.varianceFloor);
+}
+
 /**
  * Baum-Welch EM algorithm for fitting an HMM to observed data.
  *
@@ -314,13 +348,14 @@ function initializeModel(
  * ```
  */
 export function baumWelch(observations: number[][], options?: HmmOptions): HmmModel {
+  assertHmmOptions(options);
   if (observations.length === 0) throw new Error("baumWelch: observations must not be empty");
-  const numStates = options?.numStates ?? 3;
-  const maxIterations = options?.maxIterations ?? 100;
-  const tolerance = options?.tolerance ?? 1e-6;
-  const seed = options?.seed ?? 42;
-  const numRestarts = options?.numRestarts ?? 5;
-  const varianceFloor = options?.varianceFloor ?? 1e-6;
+  const numStates = options?.numStates ?? HMM_DEFAULTS.numStates;
+  const maxIterations = options?.maxIterations ?? HMM_DEFAULTS.maxIterations;
+  const tolerance = options?.tolerance ?? HMM_DEFAULTS.tolerance;
+  const seed = options?.seed ?? HMM_DEFAULTS.seed;
+  const numRestarts = options?.numRestarts ?? HMM_DEFAULTS.numRestarts;
+  const varianceFloor = options?.varianceFloor ?? HMM_DEFAULTS.varianceFloor;
 
   const T = observations.length;
   const D = observations[0].length;

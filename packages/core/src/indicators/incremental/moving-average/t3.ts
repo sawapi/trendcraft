@@ -12,6 +12,7 @@
  */
 
 import type { NormalizedCandle, PriceSource } from "../../../types";
+import { assertInRange } from "../../../utils/validate-number";
 import {
   type IndicatorSnapshot,
   makeSnapshot,
@@ -77,6 +78,7 @@ export function createT3(
     "must be a positive integer",
   );
   const vFactor = params.vFactor;
+  assertInRange("T3 vFactor", vFactor, 0, 1);
   const source = params.source;
 
   // T3 coefficients derived from volume factor
