@@ -77,6 +77,8 @@ export function buildMomentumSubcharts(
     series.push({
       name: "MACD Histogram",
       type: "bar",
+      // Series colour for the legend icon; each bar sets its own below.
+      itemStyle: { color: COLORS.macdHistUp },
       xAxisIndex: gridIndex,
       yAxisIndex: gridIndex,
       data: indicators.macdHist.map((v) => ({

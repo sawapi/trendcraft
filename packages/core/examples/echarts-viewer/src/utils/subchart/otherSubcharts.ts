@@ -147,6 +147,8 @@ export function buildOtherSubcharts(
     series.push({
       name: "ATR Percentile",
       type: "bar",
+      // Series colour for the legend icon; each bar sets its own below.
+      itemStyle: { color: COLORS.volRegimeHigh },
       xAxisIndex: gridIndex,
       yAxisIndex: gridIndex,
       data: indicators.volatilityRegime.map((v) => ({
@@ -363,6 +365,8 @@ export function buildOtherSubcharts(
     series.push({
       name: "Score",
       type: "bar",
+      // Series colour for the legend icon; each bar sets its own below.
+      itemStyle: { color: COLORS.scoreStrong },
       xAxisIndex: gridIndex,
       yAxisIndex: gridIndex,
       data: indicators.scoring.map((s) => ({

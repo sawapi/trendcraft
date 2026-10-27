@@ -87,6 +87,8 @@ export function buildVolumeSubcharts(
     series.push({
       name: "CMF",
       type: "bar",
+      // Series colour for the legend icon; each bar sets its own below.
+      itemStyle: { color: COLORS.up },
       xAxisIndex: gridIndex,
       yAxisIndex: gridIndex,
       data: indicators.cmf.map((v) => ({
@@ -272,6 +274,8 @@ export function buildVolumeSubcharts(
     series.push({
       name: "VT Confidence",
       type: "bar",
+      // Series colour for the legend icon; each bar sets its own below.
+      itemStyle: { color: COLORS.volumeTrendUp },
       xAxisIndex: gridIndex,
       yAxisIndex: gridIndex,
       data: indicators.volumeTrend.map((v) => ({
@@ -345,6 +349,8 @@ export function buildVolumeSubcharts(
     series.push({
       name: "KVO Hist",
       type: "bar",
+      // Series colour for the legend icon; each bar sets its own below.
+      itemStyle: { color: COLORS.up },
       xAxisIndex: gridIndex,
       yAxisIndex: gridIndex,
       data: indicators.klingerHist.map((v) =>
