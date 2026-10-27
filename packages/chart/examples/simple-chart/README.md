@@ -10,6 +10,8 @@ pnpm install --ignore-workspace
 pnpm dev
 ```
 
+`pnpm dev` works on its own: Vite serves `trendcraft` and `@trendcraft/chart` straight from their sources. `pnpm build` also typechecks those sources, which needs the workspace's type packages, so install the workspace once first (`pnpm install --frozen-lockfile` at the repo root).
+
 ## Features
 
 - SMA, Bollinger Bands, Ichimoku, RSI, MACD toggles
