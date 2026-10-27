@@ -56,6 +56,13 @@ pnpm dev
 
 Visit the URL Vite prints (typically <http://localhost:5173>).
 
+`pnpm dev` works on its own: it serves `trendcraft` and `@trendcraft/chart` straight from their sources. `pnpm build` needs the workspace install, because its typecheck reads those sources with the workspace's type packages; `pnpm test` also needs the workspace build, because the tests import the built packages. Run both once first, from the repo root:
+
+```bash
+pnpm install --frozen-lockfile
+pnpm build
+```
+
 ## Real data (Alpaca, optional)
 
 By default Studio runs on synthetic sample data. If you have an Alpaca account, you can switch to real OHLCV with timeframe selection (1m / 5m / 15m / 1H / 1D).
