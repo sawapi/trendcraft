@@ -1623,9 +1623,8 @@ the range.
   calendar's `tradingDaysPerYear`, is a positive finite number. That reaches its
   callers: `garch`, `ewmaVolatility`, `createEwmaVolatility`,
   `volatilityRegime`, `ulcerPerformanceIndex` and `calculateMetricsFromReturns`.
-  The return metrics in `analysis/` (Sharpe, Sortino, rolling metrics,
-  `annualizedReturnFraction`) read `periodsPerYear` themselves and are not
-  checked yet.
+  The return metrics in `analysis/` read `periodsPerYear` themselves; see the
+  next entry.
 - **`filterByRSPercentile`:** `minPercentile` must be between 0 and 100.
 - **Incremental counterparts that accepted these values now apply the same
   rule, with the same messages:** `createCci`, `createBollingerBands`,
@@ -1642,6 +1641,34 @@ the range.
 `openingRange`'s `minutes` of `0`, a negative value or `NaN` used to return a
 series with no range. It is an invalid option, so it now throws. For the
 indicators it wraps, the Safe API reports all of these as `INVALID_PARAMETER`.
+
+### Breaking — return metrics reject an invalid `periodsPerYear` or rolling window
+
+The return metrics took `periodsPerYear` as given. `0` scaled a Sharpe,
+Sortino or rolling volatility to `0` (`sqrt(0)`), a negative value turned it
+into `NaN`, and `NaN` or `Infinity` propagated. empyrical and quantstats
+accept any value here too; this library throws instead, as
+`annualizationFactor` already does. `periodsPerYear` must now be a positive
+finite number — fractional values such as the span-derived `251.7` stay valid
+— in `omegaRatio`, `sharpeFromReturns`, `sortinoFromReturns`, `rollingSharpe`,
+`rollingVolatility`, `captureRatios`, `calculateSharpeRatio`, and, when given
+explicitly, `report` and `backtestByRegime`. The check runs before the data is
+looked at, so it also throws on empty or short input.
+
+`calculateRuntimeMetrics` applies the same rule to its legacy
+`annualizationFactor` (or the calendar's `tradingDaysPerYear`). That value is
+only the fallback rate when the trades span no usable time, so an invalid one
+used to be ignored for most inputs, return zeros with no trades, and fail with
+a message naming `sharpeFromReturns` otherwise. It now throws on entry, naming
+`calculateRuntimeMetrics`.
+
+The rolling window of `rollingSharpe` and `rollingVolatility`, and `report`'s
+`rollingWindow`, must be an integer of at least 1, as pandas' `rolling`
+requires. `1.5` used to return all `NaN`, with the computed values written
+to stray keys such as `"0.5"` on the array, and `NaN` or `Infinity` returned
+all `NaN`. The messages name the function, e.g.
+`rollingSharpe window must be at least 1` (was `rollingSharpe: window must be
+at least 1`).
 
 ### Fixed — Safe API reports a non-integer period as INVALID_PARAMETER
 

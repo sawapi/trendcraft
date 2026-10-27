@@ -21,6 +21,7 @@
 
 import { depthPercent } from "../backtest/drawdown-tracker";
 import type { Trade } from "../types";
+import { assertPositive } from "../utils/validate-number";
 import { calculateTradeStats } from "./edge-analysis";
 import type { TradeStats } from "./edge-analysis-types";
 import { periodsPerYearFromSpan, sharpeFromReturns, sortinoFromReturns } from "./return-metrics";
@@ -95,6 +96,14 @@ export function calculateRuntimeMetrics(
   // Calendar takes precedence over the legacy annualizationFactor number
   const annualizationFactor =
     options.calendar?.tradingDaysPerYear ?? options.annualizationFactor ?? 252;
+  // Checked up front, although it is only the fallback rate: an invalid value
+  // throws whatever the trades, not only when they span no usable time.
+  assertPositive(
+    options.calendar
+      ? "calculateRuntimeMetrics calendar tradingDaysPerYear"
+      : "calculateRuntimeMetrics annualizationFactor",
+    annualizationFactor,
+  );
 
   const stats = calculateTradeStats(trades);
 

@@ -15,7 +15,14 @@
  * - Percentiles use linear interpolation between order statistics (numpy
  *   `linear` / pandas default), and rolling standard deviations use the
  *   sample estimator (ddof = 1).
+ * - Unlike empyrical / quantstats, which accept any annualisation factor, a
+ *   `periodsPerYear` that is not a finite positive number throws, and so does
+ *   a rolling window that is not an integer of at least 1. A zero factor would
+ *   otherwise scale every ratio to 0 and a negative one turn it into `NaN`.
  */
+
+import { assertPositive } from "../utils/validate-number";
+import { assertPeriod } from "../utils/validate-period";
 
 /**
  * Percentile of an ascending-sorted array using linear interpolation
@@ -77,6 +84,7 @@ export type OmegaOptions = {
  */
 export function omegaRatio(returns: number[], options: OmegaOptions = {}): number {
   const { riskFree = 0, requiredReturn = 0, periodsPerYear = 252 } = options;
+  assertPositive("omegaRatio periodsPerYear", periodsPerYear);
   if (returns.length < 2) return Number.NaN;
 
   let returnThreshold: number;
@@ -323,6 +331,7 @@ export type RollingOptions = {
  */
 export function sharpeFromReturns(returns: number[], options: RollingOptions = {}): number {
   const { riskFree = 0, periodsPerYear = 252, annualize = true } = options;
+  assertPositive("sharpeFromReturns periodsPerYear", periodsPerYear);
   if (returns.length < 2) return Number.NaN;
 
   const sd = sampleStd(returns);
@@ -363,6 +372,7 @@ export function sharpeFromReturns(returns: number[], options: RollingOptions = {
  */
 export function sortinoFromReturns(returns: number[], options: RollingOptions = {}): number {
   const { riskFree = 0, periodsPerYear = 252, annualize = true } = options;
+  assertPositive("sortinoFromReturns periodsPerYear", periodsPerYear);
   if (returns.length < 2) return Number.NaN;
 
   const perPeriodRf = riskFree === 0 ? 0 : (1 + riskFree) ** (1 / periodsPerYear) - 1;
@@ -447,7 +457,8 @@ export function periodsPerYearFromSpan(
  */
 export function rollingSharpe(returns: number[], options: RollingOptions = {}): number[] {
   const { window = 126, riskFree = 0, periodsPerYear = 252, annualize = true } = options;
-  if (window < 1) throw new Error("rollingSharpe: window must be at least 1");
+  assertPeriod("rollingSharpe window", window);
+  assertPositive("rollingSharpe periodsPerYear", periodsPerYear);
 
   const out: number[] = new Array(returns.length).fill(Number.NaN);
   for (let i = window - 1; i < returns.length; i++) {
@@ -471,7 +482,8 @@ export function rollingSharpe(returns: number[], options: RollingOptions = {}): 
  */
 export function rollingVolatility(returns: number[], options: RollingOptions = {}): number[] {
   const { window = 126, periodsPerYear = 252 } = options;
-  if (window < 1) throw new Error("rollingVolatility: window must be at least 1");
+  assertPeriod("rollingVolatility window", window);
+  assertPositive("rollingVolatility periodsPerYear", periodsPerYear);
 
   const scale = Math.sqrt(periodsPerYear);
   const out: number[] = new Array(returns.length).fill(Number.NaN);
@@ -507,7 +519,8 @@ export function annualizedReturnFraction(returns: number[], periodsPerYear: numb
  * @param benchmark - Benchmark periodic returns, aligned index-for-index
  * @param periodsPerYear - Periods per year for annualisation (default 252)
  * @returns `{ up, down, ratio }` where `ratio = up / down`
- * @throws If the two series differ in length
+ * @throws If the two series differ in length, or `periodsPerYear` is not a
+ *   finite positive number
  *
  * @example
  * ```ts
@@ -521,6 +534,7 @@ export function captureRatios(
   benchmark: number[],
   periodsPerYear = 252,
 ): { up: number; down: number; ratio: number } {
+  assertPositive("captureRatios periodsPerYear", periodsPerYear);
   if (returns.length !== benchmark.length) {
     throw new Error(
       `captureRatios: returns (${returns.length}) and benchmark (${benchmark.length}) must be the same length`,
