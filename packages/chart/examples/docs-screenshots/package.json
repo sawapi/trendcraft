@@ -6,7 +6,7 @@
   "description": "Internal playground for generating screenshots used in docs/assets/.",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && tsc -p tsconfig.node.json && vite build",
     "preview": "vite preview",
     "capture": "bash ./capture.sh",
     "fetch-data": "tsx fetch-data.ts"
