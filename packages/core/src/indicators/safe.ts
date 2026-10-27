@@ -96,9 +96,11 @@ type SafeVersion<F extends (...args: never[]) => unknown> = (
 
 function classifyErrorCode(message: string): TrendCraftErrorCode {
   // "an? integer|integers" covers both the singular form used by the period
-  // validator and the plural one used by array-valued options such as
-  // emaRibbon's `periods`. A rejected period is a bad parameter, not an
-  // indicator failure, so it must not fall through to INDICATOR_ERROR.
+  // validator (array-valued options such as emaRibbon's `periods` now check
+  // each entry with it too) and the plural one an array-valued option may use
+  // when it words the error for the whole array. A rejected period is a bad
+  // parameter, not an indicator failure, so it must not fall through to
+  // INDICATOR_ERROR.
   if (/must be (at least|positive|greater|less|non-negative|an? integer|integers)/i.test(message)) {
     return "INVALID_PARAMETER";
   }

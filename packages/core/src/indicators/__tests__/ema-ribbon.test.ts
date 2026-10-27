@@ -82,7 +82,7 @@ describe("emaRibbon", () => {
   it("should throw on non-integer periods", () => {
     const candles = makeCandles([100, 101, 102]);
     expect(() => emaRibbon(candles, { periods: [8, 13.5, 21] })).toThrow(
-      "EMA Ribbon periods must be integers",
+      "EMA Ribbon period must be an integer",
     );
   });
 });

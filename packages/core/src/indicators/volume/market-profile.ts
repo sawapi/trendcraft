@@ -8,6 +8,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 
 /**
  * Market Profile value
@@ -67,6 +68,9 @@ export function marketProfile(
     sessionResetPeriod = "session",
     valueAreaPercent = 0.7,
   } = options;
+  if (typeof sessionResetPeriod === "number") {
+    assertPeriod("Market Profile sessionResetPeriod", sessionResetPeriod);
+  }
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
 

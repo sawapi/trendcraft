@@ -8,6 +8,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 import {
   assertSessionResetCompatible,
   resolveSessionMembership,
@@ -90,6 +91,9 @@ export function openingRange(
   options: OpeningRangeOptions = {},
 ): Series<OpeningRangeValue> {
   const { minutes = 30, sessionResetPeriod = "day", session } = options;
+  if (typeof sessionResetPeriod === "number") {
+    assertPeriod("Opening Range sessionResetPeriod", sessionResetPeriod);
+  }
 
   if (session) {
     assertSessionResetCompatible("openingRange", "sessionResetPeriod", sessionResetPeriod, "day");

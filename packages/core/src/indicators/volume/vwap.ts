@@ -8,6 +8,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 import { VWAP_META } from "../indicator-meta";
 import {
   assertSessionResetCompatible,
@@ -171,6 +172,8 @@ export function vwap(
   options: VwapOptions = {},
 ): Series<VwapValue> {
   const { resetPeriod = "session", period = 20, bandMultipliers, session } = options;
+  assertPeriod("VWAP period", period);
+  if (typeof resetPeriod === "number") assertPeriod("VWAP resetPeriod", resetPeriod);
 
   if (session) {
     assertSessionResetCompatible("vwap", "resetPeriod", resetPeriod, "session");

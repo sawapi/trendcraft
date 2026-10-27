@@ -13,6 +13,7 @@ import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { mulberry32 } from "../../core/random";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 import { volumeProfile } from "../volume/volume-profile";
 import { vwap } from "../volume/vwap";
 import { pivotPoints } from "./pivot-points";
@@ -466,6 +467,7 @@ export function srZones(
     restarts = 1,
     seed = 42,
   } = options;
+  assertPeriod("S/R zones swingLookback", swingLookback);
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
 

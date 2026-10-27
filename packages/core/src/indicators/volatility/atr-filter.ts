@@ -12,6 +12,7 @@
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 import { atr } from "./atr";
 
 /**
@@ -83,6 +84,8 @@ export function calculateAtrPercentDetail(
   options: Omit<AtrFilterOptions, "threshold"> = {},
 ): AtrPercentDetail {
   const { atrPeriod = 14, lookbackPeriod = 252 } = options;
+  assertPeriod("ATR filter lookbackPeriod", lookbackPeriod);
+  assertPeriod("ATR filter atrPeriod", atrPeriod);
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
 
@@ -162,6 +165,7 @@ export function atrPercentSeries(
   candles: Candle[] | NormalizedCandle[],
   atrPeriod = 14,
 ): Series<number | null> {
+  assertPeriod("ATR filter atrPeriod", atrPeriod);
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
 
   if (normalized.length === 0) {

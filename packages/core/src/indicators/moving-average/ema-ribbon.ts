@@ -8,6 +8,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 import { EMA_RIBBON_META } from "../indicator-meta";
 import { ema } from "./ema";
 
@@ -60,11 +61,7 @@ export function emaRibbon(
   if (periods.length < 2) {
     throw new Error("EMA Ribbon requires at least 2 periods");
   }
-  for (const p of periods) {
-    if (!Number.isInteger(p)) {
-      throw new Error("EMA Ribbon periods must be integers");
-    }
-  }
+  for (const p of periods) assertPeriod("EMA Ribbon period", p);
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
 

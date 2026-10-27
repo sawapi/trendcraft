@@ -14,6 +14,7 @@
  */
 
 import type { NormalizedCandle } from "../../../types";
+import { assertPeriod } from "../../../utils/validate-period";
 import { type IndicatorSnapshot, makeSnapshot, resolveResume } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
 
@@ -120,6 +121,9 @@ export function createOpeningRange(
 
   const minutes = params.minutes;
   const sessionResetPeriod = params.sessionResetPeriod;
+  if (typeof sessionResetPeriod === "number") {
+    assertPeriod("Opening Range sessionResetPeriod", sessionResetPeriod);
+  }
   const orDurationMs = minutes * 60 * 1000;
 
   let sessionStartTime: number | null;

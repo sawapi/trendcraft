@@ -9,6 +9,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 import { swingPoints } from "./swing-points";
 
 /**
@@ -67,6 +68,8 @@ export function fibonacciRetracement(
   options: FibonacciRetracementOptions = {},
 ): Series<FibonacciRetracementValue> {
   const { leftBars = 10, rightBars = 10, levels = DEFAULT_LEVELS } = options;
+  assertPeriod("leftBars", leftBars);
+  assertPeriod("rightBars", rightBars);
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
 
