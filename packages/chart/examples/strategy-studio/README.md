@@ -73,7 +73,7 @@ By default Studio runs on synthetic sample data. If you have an Alpaca account, 
 
 A `Source · Symbol · TF` toolbar appears in the header. The Symbol field autocompletes against Alpaca's full US-equity asset list — search by ticker (`SPY`) or company name (`Apple`). Without the keys, the toolbar stays hidden and Studio behaves exactly as before.
 
-**Security**: keys live only in the dev server process. The vite proxy attaches them as request headers; client bundles never see the credentials.
+**Security**: keys live only in the dev server process. The vite proxy attaches them as request headers; client bundles never see the credentials. The proxy forwards only the two read-only calls the studio makes — `GET /v2/stocks/{symbol}/bars` (market data) and `GET /v2/assets` (symbol search) — and answers anything else, including order endpoints, with 404.
 
 **Notes**:
 
