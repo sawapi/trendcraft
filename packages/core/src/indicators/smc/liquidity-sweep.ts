@@ -16,6 +16,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertNonNegative } from "../../utils/validate-number";
 import { assertPeriod } from "../../utils/validate-period";
 import { LIQUIDITY_SWEEP_META } from "../indicator-meta";
 import { swingPoints } from "../price/swing-points";
@@ -147,7 +148,7 @@ export function liquiditySweep(
   assertPeriod("swingPeriod", swingPeriod);
   assertPeriod("maxRecoveryBars", maxRecoveryBars);
   assertPeriod("maxTrackedSweeps", maxTrackedSweeps);
-  if (minSweepDepth < 0) throw new Error("minSweepDepth must be non-negative");
+  assertNonNegative("minSweepDepth", minSweepDepth);
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
 

@@ -14,6 +14,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertPositive } from "../../utils/validate-number";
 import { assertPeriod } from "../../utils/validate-period";
 import { atr } from "../volatility/atr";
 import { volumeMa } from "../volume/volume-ma";
@@ -93,6 +94,10 @@ export function vsa(
     wideSpreadThreshold = 1.2,
     narrowSpreadThreshold = 0.7,
   } = options;
+  assertPositive("VSA highVolumeThreshold", highVolumeThreshold);
+  assertPositive("VSA lowVolumeThreshold", lowVolumeThreshold);
+  assertPositive("VSA wideSpreadThreshold", wideSpreadThreshold);
+  assertPositive("VSA narrowSpreadThreshold", narrowSpreadThreshold);
   assertPeriod("VSA volumeMaPeriod", volumeMaPeriod);
   assertPeriod("VSA atrPeriod", atrPeriod);
 

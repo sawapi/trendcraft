@@ -7,6 +7,7 @@
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import type { Candle, NormalizedCandle } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 import {
   getIctSessions,
   resolveSessionMembership,
@@ -74,12 +75,13 @@ export function sessionStats(
   candles: Candle[] | NormalizedCandle[],
   options?: SessionStatsOptions,
 ): SessionStatsValue[] {
+  const lookback = options?.lookback ?? 20;
+  assertPeriod("Session stats lookback", lookback);
   if (candles.length === 0) return [];
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
 
   const sessionDefs = options?.sessions ?? getIctSessions();
-  const lookback = options?.lookback ?? 20;
 
   // Build occurrences per session
   const occurrences = new Map<string, SessionOccurrence[]>();

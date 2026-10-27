@@ -8,6 +8,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertPositive } from "../../utils/validate-number";
 import { assertPeriod } from "../../utils/validate-period";
 import { GARMAN_KLASS_META } from "../indicator-meta";
 
@@ -43,6 +44,7 @@ export function garmanKlass(
   options: GarmanKlassOptions = {},
 ): Series<number | null> {
   const { period = 20, annualFactor = 252 } = options;
+  assertPositive("Garman-Klass annualFactor", annualFactor);
 
   assertPeriod("Garman-Klass period", period);
 

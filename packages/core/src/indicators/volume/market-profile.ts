@@ -8,6 +8,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertInRange, assertNonNegative, assertPositive } from "../../utils/validate-number";
 import { assertPeriod } from "../../utils/validate-period";
 
 /**
@@ -68,6 +69,9 @@ export function marketProfile(
     sessionResetPeriod = "session",
     valueAreaPercent = 0.7,
   } = options;
+  assertNonNegative("Market Profile tickSize", rawTickSize);
+  assertPositive("Market Profile valueAreaPercent", valueAreaPercent);
+  assertInRange("Market Profile valueAreaPercent", valueAreaPercent, 0, 1);
   if (typeof sessionResetPeriod === "number") {
     assertPeriod("Market Profile sessionResetPeriod", sessionResetPeriod);
   }

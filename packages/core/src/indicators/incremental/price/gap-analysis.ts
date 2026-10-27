@@ -19,6 +19,7 @@
  */
 
 import type { NormalizedCandle } from "../../../types";
+import { assertNonNegative } from "../../../utils/validate-number";
 import { type IndicatorSnapshot, makeSnapshot, resolveResume } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
 
@@ -97,6 +98,7 @@ export function createGapAnalysis(
   });
 
   const minGapPercent = params.minGapPercent;
+  assertNonNegative("Gap Analysis minGapPercent", minGapPercent);
 
   let prevCandle: { high: number; low: number; close: number } | null;
   let activeGaps: ActiveGap[];

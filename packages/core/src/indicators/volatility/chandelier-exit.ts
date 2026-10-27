@@ -21,6 +21,7 @@ import type {
   NormalizedCandle,
   Series,
 } from "../../types";
+import { assertPositive } from "../../utils/validate-number";
 import { assertPeriod } from "../../utils/validate-period";
 import { CHANDELIER_EXIT_META } from "../indicator-meta";
 import { highest, lowest } from "../price/highest-lowest";
@@ -74,9 +75,7 @@ export function chandelierExit(
 
   assertPeriod("Chandelier Exit lookback", hlLookback);
 
-  if (multiplier <= 0) {
-    throw new Error("Chandelier Exit multiplier must be positive");
-  }
+  assertPositive("Chandelier Exit multiplier", multiplier);
 
   // Normalize if needed
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);

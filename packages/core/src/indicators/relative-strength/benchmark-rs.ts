@@ -8,6 +8,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertFinite, assertNonNegative } from "../../utils/validate-number";
 import { assertPeriod } from "../../utils/validate-period";
 import { sma } from "../moving-average/sma";
 
@@ -75,6 +76,7 @@ export function benchmarkRS(
   assertPeriod("RS period", period);
   assertPeriod("RS rankingLookback", rankingLookback);
   assertPeriod("RS smaPeriod", smaPeriod);
+  assertNonNegative("RS flatThreshold", flatThreshold);
 
   const stockNorm = isNormalized(candles) ? candles : normalizeCandles(candles);
   const benchNorm = isNormalized(benchmark) ? benchmark : normalizeCandles(benchmark);
@@ -239,6 +241,7 @@ export function isOutperforming(
   period = 52,
   minOutperformance = 0,
 ): boolean {
+  assertFinite("RS minOutperformance", minOutperformance);
   const rs = benchmarkRS(candles, benchmark, { period });
   if (rs.length === 0) return false;
   return rs[rs.length - 1].value.outperformance >= minOutperformance;

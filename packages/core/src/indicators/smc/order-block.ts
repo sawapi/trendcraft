@@ -11,6 +11,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertNonNegative } from "../../utils/validate-number";
 import { assertPeriod } from "../../utils/validate-period";
 import { breakOfStructure } from "../price/break-of-structure";
 import { atr as calcAtr } from "../volatility/atr";
@@ -127,9 +128,9 @@ export function orderBlock(
 
   assertPeriod("swingPeriod", swingPeriod);
   assertPeriod("volumePeriod", volumePeriod);
-  if (minVolumeRatio < 0) throw new Error("minVolumeRatio must be non-negative");
+  assertNonNegative("minVolumeRatio", minVolumeRatio);
   assertPeriod("maxActiveOBs", maxActiveOBs);
-  if (displacementAtr < 0) throw new Error("displacementAtr must be non-negative");
+  assertNonNegative("displacementAtr", displacementAtr);
   assertPeriod("maxBarsActive", maxBarsActive, 0);
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);

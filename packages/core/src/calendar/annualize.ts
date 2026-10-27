@@ -7,6 +7,7 @@
  * default (`252`) only lives in one place.
  */
 
+import { assertPositive } from "../utils/validate-number";
 import type { TradingCalendar } from "./types";
 
 /**
@@ -29,6 +30,7 @@ export type AnnualizationOptions = {
  *          `periodsPerYear`, otherwise `252`.
  */
 export function annualizationFactor(opts: AnnualizationOptions = {}): number {
-  if (opts.calendar) return opts.calendar.tradingDaysPerYear;
-  return opts.periodsPerYear ?? 252;
+  const factor = opts.calendar ? opts.calendar.tradingDaysPerYear : (opts.periodsPerYear ?? 252);
+  assertPositive(opts.calendar ? "calendar tradingDaysPerYear" : "periodsPerYear", factor);
+  return factor;
 }

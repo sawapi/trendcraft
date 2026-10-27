@@ -13,6 +13,7 @@ import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { mulberry32 } from "../../core/random";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertInteger, assertPositive } from "../../utils/validate-number";
 import { assertPeriod } from "../../utils/validate-period";
 import { volumeProfile } from "../volume/volume-profile";
 import { vwap } from "../volume/vwap";
@@ -467,6 +468,10 @@ export function srZones(
     restarts = 1,
     seed = 42,
   } = options;
+  assertPositive("S/R zones zoneWidth", zoneWidth);
+  assertPeriod("S/R zones maxIterations", maxIterations);
+  assertPeriod("S/R zones restarts", restarts);
+  assertInteger("S/R zones seed", seed);
   assertPeriod("S/R zones swingLookback", swingLookback);
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);

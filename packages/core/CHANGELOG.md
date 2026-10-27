@@ -1563,6 +1563,86 @@ fallback start when `useAtr` is off).
 `cvdWithSignal`'s `smoothing: 0` used to mean no smoothing, as `1` does; use
 `1`.
 
+### Breaking — real-valued options reject non-finite and out-of-range values
+
+Multipliers, factors, thresholds and percentages accepted `NaN` and
+`Infinity`: a guard like `if (multiplier <= 0)` is false for `NaN`, and
+`Infinity` passes any lower bound. `bollingerBands(candles, { stdDev: NaN })`
+returned `NaN` bands, and `srZones(candles, { restarts: Infinity })` never
+returned. About half of these options had no range check at all either, so
+`t3(candles, { vFactor: -1 })` or `cci(candles, { constant: 0 })` ran on. Like
+TA-Lib, which returns `TA_BAD_PARAM` for a non-finite or out-of-range real
+option, they now throw `<label> must be a finite number`, or a message naming
+the range.
+
+- **Must be positive:**
+  - `cci` (`constant`), `supertrend` (`multiplier`), `parabolicSar` (`step`,
+    `max`), `bollingerBands` (`stdDev`), `atrStops` (both multipliers),
+    `keltnerChannel`, `chandelierExit` (`multiplier`);
+  - `garmanKlass`, `historicalVolatility` (`annualFactor`), `zigzag`
+    (`deviation`, `atrMultiplier`), `openingRange` (`minutes`), `srZones`
+    (`zoneWidth`), `mcginleyDynamic` (`k`), `alma` (`sigma`);
+  - `vsa` (all four thresholds), `nvi` (`initialValue`), `volumeAnomaly`
+    (all three thresholds), and `adaptiveBollinger` (`minMultiplier`;
+    `baseStdDev`; `maxMultiplier` must be finite and keeps its
+    `>= minMultiplier` check), `easeOfMovement` (`volumeDivisor`).
+- **Must be non-negative:** `fairValueGap` and `gapAnalysis`
+  (`minGapPercent`), `orderBlock` (`minVolumeRatio`, `displacementAtr`),
+  `liquiditySweep` (`minSweepDepth`), `wyckoffPhases` (`rangeTolerance`),
+  `weisWave` (`threshold`), `marketProfile` (`tickSize`; `0` still means
+  automatic), `volumeTrend` (`minPriceChange`), `benchmarkRS`
+  (`flatThreshold`).
+- **Must be between 0 and 1:** `t3` (`vFactor`), `alma` (`offset`),
+  `adaptiveMa` (`fastConstant`, `slowConstant`, which must also be positive),
+  `adaptiveStochastics` (`adxThreshold`, between 0 and 100), and
+  `valueAreaPercent` in `marketProfile`, `volumeProfile` and
+  `volumeProfileSeries` (which must also be positive).
+- **Must be finite:** `schaffTrendCycle` (`factor`, which keeps its `(0, 1]`
+  check), `isOutperforming` (`minOutperformance`).
+- **Must be integers of any sign:** `srZones` and the HMM (`seed`). A seed is
+  truncated to 32 bits, so `42.9` used to seed the same stream as `42`.
+- **Must be integers:** the adaptive family's bar counts, which it reads one
+  option at a time and which no check covered: `adaptiveRsi` (`basePeriod`,
+  `maxPeriod`, `atrPeriod`, `volLookback`), `adaptiveStochastics`
+  (`basePeriod`, `maxPeriod`, `adxPeriod`, `kSmoothing`, `dSmoothing`),
+  `adaptiveBollinger` (`kurtosisLookback`, at least 4, the minimum for a sample
+  kurtosis). Also `hurst` (`minWindow`, `maxWindow`), `srZones`
+  (`maxIterations`, `restarts`), and `anchoredVwap` (`bands`), which must
+  also be at most 2, as `createAnchoredVwap` already required.
+- **Options read as `options?.x`, which no earlier pass reached:**
+  - `garch` (`maxIterations` an integer ≥ 1, `tolerance` positive);
+  - `ewmaVolatility` and `createEwmaVolatility` (`lambda` strictly between 0
+    and 1, as in RiskMetrics' decay factor; `seedSize` an integer ≥ 1);
+  - `sessionStats` (`lookback`, an integer ≥ 1);
+  - `hmmRegimes`, `fitHmm` and `baumWelch` (`numStates` an integer ≥ 2,
+    `maxIterations` and `numRestarts` integers ≥ 1, `tolerance` and
+    `varianceFloor` positive, and `featureOptions` windows integers ≥ 1).
+    `numStates: NaN` used to die with `Invalid array length`, and
+    `numRestarts: 0` only failed after fitting, with "no model produced".
+- **`annualizationFactor` (public):** now throws unless `periodsPerYear`, or a
+  calendar's `tradingDaysPerYear`, is a positive finite number. That reaches its
+  callers: `garch`, `ewmaVolatility`, `createEwmaVolatility`,
+  `volatilityRegime`, `ulcerPerformanceIndex` and `calculateMetricsFromReturns`.
+  The return metrics in `analysis/` (Sharpe, Sortino, rolling metrics,
+  `annualizedReturnFraction`) read `periodsPerYear` themselves and are not
+  checked yet.
+- **`filterByRSPercentile`:** `minPercentile` must be between 0 and 100.
+- **Incremental counterparts that accepted these values now apply the same
+  rule, with the same messages:** `createCci`, `createBollingerBands`,
+  `createT3`, `createGarmanKlass`, `createHistoricalVolatility`,
+  `createZigzag`, `createOpeningRange`, `createVsa`, `createNvi`,
+  `createVolumeAnomaly`, `createFairValueGap`, `createGapAnalysis`,
+  `createLiquiditySweep`, `createVolumeTrend` and `createMcGinleyDynamic`
+  (`k`, which had no check). Every incremental factory that validates through
+  the shared option reader now rejects `NaN` and `±Infinity`: several checks
+  were bare comparisons such as `v > 0`, which let `Infinity` through
+  (`createAlma`'s `sigma`, `createWeisWave`'s `threshold`, `createEmv`'s
+  `volumeDivisor`).
+
+`openingRange`'s `minutes` of `0`, a negative value or `NaN` used to return a
+series with no range. It is an invalid option, so it now throws. For the
+indicators it wraps, the Safe API reports all of these as `INVALID_PARAMETER`.
+
 ### Fixed — Safe API reports a non-integer period as INVALID_PARAMETER
 
 `trendcraft/safe` classifies a thrown error into a typed code, but its

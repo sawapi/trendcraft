@@ -8,6 +8,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertPositive } from "../../utils/validate-number";
 import { PARABOLIC_SAR_META } from "../indicator-meta";
 
 /**
@@ -74,12 +75,8 @@ export function parabolicSar(
 ): Series<ParabolicSarValue> {
   const { step = 0.02, max = 0.2 } = options;
 
-  if (step <= 0) {
-    throw new Error("Parabolic SAR step must be positive");
-  }
-  if (max <= 0) {
-    throw new Error("Parabolic SAR max must be positive");
-  }
+  assertPositive("Parabolic SAR step", step);
+  assertPositive("Parabolic SAR max", max);
   if (step > max) {
     throw new Error("Parabolic SAR step must be less than or equal to max");
   }

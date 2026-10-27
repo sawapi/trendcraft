@@ -11,6 +11,7 @@
 
 import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertInRange, assertPositive } from "../../utils/validate-number";
 import { assertPeriod } from "../../utils/validate-period";
 
 /**
@@ -71,6 +72,10 @@ export function adaptiveMa(
   const slowConstant = options.slowConstant ?? 2 / (30 + 1);
 
   assertPeriod("Adaptive MA erPeriod", erPeriod);
+  assertPositive("Adaptive MA fastConstant", fastConstant);
+  assertInRange("Adaptive MA fastConstant", fastConstant, 0, 1);
+  assertPositive("Adaptive MA slowConstant", slowConstant);
+  assertInRange("Adaptive MA slowConstant", slowConstant, 0, 1);
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
   if (normalized.length === 0) return [];

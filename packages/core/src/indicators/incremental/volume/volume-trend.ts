@@ -16,6 +16,7 @@
 
 import { slopeOverIndex } from "../../../core/statistics";
 import type { NormalizedCandle, VolumeTrendValue } from "../../../types";
+import { assertNonNegative } from "../../../utils/validate-number";
 import { CircularBuffer } from "../circular-buffer";
 import {
   type IndicatorSnapshot,
@@ -114,6 +115,7 @@ export function createVolumeTrend(
     "must be a positive integer",
   );
   const minPriceChange = params.minPriceChange;
+  assertNonNegative("Volume Trend minPriceChange", minPriceChange);
 
   let priceBuffer: CircularBuffer<number>;
   let volumeBuffer: CircularBuffer<number>;

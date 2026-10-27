@@ -14,6 +14,7 @@
 
 import { centeredMoments } from "../../../core/statistics";
 import type { NormalizedCandle, VolumeAnomalyValue } from "../../../types";
+import { assertPositive } from "../../../utils/validate-number";
 import { CircularBuffer } from "../circular-buffer";
 import {
   type IndicatorSnapshot,
@@ -96,6 +97,9 @@ export function createVolumeAnomaly(
   const extremeThreshold = params.extremeThreshold;
   const useZScore = params.useZScore;
   const zScoreThreshold = params.zScoreThreshold;
+  assertPositive("Volume anomaly highThreshold", highThreshold);
+  assertPositive("Volume anomaly extremeThreshold", extremeThreshold);
+  assertPositive("Volume anomaly zScoreThreshold", zScoreThreshold);
 
   let buffer: CircularBuffer<number>;
   let count: number;

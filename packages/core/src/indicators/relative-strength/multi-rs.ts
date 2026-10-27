@@ -7,6 +7,7 @@
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import type { Candle, NormalizedCandle } from "../../types";
+import { assertInRange } from "../../utils/validate-number";
 import { assertPeriod } from "../../utils/validate-period";
 
 /**
@@ -166,6 +167,7 @@ export function filterByRSPercentile(
   minPercentile = 80,
   options: MultiRSOptions = {},
 ): SymbolRSRank[] {
+  assertInRange("RS minPercentile", minPercentile, 0, 100);
   const ranked = rankByRS(symbolsData, options);
   return ranked.filter((r) => r.percentile >= minPercentile);
 }

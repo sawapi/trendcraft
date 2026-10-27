@@ -8,6 +8,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertNonNegative } from "../../utils/validate-number";
 
 /**
  * Weis Wave value
@@ -49,6 +50,7 @@ export function weisWave(
   options: WeisWaveOptions = {},
 ): Series<WeisWaveValue> {
   const { method = "close", threshold = 0 } = options;
+  assertNonNegative("Weis Wave threshold", threshold);
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
 

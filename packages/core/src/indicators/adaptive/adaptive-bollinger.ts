@@ -14,6 +14,7 @@
 
 import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertFinite, assertPositive } from "../../utils/validate-number";
 import { assertPeriod } from "../../utils/validate-period";
 
 /**
@@ -107,9 +108,11 @@ export function adaptiveBollinger(
   const maxMultiplier = options.maxMultiplier ?? 3.0;
 
   assertPeriod("Adaptive Bollinger period", period);
-  if (minMultiplier <= 0) {
-    throw new Error("Adaptive Bollinger minMultiplier must be positive");
-  }
+  // Sample kurtosis needs at least 4 observations.
+  assertPeriod("Adaptive Bollinger kurtosisLookback", kurtosisLookback, 4);
+  assertPositive("Adaptive Bollinger baseStdDev", baseStdDev);
+  assertPositive("Adaptive Bollinger minMultiplier", minMultiplier);
+  assertFinite("Adaptive Bollinger maxMultiplier", maxMultiplier);
   if (maxMultiplier < minMultiplier) {
     throw new Error("Adaptive Bollinger maxMultiplier must be >= minMultiplier");
   }

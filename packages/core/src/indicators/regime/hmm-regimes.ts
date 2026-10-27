@@ -12,9 +12,9 @@ import { tagSeries } from "../../core/tag-series";
 import type { Candle, Series } from "../../types";
 import { HMM_REGIME_META } from "../indicator-meta";
 import type { HmmModel, HmmOptions } from "./hmm-core";
-import { baumWelch, forward, viterbi } from "./hmm-core";
+import { assertHmmOptions, baumWelch, forward, viterbi } from "./hmm-core";
 import type { FeatureOptions } from "./hmm-features";
-import { extractFeatures } from "./hmm-features";
+import { assertFeatureOptions, extractFeatures } from "./hmm-features";
 
 // ============================================
 // Types
@@ -158,6 +158,8 @@ function toBaumWelchOptions(options?: HmmRegimeOptions): HmmOptions {
 export function hmmRegimes(candles: Candle[], options?: HmmRegimeOptions): Series<HmmRegimeValue> {
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
   // Library convention: an empty input yields an empty series, never a throw.
+  assertHmmOptions(toBaumWelchOptions(options));
+  assertFeatureOptions(options?.featureOptions);
   if (normalized.length === 0) return tagSeries([], HMM_REGIME_META);
   const features = extractFeatures(normalized, options?.featureOptions);
   const model = baumWelch(features, toBaumWelchOptions(options));
@@ -203,6 +205,8 @@ export function hmmRegimes(candles: Candle[], options?: HmmRegimeOptions): Serie
 export function fitHmm(candles: Candle[], options?: HmmRegimeOptions): HmmModel {
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
   // A model cannot be fitted to nothing; there is no empty-model value to return.
+  assertHmmOptions(toBaumWelchOptions(options));
+  assertFeatureOptions(options?.featureOptions);
   if (normalized.length === 0) throw new Error("fitHmm: candles must not be empty");
   const features = extractFeatures(normalized, options?.featureOptions);
   return baumWelch(features, toBaumWelchOptions(options));

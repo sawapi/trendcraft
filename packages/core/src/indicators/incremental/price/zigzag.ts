@@ -20,6 +20,7 @@
  */
 
 import type { NormalizedCandle } from "../../../types";
+import { assertPositive } from "../../../utils/validate-number";
 import {
   type IndicatorSnapshot,
   makeSnapshot,
@@ -110,6 +111,7 @@ export function createZigzag(
   const useAtr = params.useAtr;
   const atrPeriod = params.atrPeriod;
   const atrMultiplier = params.atrMultiplier;
+  assertPositive("Zigzag atrMultiplier", atrMultiplier);
 
   const maxInitBars = Math.max(20, atrPeriod * 2);
 

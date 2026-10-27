@@ -58,6 +58,8 @@
 import { type AnnualizationOptions, annualizationFactor } from "../../../calendar";
 import type { NormalizedCandle, PriceSource } from "../../../types";
 import { logReturnOrZero } from "../../../utils/statistics";
+import { assertDecayFactor } from "../../../utils/validate-number";
+import { assertPeriod } from "../../../utils/validate-period";
 import {
   type IndicatorSnapshot,
   makeSnapshot,
@@ -195,6 +197,8 @@ export function createEwmaVolatility(
   const lambda = params.lambda;
   const source = params.source;
   const seedSize = params.seedSize;
+  assertDecayFactor("EWMA lambda", lambda);
+  assertPeriod("EWMA seedSize", seedSize);
   // Resolve `periodsPerYear` to its concrete numeric value (calendar
   // already pre-folded into options, snapshot value carried by
   // resolveResume, default 252 if still unset). We persist *this*
