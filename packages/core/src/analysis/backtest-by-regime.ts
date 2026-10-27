@@ -30,6 +30,7 @@
 import { maxDrawdownPercent } from "../backtest/drawdown-tracker";
 import { calculateDailyReturns } from "../optimization/metrics";
 import type { BacktestResult, NormalizedCandle, Series } from "../types";
+import { assertPositive } from "../utils/validate-number";
 import {
   annualizedReturnFraction,
   periodsPerYearFromSpan,
@@ -157,6 +158,9 @@ export function backtestByRegime(
     riskFree = 0,
     periodsPerYear: periodsPerYearOption,
   } = options;
+  if (periodsPerYearOption !== undefined) {
+    assertPositive("backtestByRegime periodsPerYear", periodsPerYearOption);
+  }
 
   if (regimes.length !== candles.length) {
     throw new Error(

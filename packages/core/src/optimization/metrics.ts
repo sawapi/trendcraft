@@ -6,6 +6,7 @@
 
 import type { BacktestResult, NormalizedCandle, PositionDirection } from "../types";
 import type { OptimizationMetric } from "../types/optimization";
+import { assertPositive } from "../utils/validate-number";
 
 /**
  * Calculate Sharpe Ratio from returns series
@@ -27,6 +28,7 @@ export function calculateSharpeRatio(
   riskFreeRate = 0,
   periodsPerYear = 252,
 ): number {
+  assertPositive("calculateSharpeRatio periodsPerYear", periodsPerYear);
   if (returns.length === 0) return 0;
 
   // Calculate mean return

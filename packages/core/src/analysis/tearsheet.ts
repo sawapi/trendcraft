@@ -12,6 +12,8 @@
 import { depthPercent } from "../backtest/drawdown-tracker";
 import { calculateDailyReturns } from "../optimization/metrics";
 import type { BacktestResult, NormalizedCandle } from "../types";
+import { assertPositive } from "../utils/validate-number";
+import { assertPeriod } from "../utils/validate-period";
 import { analyzeDrawdowns, type DrawdownSummary } from "./drawdown-analysis";
 import {
   captureRatios,
@@ -138,6 +140,10 @@ export function report(result: BacktestResult, options: ReportOptions): Tearshee
     requiredReturn = 0,
     benchmarkReturns,
   } = options;
+  if (periodsPerYearOption !== undefined) {
+    assertPositive("report periodsPerYear", periodsPerYearOption);
+  }
+  assertPeriod("report rollingWindow", rollingWindow);
 
   const rawReturns = calculateDailyReturns(result, candles, initialCapital);
   // A valid backtest with no trades produces no daily returns; keep the series
