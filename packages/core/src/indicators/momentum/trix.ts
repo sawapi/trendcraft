@@ -19,6 +19,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 import { TRIX_META } from "../indicator-meta";
 import { ema } from "../moving-average/ema";
 
@@ -104,8 +105,8 @@ export function trix(
 ): Series<TrixValue> {
   const { period = 15, signalPeriod = 9 } = options;
 
-  if (period < 1) throw new Error("TRIX period must be at least 1");
-  if (signalPeriod < 1) throw new Error("TRIX signal period must be at least 1");
+  assertPeriod("TRIX period", period);
+  assertPeriod("TRIX signal period", signalPeriod);
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
 

@@ -8,6 +8,7 @@
 import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 import { PPO_META } from "../indicator-meta";
 
 /**
@@ -59,9 +60,9 @@ export function ppo(
 ): Series<PpoValue | null> {
   const { fastPeriod = 12, slowPeriod = 26, signalPeriod = 9, source = "close" } = options;
 
-  if (fastPeriod < 1 || slowPeriod < 1 || signalPeriod < 1) {
-    throw new Error("PPO periods must be at least 1");
-  }
+  assertPeriod("PPO fastPeriod", fastPeriod);
+  assertPeriod("PPO slowPeriod", slowPeriod);
+  assertPeriod("PPO signalPeriod", signalPeriod);
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
   const prices = normalized.map((c) => getPrice(c, source));

@@ -21,6 +21,7 @@ import type {
   NormalizedCandle,
   Series,
 } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 import { CHANDELIER_EXIT_META } from "../indicator-meta";
 import { highest, lowest } from "../price/highest-lowest";
 import { atr } from "./atr";
@@ -69,13 +70,9 @@ export function chandelierExit(
   // Use lookback if specified, otherwise use period
   const hlLookback = lookback ?? period;
 
-  if (period < 1) {
-    throw new Error("Chandelier Exit period must be at least 1");
-  }
+  assertPeriod("Chandelier Exit period", period);
 
-  if (hlLookback < 1) {
-    throw new Error("Chandelier Exit lookback must be at least 1");
-  }
+  assertPeriod("Chandelier Exit lookback", hlLookback);
 
   if (multiplier <= 0) {
     throw new Error("Chandelier Exit multiplier must be positive");

@@ -7,6 +7,7 @@
 
 import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 
 /**
  * Super Smoother options
@@ -46,9 +47,7 @@ export function superSmoother(
 ): Series<number | null> {
   const { period, source = "close" } = options;
 
-  if (period < 1) {
-    throw new Error("Super Smoother period must be at least 1");
-  }
+  assertPeriod("Super Smoother period", period);
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
 

@@ -4,13 +4,15 @@
  * The four indicators that wrap `createSwingPoints` (Fibonacci Retracement /
  * Extension, Channel Line, Auto Trend Line) all repeat the same patterns:
  * resolving `leftBars` / `rightBars` with snapshot-precedence over options,
- * validating `< 1` errors, levels-array handling for Fibonacci variants, and
+ * validating the bar counts, levels-array handling for Fibonacci variants, and
  * bookkeeping helpers like a bounded push and a shallow array clone.
  *
  * These helpers exist purely to remove duplication. They do not change the
  * runtime behavior of any indicator — every parity / snapshot / peek test
  * across the four sister files passes unchanged after this refactor.
  */
+
+import { assertPeriod } from "../../../utils/validate-period";
 
 /**
  * Validate `leftBars` / `rightBars` (both `>= 1`).
@@ -26,8 +28,8 @@ export function validateSwingConfig(
   leftBars: number;
   rightBars: number;
 } {
-  if (leftBars < 1) throw new Error("leftBars must be at least 1");
-  if (rightBars < 1) throw new Error("rightBars must be at least 1");
+  assertPeriod("leftBars", leftBars);
+  assertPeriod("rightBars", rightBars);
   return { leftBars, rightBars };
 }
 

@@ -8,6 +8,7 @@
 
 import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 
 /**
  * Roofing Filter options
@@ -53,12 +54,8 @@ export function roofingFilter(
   // (|c2| ≈ 14.5, |c3| ≈ 53) drive the recurrence to infinity on bounded
   // inputs. period=1 is also the Nyquist degenerate case and has no
   // practical use for cycle filtering anyway.
-  if (highPassPeriod < 2) {
-    throw new Error("Roofing filter highPassPeriod must be at least 2");
-  }
-  if (lowPassPeriod < 1) {
-    throw new Error("Roofing filter lowPassPeriod must be at least 1");
-  }
+  assertPeriod("Roofing filter highPassPeriod", highPassPeriod, 2);
+  assertPeriod("Roofing filter lowPassPeriod", lowPassPeriod);
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
 

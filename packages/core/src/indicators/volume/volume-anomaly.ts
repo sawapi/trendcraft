@@ -9,6 +9,7 @@ import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { centeredMoments } from "../../core/statistics";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series, VolumeAnomalyValue } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 import { VOLUME_ANOMALY_META } from "../indicator-meta";
 
 /**
@@ -69,9 +70,7 @@ export function volumeAnomaly(
     zScoreThreshold = 2.0,
   } = options;
 
-  if (period < 1) {
-    throw new Error("Volume anomaly period must be at least 1");
-  }
+  assertPeriod("Volume anomaly period", period);
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
 

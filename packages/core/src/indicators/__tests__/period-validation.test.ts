@@ -24,34 +24,64 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import type { NormalizedCandle, Result, TrendCraftError } from "../../types";
+import { adaptiveBollinger } from "../adaptive/adaptive-bollinger";
+import { adaptiveMa } from "../adaptive/adaptive-ma";
+import { adaptiveRsi } from "../adaptive/adaptive-rsi";
+import { adaptiveStochastics } from "../adaptive/adaptive-stochastics";
+import { roofingFilter } from "../filter/roofing-filter";
+import { superSmoother } from "../filter/super-smoother";
 import {
   createAroon,
   createAtr,
   createBollingerBands,
+  createBreakOfStructure,
   createCci,
   createChoppinessIndex,
   createCmo,
   createDonchianChannel,
   createDpo,
+  createFibonacciRetracement,
   createHighestLowest,
   createHistoricalVolatility,
+  createLiquiditySweep,
   createMfi,
   createRoc,
   createRsi,
   createStandardDeviation,
   createStochastics,
+  createSwingPoints,
   createUlcerIndex,
   createWilliamsR,
 } from "../incremental";
+import { adxr } from "../momentum/adxr";
 import { aroon } from "../momentum/aroon";
+import { awesomeOscillator } from "../momentum/awesome-oscillator";
+import { balanceOfPower } from "../momentum/balance-of-power";
 import { cci } from "../momentum/cci";
 import { cmo } from "../momentum/cmo";
+import { coppockCurve } from "../momentum/coppock-curve";
+import { dmi } from "../momentum/dmi";
 import { dpo } from "../momentum/dpo";
+import { imi } from "../momentum/imi";
+import { macd } from "../momentum/macd";
+import { massIndex } from "../momentum/mass-index";
+import { ppo } from "../momentum/ppo";
+import { qstick } from "../momentum/qstick";
 import { roc } from "../momentum/roc";
 import { rsi } from "../momentum/rsi";
+import { stochRsi } from "../momentum/stoch-rsi";
 import { stochastics } from "../momentum/stochastics";
+import { trix } from "../momentum/trix";
+import { tsi } from "../momentum/tsi";
+import { ultimateOscillator } from "../momentum/ultimate-oscillator";
 import { williamsR } from "../momentum/williams-r";
+import { breakOfStructure } from "../price/break-of-structure";
+import { fractals } from "../price/fractals";
 import { highest, highestLowest, lowest } from "../price/highest-lowest";
+import { returns } from "../price/returns";
+import { swingPoints } from "../price/swing-points";
+import { benchmarkRS } from "../relative-strength/benchmark-rs";
+import { rankByRS } from "../relative-strength/multi-rs";
 import {
   aroonSafe,
   atrSafe,
@@ -68,14 +98,30 @@ import {
   volumeMaSafe,
   williamsRSafe,
 } from "../safe";
+import { liquiditySweep } from "../smc/liquidity-sweep";
+import { orderBlock } from "../smc/order-block";
+import { ichimoku } from "../trend/ichimoku";
+import { linearRegression } from "../trend/linear-regression";
+import { schaffTrendCycle } from "../trend/schaff-trend-cycle";
+import { supertrend } from "../trend/supertrend";
+import { vortex } from "../trend/vortex";
 import { atr } from "../volatility/atr";
+import { atrStops } from "../volatility/atr-stops";
 import { bollingerBands } from "../volatility/bollinger-bands";
+import { chandelierExit } from "../volatility/chandelier-exit";
 import { choppinessIndex } from "../volatility/choppiness-index";
 import { donchianChannel } from "../volatility/donchian-channel";
+import { garmanKlass } from "../volatility/garman-klass";
 import { historicalVolatility } from "../volatility/historical-volatility";
+import { keltnerChannel } from "../volatility/keltner-channel";
 import { standardDeviation } from "../volatility/standard-deviation";
 import { ulcerIndex } from "../volatility/ulcer-index";
+import { cmf } from "../volume/cmf";
+import { easeOfMovement } from "../volume/ease-of-movement";
+import { elderForceIndex } from "../volume/elder-force-index";
+import { klinger } from "../volume/klinger";
 import { mfi } from "../volume/mfi";
+import { volumeAnomaly } from "../volume/volume-anomaly";
 import { volumeMa } from "../volume/volume-ma";
 
 const candles: NormalizedCandle[] = Array.from({ length: 40 }, (_, i) => {
@@ -335,6 +381,218 @@ describe("period option validation (batch indicators)", () => {
   });
 });
 
+/**
+ * The remaining batch indicators bounded their bar-count options from below
+ * only, so a fractional or non-finite value ran on and either crashed with an
+ * unrelated TypeError (`swingPoints({ leftBars: 1.5 })` indexed a fractional
+ * offset) or quietly computed a different indicator. Each option here now goes
+ * through `assertPeriod`; this table pins the integer half of that check, which
+ * is the part that changed.
+ */
+const INTEGER_ONLY_TARGETS: Array<[fn: string, label: string, run: (period: number) => unknown]> = [
+  [
+    "adaptiveBollinger",
+    "Adaptive Bollinger period",
+    (p) => adaptiveBollinger(candles, { period: p }),
+  ],
+  ["adaptiveMa", "Adaptive MA erPeriod", (p) => adaptiveMa(candles, { erPeriod: p })],
+  ["adaptiveRsi", "Adaptive RSI minPeriod", (p) => adaptiveRsi(candles, { minPeriod: p })],
+  [
+    "adaptiveStochastics",
+    "Adaptive Stochastics minPeriod",
+    (p) => adaptiveStochastics(candles, { minPeriod: p }),
+  ],
+  [
+    "roofingFilter",
+    "Roofing filter highPassPeriod",
+    (p) => roofingFilter(candles, { highPassPeriod: p }),
+  ],
+  [
+    "roofingFilter",
+    "Roofing filter lowPassPeriod",
+    (p) => roofingFilter(candles, { lowPassPeriod: p }),
+  ],
+  ["superSmoother", "Super Smoother period", (p) => superSmoother(candles, { period: p })],
+  ["adxr", "ADXR period", (p) => adxr(candles, { period: p })],
+  [
+    "awesomeOscillator",
+    "Awesome Oscillator fastPeriod",
+    (p) => awesomeOscillator(candles, { fastPeriod: p }),
+  ],
+  [
+    "awesomeOscillator",
+    "Awesome Oscillator slowPeriod",
+    (p) => awesomeOscillator(candles, { slowPeriod: p }),
+  ],
+  ["balanceOfPower", "BOP smooth period", (p) => balanceOfPower(candles, { smoothPeriod: p })],
+  ["coppockCurve", "Coppock Curve wmaPeriod", (p) => coppockCurve(candles, { wmaPeriod: p })],
+  [
+    "coppockCurve",
+    "Coppock Curve longRocPeriod",
+    (p) => coppockCurve(candles, { longRocPeriod: p }),
+  ],
+  [
+    "coppockCurve",
+    "Coppock Curve shortRocPeriod",
+    (p) => coppockCurve(candles, { shortRocPeriod: p }),
+  ],
+  ["dmi", "DMI period", (p) => dmi(candles, { period: p })],
+  ["dmi", "DMI adxPeriod", (p) => dmi(candles, { adxPeriod: p })],
+  ["imi", "IMI period", (p) => imi(candles, { period: p })],
+  ["macd", "MACD fastPeriod", (p) => macd(candles, { fastPeriod: p })],
+  ["macd", "MACD slowPeriod", (p) => macd(candles, { slowPeriod: p })],
+  ["macd", "MACD signalPeriod", (p) => macd(candles, { signalPeriod: p })],
+  ["massIndex", "Mass Index emaPeriod", (p) => massIndex(candles, { emaPeriod: p })],
+  ["massIndex", "Mass Index sumPeriod", (p) => massIndex(candles, { sumPeriod: p })],
+  ["ppo", "PPO fastPeriod", (p) => ppo(candles, { fastPeriod: p })],
+  ["ppo", "PPO slowPeriod", (p) => ppo(candles, { slowPeriod: p })],
+  ["ppo", "PPO signalPeriod", (p) => ppo(candles, { signalPeriod: p })],
+  ["qstick", "QStick period", (p) => qstick(candles, { period: p })],
+  ["stochRsi", "RSI period", (p) => stochRsi(candles, { rsiPeriod: p })],
+  ["stochRsi", "Stoch period", (p) => stochRsi(candles, { stochPeriod: p })],
+  ["stochRsi", "K period", (p) => stochRsi(candles, { kPeriod: p })],
+  ["stochRsi", "D period", (p) => stochRsi(candles, { dPeriod: p })],
+  ["trix", "TRIX period", (p) => trix(candles, { period: p })],
+  ["trix", "TRIX signal period", (p) => trix(candles, { signalPeriod: p })],
+  ["tsi", "TSI longPeriod", (p) => tsi(candles, { longPeriod: p })],
+  ["tsi", "TSI shortPeriod", (p) => tsi(candles, { shortPeriod: p })],
+  ["tsi", "TSI signalPeriod", (p) => tsi(candles, { signalPeriod: p })],
+  [
+    "ultimateOscillator",
+    "Ultimate Oscillator period1",
+    (p) => ultimateOscillator(candles, { period1: p }),
+  ],
+  [
+    "ultimateOscillator",
+    "Ultimate Oscillator period2",
+    (p) => ultimateOscillator(candles, { period2: p }),
+  ],
+  [
+    "ultimateOscillator",
+    "Ultimate Oscillator period3",
+    (p) => ultimateOscillator(candles, { period3: p }),
+  ],
+  ["breakOfStructure", "swingPeriod", (p) => breakOfStructure(candles, { swingPeriod: p })],
+  ["fractals", "Fractals period", (p) => fractals(candles, { period: p })],
+  ["returns", "Returns period", (p) => returns(candles, { period: p })],
+  ["swingPoints", "leftBars", (p) => swingPoints(candles, { leftBars: p })],
+  ["swingPoints", "rightBars", (p) => swingPoints(candles, { rightBars: p })],
+  ["liquiditySweep", "swingPeriod", (p) => liquiditySweep(candles, { swingPeriod: p })],
+  ["liquiditySweep", "maxRecoveryBars", (p) => liquiditySweep(candles, { maxRecoveryBars: p })],
+  ["liquiditySweep", "maxTrackedSweeps", (p) => liquiditySweep(candles, { maxTrackedSweeps: p })],
+  ["orderBlock", "swingPeriod", (p) => orderBlock(candles, { swingPeriod: p })],
+  ["orderBlock", "volumePeriod", (p) => orderBlock(candles, { volumePeriod: p })],
+  ["orderBlock", "maxActiveOBs", (p) => orderBlock(candles, { maxActiveOBs: p })],
+  ["orderBlock", "maxBarsActive", (p) => orderBlock(candles, { maxBarsActive: p })],
+  ["ichimoku", "Ichimoku tenkanPeriod", (p) => ichimoku(candles, { tenkanPeriod: p })],
+  ["ichimoku", "Ichimoku kijunPeriod", (p) => ichimoku(candles, { kijunPeriod: p })],
+  ["ichimoku", "Ichimoku senkouBPeriod", (p) => ichimoku(candles, { senkouBPeriod: p })],
+  ["ichimoku", "Ichimoku displacement", (p) => ichimoku(candles, { displacement: p })],
+  ["linearRegression", "Linear Regression period", (p) => linearRegression(candles, { period: p })],
+  [
+    "schaffTrendCycle",
+    "Schaff Trend Cycle fastPeriod",
+    (p) => schaffTrendCycle(candles, { fastPeriod: p }),
+  ],
+  [
+    "schaffTrendCycle",
+    "Schaff Trend Cycle slowPeriod",
+    (p) => schaffTrendCycle(candles, { slowPeriod: p }),
+  ],
+  [
+    "schaffTrendCycle",
+    "Schaff Trend Cycle cyclePeriod",
+    (p) => schaffTrendCycle(candles, { cyclePeriod: p }),
+  ],
+  ["supertrend", "Supertrend period", (p) => supertrend(candles, { period: p })],
+  ["vortex", "Vortex period", (p) => vortex(candles, { period: p })],
+  ["atrStops", "ATR Stops period", (p) => atrStops(candles, { period: p })],
+  ["chandelierExit", "Chandelier Exit period", (p) => chandelierExit(candles, { period: p })],
+  ["chandelierExit", "Chandelier Exit lookback", (p) => chandelierExit(candles, { lookback: p })],
+  ["garmanKlass", "Garman-Klass period", (p) => garmanKlass(candles, { period: p })],
+  [
+    "keltnerChannel",
+    "Keltner Channel EMA period",
+    (p) => keltnerChannel(candles, { emaPeriod: p }),
+  ],
+  [
+    "keltnerChannel",
+    "Keltner Channel ATR period",
+    (p) => keltnerChannel(candles, { atrPeriod: p }),
+  ],
+  ["cmf", "CMF period", (p) => cmf(candles, { period: p })],
+  ["easeOfMovement", "EMV period", (p) => easeOfMovement(candles, { period: p })],
+  [
+    "elderForceIndex",
+    "Elder Force Index shortPeriod",
+    (p) => elderForceIndex(candles, { shortPeriod: p }),
+  ],
+  [
+    "elderForceIndex",
+    "Elder Force Index longPeriod",
+    (p) => elderForceIndex(candles, { longPeriod: p }),
+  ],
+  ["klinger", "Klinger shortPeriod", (p) => klinger(candles, { shortPeriod: p })],
+  ["klinger", "Klinger longPeriod", (p) => klinger(candles, { longPeriod: p })],
+  ["klinger", "Klinger signalPeriod", (p) => klinger(candles, { signalPeriod: p })],
+  ["volumeAnomaly", "Volume anomaly period", (p) => volumeAnomaly(candles, { period: p })],
+  ["benchmarkRS", "RS period", (p) => benchmarkRS(candles, candles, { period: p })],
+  [
+    "rankByRS",
+    "RS period",
+    (p) =>
+      rankByRS(
+        new Map([
+          ["A", candles],
+          ["B", candles],
+        ]),
+        { period: p },
+      ),
+  ],
+];
+
+describe("integer check on the remaining bar-count options", () => {
+  for (const [fn, label, run] of INTEGER_ONLY_TARGETS) {
+    for (const [name, value] of nonIntegerValues(2)) {
+      it(`${fn}: ${label} rejects ${name}`, () => {
+        expect(() => run(value)).toThrow(`${label} must be an integer`);
+      });
+    }
+  }
+});
+
+/**
+ * The incremental twins of the swing-based indicators had the same bound-only
+ * guards. `createSwingPoints({ leftBars: 1.5 })` crashed with a RangeError
+ * (`Invalid array length`), which the Safe API cannot classify as a bad
+ * parameter; the others accepted the value. Both surfaces now share the rule.
+ */
+const INCREMENTAL_INTEGER_TARGETS: Array<
+  [fn: string, label: string, run: (period: number) => unknown]
+> = [
+  ["createSwingPoints", "leftBars", (p) => createSwingPoints({ leftBars: p })],
+  ["createSwingPoints", "rightBars", (p) => createSwingPoints({ rightBars: p })],
+  ["createFibonacciRetracement", "leftBars", (p) => createFibonacciRetracement({ leftBars: p })],
+  ["createBreakOfStructure", "swingPeriod", (p) => createBreakOfStructure({ swingPeriod: p })],
+  ["createLiquiditySweep", "swingPeriod", (p) => createLiquiditySweep({ swingPeriod: p })],
+  ["createLiquiditySweep", "maxRecoveryBars", (p) => createLiquiditySweep({ maxRecoveryBars: p })],
+  [
+    "createLiquiditySweep",
+    "maxTrackedSweeps",
+    (p) => createLiquiditySweep({ maxTrackedSweeps: p }),
+  ],
+];
+
+describe("integer check on the incremental swing-based indicators", () => {
+  for (const [fn, label, run] of INCREMENTAL_INTEGER_TARGETS) {
+    for (const [name, value] of nonIntegerValues(2)) {
+      it(`${fn}: ${label} rejects ${name}`, () => {
+        expect(() => run(value)).toThrow(`${label} must be an integer`);
+      });
+    }
+  }
+});
+
 describe("period validation agrees with the incremental twin", () => {
   const twins = TARGETS.filter((t) => t.runIncremental !== undefined);
 
@@ -415,8 +673,8 @@ describe("Safe API classifies a rejected period as INVALID_PARAMETER", () => {
  * without ever checking that it is an integer.
  *
  * This is a stocktake, not the primary regression guard — the per-indicator
- * behavioural tests above are. Its job is to keep the remaining population
- * visible and to fail when a new indicator quietly joins it.
+ * behavioural tests above are. Every bounded option is checked now; its job is
+ * to fail when a new indicator bounds a period without checking integrality.
  *
  * Matching is per *option*, not per file: an indicator that validates one of
  * its periods and leaves a second one bare is still reported, which a
@@ -443,77 +701,6 @@ describe("period guard inventory", () => {
       ...[...text.matchAll(/assertPeriod\(\s*"[^"]*"\s*,\s*([A-Za-z0-9_]+)/g)].map((m) => m[1]),
     ]);
 
-  /** Files whose period options this change routes through `assertPeriod`. */
-  const FIXED_HERE = [
-    "momentum/aroon.ts",
-    "momentum/cci.ts",
-    "momentum/cmo.ts",
-    "momentum/dpo.ts",
-    "momentum/roc.ts",
-    "momentum/rsi.ts",
-    "momentum/stochastics.ts",
-    "momentum/williams-r.ts",
-    "price/highest-lowest.ts",
-    "volatility/atr.ts",
-    "volatility/bollinger-bands.ts",
-    "volatility/choppiness-index.ts",
-    "volatility/donchian-channel.ts",
-    "volatility/historical-volatility.ts",
-    "volatility/standard-deviation.ts",
-    "volatility/ulcer-index.ts",
-    "volume/mfi.ts",
-    "volume/volume-ma.ts",
-  ];
-
-  /**
-   * Bounded-but-unchecked period options, as `file -> option names`.
-   * Shrinking this map is the remaining work; it must never grow.
-   */
-  const KNOWN_UNVALIDATED: Record<string, string[]> = {
-    "adaptive/adaptive-bollinger.ts": ["period"],
-    "adaptive/adaptive-ma.ts": ["erPeriod"],
-    "adaptive/adaptive-rsi.ts": ["minPeriod"],
-    "adaptive/adaptive-stochastics.ts": ["minPeriod"],
-    "filter/roofing-filter.ts": ["highPassPeriod", "lowPassPeriod"],
-    "filter/super-smoother.ts": ["period"],
-    "momentum/adxr.ts": ["period"],
-    "momentum/awesome-oscillator.ts": ["fastPeriod", "slowPeriod"],
-    "momentum/balance-of-power.ts": ["smoothPeriod"],
-    "momentum/coppock-curve.ts": ["longRocPeriod", "shortRocPeriod", "wmaPeriod"],
-    "momentum/dmi.ts": ["adxPeriod", "period"],
-    "momentum/imi.ts": ["period"],
-    "momentum/macd.ts": ["fastPeriod", "signalPeriod", "slowPeriod"],
-    "momentum/mass-index.ts": ["emaPeriod", "sumPeriod"],
-    "momentum/ppo.ts": ["fastPeriod", "signalPeriod", "slowPeriod"],
-    "momentum/qstick.ts": ["period"],
-    "momentum/stoch-rsi.ts": ["dPeriod", "kPeriod", "rsiPeriod", "stochPeriod"],
-    "momentum/trix.ts": ["period", "signalPeriod"],
-    "momentum/tsi.ts": ["longPeriod", "shortPeriod", "signalPeriod"],
-    "momentum/ultimate-oscillator.ts": ["period1", "period2", "period3"],
-    "price/break-of-structure.ts": ["swingPeriod"],
-    "price/fractals.ts": ["period"],
-    "price/returns.ts": ["period"],
-    "price/swing-points.ts": ["leftBars", "rightBars"],
-    "relative-strength/benchmark-rs.ts": ["period"],
-    "relative-strength/multi-rs.ts": ["period"],
-    "smc/liquidity-sweep.ts": ["maxRecoveryBars", "swingPeriod"],
-    "smc/order-block.ts": ["maxBarsActive", "swingPeriod", "volumePeriod"],
-    "trend/ichimoku.ts": ["kijunPeriod", "senkouBPeriod", "tenkanPeriod"],
-    "trend/linear-regression.ts": ["period"],
-    "trend/schaff-trend-cycle.ts": ["cyclePeriod", "fastPeriod", "slowPeriod"],
-    "trend/supertrend.ts": ["period"],
-    "trend/vortex.ts": ["period"],
-    "volatility/atr-stops.ts": ["period"],
-    "volatility/chandelier-exit.ts": ["hlLookback", "period"],
-    "volatility/garman-klass.ts": ["period"],
-    "volatility/keltner-channel.ts": ["atrPeriod", "emaPeriod"],
-    "volume/cmf.ts": ["period"],
-    "volume/ease-of-movement.ts": ["period"],
-    "volume/elder-force-index.ts": ["longPeriod", "shortPeriod"],
-    "volume/klinger.ts": ["longPeriod", "shortPeriod", "signalPeriod"],
-    "volume/volume-anomaly.ts": ["period"],
-  };
-
   const collect = (dir: string, out: string[] = []): string[] => {
     for (const entry of readdirSync(dir)) {
       const full = path.join(dir, entry);
@@ -539,12 +726,7 @@ describe("period guard inventory", () => {
     if (bare.length > 0) unvalidated[path.relative(indicatorsRoot, file)] = bare;
   }
 
-  it("reports exactly the pinned bounded-but-unchecked options", () => {
-    expect(unvalidated).toEqual(KNOWN_UNVALIDATED);
-  });
-
-  it("reports none of the options fixed here", () => {
-    const regressed = FIXED_HERE.filter((file) => unvalidated[file] !== undefined);
-    expect(regressed).toEqual([]);
+  it("finds no bounded period option without an integer check", () => {
+    expect(unvalidated).toEqual({});
   });
 });

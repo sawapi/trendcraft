@@ -9,6 +9,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 
 /**
  * Fractal detection result
@@ -67,9 +68,7 @@ export function fractals(
 ): Series<FractalValue> {
   const { period = 2 } = options;
 
-  if (period < 1) {
-    throw new Error("Fractals period must be at least 1");
-  }
+  assertPeriod("Fractals period", period);
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
   const result: Series<FractalValue> = [];

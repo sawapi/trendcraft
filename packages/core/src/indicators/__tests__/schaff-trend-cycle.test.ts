@@ -20,13 +20,13 @@ describe("schaffTrendCycle", () => {
   it("should throw on invalid period", () => {
     const candles = makeCandles([10, 20, 30]);
     expect(() => schaffTrendCycle(candles, { fastPeriod: 0 })).toThrow(
-      "Schaff Trend Cycle periods must be at least 1",
+      "Schaff Trend Cycle fastPeriod must be at least 1",
     );
     expect(() => schaffTrendCycle(candles, { slowPeriod: 0 })).toThrow(
-      "Schaff Trend Cycle periods must be at least 1",
+      "Schaff Trend Cycle slowPeriod must be at least 1",
     );
     expect(() => schaffTrendCycle(candles, { cyclePeriod: 0 })).toThrow(
-      "Schaff Trend Cycle periods must be at least 1",
+      "Schaff Trend Cycle cyclePeriod must be at least 1",
     );
   });
 

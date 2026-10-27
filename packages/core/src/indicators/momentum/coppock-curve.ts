@@ -8,6 +8,7 @@
 import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 import { COPPOCK_META } from "../indicator-meta";
 
 /**
@@ -49,9 +50,9 @@ export function coppockCurve(
 ): Series<number | null> {
   const { wmaPeriod = 10, longRocPeriod = 14, shortRocPeriod = 11, source = "close" } = options;
 
-  if (wmaPeriod < 1 || longRocPeriod < 1 || shortRocPeriod < 1) {
-    throw new Error("Coppock Curve periods must be at least 1");
-  }
+  assertPeriod("Coppock Curve wmaPeriod", wmaPeriod);
+  assertPeriod("Coppock Curve longRocPeriod", longRocPeriod);
+  assertPeriod("Coppock Curve shortRocPeriod", shortRocPeriod);
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
   const result: Series<number | null> = [];

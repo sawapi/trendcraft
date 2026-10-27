@@ -11,6 +11,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 import { ELDER_FORCE_INDEX_META } from "../indicator-meta";
 
 /**
@@ -69,12 +70,8 @@ export function elderForceIndex(
   const shortPeriod = options.shortPeriod ?? 2;
   const longPeriod = options.longPeriod ?? 13;
 
-  if (shortPeriod < 1) {
-    throw new Error("Elder Force Index shortPeriod must be at least 1");
-  }
-  if (longPeriod < 1) {
-    throw new Error("Elder Force Index longPeriod must be at least 1");
-  }
+  assertPeriod("Elder Force Index shortPeriod", shortPeriod);
+  assertPeriod("Elder Force Index longPeriod", longPeriod);
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
 

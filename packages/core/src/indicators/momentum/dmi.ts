@@ -6,6 +6,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 import { DMI_META } from "../indicator-meta";
 
 /**
@@ -63,8 +64,8 @@ export function dmi(
 ): Series<DmiValue> {
   const { period = 14, adxPeriod = 14 } = options;
 
-  if (period < 1) throw new Error("period must be at least 1");
-  if (adxPeriod < 1) throw new Error("adxPeriod must be at least 1");
+  assertPeriod("DMI period", period);
+  assertPeriod("DMI adxPeriod", adxPeriod);
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
 

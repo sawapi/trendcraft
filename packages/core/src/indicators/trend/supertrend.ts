@@ -8,6 +8,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 import { SUPERTREND_META } from "../indicator-meta";
 import { atr } from "../volatility/atr";
 
@@ -85,9 +86,7 @@ export function supertrend(
 ): Series<SupertrendValue> {
   const { period = 10, multiplier = 3 } = options;
 
-  if (period < 1) {
-    throw new Error("Supertrend period must be at least 1");
-  }
+  assertPeriod("Supertrend period", period);
   if (multiplier <= 0) {
     throw new Error("Supertrend multiplier must be positive");
   }

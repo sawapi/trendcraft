@@ -8,6 +8,7 @@
 import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 import { TSI_META } from "../indicator-meta";
 
 /**
@@ -64,9 +65,9 @@ export function tsi(
 ): Series<TsiValue | null> {
   const { longPeriod = 25, shortPeriod = 13, signalPeriod = 7, source = "close" } = options;
 
-  if (longPeriod < 1 || shortPeriod < 1 || signalPeriod < 1) {
-    throw new Error("TSI periods must be at least 1");
-  }
+  assertPeriod("TSI longPeriod", longPeriod);
+  assertPeriod("TSI shortPeriod", shortPeriod);
+  assertPeriod("TSI signalPeriod", signalPeriod);
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
   const result: Series<TsiValue | null> = [];

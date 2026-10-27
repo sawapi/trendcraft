@@ -5,6 +5,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, MacdOptions, MacdValue, NormalizedCandle, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 import { MACD_META } from "../indicator-meta";
 import { ema } from "../moving-average/ema";
 
@@ -31,9 +32,9 @@ export function macd(
 ): Series<MacdValue> {
   const { fastPeriod = 12, slowPeriod = 26, signalPeriod = 9, source = "close" } = options;
 
-  if (fastPeriod < 1 || slowPeriod < 1 || signalPeriod < 1) {
-    throw new Error("MACD periods must be at least 1");
-  }
+  assertPeriod("MACD fastPeriod", fastPeriod);
+  assertPeriod("MACD slowPeriod", slowPeriod);
+  assertPeriod("MACD signalPeriod", signalPeriod);
 
   if (fastPeriod >= slowPeriod) {
     throw new Error("Fast period must be less than slow period");

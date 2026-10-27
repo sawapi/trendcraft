@@ -19,10 +19,10 @@ describe("ichimoku", () => {
   it("should throw if period is less than 1", () => {
     const candles = makeCandles([{ high: 110, low: 90, close: 100 }]);
     expect(() => ichimoku(candles, { tenkanPeriod: 0 })).toThrow(
-      "Ichimoku periods must be at least 1",
+      "Ichimoku tenkanPeriod must be at least 1",
     );
     expect(() => ichimoku(candles, { kijunPeriod: 0 })).toThrow(
-      "Ichimoku periods must be at least 1",
+      "Ichimoku kijunPeriod must be at least 1",
     );
   });
 

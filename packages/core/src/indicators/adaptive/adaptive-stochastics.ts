@@ -8,6 +8,7 @@
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 import { dmi } from "../momentum/dmi";
 
 /**
@@ -94,9 +95,7 @@ export function adaptiveStochastics(
   const kSmoothing = options.kSmoothing ?? 3;
   const dSmoothing = options.dSmoothing ?? 3;
 
-  if (minPeriod < 2) {
-    throw new Error("Adaptive Stochastics minPeriod must be at least 2");
-  }
+  assertPeriod("Adaptive Stochastics minPeriod", minPeriod, 2);
   if (maxPeriod < minPeriod) {
     throw new Error("Adaptive Stochastics maxPeriod must be >= minPeriod");
   }

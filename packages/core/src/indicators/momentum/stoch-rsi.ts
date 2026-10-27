@@ -7,6 +7,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 import { STOCH_RSI_META } from "../indicator-meta";
 import { rsi } from "./rsi";
 
@@ -77,10 +78,10 @@ export function stochRsi(
 ): Series<StochRsiValue> {
   const { rsiPeriod = 14, stochPeriod = 14, kPeriod = 3, dPeriod = 3, source = "close" } = options;
 
-  if (rsiPeriod < 1) throw new Error("RSI period must be at least 1");
-  if (stochPeriod < 1) throw new Error("Stoch period must be at least 1");
-  if (kPeriod < 1) throw new Error("K period must be at least 1");
-  if (dPeriod < 1) throw new Error("D period must be at least 1");
+  assertPeriod("RSI period", rsiPeriod);
+  assertPeriod("Stoch period", stochPeriod);
+  assertPeriod("K period", kPeriod);
+  assertPeriod("D period", dPeriod);
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
 

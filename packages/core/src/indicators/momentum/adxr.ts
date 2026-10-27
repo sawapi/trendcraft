@@ -6,6 +6,7 @@
 
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 import { ADXR_META } from "../indicator-meta";
 import { dmi } from "./dmi";
 
@@ -41,9 +42,7 @@ export function adxr(
 ): Series<number | null> {
   const { period = 14, dmiPeriod = 14, adxPeriod = 14 } = options;
 
-  if (period < 1) {
-    throw new Error("ADXR period must be at least 1");
-  }
+  assertPeriod("ADXR period", period);
 
   // dmi() handles normalization internally
   const dmiResult = dmi(candles, { period: dmiPeriod, adxPeriod });

@@ -7,6 +7,7 @@
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import type { Candle, NormalizedCandle } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 
 /**
  * Symbol RS ranking result
@@ -64,9 +65,7 @@ export function rankByRS(
 ): SymbolRSRank[] {
   const { period = 52 } = options;
 
-  if (period < 1) {
-    throw new Error("RS period must be at least 1");
-  }
+  assertPeriod("RS period", period);
 
   const results: {
     symbol: string;

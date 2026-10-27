@@ -8,6 +8,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 import { ICHIMOKU_META } from "../indicator-meta";
 
 /**
@@ -83,9 +84,10 @@ export function ichimoku(
   const { tenkanPeriod = 9, kijunPeriod = 26, senkouBPeriod = 52, displacement = 26 } = options;
 
   // Validate options
-  if (tenkanPeriod < 1 || kijunPeriod < 1 || senkouBPeriod < 1 || displacement < 1) {
-    throw new Error("Ichimoku periods must be at least 1");
-  }
+  assertPeriod("Ichimoku tenkanPeriod", tenkanPeriod);
+  assertPeriod("Ichimoku kijunPeriod", kijunPeriod);
+  assertPeriod("Ichimoku senkouBPeriod", senkouBPeriod);
+  assertPeriod("Ichimoku displacement", displacement);
 
   // Normalize if needed
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);

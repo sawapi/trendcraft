@@ -8,6 +8,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 import { CMF_META } from "../indicator-meta";
 
 /**
@@ -58,9 +59,7 @@ export function cmf(
 ): Series<number | null> {
   const { period = 20 } = options;
 
-  if (period < 1) {
-    throw new Error("CMF period must be at least 1");
-  }
+  assertPeriod("CMF period", period);
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
 

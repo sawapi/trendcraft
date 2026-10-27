@@ -8,6 +8,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 import { BOP_META } from "../indicator-meta";
 
 /**
@@ -45,9 +46,7 @@ export function balanceOfPower(
 ): Series<number | null> {
   const { smoothPeriod = 14 } = options;
 
-  if (smoothPeriod < 1) {
-    throw new Error("BOP smooth period must be at least 1");
-  }
+  assertPeriod("BOP smooth period", smoothPeriod);
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
   const result: Series<number | null> = [];

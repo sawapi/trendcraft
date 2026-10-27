@@ -13,6 +13,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { AtrStopsOptions, AtrStopsValue, Candle, NormalizedCandle, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 import { atr } from "./atr";
 
 /**
@@ -54,9 +55,7 @@ export function atrStops(
 ): Series<AtrStopsValue> {
   const { period = 14, stopMultiplier = 2.0, takeProfitMultiplier = 3.0 } = options;
 
-  if (period < 1) {
-    throw new Error("ATR Stops period must be at least 1");
-  }
+  assertPeriod("ATR Stops period", period);
 
   if (stopMultiplier <= 0) {
     throw new Error("ATR Stops stopMultiplier must be positive");

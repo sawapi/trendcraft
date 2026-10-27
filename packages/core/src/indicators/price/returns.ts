@@ -5,6 +5,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, ReturnsOptions, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 import { RETURNS_META } from "../indicator-meta";
 
 /**
@@ -30,9 +31,7 @@ export function returns(
 ): Series<number | null> {
   const { period = 1, type = "simple" } = options;
 
-  if (period < 1) {
-    throw new Error("Returns period must be at least 1");
-  }
+  assertPeriod("Returns period", period);
 
   // Normalize if needed
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);

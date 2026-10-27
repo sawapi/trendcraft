@@ -8,6 +8,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 
 /**
  * Break of Structure result
@@ -67,7 +68,7 @@ export function breakOfStructure(
 ): Series<BosValue> {
   const { swingPeriod = 5 } = options;
 
-  if (swingPeriod < 1) throw new Error("swingPeriod must be at least 1");
+  assertPeriod("swingPeriod", swingPeriod);
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
 

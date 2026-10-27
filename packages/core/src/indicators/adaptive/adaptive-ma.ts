@@ -11,6 +11,7 @@
 
 import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 
 /**
  * Adaptive Moving Average configuration options
@@ -69,9 +70,7 @@ export function adaptiveMa(
   const fastConstant = options.fastConstant ?? 2 / (2 + 1);
   const slowConstant = options.slowConstant ?? 2 / (30 + 1);
 
-  if (erPeriod < 1) {
-    throw new Error("Adaptive MA erPeriod must be at least 1");
-  }
+  assertPeriod("Adaptive MA erPeriod", erPeriod);
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
   if (normalized.length === 0) return [];

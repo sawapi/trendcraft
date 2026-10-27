@@ -9,6 +9,7 @@ import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
 import { slopeOverIndex } from "../../core/statistics";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 import { LINEAR_REG_META } from "../indicator-meta";
 
 /**
@@ -64,9 +65,7 @@ export function linearRegression(
 ): Series<LinearRegressionValue | null> {
   const { period = 14, source = "close" } = options;
 
-  if (period < 2) {
-    throw new Error("Linear Regression period must be at least 2");
-  }
+  assertPeriod("Linear Regression period", period, 2);
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
   const result: Series<LinearRegressionValue | null> = [];
