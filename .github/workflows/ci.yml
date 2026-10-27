@@ -68,7 +68,7 @@ jobs:
       - name: Bundle size check (chart)
         run: cd packages/chart && pnpm size-check
 
-      - name: Build chart examples
+      - name: Build examples
         # Each example installs with `pnpm install --ignore-workspace`, which
         # skips pnpm-workspace.yaml entirely. Previous fix attempts (pnpm
         # field in each package.json, .npmrc in each example, uppercase
@@ -87,6 +87,9 @@ jobs:
           cd ../simple-react-chart && pnpm install --ignore-workspace && pnpm build
           cd ../simple-vue-chart && pnpm install --ignore-workspace && pnpm build
           cd ../indicator-showcase && pnpm install --ignore-workspace && pnpm build
+          cd ../sparkline-showcase && pnpm install --ignore-workspace && pnpm build
+          cd ../../../core/examples/echarts-viewer && pnpm install --ignore-workspace && pnpm build
+          cd ../trading-simulator && pnpm install --ignore-workspace && pnpm build
 
   e2e:
     # Browser tests for @trendcraft/chart (packages/chart/e2e): canvas
