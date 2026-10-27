@@ -31,6 +31,8 @@ pnpm dev
 
 Scenes: `hero`, `hero-candle`, `auto-detection`, `chart-types`, `plugin-regime`, `backtest`. Opening `/` (no query) lists all of them.
 
+`pnpm dev` and `pnpm capture` need only the setup above: Vite serves the chart and core straight from their sources. `pnpm build` typechecks against the packages' built type declarations (their `dist`), so it needs `pnpm install --frozen-lockfile && pnpm build` at the repo root first.
+
 ## Capture PNGs
 
 ```bash
