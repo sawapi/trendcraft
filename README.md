@@ -25,7 +25,7 @@ See each package's README for full documentation:
 - [packages/chart/README.md](./packages/chart/README.md) — charting, React/Vue, plugins
 - [packages/mcp/README.md](./packages/mcp/README.md) — MCP server for LLM clients
 
-Release and versioning conventions for the monorepo are documented in [CLAUDE.md](./CLAUDE.md#release-workflow).
+Release and versioning conventions for the monorepo are documented in [RELEASING.md](./RELEASING.md).
 
 ## Demos
 
