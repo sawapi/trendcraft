@@ -9,6 +9,7 @@ import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { slopeOverIndex } from "../../core/statistics";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series, VolumeTrendValue } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 
 /**
  * Volume trend confirmation options
@@ -55,6 +56,9 @@ export function volumeTrend(
   options: VolumeTrendOptions = {},
 ): Series<VolumeTrendValue> {
   const { pricePeriod = 10, volumePeriod = 10, maPeriod = 20, minPriceChange = 2.0 } = options;
+  assertPeriod("Volume Trend pricePeriod", pricePeriod);
+  assertPeriod("Volume Trend volumePeriod", volumePeriod);
+  assertPeriod("Volume Trend maPeriod", maPeriod);
 
   const minPeriod = Math.max(pricePeriod, volumePeriod, maPeriod);
 

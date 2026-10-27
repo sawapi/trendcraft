@@ -15,6 +15,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 import { breakOfStructure } from "../price/break-of-structure";
 import { swingPoints } from "../price/swing-points";
 import { atr } from "../volatility/atr";
@@ -203,6 +204,10 @@ export function wyckoffPhases(
     volumeMaPeriod = 20,
     rangeTolerance = 0.5,
   } = options;
+  assertPeriod("Wyckoff minRangeBars", minRangeBars);
+  assertPeriod("Wyckoff swingPeriod", swingPeriod);
+  assertPeriod("Wyckoff atrPeriod", atrPeriod);
+  assertPeriod("Wyckoff volumeMaPeriod", volumeMaPeriod);
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
 

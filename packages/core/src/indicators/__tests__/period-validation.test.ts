@@ -45,11 +45,13 @@ import {
   createHistoricalVolatility,
   createLiquiditySweep,
   createMfi,
+  createOpeningRange,
   createRoc,
   createRsi,
   createStandardDeviation,
   createStochastics,
   createSwingPoints,
+  createTwap,
   createUlcerIndex,
   createWilliamsR,
 } from "../incremental";
@@ -59,10 +61,12 @@ import { awesomeOscillator } from "../momentum/awesome-oscillator";
 import { balanceOfPower } from "../momentum/balance-of-power";
 import { cci } from "../momentum/cci";
 import { cmo } from "../momentum/cmo";
+import { connorsRsi } from "../momentum/connors-rsi";
 import { coppockCurve } from "../momentum/coppock-curve";
 import { dmi } from "../momentum/dmi";
 import { dpo } from "../momentum/dpo";
 import { imi } from "../momentum/imi";
+import { kst } from "../momentum/kst";
 import { macd } from "../momentum/macd";
 import { massIndex } from "../momentum/mass-index";
 import { ppo } from "../momentum/ppo";
@@ -75,11 +79,20 @@ import { trix } from "../momentum/trix";
 import { tsi } from "../momentum/tsi";
 import { ultimateOscillator } from "../momentum/ultimate-oscillator";
 import { williamsR } from "../momentum/williams-r";
+import { emaRibbon } from "../moving-average/ema-ribbon";
+import { andrewsPitchfork } from "../price/andrews-pitchfork";
+import { autoTrendLine } from "../price/auto-trend-line";
 import { breakOfStructure } from "../price/break-of-structure";
+import { channelLine } from "../price/channel-line";
+import { fibonacciExtension } from "../price/fibonacci-extension";
+import { fibonacciRetracement } from "../price/fibonacci-retracement";
 import { fractals } from "../price/fractals";
 import { highest, highestLowest, lowest } from "../price/highest-lowest";
+import { openingRange } from "../price/opening-range";
 import { returns } from "../price/returns";
+import { srZones } from "../price/sr-zones";
 import { swingPoints } from "../price/swing-points";
+import { zigzag } from "../price/zigzag";
 import { benchmarkRS } from "../relative-strength/benchmark-rs";
 import { rankByRS } from "../relative-strength/multi-rs";
 import {
@@ -106,6 +119,7 @@ import { schaffTrendCycle } from "../trend/schaff-trend-cycle";
 import { supertrend } from "../trend/supertrend";
 import { vortex } from "../trend/vortex";
 import { atr } from "../volatility/atr";
+import { atrPercentSeries, calculateAtrPercent } from "../volatility/atr-filter";
 import { atrStops } from "../volatility/atr-stops";
 import { bollingerBands } from "../volatility/bollinger-bands";
 import { chandelierExit } from "../volatility/chandelier-exit";
@@ -117,12 +131,19 @@ import { keltnerChannel } from "../volatility/keltner-channel";
 import { standardDeviation } from "../volatility/standard-deviation";
 import { ulcerIndex } from "../volatility/ulcer-index";
 import { cmf } from "../volume/cmf";
+import { cvdWithSignal } from "../volume/cvd";
 import { easeOfMovement } from "../volume/ease-of-movement";
 import { elderForceIndex } from "../volume/elder-force-index";
 import { klinger } from "../volume/klinger";
+import { marketProfile } from "../volume/market-profile";
 import { mfi } from "../volume/mfi";
+import { twap } from "../volume/twap";
 import { volumeAnomaly } from "../volume/volume-anomaly";
 import { volumeMa } from "../volume/volume-ma";
+import { volumeTrend } from "../volume/volume-trend";
+import { vwap } from "../volume/vwap";
+import { vsa } from "../wyckoff/vsa";
+import { wyckoffPhases } from "../wyckoff/wyckoff-phases";
 
 const candles: NormalizedCandle[] = Array.from({ length: 40 }, (_, i) => {
   const close = 100 + Math.sin(i / 3) * 5 + i * 0.2;
@@ -593,6 +614,124 @@ describe("integer check on the incremental swing-based indicators", () => {
   }
 });
 
+/**
+ * These bar-count options had no guard at all, so `0`, negatives, `NaN` and
+ * fractions all ran: `connorsRsi(candles, { rocPeriod: NaN })` returned a full
+ * series, and `calculateAtrPercent(candles, { lookbackPeriod: 2.5 })` crashed
+ * with a TypeError. A numeric session reset is a bar count too. Options that
+ * an indicator only forwards to an inner indicator (`adxr`, `vsa`,
+ * `wyckoffPhases.atrPeriod`, the swing-based `leftBars`) were already covered
+ * by that inner check and are not repeated here.
+ */
+const PREVIOUSLY_UNGUARDED: Array<[fn: string, label: string, run: (period: number) => unknown]> = [
+  ["connorsRsi", "Connors RSI rocPeriod", (p) => connorsRsi(candles, { rocPeriod: p })],
+  ["kst", "KST rocPeriods entry", (p) => kst(candles, { rocPeriods: [p, 15, 20, 30] })],
+  ["kst", "KST smaPeriods entry", (p) => kst(candles, { smaPeriods: [p, 10, 10, 15] })],
+  ["kst", "KST signalPeriod", (p) => kst(candles, { signalPeriod: p })],
+  [
+    "benchmarkRS",
+    "RS rankingLookback",
+    (p) => benchmarkRS(candles, candles, { rankingLookback: p }),
+  ],
+  [
+    "calculateAtrPercent",
+    "ATR filter lookbackPeriod",
+    (p) => calculateAtrPercent(candles, { lookbackPeriod: p }),
+  ],
+  ["cvdWithSignal", "CVD smoothing", (p) => cvdWithSignal(candles, { smoothing: p })],
+  ["cvdWithSignal", "CVD signalPeriod", (p) => cvdWithSignal(candles, { signalPeriod: p })],
+  ["volumeTrend", "Volume Trend pricePeriod", (p) => volumeTrend(candles, { pricePeriod: p })],
+  ["volumeTrend", "Volume Trend volumePeriod", (p) => volumeTrend(candles, { volumePeriod: p })],
+  ["volumeTrend", "Volume Trend maPeriod", (p) => volumeTrend(candles, { maPeriod: p })],
+  ["vwap", "VWAP period", (p) => vwap(candles, { resetPeriod: "rolling", period: p })],
+  ["vwap", "VWAP resetPeriod", (p) => vwap(candles, { resetPeriod: p })],
+  ["twap", "TWAP sessionResetPeriod", (p) => twap(candles, { sessionResetPeriod: p })],
+  [
+    "marketProfile",
+    "Market Profile sessionResetPeriod",
+    (p) => marketProfile(candles, { sessionResetPeriod: p }),
+  ],
+  [
+    "openingRange",
+    "Opening Range sessionResetPeriod",
+    (p) => openingRange(candles, { sessionResetPeriod: p }),
+  ],
+  ["wyckoffPhases", "Wyckoff minRangeBars", (p) => wyckoffPhases(candles, { minRangeBars: p })],
+  ["createTwap", "TWAP sessionResetPeriod", (p) => createTwap({ sessionResetPeriod: p })],
+  [
+    "createOpeningRange",
+    "Opening Range sessionResetPeriod",
+    (p) => createOpeningRange({ sessionResetPeriod: p }),
+  ],
+];
+
+describe("bar-count options that had no guard", () => {
+  for (const [fn, label, run] of PREVIOUSLY_UNGUARDED) {
+    for (const [name, value] of nonIntegerValues(1)) {
+      it(`${fn}: ${label} rejects ${name}`, () => {
+        expect(() => run(value)).toThrow(`${label} must be an integer`);
+      });
+    }
+    for (const value of [0, -5]) {
+      it(`${fn}: ${label} rejects ${value}`, () => {
+        expect(() => run(value)).toThrow(`${label} must be at least 1`);
+      });
+    }
+    it(`${fn}: ${label} accepts 1 and 2`, () => {
+      expect(() => run(1)).not.toThrow();
+      expect(() => run(2)).not.toThrow();
+    });
+  }
+});
+
+/**
+ * An invalid option is rejected whatever the data. These wrappers return early
+ * on empty input (or, for `benchmarkRS` and the ATR filter, on input shorter
+ * than the period), before the inner indicator that used to be their only
+ * check. `calculateAtrPercent(twoBars, { atrPeriod: 2.5 })` returned a
+ * plausible `atrPercent: 0`; `zigzag` never reached `atr()` at all unless
+ * `useAtr` was set, yet still used `atrPeriod` for its fallback start.
+ */
+const none: NormalizedCandle[] = [];
+const twoBars = candles.slice(0, 2);
+const ENTRY_CHECKED: Array<[fn: string, label: string, run: (period: number) => unknown]> = [
+  ["andrewsPitchfork", "leftBars", (p) => andrewsPitchfork(none, { leftBars: p })],
+  ["autoTrendLine", "rightBars", (p) => autoTrendLine(none, { rightBars: p })],
+  ["channelLine", "leftBars", (p) => channelLine(none, { leftBars: p })],
+  ["fibonacciExtension", "leftBars", (p) => fibonacciExtension(none, { leftBars: p })],
+  ["fibonacciRetracement", "rightBars", (p) => fibonacciRetracement(none, { rightBars: p })],
+  ["connorsRsi", "Connors RSI rsiPeriod", (p) => connorsRsi(none, { rsiPeriod: p })],
+  ["connorsRsi", "Connors RSI streakPeriod", (p) => connorsRsi(none, { streakPeriod: p })],
+  ["vsa", "VSA atrPeriod", (p) => vsa(none, { atrPeriod: p })],
+  ["vsa", "VSA volumeMaPeriod", (p) => vsa(none, { volumeMaPeriod: p })],
+  ["wyckoffPhases", "Wyckoff swingPeriod", (p) => wyckoffPhases(none, { swingPeriod: p })],
+  ["wyckoffPhases", "Wyckoff atrPeriod", (p) => wyckoffPhases(none, { atrPeriod: p })],
+  ["wyckoffPhases", "Wyckoff volumeMaPeriod", (p) => wyckoffPhases(none, { volumeMaPeriod: p })],
+  ["benchmarkRS", "RS smaPeriod", (p) => benchmarkRS(twoBars, twoBars, { smaPeriod: p })],
+  [
+    "calculateAtrPercent",
+    "ATR filter atrPeriod",
+    (p) => calculateAtrPercent(twoBars, { atrPeriod: p }),
+  ],
+  ["atrPercentSeries", "ATR filter atrPeriod", (p) => atrPercentSeries(none, p)],
+  ["zigzag", "ZigZag atrPeriod", (p) => zigzag(candles, { atrPeriod: p })],
+  ["srZones", "S/R zones swingLookback", (p) => srZones(none, { swingLookback: p })],
+  ["vwap", "VWAP period", (p) => vwap(candles, { period: p })],
+  ["emaRibbon", "EMA Ribbon period", (p) => emaRibbon(none, { periods: [p, 10] })],
+];
+
+describe("wrappers reject an invalid option before any early return", () => {
+  for (const [fn, label, run] of ENTRY_CHECKED) {
+    it(`${fn}: ${label} rejects 2.5 and NaN`, () => {
+      expect(() => run(2.5)).toThrow(`${label} must be an integer`);
+      expect(() => run(Number.NaN)).toThrow(`${label} must be an integer`);
+    });
+    it(`${fn}: ${label} rejects 0`, () => {
+      expect(() => run(0)).toThrow(`${label} must be at least 1`);
+    });
+  }
+});
+
 describe("period validation agrees with the incremental twin", () => {
   const twins = TARGETS.filter((t) => t.runIncremental !== undefined);
 
@@ -728,5 +867,42 @@ describe("period guard inventory", () => {
 
   it("finds no bounded period option without an integer check", () => {
     expect(unvalidated).toEqual({});
+  });
+
+  /**
+   * Bar-count options destructured from `options` with no `assertPeriod` call
+   * naming them. Each is still checked before any early return, so an invalid
+   * value is rejected whatever the data: TA-Lib likewise rejects a bad option
+   * before looking at the input length. A wrapper that returns early on empty
+   * or short input must check at its own entry rather than rely on the inner
+   * indicator; anything not listed here fails the test below.
+   */
+  const FORWARDED: Record<string, string[]> = {
+    "momentum/adxr.ts": ["adxPeriod", "dmiPeriod"], // dmi() runs first, unconditionally
+    "momentum/kst.ts": ["rocPeriods", "smaPeriods"], // checked per entry at entry
+    "moving-average/ema-ribbon.ts": ["periods"], // checked per entry at entry
+    "volatility/chandelier-exit.ts": ["lookback"], // checked at entry as hlLookback
+  };
+
+  const unguarded: Record<string, string[]> = {};
+  for (const file of collect(indicatorsRoot)) {
+    const text = readFileSync(file, "utf8");
+    const destructured = new Set<string>();
+    for (const m of text.matchAll(/const \{([^}]*)\}\s*=\s*options/g)) {
+      for (const part of m[1].split(",")) {
+        const name = part.split("=")[0].split(":")[0].trim();
+        if (new RegExp(`^${NAME_PART}$`).test(name)) destructured.add(name);
+      }
+    }
+    const checked = integerChecked(text);
+    const bounded = new Set(boundedOptions(text));
+    const bare = [...destructured]
+      .filter((name) => !checked.has(name) && !bounded.has(name))
+      .sort();
+    if (bare.length > 0) unguarded[path.relative(indicatorsRoot, file)] = bare;
+  }
+
+  it("finds no bar-count option without any guard, apart from forwarded ones", () => {
+    expect(unguarded).toEqual(FORWARDED);
   });
 });

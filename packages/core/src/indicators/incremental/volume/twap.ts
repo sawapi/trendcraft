@@ -18,6 +18,7 @@
  */
 
 import type { NormalizedCandle } from "../../../types";
+import { assertPeriod } from "../../../utils/validate-period";
 import {
   assertSessionResetCompatible,
   resolveSessionMembership,
@@ -112,6 +113,9 @@ export function createTwap(
   });
 
   const sessionResetPeriod = params.sessionResetPeriod;
+  if (typeof sessionResetPeriod === "number") {
+    assertPeriod("TWAP sessionResetPeriod", sessionResetPeriod);
+  }
   const session = params.session;
   const MS_PER_DAY = 86400000;
 

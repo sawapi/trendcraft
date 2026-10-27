@@ -9,6 +9,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 import { atr as calculateAtr } from "../volatility/atr";
 
 /**
@@ -67,6 +68,7 @@ export function zigzag(
   options: ZigzagOptions = {},
 ): Series<ZigzagValue> {
   const { deviation = 5, useAtr = false, atrPeriod = 14, atrMultiplier = 2 } = options;
+  assertPeriod("ZigZag atrPeriod", atrPeriod);
 
   if (deviation <= 0) {
     throw new Error("Zigzag deviation must be positive");

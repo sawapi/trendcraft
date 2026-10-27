@@ -14,6 +14,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 import { atr } from "../volatility/atr";
 import { volumeMa } from "../volume/volume-ma";
 
@@ -92,6 +93,8 @@ export function vsa(
     wideSpreadThreshold = 1.2,
     narrowSpreadThreshold = 0.7,
   } = options;
+  assertPeriod("VSA volumeMaPeriod", volumeMaPeriod);
+  assertPeriod("VSA atrPeriod", atrPeriod);
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
 

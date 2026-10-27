@@ -1523,6 +1523,46 @@ the one that failed, for example `MACD periods must be at least 1` became
 adxPeriod` instead of a bare `period`, and `orderBlock`'s `maxBarsActive`
 says `must be at least 0` instead of `must be non-negative`.
 
+### Breaking — bar-count options that had no validation at all now reject invalid values
+
+Some bar-count options were never checked, not even against a lower bound, so
+`0`, negative, fractional and non-finite values all ran:
+`connorsRsi(candles, { rocPeriod: NaN })` returned a full series, and
+`calculateAtrPercent(candles, { lookbackPeriod: 2.5 })` crashed with a
+`TypeError`. They now throw `<label> must be at least 1` or
+`<label> must be an integer`, like every other period.
+
+Affected: `connorsRsi` (`rocPeriod`), `kst` (each `rocPeriods` / `smaPeriods`
+entry, `signalPeriod`), `benchmarkRS` (`rankingLookback`),
+`calculateAtrPercent` / `passesAtrFilter` / `filterStocksByAtr`
+(`lookbackPeriod`), `cvdWithSignal` (`smoothing`, `signalPeriod`),
+`volumeTrend` (`pricePeriod`, `volumePeriod`, `maPeriod`), `vwap` (`period`
+when `resetPeriod` is `"rolling"`, and a numeric `resetPeriod`), `twap` /
+`createTwap`, `marketProfile`, `openingRange` / `createOpeningRange` (a numeric
+`sessionResetPeriod`), and `wyckoffPhases` (`minRangeBars`). The incremental
+counterparts of the others already rejected these values, or do not take the
+option.
+
+An option is now rejected whatever the data and whatever mode it applies to,
+as TA-Lib rejects a bad option before it looks at the input. Wrappers that
+used to rely on an inner indicator's check skipped it on empty input, or on
+input shorter than the period: `calculateAtrPercent(twoBars, { atrPeriod: 2.5
+})` returned `atrPercent: 0`. These now check at entry: the swing-based
+`andrewsPitchfork`, `autoTrendLine`, `channelLine`, `fibonacciRetracement` and
+`fibonacciExtension` (`leftBars`, `rightBars`), `connorsRsi` (`rsiPeriod`,
+`streakPeriod`, whose message used to say `RSI period`), `vsa` and
+`wyckoffPhases` (`atrPeriod`, `volumeMaPeriod`, `swingPeriod`), `benchmarkRS`
+(`smaPeriod`), `calculateAtrPercent` and `atrPercentSeries` (`atrPeriod`),
+`srZones` (`swingLookback`, even with `includeSwingPoints: false`), `emaRibbon`
+(each `periods` entry, which now also enforces at least 1; the message changed
+from `EMA Ribbon periods must be integers` to `EMA Ribbon period must be an
+integer` / `must be at least 1`), `vwap` (`period`,
+in every `resetPeriod` mode) and `zigzag` (`atrPeriod`, which also sets the
+fallback start when `useAtr` is off).
+
+`cvdWithSignal`'s `smoothing: 0` used to mean no smoothing, as `1` does; use
+`1`.
+
 ### Fixed — Safe API reports a non-integer period as INVALID_PARAMETER
 
 `trendcraft/safe` classifies a thrown error into a typed code, but its

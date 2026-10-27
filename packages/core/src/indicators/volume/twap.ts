@@ -8,6 +8,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 import { TWAP_META } from "../indicator-meta";
 import {
   assertSessionResetCompatible,
@@ -70,6 +71,9 @@ export function twap(
   options: TwapOptions = {},
 ): Series<number | null> {
   const { sessionResetPeriod = "session", session } = options;
+  if (typeof sessionResetPeriod === "number") {
+    assertPeriod("TWAP sessionResetPeriod", sessionResetPeriod);
+  }
 
   if (session) {
     assertSessionResetCompatible("twap", "sessionResetPeriod", sessionResetPeriod, "session");

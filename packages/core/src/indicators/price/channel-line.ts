@@ -11,6 +11,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 import { swingPoints } from "./swing-points";
 
 /**
@@ -56,6 +57,8 @@ export function channelLine(
   options: ChannelLineOptions = {},
 ): Series<ChannelLineValue> {
   const { leftBars = 10, rightBars = 10 } = options;
+  assertPeriod("leftBars", leftBars);
+  assertPeriod("rightBars", rightBars);
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
 

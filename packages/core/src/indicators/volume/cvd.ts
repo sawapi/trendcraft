@@ -15,6 +15,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 
 /**
  * Options for cvdWithSignal
@@ -134,6 +135,8 @@ export function cvdWithSignal(
   options: CvdWithSignalOptions = {},
 ): Series<CvdWithSignalValue> {
   const { smoothing = 1, signalPeriod = 9 } = options;
+  assertPeriod("CVD smoothing", smoothing);
+  assertPeriod("CVD signalPeriod", signalPeriod);
 
   const cvdData = cvd(candles);
   if (cvdData.length === 0) return [];

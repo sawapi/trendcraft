@@ -73,6 +73,8 @@ export function benchmarkRS(
   const { period = 52, smaPeriod = 52, rankingLookback = 252, flatThreshold = 0.01 } = options;
 
   assertPeriod("RS period", period);
+  assertPeriod("RS rankingLookback", rankingLookback);
+  assertPeriod("RS smaPeriod", smaPeriod);
 
   const stockNorm = isNormalized(candles) ? candles : normalizeCandles(candles);
   const benchNorm = isNormalized(benchmark) ? benchmark : normalizeCandles(benchmark);
