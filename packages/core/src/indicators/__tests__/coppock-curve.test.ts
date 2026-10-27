@@ -20,13 +20,13 @@ describe("coppockCurve", () => {
   it("should throw on invalid period", () => {
     const candles = makeCandles([10, 20, 30]);
     expect(() => coppockCurve(candles, { wmaPeriod: 0 })).toThrow(
-      "Coppock Curve periods must be at least 1",
+      "Coppock Curve wmaPeriod must be at least 1",
     );
     expect(() => coppockCurve(candles, { longRocPeriod: 0 })).toThrow(
-      "Coppock Curve periods must be at least 1",
+      "Coppock Curve longRocPeriod must be at least 1",
     );
     expect(() => coppockCurve(candles, { shortRocPeriod: 0 })).toThrow(
-      "Coppock Curve periods must be at least 1",
+      "Coppock Curve shortRocPeriod must be at least 1",
     );
   });
 

@@ -14,6 +14,7 @@
 
 import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 
 /**
  * Adaptive Bollinger Bands configuration options
@@ -105,9 +106,7 @@ export function adaptiveBollinger(
   const minMultiplier = options.minMultiplier ?? 1.5;
   const maxMultiplier = options.maxMultiplier ?? 3.0;
 
-  if (period < 1) {
-    throw new Error("Adaptive Bollinger period must be at least 1");
-  }
+  assertPeriod("Adaptive Bollinger period", period);
   if (minMultiplier <= 0) {
     throw new Error("Adaptive Bollinger minMultiplier must be positive");
   }

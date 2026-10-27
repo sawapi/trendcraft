@@ -19,9 +19,9 @@ describe("tsi", () => {
 
   it("should throw on invalid period", () => {
     const candles = makeCandles([10, 20, 30]);
-    expect(() => tsi(candles, { longPeriod: 0 })).toThrow("TSI periods must be at least 1");
-    expect(() => tsi(candles, { shortPeriod: 0 })).toThrow("TSI periods must be at least 1");
-    expect(() => tsi(candles, { signalPeriod: 0 })).toThrow("TSI periods must be at least 1");
+    expect(() => tsi(candles, { longPeriod: 0 })).toThrow("TSI longPeriod must be at least 1");
+    expect(() => tsi(candles, { shortPeriod: 0 })).toThrow("TSI shortPeriod must be at least 1");
+    expect(() => tsi(candles, { signalPeriod: 0 })).toThrow("TSI signalPeriod must be at least 1");
   });
 
   it("should return output length matching input length", () => {

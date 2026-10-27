@@ -21,6 +21,7 @@
  */
 
 import type { NormalizedCandle } from "../../../types";
+import { assertPeriod } from "../../../utils/validate-period";
 import { CircularBuffer } from "../circular-buffer";
 import { type IndicatorSnapshot, makeSnapshot, resolveResume } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -84,7 +85,7 @@ export function createBreakOfStructure(
   });
 
   const swingPeriod = params.swingPeriod;
-  if (swingPeriod < 1) throw new Error("swingPeriod must be at least 1");
+  assertPeriod("swingPeriod", swingPeriod);
 
   const windowSize = 2 * swingPeriod + 1;
 

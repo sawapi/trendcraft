@@ -19,9 +19,9 @@ describe("ppo", () => {
 
   it("should throw on invalid period", () => {
     const candles = makeCandles([10, 20, 30]);
-    expect(() => ppo(candles, { fastPeriod: 0 })).toThrow("PPO periods must be at least 1");
-    expect(() => ppo(candles, { slowPeriod: 0 })).toThrow("PPO periods must be at least 1");
-    expect(() => ppo(candles, { signalPeriod: 0 })).toThrow("PPO periods must be at least 1");
+    expect(() => ppo(candles, { fastPeriod: 0 })).toThrow("PPO fastPeriod must be at least 1");
+    expect(() => ppo(candles, { slowPeriod: 0 })).toThrow("PPO slowPeriod must be at least 1");
+    expect(() => ppo(candles, { signalPeriod: 0 })).toThrow("PPO signalPeriod must be at least 1");
   });
 
   it("should return output length matching input length", () => {

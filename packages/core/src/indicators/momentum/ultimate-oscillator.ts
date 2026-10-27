@@ -8,6 +8,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 import { UO_META } from "../indicator-meta";
 
 /**
@@ -52,9 +53,9 @@ export function ultimateOscillator(
 ): Series<number | null> {
   const { period1 = 7, period2 = 14, period3 = 28 } = options;
 
-  if (period1 < 1 || period2 < 1 || period3 < 1) {
-    throw new Error("Ultimate Oscillator periods must be at least 1");
-  }
+  assertPeriod("Ultimate Oscillator period1", period1);
+  assertPeriod("Ultimate Oscillator period2", period2);
+  assertPeriod("Ultimate Oscillator period3", period3);
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
   const result: Series<number | null> = [];

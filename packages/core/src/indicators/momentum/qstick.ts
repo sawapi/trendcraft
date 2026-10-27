@@ -8,6 +8,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 import { QSTICK_META } from "../indicator-meta";
 
 /**
@@ -44,9 +45,7 @@ export function qstick(
 ): Series<number | null> {
   const { period = 14 } = options;
 
-  if (period < 1) {
-    throw new Error("QStick period must be at least 1");
-  }
+  assertPeriod("QStick period", period);
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
   const result: Series<number | null> = [];

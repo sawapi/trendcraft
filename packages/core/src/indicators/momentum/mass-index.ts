@@ -8,6 +8,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 import { MASS_INDEX_META } from "../indicator-meta";
 
 /**
@@ -48,9 +49,8 @@ export function massIndex(
 ): Series<number | null> {
   const { emaPeriod = 9, sumPeriod = 25 } = options;
 
-  if (emaPeriod < 1 || sumPeriod < 1) {
-    throw new Error("Mass Index periods must be at least 1");
-  }
+  assertPeriod("Mass Index emaPeriod", emaPeriod);
+  assertPeriod("Mass Index sumPeriod", sumPeriod);
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
   const multiplier = 2 / (emaPeriod + 1);

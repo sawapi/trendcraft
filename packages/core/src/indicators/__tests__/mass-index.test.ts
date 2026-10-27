@@ -36,10 +36,10 @@ describe("massIndex", () => {
   it("should throw on invalid period", () => {
     const candles = makeSimpleCandles([10, 20, 30]);
     expect(() => massIndex(candles, { emaPeriod: 0 })).toThrow(
-      "Mass Index periods must be at least 1",
+      "Mass Index emaPeriod must be at least 1",
     );
     expect(() => massIndex(candles, { sumPeriod: 0 })).toThrow(
-      "Mass Index periods must be at least 1",
+      "Mass Index sumPeriod must be at least 1",
     );
   });
 

@@ -9,6 +9,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 
 /**
  * Swing point detection result
@@ -87,8 +88,8 @@ export function swingPoints(
 ): Series<SwingPointValue> {
   const { leftBars = 5, rightBars = 5 } = options;
 
-  if (leftBars < 1) throw new Error("leftBars must be at least 1");
-  if (rightBars < 1) throw new Error("rightBars must be at least 1");
+  assertPeriod("leftBars", leftBars);
+  assertPeriod("rightBars", rightBars);
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
 

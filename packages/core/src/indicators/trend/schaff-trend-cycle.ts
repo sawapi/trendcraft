@@ -8,6 +8,7 @@
 import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 import { STC_META } from "../indicator-meta";
 
 /**
@@ -77,9 +78,9 @@ export function schaffTrendCycle(
     source = "close",
   } = options;
 
-  if (fastPeriod < 1 || slowPeriod < 1 || cyclePeriod < 1) {
-    throw new Error("Schaff Trend Cycle periods must be at least 1");
-  }
+  assertPeriod("Schaff Trend Cycle fastPeriod", fastPeriod);
+  assertPeriod("Schaff Trend Cycle slowPeriod", slowPeriod);
+  assertPeriod("Schaff Trend Cycle cyclePeriod", cyclePeriod);
   if (factor <= 0 || factor > 1) {
     throw new Error("Schaff Trend Cycle factor must be in (0, 1]");
   }

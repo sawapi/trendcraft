@@ -36,7 +36,7 @@ describe("ultimateOscillator", () => {
   it("should throw on invalid period", () => {
     const candles = makeSimpleCandles([10, 20, 30]);
     expect(() => ultimateOscillator(candles, { period1: 0 })).toThrow(
-      "Ultimate Oscillator periods must be at least 1",
+      "Ultimate Oscillator period1 must be at least 1",
     );
   });
 

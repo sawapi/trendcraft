@@ -11,6 +11,7 @@
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 import { rsi } from "../momentum/rsi";
 import { atr } from "../volatility/atr";
 
@@ -71,9 +72,7 @@ export function adaptiveRsi(
   const atrPeriod = options.atrPeriod ?? 14;
   const volLookback = options.volLookback ?? 100;
 
-  if (minPeriod < 2) {
-    throw new Error("Adaptive RSI minPeriod must be at least 2");
-  }
+  assertPeriod("Adaptive RSI minPeriod", minPeriod, 2);
   if (maxPeriod < minPeriod) {
     throw new Error("Adaptive RSI maxPeriod must be >= minPeriod");
   }

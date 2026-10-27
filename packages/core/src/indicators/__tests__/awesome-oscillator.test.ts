@@ -36,7 +36,7 @@ describe("awesomeOscillator", () => {
   it("should throw on invalid period", () => {
     const candles = makeSimpleCandles([10, 20, 30]);
     expect(() => awesomeOscillator(candles, { fastPeriod: 0 })).toThrow(
-      "Awesome Oscillator periods must be at least 1",
+      "Awesome Oscillator fastPeriod must be at least 1",
     );
   });
 

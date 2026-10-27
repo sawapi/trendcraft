@@ -8,6 +8,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 import { AO_META } from "../indicator-meta";
 
 /**
@@ -47,9 +48,8 @@ export function awesomeOscillator(
 ): Series<number | null> {
   const { fastPeriod = 5, slowPeriod = 34 } = options;
 
-  if (fastPeriod < 1 || slowPeriod < 1) {
-    throw new Error("Awesome Oscillator periods must be at least 1");
-  }
+  assertPeriod("Awesome Oscillator fastPeriod", fastPeriod);
+  assertPeriod("Awesome Oscillator slowPeriod", slowPeriod);
   if (fastPeriod >= slowPeriod) {
     throw new Error("Fast period must be less than slow period");
   }

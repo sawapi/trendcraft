@@ -8,6 +8,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 import { IMI_META } from "../indicator-meta";
 
 /**
@@ -39,9 +40,7 @@ export function imi(
 ): Series<number | null> {
   const { period = 14 } = options;
 
-  if (period < 1) {
-    throw new Error("IMI period must be at least 1");
-  }
+  assertPeriod("IMI period", period);
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
 

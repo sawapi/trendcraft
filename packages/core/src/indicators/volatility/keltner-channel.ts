@@ -8,6 +8,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 import { KELTNER_META } from "../indicator-meta";
 import { ema } from "../moving-average/ema";
 import { atr } from "./atr";
@@ -71,12 +72,8 @@ export function keltnerChannel(
 ): Series<KeltnerChannelValue> {
   const { emaPeriod = 20, atrPeriod = 10, multiplier = 2 } = options;
 
-  if (emaPeriod < 1) {
-    throw new Error("Keltner Channel EMA period must be at least 1");
-  }
-  if (atrPeriod < 1) {
-    throw new Error("Keltner Channel ATR period must be at least 1");
-  }
+  assertPeriod("Keltner Channel EMA period", emaPeriod);
+  assertPeriod("Keltner Channel ATR period", atrPeriod);
   if (multiplier <= 0) {
     throw new Error("Keltner Channel multiplier must be positive");
   }

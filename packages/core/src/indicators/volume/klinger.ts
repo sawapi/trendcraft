@@ -8,6 +8,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 import { KLINGER_META } from "../indicator-meta";
 
 /**
@@ -74,9 +75,9 @@ export function klinger(
 ): Series<KlingerValue> {
   const { shortPeriod = 34, longPeriod = 55, signalPeriod = 13 } = options;
 
-  if (shortPeriod < 1 || longPeriod < 1 || signalPeriod < 1) {
-    throw new Error("Klinger periods must be at least 1");
-  }
+  assertPeriod("Klinger shortPeriod", shortPeriod);
+  assertPeriod("Klinger longPeriod", longPeriod);
+  assertPeriod("Klinger signalPeriod", signalPeriod);
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
   const len = normalized.length;

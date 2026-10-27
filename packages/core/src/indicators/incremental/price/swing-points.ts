@@ -22,6 +22,7 @@
  */
 
 import type { NormalizedCandle } from "../../../types";
+import { assertPeriod } from "../../../utils/validate-period";
 import { CircularBuffer } from "../circular-buffer";
 import { type IndicatorSnapshot, makeSnapshot, resolveResume } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -104,8 +105,8 @@ export function createSwingPoints(
 
   const leftBars = params.leftBars;
   const rightBars = params.rightBars;
-  if (leftBars < 1) throw new Error("leftBars must be at least 1");
-  if (rightBars < 1) throw new Error("rightBars must be at least 1");
+  assertPeriod("leftBars", leftBars);
+  assertPeriod("rightBars", rightBars);
 
   const windowSize = leftBars + 1 + rightBars;
 

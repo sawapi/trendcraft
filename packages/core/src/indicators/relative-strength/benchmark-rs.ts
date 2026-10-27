@@ -8,6 +8,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 import { sma } from "../moving-average/sma";
 
 /**
@@ -71,9 +72,7 @@ export function benchmarkRS(
 ): Series<RSValue> {
   const { period = 52, smaPeriod = 52, rankingLookback = 252, flatThreshold = 0.01 } = options;
 
-  if (period < 1) {
-    throw new Error("RS period must be at least 1");
-  }
+  assertPeriod("RS period", period);
 
   const stockNorm = isNormalized(candles) ? candles : normalizeCandles(candles);
   const benchNorm = isNormalized(benchmark) ? benchmark : normalizeCandles(benchmark);

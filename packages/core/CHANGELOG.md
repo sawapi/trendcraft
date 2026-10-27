@@ -1480,6 +1480,49 @@ parameter sweep, a serialized strategy, or a wrapper such as `supertrend`,
 `keltnerChannel` or `vsa` now fails loudly instead of returning a plausible
 wrong series.
 
+### Breaking — the remaining batch indicators reject fractional and non-finite periods too
+
+The same rule now covers every batch indicator: 76 more bar-count guards in 42
+indicators, which had a lower bound but no integer check (`stochRsi`'s
+`rsiPeriod` was already rejected by its inner `rsi()` call). `swingPoints(candles,
+{ leftBars: 1.5 })` crashed with `TypeError: Cannot read properties of undefined
+(reading 'high')`; most of the others ran on and returned a different series.
+They now throw `<label> must be an integer`, which the Safe API reports as
+`INVALID_PARAMETER`.
+
+Affected: `adaptiveBollinger`, `adaptiveMa` (`erPeriod`), `adaptiveRsi` and
+`adaptiveStochastics` (`minPeriod`), `roofingFilter`, `superSmoother`, `adxr`,
+`awesomeOscillator`, `balanceOfPower`, `coppockCurve`, `dmi`, `imi`, `macd`,
+`massIndex`, `ppo`, `qstick`, `stochRsi`, `trix`, `tsi`, `ultimateOscillator`,
+`breakOfStructure`, `fractals`, `returns`, `swingPoints`, `benchmarkRS`,
+`rankByRS`, `liquiditySweep`, `orderBlock` (including `maxActiveOBs` and
+`maxBarsActive`), `ichimoku` (including `displacement`), `linearRegression`,
+`schaffTrendCycle`, `supertrend`, `vortex`, `atrStops`, `chandelierExit`
+(including `lookback`), `garmanKlass`, `keltnerChannel`, `cmf`,
+`easeOfMovement`, `elderForceIndex`, `klinger`, `volumeAnomaly`.
+
+The incremental swing-based indicators get the same check, so both surfaces
+agree: `createSwingPoints` (and the four that wrap it:
+`createFibonacciRetracement`, `createFibonacciExtension`, `createChannelLine`,
+`createAutoTrendLine`) for `leftBars` / `rightBars`, `createBreakOfStructure`
+for `swingPeriod`, and `createLiquiditySweep` for `swingPeriod`,
+`maxRecoveryBars` and `maxTrackedSweeps`. `createSwingPoints({ leftBars: 1.5 })`
+used to crash with `RangeError: Invalid array length`; the others accepted the
+value.
+
+`Infinity` is no longer accepted as "no cap" for `orderBlock`'s `maxActiveOBs`
+or `liquiditySweep`'s `maxTrackedSweeps`. It used to work because `slice(-Infinity)`
+keeps the whole array; pass a large integer instead.
+
+Valid integer periods behave exactly as before, and the lower bounds are
+unchanged. `superSmoother` declares `period` as required; omitting it now
+throws instead of running with `undefined`. Some error messages now name the
+option. Indicators that used to report one message for several periods name
+the one that failed, for example `MACD periods must be at least 1` became
+`MACD slowPeriod must be at least 1`. `dmi` now says `DMI period` / `DMI
+adxPeriod` instead of a bare `period`, and `orderBlock`'s `maxBarsActive`
+says `must be at least 0` instead of `must be non-negative`.
+
 ### Fixed — Safe API reports a non-integer period as INVALID_PARAMETER
 
 `trendcraft/safe` classifies a thrown error into a typed code, but its

@@ -15,6 +15,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 import { VORTEX_META } from "../indicator-meta";
 
 /**
@@ -64,7 +65,7 @@ export function vortex(
 ): Series<VortexValue> {
   const { period = 14 } = options;
 
-  if (period < 1) throw new Error("Vortex period must be at least 1");
+  assertPeriod("Vortex period", period);
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
   const result: Series<VortexValue> = [];
