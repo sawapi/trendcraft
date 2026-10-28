@@ -349,6 +349,26 @@ export class CanvasChart implements ChartInstance {
     this._emit("error", payload);
   }
 
+  /**
+   * Map `ChartOptions` onto the viewport's interaction settings, warning
+   * about what the viewport will ignore. Shared by the constructor and
+   * `applyOptions`, so both paths report a bad value the same way.
+   */
+  private _interactionOptions(
+    method: string,
+    opts: Partial<ChartOptions>,
+  ): InteractionOptionsUpdate {
+    // The viewport ignores a non-finite sensitivity; it must not pass silently.
+    if (opts.scrollSensitivity !== undefined && !Number.isFinite(opts.scrollSensitivity)) {
+      this._warn(
+        `${method}: scrollSensitivity must be a finite number; ignored`,
+        { scrollSensitivity: opts.scrollSensitivity },
+        "INVALID_OPTION",
+      );
+    }
+    return interactionOptionsOf(opts);
+  }
+
   // Auto-generated pane counter
   private _autoSubchartId = 0;
 
@@ -479,7 +499,7 @@ export class CanvasChart implements ChartInstance {
       // same frame — no visible 1-frame lag on the mirrored crosshair.
       this._maybeEmitCrosshair();
     });
-    const interaction = interactionOptionsOf(options ?? {});
+    const interaction = this._interactionOptions("createChart", options ?? {});
     this._detachViewport = this._viewport.attach(
       this._canvas,
       this._timeScale,
@@ -1266,14 +1286,8 @@ export class CanvasChart implements ChartInstance {
 
     // Interaction settings live in the viewport; the handlers read them per
     // event, so these take effect from the next gesture on. Absent fields
-    // are skipped by the setter; a non-finite sensitivity is ignored there
-    // and must not pass silently here.
-    if (opts.scrollSensitivity !== undefined && !Number.isFinite(opts.scrollSensitivity)) {
-      this._warn(`applyOptions: scrollSensitivity must be a finite number; ignored`, {
-        scrollSensitivity: opts.scrollSensitivity,
-      });
-    }
-    this._viewport.setInteractionOptions(interactionOptionsOf(opts));
+    // are skipped by the setter.
+    this._viewport.setInteractionOptions(this._interactionOptions("applyOptions", opts));
 
     if (opts.timeScale !== undefined) {
       if (opts.timeScale.sessionGaps !== undefined) {

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — `createChart` warns about a non-finite `scrollSensitivity`
+
+`applyOptions({ scrollSensitivity: NaN })` warned and kept the current
+sensitivity, but the same value passed to `createChart` was dropped without a
+word. Both now warn the same way. The `error` event for it now carries the
+`INVALID_OPTION` code, like the other ignored options; during construction no
+listener is attached yet, so only the console warning is seen there.
+
 ### Fixed — a backtest with no losing trade shows PF ∞
 
 `trendcraft` now reports the profit factor of a backtest with no losing
