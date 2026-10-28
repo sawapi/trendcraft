@@ -400,6 +400,34 @@ describe("applyOptions — untyped and non-finite values", () => {
     expect(warnings).toHaveLength(3);
     expect(warnings.every((w) => w.includes("scrollSensitivity"))).toBe(true);
   });
+
+  it("a non-finite scrollSensitivity passed to createChart warns too", () => {
+    // The constructor dropped it without a word while applyOptions warned.
+    // No `error` listener can exist yet, so the console is the channel.
+    for (const bad of [Number.NaN, Number.POSITIVE_INFINITY]) {
+      warnSpy.mockClear();
+      const container = makeContainer();
+      const created = createChart(container, { ...SIZE, scrollSensitivity: bad });
+      expect(warnSpy).toHaveBeenCalledTimes(1);
+      expect(String(warnSpy.mock.calls[0][0])).toContain(
+        "createChart: scrollSensitivity must be a finite number",
+      );
+      created.destroy();
+    }
+  });
+
+  it("tags the scrollSensitivity warning with INVALID_OPTION", () => {
+    chart = createChart(makeContainer(), SIZE);
+    const codes: unknown[] = [];
+    chart.on("error", (e) => codes.push((e as { code?: string }).code));
+    chart.applyOptions({ scrollSensitivity: Number.NaN });
+    expect(codes).toEqual(["INVALID_OPTION"]);
+  });
+
+  it("a finite scrollSensitivity passed to createChart does not warn", () => {
+    chart = createChart(makeContainer(), { ...SIZE, scrollSensitivity: 0.5 });
+    expect(warnSpy).not.toHaveBeenCalled();
+  });
 });
 
 describe("headless Viewport interaction settings", () => {
