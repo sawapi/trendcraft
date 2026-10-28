@@ -9,6 +9,7 @@ import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 import { assertPeriod } from "../../utils/validate-period";
+import { assertPriceSource } from "../../utils/validate-price-source";
 import { PPO_META } from "../indicator-meta";
 
 /**
@@ -59,6 +60,7 @@ export function ppo(
   options: PpoOptions = {},
 ): Series<PpoValue | null> {
   const { fastPeriod = 12, slowPeriod = 26, signalPeriod = 9, source = "close" } = options;
+  assertPriceSource("PPO source", source);
 
   assertPeriod("PPO fastPeriod", fastPeriod);
   assertPeriod("PPO slowPeriod", slowPeriod);

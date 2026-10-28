@@ -14,6 +14,7 @@
  */
 
 import type { NormalizedCandle, PriceSource } from "../../../types";
+import { assertPriceSource } from "../../../utils/validate-price-source";
 import { CircularBuffer } from "../circular-buffer";
 import {
   type IndicatorSnapshot,
@@ -114,6 +115,7 @@ export function createAlma(
     "must be positive",
   );
   const source = params.source;
+  assertPriceSource("ALMA source", source);
 
   // Pre-compute normalized Gaussian weights (Pine Script convention:
   // `m = offset * (period - 1)`, matching TradingView's `ta.alma()`).

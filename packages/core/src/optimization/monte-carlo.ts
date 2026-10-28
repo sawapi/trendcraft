@@ -20,6 +20,9 @@ import { mulberry32 } from "../core/random";
 import type { BacktestResult, Trade } from "../types";
 import type { MetricStatistics, MonteCarloOptions, MonteCarloResult } from "../types/optimization";
 import { err, ok, type Result, tcError } from "../types/result";
+import { assertOneOf, keywords } from "../utils/validate-keyword";
+
+const METHODS = keywords<NonNullable<MonteCarloOptions["method"]>>()(["shuffle", "bootstrap"]);
 
 /**
  * Default options
@@ -229,6 +232,8 @@ export function runMonteCarloSimulation(
   const simulations = options.simulations ?? DEFAULT_OPTIONS.simulations;
   const confidenceLevel = options.confidenceLevel ?? DEFAULT_OPTIONS.confidenceLevel;
   const method = options.method ?? DEFAULT_OPTIONS.method;
+  // An unknown method used to bootstrap.
+  assertOneOf("runMonteCarloSimulation method", method, METHODS);
   const ruinThreshold = options.ruinThreshold ?? DEFAULT_OPTIONS.ruinThreshold;
   const { progressCallback } = options;
 

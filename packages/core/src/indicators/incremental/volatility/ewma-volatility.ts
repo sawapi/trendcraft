@@ -60,6 +60,7 @@ import type { NormalizedCandle, PriceSource } from "../../../types";
 import { logReturnOrZero } from "../../../utils/statistics";
 import { assertDecayFactor } from "../../../utils/validate-number";
 import { assertPeriod } from "../../../utils/validate-period";
+import { assertPriceSource } from "../../../utils/validate-price-source";
 import {
   type IndicatorSnapshot,
   makeSnapshot,
@@ -196,6 +197,7 @@ export function createEwmaVolatility(
 
   const lambda = params.lambda;
   const source = params.source;
+  assertPriceSource("EWMA source", source);
   const seedSize = params.seedSize;
   assertDecayFactor("EWMA lambda", lambda);
   assertPeriod("EWMA seedSize", seedSize);

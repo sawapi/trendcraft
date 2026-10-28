@@ -4,6 +4,12 @@
 
 import { bollingerBands } from "../../indicators/volatility/bollinger-bands";
 import type { NormalizedCandle, PresetCondition } from "../../types";
+import { assertOneOf, keywords } from "../../utils/validate-keyword";
+
+/** Which Bollinger band a condition watches. */
+export type BollingerBand = "upper" | "lower";
+
+const BANDS = keywords<BollingerBand>()(["upper", "lower"]);
 
 type BBData = {
   time: number;
@@ -51,10 +57,11 @@ function getBBData(
  * ```
  */
 export function bollingerBreakout(
-  band: "upper" | "lower" = "lower",
+  band: BollingerBand = "lower",
   period = 20,
   stdDev = 2,
 ): PresetCondition {
+  assertOneOf("bollingerBreakout band", band, BANDS);
   return {
     type: "preset",
     name: `bollingerBreakout('${band}')`,
@@ -83,10 +90,11 @@ export function bollingerBreakout(
  * ```
  */
 export function bollingerTouch(
-  band: "upper" | "lower" = "lower",
+  band: BollingerBand = "lower",
   period = 20,
   stdDev = 2,
 ): PresetCondition {
+  assertOneOf("bollingerTouch band", band, BANDS);
   return {
     type: "preset",
     name: `bollingerTouch('${band}')`,

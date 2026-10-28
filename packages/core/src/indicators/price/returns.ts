@@ -5,8 +5,15 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, ReturnsOptions, Series } from "../../types";
+import { assertOneOf, keywords } from "../../utils/validate-keyword";
 import { assertPeriod } from "../../utils/validate-period";
 import { RETURNS_META } from "../indicator-meta";
+
+const RETURN_TYPES = keywords<NonNullable<ReturnsOptions["type"]>>()(["simple", "log"]);
+const CUMULATIVE_RETURN_TYPES = keywords<NonNullable<Parameters<typeof cumulativeReturns>[1]>>()([
+  "simple",
+  "log",
+]);
 
 /**
  * Calculate price returns
@@ -32,6 +39,8 @@ export function returns(
   const { period = 1, type = "simple" } = options;
 
   assertPeriod("Returns period", period);
+  // An unknown type gave simple returns.
+  assertOneOf("Returns type", type, RETURN_TYPES);
 
   // Normalize if needed
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
@@ -74,6 +83,7 @@ export function cumulativeReturns(
   candles: Candle[] | NormalizedCandle[],
   type: "simple" | "log" = "simple",
 ): Series<number | null> {
+  assertOneOf("cumulativeReturns type", type, CUMULATIVE_RETURN_TYPES);
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
 
   if (normalized.length === 0) {

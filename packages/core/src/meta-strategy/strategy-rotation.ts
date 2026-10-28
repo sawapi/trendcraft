@@ -10,6 +10,7 @@
 
 import { profitFactorFromReturns } from "../analysis/return-metrics";
 import type { BacktestResult } from "../types";
+import { assertOneOf, keywords } from "../utils/validate-keyword";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -21,6 +22,18 @@ export type StrategyPerformanceMetric =
   | "sharpeRatio"
   | "profitFactor"
   | "winRate";
+
+const RANKING_METRICS = keywords<StrategyPerformanceMetric>()([
+  "returnPercent",
+  "sharpeRatio",
+  "profitFactor",
+  "winRate",
+]);
+const ALLOCATION_METHODS = keywords<NonNullable<StrategyRotationOptions["allocationMethod"]>>()([
+  "equal",
+  "proportional",
+  "topN",
+]);
 
 /** Options for strategy rotation */
 export type StrategyRotationOptions = {
@@ -131,6 +144,8 @@ export function rotateStrategies(
     minAllocation = 0.05,
     allocationMethod = "proportional",
   } = options;
+  assertOneOf("rotateStrategies rankingMetric", rankingMetric, RANKING_METRICS);
+  assertOneOf("rotateStrategies allocationMethod", allocationMethod, ALLOCATION_METHODS);
 
   if (results.length === 0) {
     return { allocations: [], activeCount: 0, rankings: [] };

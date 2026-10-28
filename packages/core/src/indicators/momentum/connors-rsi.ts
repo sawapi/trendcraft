@@ -13,6 +13,7 @@ import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 import { assertPeriod } from "../../utils/validate-period";
+import { assertPriceSource } from "../../utils/validate-price-source";
 import { CONNORS_RSI_META } from "../indicator-meta";
 import { rsi } from "./rsi";
 
@@ -85,6 +86,7 @@ export function connorsRsi(
   options: ConnorsRsiOptions = {},
 ): Series<ConnorsRsiValue> {
   const { rsiPeriod = 3, streakPeriod = 2, rocPeriod = 100, source = "close" } = options;
+  assertPriceSource("Connors RSI source", source);
   assertPeriod("Connors RSI rocPeriod", rocPeriod);
   assertPeriod("Connors RSI rsiPeriod", rsiPeriod);
   assertPeriod("Connors RSI streakPeriod", streakPeriod);

@@ -19,6 +19,7 @@
  */
 
 import type { NormalizedCandle, PriceSource } from "../../../types";
+import { assertPriceSource } from "../../../utils/validate-price-source";
 import { CircularBuffer } from "../circular-buffer";
 import {
   type IndicatorSnapshot,
@@ -137,6 +138,7 @@ export function createStochRsi(
     "must be a positive integer",
   );
   const source = params.source;
+  assertPriceSource("Stoch RSI source", source);
 
   let count: number;
   let prevClose: number | null;

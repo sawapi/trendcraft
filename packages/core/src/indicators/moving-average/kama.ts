@@ -10,6 +10,7 @@
 import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
+import { assertPriceSource } from "../../utils/validate-price-source";
 import { KAMA_META } from "../indicator-meta";
 
 /**
@@ -60,6 +61,7 @@ export function kama(
   options: KamaOptions = {},
 ): Series<number | null> {
   const { period = 10, fastPeriod = 2, slowPeriod = 30, source = "close" } = options;
+  assertPriceSource("KAMA source", source);
 
   if (period < 1) {
     throw new Error("KAMA period must be at least 1");

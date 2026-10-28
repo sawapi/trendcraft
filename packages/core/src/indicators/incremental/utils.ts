@@ -3,6 +3,7 @@
  */
 
 import type { NormalizedCandle, PriceSource } from "../../types";
+import { priceSourceError } from "../../utils/validate-price-source";
 
 /**
  * Extract a price value from a candle based on the specified source.
@@ -29,7 +30,8 @@ export function getSourcePrice(candle: NormalizedCandle, source: PriceSource): n
     case "volume":
       return candle.volume;
     default:
-      return candle.close;
+      // Unreachable for a typed caller; a bad runtime value used to read the close.
+      throw priceSourceError("getSourcePrice source", source);
   }
 }
 

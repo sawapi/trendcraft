@@ -17,6 +17,7 @@
 
 import { centeredMoments } from "../../../core/statistics";
 import type { NormalizedCandle, PriceSource } from "../../../types";
+import { assertPriceSource } from "../../../utils/validate-price-source";
 import { CircularBuffer } from "../circular-buffer";
 import {
   type IndicatorSnapshot,
@@ -93,6 +94,7 @@ export function createStandardDeviation(
     "must be a positive integer",
   );
   const source = params.source;
+  assertPriceSource("Standard Deviation source", source);
 
   let buffer: CircularBuffer<number>;
   let count: number;

@@ -9,6 +9,7 @@ import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 import { assertPositive } from "../../utils/validate-number";
+import { assertPriceSource } from "../../utils/validate-price-source";
 import { MCGINLEY_META } from "../indicator-meta";
 
 /**
@@ -56,6 +57,7 @@ export function mcginleyDynamic(
   options: McGinleyDynamicOptions = {},
 ): Series<number | null> {
   const { period = 14, k = 0.6, source = "close" } = options;
+  assertPriceSource("McGinley Dynamic source", source);
   assertPositive("McGinley Dynamic k", k);
 
   if (period < 1) {

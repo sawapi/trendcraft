@@ -6,6 +6,7 @@ import { getPriceSeries, isNormalized, normalizeCandles } from "../../core/norma
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, HighestLowestOptions, NormalizedCandle, Series } from "../../types";
 import { assertPeriod } from "../../utils/validate-period";
+import { assertPriceSource } from "../../utils/validate-price-source";
 
 /**
  * Result type for highest/lowest
@@ -43,6 +44,9 @@ export function highestLowest(
   const { period, source } = options;
 
   assertPeriod("Period", period);
+  // Checked against undefined, not truthiness: "" used to fall back to
+  // high/low silently.
+  if (source !== undefined) assertPriceSource("highestLowest source", source);
 
   // Normalize if needed
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);

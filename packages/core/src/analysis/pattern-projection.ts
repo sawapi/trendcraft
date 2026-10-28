@@ -8,12 +8,18 @@
 import type { PatternSignal } from "../signals/patterns/types";
 import { resolvePatternDirection } from "../signals/patterns/types";
 import type { NormalizedCandle, Series } from "../types";
+import { assertOneOf, keywords } from "../utils/validate-keyword";
 import type {
   EventExtractor,
   HitRate,
   PatternProjection,
   PatternProjectionOptions,
 } from "./pattern-projection-types";
+
+const EVENT_DIRECTIONS = keywords<NonNullable<ReturnType<EventExtractor<unknown>>["direction"]>>()([
+  "bullish",
+  "bearish",
+]);
 
 const DEFAULT_HORIZON = 20;
 const DEFAULT_CONFIDENCE = 0.95;
@@ -106,6 +112,9 @@ export function projectPatternOutcome<T>(
 
   for (const event of events) {
     const { time, direction = "bullish" } = extractor(event);
+    // Checked per event: the value comes from the caller's extractor. An
+    // unknown one ("short", "Bearish") used to be scored as bullish.
+    assertOneOf("projectPatternOutcome extractor direction", direction, EVENT_DIRECTIONS);
     const eventIndex = timeToIndex.get(time);
     if (eventIndex === undefined) continue;
 

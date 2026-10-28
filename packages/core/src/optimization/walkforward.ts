@@ -18,7 +18,7 @@ import type {
 import { err, ok, type Result, tcError } from "../types/result";
 import { DEFAULT_BACKTEST_CAPITAL } from "./constants";
 import { generateParameterCombinations, gridSearch, type StrategyFactory } from "./grid-search";
-import { calculateAllMetrics } from "./metrics";
+import { assertOptimizerKeywords, calculateAllMetrics } from "./metrics";
 import {
   aggregateInOutMetrics,
   assertNoOwnWarmup,
@@ -161,6 +161,7 @@ export function walkForwardAnalysis(
     constraints: [] as OptimizationConstraint[],
     ...options,
   };
+  assertOptimizerKeywords("walkForwardAnalysis", { metric, constraints });
 
   // Generate period boundaries (validates purgeBars)
   const boundaries = generatePeriodBoundaries(candles, {

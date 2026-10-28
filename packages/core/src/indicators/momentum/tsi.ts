@@ -9,6 +9,7 @@ import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 import { assertPeriod } from "../../utils/validate-period";
+import { assertPriceSource } from "../../utils/validate-price-source";
 import { TSI_META } from "../indicator-meta";
 
 /**
@@ -64,6 +65,7 @@ export function tsi(
   options: TsiOptions = {},
 ): Series<TsiValue | null> {
   const { longPeriod = 25, shortPeriod = 13, signalPeriod = 7, source = "close" } = options;
+  assertPriceSource("TSI source", source);
 
   assertPeriod("TSI longPeriod", longPeriod);
   assertPeriod("TSI shortPeriod", shortPeriod);

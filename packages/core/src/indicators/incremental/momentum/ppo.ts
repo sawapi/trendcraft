@@ -18,6 +18,7 @@
  */
 
 import type { NormalizedCandle, PriceSource } from "../../../types";
+import { assertPriceSource } from "../../../utils/validate-price-source";
 import {
   type IndicatorSnapshot,
   makeSnapshot,
@@ -116,6 +117,7 @@ export function createPpo(
     "must be a positive integer",
   );
   const source = params.source;
+  assertPriceSource("PPO source", source);
   const fastMult = 2 / (fastPeriod + 1);
   const slowMult = 2 / (slowPeriod + 1);
   const signalMult = 2 / (signalPeriod + 1);

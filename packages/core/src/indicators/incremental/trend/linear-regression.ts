@@ -21,6 +21,7 @@
 
 import { slopeOverIndex } from "../../../core/statistics";
 import type { NormalizedCandle, PriceSource } from "../../../types";
+import { assertPriceSource } from "../../../utils/validate-price-source";
 import { CircularBuffer } from "../circular-buffer";
 import {
   type IndicatorSnapshot,
@@ -99,6 +100,7 @@ export function createLinearRegression(
     "must be an integer >= 2",
   );
   const source = params.source;
+  assertPriceSource("Linear Regression source", source);
 
   // Closed-form constants for x = 0..period-1
   const sumX = (period * (period - 1)) / 2;

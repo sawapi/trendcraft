@@ -3,6 +3,7 @@
  */
 
 import type { Candle, NormalizedCandle, PriceSource } from "../types";
+import { priceSourceError } from "../utils/validate-price-source";
 import type { ValidationOptions, ValidationResult } from "../validation/types";
 import { validateCandles } from "../validation/validate";
 
@@ -79,7 +80,8 @@ export function getPrice(candle: NormalizedCandle, source: PriceSource): number 
     case "ohlc4":
       return (candle.open + candle.high + candle.low + candle.close) / 4;
     default:
-      return candle.close;
+      // Unreachable for a typed caller; a bad runtime value used to read the close.
+      throw priceSourceError("getPrice source", source);
   }
 }
 

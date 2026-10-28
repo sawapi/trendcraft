@@ -18,6 +18,7 @@
  */
 
 import type { NormalizedCandle, PriceSource } from "../../../types";
+import { assertPriceSource } from "../../../utils/validate-price-source";
 import { CircularBuffer } from "../circular-buffer";
 import {
   type IndicatorSnapshot,
@@ -121,6 +122,7 @@ export function createStc(
     "must be in (0, 1]",
   );
   const source = params.source;
+  assertPriceSource("Schaff Trend Cycle source", source);
 
   const fastMult = 2 / (fastPeriod + 1);
   const slowMult = 2 / (slowPeriod + 1);

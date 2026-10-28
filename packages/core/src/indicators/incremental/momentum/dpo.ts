@@ -15,6 +15,7 @@
  */
 
 import type { NormalizedCandle, PriceSource } from "../../../types";
+import { assertPriceSource } from "../../../utils/validate-price-source";
 import { createSma, type SmaState } from "../moving-average/sma";
 import {
   type IndicatorSnapshot,
@@ -90,6 +91,7 @@ export function createDpo(
     "must be a positive integer",
   );
   const source = params.source;
+  assertPriceSource("DPO source", source);
   const shift = Math.floor(period / 2) + 1;
 
   let sma: ReturnType<typeof createSma>;

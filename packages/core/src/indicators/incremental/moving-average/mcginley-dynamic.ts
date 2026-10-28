@@ -46,6 +46,7 @@
 
 import type { NormalizedCandle, PriceSource } from "../../../types";
 import { assertPositive } from "../../../utils/validate-number";
+import { assertPriceSource } from "../../../utils/validate-price-source";
 import {
   type IndicatorSnapshot,
   makeSnapshot,
@@ -107,6 +108,7 @@ export function createMcGinleyDynamic(
   const k = params.k;
   assertPositive("McGinley Dynamic k", k);
   const source = params.source;
+  assertPriceSource("McGinley Dynamic source", source);
 
   let prevMd: number | null;
   let sum: number;

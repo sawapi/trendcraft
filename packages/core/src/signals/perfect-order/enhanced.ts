@@ -1,5 +1,7 @@
 import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertOneOf } from "../../utils/validate-keyword";
+import { assertPriceSource } from "../../utils/validate-price-source";
 import type {
   PerfectOrderOptionsEnhanced,
   PerfectOrderState,
@@ -14,6 +16,7 @@ import {
   isCollapsed,
   isMaOrderBearish,
   isMaOrderBullish,
+  MA_TYPES,
   slopeSign,
   stateToLegacyType,
 } from "./utils";
@@ -141,6 +144,8 @@ export function perfectOrderEnhanced(
     collapseEps = ENHANCED_DEFAULTS.collapseEps,
     flatEps = ENHANCED_DEFAULTS.flatEps,
   } = options;
+  assertOneOf("perfectOrderEnhanced maType", maType, MA_TYPES);
+  assertPriceSource("perfectOrderEnhanced source", source);
 
   // Sort and dedupe periods
   const sortedPeriods = [...new Set(periods)].sort((a, b) => a - b);

@@ -12,6 +12,7 @@ import type { BacktestOptions, Condition, NormalizedCandle } from "../types";
 import type { OptimizationConstraint, OptimizationMetric } from "../types/optimization";
 import { DEFAULT_BACKTEST_CAPITAL } from "./constants";
 import {
+  assertOptimizerKeywords,
   calculateAllMetrics,
   checkConstraint,
   compareMetricBestFirst,
@@ -252,6 +253,7 @@ export function combinationSearch(
     requiredExitConditions = [],
     requiredEntryConditions = [],
   } = options;
+  assertOptimizerKeywords("combinationSearch", { metric, constraints });
 
   // Find required conditions in the pools
   const requiredEntryDefs = entryConditions.filter((c) => requiredEntryConditions.includes(c.name));

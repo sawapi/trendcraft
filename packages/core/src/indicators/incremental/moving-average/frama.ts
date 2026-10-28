@@ -14,6 +14,7 @@
  */
 
 import type { NormalizedCandle, PriceSource } from "../../../types";
+import { assertPriceSource } from "../../../utils/validate-price-source";
 import { CircularBuffer } from "../circular-buffer";
 import {
   type IndicatorSnapshot,
@@ -84,6 +85,7 @@ export function createFrama(
     "must be a positive integer",
   );
   const source = params.source;
+  assertPriceSource("FRAMA source", source);
   const effectivePeriod = period % 2 === 0 ? period : period + 1;
   const halfPeriod = effectivePeriod / 2;
 

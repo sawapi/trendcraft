@@ -15,6 +15,7 @@ import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types"
 import { logReturnOrZero } from "../../utils/statistics";
 import { assertDecayFactor, assertPositive } from "../../utils/validate-number";
 import { assertPeriod } from "../../utils/validate-period";
+import { assertPriceSource } from "../../utils/validate-price-source";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -467,10 +468,11 @@ export function ewmaVolatilityFromCandles(
   options?: EwmaVolatilityFromCandlesOptions,
 ): Series<number> {
   resolveEwmaOptions(options);
+  const source = options?.source ?? "close";
+  assertPriceSource("EWMA source", source);
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
   if (normalized.length < 2) return [];
 
-  const source = options?.source ?? "close";
   const returns: number[] = new Array(normalized.length - 1);
   for (let i = 1; i < normalized.length; i++) {
     const prev = getPrice(normalized[i - 1], source);

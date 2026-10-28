@@ -13,6 +13,7 @@
  */
 
 import type { NormalizedCandle, PriceSource } from "../../../types";
+import { assertPriceSource } from "../../../utils/validate-price-source";
 import { createSma, type SmaState } from "../moving-average/sma";
 import { type IndicatorSnapshot, makeSnapshot, resolveResume } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -108,6 +109,7 @@ export function createKst(
   const weights = params.weights;
   const signalPeriod = params.signalPeriod;
   const source = params.source;
+  assertPriceSource("KST source", source);
 
   let rocs: ReturnType<typeof createRoc>[];
   let smas: ReturnType<typeof createSma>[];

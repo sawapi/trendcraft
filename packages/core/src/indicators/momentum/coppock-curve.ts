@@ -9,6 +9,7 @@ import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 import { assertPeriod } from "../../utils/validate-period";
+import { assertPriceSource } from "../../utils/validate-price-source";
 import { COPPOCK_META } from "../indicator-meta";
 
 /**
@@ -49,6 +50,7 @@ export function coppockCurve(
   options: CoppockCurveOptions = {},
 ): Series<number | null> {
   const { wmaPeriod = 10, longRocPeriod = 14, shortRocPeriod = 11, source = "close" } = options;
+  assertPriceSource("Coppock Curve source", source);
 
   assertPeriod("Coppock Curve wmaPeriod", wmaPeriod);
   assertPeriod("Coppock Curve longRocPeriod", longRocPeriod);

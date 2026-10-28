@@ -16,10 +16,17 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertOneOf, keywords } from "../../utils/validate-keyword";
 import { assertNonNegative } from "../../utils/validate-number";
 import { assertPeriod } from "../../utils/validate-period";
 import { LIQUIDITY_SWEEP_META } from "../indicator-meta";
 import { swingPoints } from "../price/swing-points";
+
+const SWEEP_SIGNAL_TYPES = keywords<NonNullable<Parameters<typeof hasRecentSweepSignal>[1]>>()([
+  "bullish",
+  "bearish",
+  "both",
+]);
 
 /**
  * Create a sweep object with given parameters
@@ -325,6 +332,7 @@ export function hasRecentSweepSignal(
   type: "bullish" | "bearish" | "both" = "both",
   options: LiquiditySweepOptions = {},
 ): boolean {
+  assertOneOf("hasRecentSweepSignal type", type, SWEEP_SIGNAL_TYPES);
   const series = liquiditySweep(candles, options);
 
   if (series.length === 0) {

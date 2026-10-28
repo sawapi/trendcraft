@@ -9,6 +9,7 @@ import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 import { assertPeriod } from "../../utils/validate-period";
+import { assertPriceSource } from "../../utils/validate-price-source";
 import { ULCER_META } from "../indicator-meta";
 
 /**
@@ -56,6 +57,7 @@ export function ulcerIndex(
   options: UlcerIndexOptions = {},
 ): Series<number | null> {
   const { period = 14, source = "close" } = options;
+  assertPriceSource("Ulcer Index source", source);
 
   assertPeriod("Ulcer Index period", period);
 

@@ -3,7 +3,27 @@
  * Converts candles from one timeframe to another (e.g., daily to weekly)
  */
 
-import type { NormalizedCandle, Timeframe, TimeframeShorthand } from "../types";
+import type { NormalizedCandle, Timeframe, TimeframeShorthand, TimeframeUnit } from "../types";
+import { assertOneOf, keywordError, keywords } from "../utils/validate-keyword";
+
+/** Every value `TimeframeUnit` allows. */
+const TIMEFRAME_UNITS = keywords<TimeframeUnit>()(["minute", "hour", "day", "week", "month"]);
+
+/** Every value `TimeframeShorthand` allows, in the order the error lists them. */
+const TIMEFRAME_SHORTHANDS = keywords<TimeframeShorthand>()([
+  "1m",
+  "5m",
+  "15m",
+  "30m",
+  "1h",
+  "4h",
+  "1d",
+  "1w",
+  "1M",
+  "daily",
+  "weekly",
+  "monthly",
+]);
 
 /** 1970-01-05T00:00Z — the first Monday of the epoch, the reference for multi-week buckets. */
 const MONDAY_EPOCH = 345_600_000;
@@ -13,6 +33,9 @@ const MONDAY_EPOCH = 345_600_000;
  */
 export function parseTimeframe(input: TimeframeShorthand | Timeframe): Timeframe {
   if (typeof input === "object") {
+    // An unknown unit used to leave every candle in its own period, so the
+    // "resampled" series came back unchanged.
+    assertOneOf("timeframe unit", input.unit, TIMEFRAME_UNITS);
     return input;
   }
 
@@ -31,11 +54,12 @@ export function parseTimeframe(input: TimeframeShorthand | Timeframe): Timeframe
     monthly: { value: 1, unit: "month" },
   };
 
-  const result = shorthandMap[input];
-  if (!result) {
-    throw new Error(`Unknown timeframe shorthand: ${input}`);
+  // Own keys only: an inherited name such as "toString" used to return a
+  // function as the timeframe.
+  if (!(typeof input === "string" && Object.hasOwn(shorthandMap, input))) {
+    throw keywordError("timeframe", input, TIMEFRAME_SHORTHANDS);
   }
-  return result;
+  return shorthandMap[input];
 }
 
 /**
@@ -101,7 +125,7 @@ export function getPeriodStart(time: number, timeframe: Timeframe): number {
       return date.getTime();
     }
     default:
-      return time;
+      throw keywordError("timeframe unit", timeframe.unit, TIMEFRAME_UNITS);
   }
 }
 
@@ -146,11 +170,11 @@ export function resample(
   candles: NormalizedCandle[],
   timeframe: TimeframeShorthand | Timeframe,
 ): NormalizedCandle[] {
+  // Parsed first so an unknown timeframe is rejected even with no candles.
+  const tf = parseTimeframe(timeframe);
   if (candles.length === 0) {
     return [];
   }
-
-  const tf = parseTimeframe(timeframe);
 
   // Group candles by period
   const groups = new Map<number, NormalizedCandle[]>();

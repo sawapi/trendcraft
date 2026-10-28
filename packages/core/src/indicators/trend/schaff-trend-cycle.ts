@@ -10,6 +10,7 @@ import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 import { assertFinite } from "../../utils/validate-number";
 import { assertPeriod } from "../../utils/validate-period";
+import { assertPriceSource } from "../../utils/validate-price-source";
 import { STC_META } from "../indicator-meta";
 
 /**
@@ -78,6 +79,7 @@ export function schaffTrendCycle(
     factor = 0.5,
     source = "close",
   } = options;
+  assertPriceSource("Schaff Trend Cycle source", source);
   assertFinite("Schaff Trend Cycle factor", factor);
 
   assertPeriod("Schaff Trend Cycle fastPeriod", fastPeriod);

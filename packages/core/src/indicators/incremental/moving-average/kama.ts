@@ -15,6 +15,7 @@
  */
 
 import type { NormalizedCandle, PriceSource } from "../../../types";
+import { assertPriceSource } from "../../../utils/validate-price-source";
 import { CircularBuffer } from "../circular-buffer";
 import {
   type IndicatorSnapshot,
@@ -95,6 +96,7 @@ export function createKama(
     "must be a positive integer",
   );
   const source = params.source;
+  assertPriceSource("KAMA source", source);
   const fastSC = 2 / (fastPeriod + 1);
   const slowSC = 2 / (slowPeriod + 1);
 

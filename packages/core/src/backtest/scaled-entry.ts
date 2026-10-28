@@ -16,14 +16,22 @@ import type {
   FillMode,
   NormalizedCandle,
   ScaledEntryConfig,
+  ScaledEntryIntervalType,
+  ScaledEntryStrategy,
   SlTpMode,
   Trade,
 } from "../types";
+import { assertOneOf, keywords } from "../utils/validate-keyword";
 import type { ExtendedCondition } from "./conditions";
 import { evaluateCondition, seedBenchmark } from "./conditions";
 import { drawdownFromEquityCurve } from "./drawdown-tracker";
 import type { MtfBacktestOptions } from "./engine";
-import { assertValidPartialExits, checkProfitTrigger, checkStopTrigger } from "./engine-utils";
+import {
+  assertBacktestKeywords,
+  assertValidPartialExits,
+  checkProfitTrigger,
+  checkStopTrigger,
+} from "./engine-utils";
 import {
   applySlippage,
   calculateStats,
@@ -31,6 +39,9 @@ import {
   MS_PER_DAY,
   runStandardBacktest,
 } from "./scaled-entry-utils";
+
+const TRANCHE_STRATEGIES = keywords<ScaledEntryStrategy>()(["equal", "pyramid", "reverse-pyramid"]);
+const INTERVAL_TYPES = keywords<ScaledEntryIntervalType>()(["signal", "price"]);
 
 /**
  * Options the multi-tranche path does not implement.
@@ -227,6 +238,18 @@ export function runBacktestScaled(
     fillMode = "next-bar-open" as FillMode,
     slTpMode = "close-only" as SlTpMode,
   } = options;
+
+  assertBacktestKeywords("runBacktestScaled", options);
+  if (scaledEntry !== undefined) {
+    // An unknown strategy gave no tranche weights, so nothing was entered; an
+    // unknown intervalType was treated as "price".
+    assertOneOf("runBacktestScaled scaledEntry.strategy", scaledEntry.strategy, TRANCHE_STRATEGIES);
+    assertOneOf(
+      "runBacktestScaled scaledEntry.intervalType",
+      scaledEntry.intervalType,
+      INTERVAL_TYPES,
+    );
+  }
 
   // Build settings for reproducibility
   const settings: BacktestSettings = {

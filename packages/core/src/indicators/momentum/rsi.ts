@@ -7,6 +7,7 @@ import { getPriceSeries, isNormalized, normalizeCandles } from "../../core/norma
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, RsiOptions, Series } from "../../types";
 import { assertPeriod } from "../../utils/validate-period";
+import { assertPriceSource } from "../../utils/validate-price-source";
 import { RSI_META } from "../indicator-meta";
 
 /**
@@ -34,6 +35,7 @@ export function rsi(
   options: RsiOptions = {},
 ): Series<number | null> {
   const { period = 14, source = "close" } = options;
+  assertPriceSource("RSI source", source);
 
   assertPeriod("RSI period", period);
 

@@ -5,6 +5,7 @@
 import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, EmaOptions, NormalizedCandle, Series } from "../../types";
+import { assertPriceSource } from "../../utils/validate-price-source";
 import { EMA_META } from "../indicator-meta";
 
 /**
@@ -29,6 +30,7 @@ export function ema(
   options: EmaOptions,
 ): Series<number | null> {
   const { period, source = "close" } = options;
+  assertPriceSource("EMA source", source);
 
   if (period < 1) {
     throw new Error("EMA period must be at least 1");

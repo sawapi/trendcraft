@@ -15,6 +15,7 @@
 import { centeredMoments } from "../../../core/statistics";
 import type { BollingerBandsValue, NormalizedCandle, PriceSource } from "../../../types";
 import { assertPositive } from "../../../utils/validate-number";
+import { assertPriceSource } from "../../../utils/validate-price-source";
 import { CircularBuffer } from "../circular-buffer";
 import {
   type IndicatorSnapshot,
@@ -88,6 +89,7 @@ export function createBollingerBands(
   const stdDevMult = params.stdDev;
   assertPositive("Standard deviation multiplier", stdDevMult);
   const source = params.source;
+  assertPriceSource("Bollinger Bands source", source);
 
   let buffer: CircularBuffer<number>;
   let count: number;

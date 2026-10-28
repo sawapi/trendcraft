@@ -9,6 +9,7 @@
 import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 import { assertPeriod } from "../../utils/validate-period";
+import { assertPriceSource } from "../../utils/validate-price-source";
 
 /**
  * Roofing Filter options
@@ -46,6 +47,7 @@ export function roofingFilter(
   options: RoofingFilterOptions = {},
 ): Series<number | null> {
   const { highPassPeriod = 48, lowPassPeriod = 10, source = "close" } = options;
+  assertPriceSource("Roofing filter source", source);
 
   // The canonical HP coefficients (`alpha1 = (cos+sin-1)/cos`) place both
   // recurrence poles inside the unit circle for `highPassPeriod >= 2`.

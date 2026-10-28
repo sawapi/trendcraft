@@ -14,6 +14,7 @@
  */
 
 import type { NormalizedCandle, PriceSource } from "../../../types";
+import { assertPriceSource } from "../../../utils/validate-price-source";
 import { CircularBuffer } from "../circular-buffer";
 import {
   type IndicatorSnapshot,
@@ -85,6 +86,7 @@ export function createVwma(
     "must be a positive integer",
   );
   const source = params.source;
+  assertPriceSource("VWMA source", source);
 
   let pvBuffer: CircularBuffer<number>;
   let volBuffer: CircularBuffer<number>;

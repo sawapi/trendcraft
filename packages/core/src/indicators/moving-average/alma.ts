@@ -9,6 +9,7 @@ import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 import { assertInRange, assertPositive } from "../../utils/validate-number";
+import { assertPriceSource } from "../../utils/validate-price-source";
 import { ALMA_META } from "../indicator-meta";
 
 /**
@@ -53,6 +54,7 @@ export function alma(
   options: AlmaOptions = {},
 ): Series<number | null> {
   const { period = 9, offset = 0.85, sigma = 6, source = "close" } = options;
+  assertPriceSource("ALMA source", source);
   assertInRange("ALMA offset", offset, 0, 1);
   assertPositive("ALMA sigma", sigma);
 

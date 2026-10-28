@@ -8,6 +8,7 @@
 import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
+import { assertPriceSource } from "../../utils/validate-price-source";
 import { DEMA_META } from "../indicator-meta";
 
 /**
@@ -42,6 +43,7 @@ export function dema(
   options: DemaOptions = {},
 ): Series<number | null> {
   const { period = 20, source = "close" } = options;
+  assertPriceSource("DEMA source", source);
 
   if (period < 1) {
     throw new Error("DEMA period must be at least 1");

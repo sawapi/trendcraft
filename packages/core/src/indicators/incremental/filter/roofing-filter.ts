@@ -16,6 +16,7 @@
  */
 
 import type { NormalizedCandle, PriceSource } from "../../../types";
+import { assertPriceSource } from "../../../utils/validate-price-source";
 import {
   type IndicatorSnapshot,
   makeSnapshot,
@@ -119,6 +120,7 @@ export function createRoofingFilter(
     "must be a positive integer",
   );
   const source = params.source;
+  assertPriceSource("Roofing filter source", source);
 
   const hp = highPassCoeffs(highPassPeriod);
   const ss = superSmootherCoeffs(lowPassPeriod);

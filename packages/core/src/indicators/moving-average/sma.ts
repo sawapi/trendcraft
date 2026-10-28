@@ -5,6 +5,7 @@
 import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series, SmaOptions } from "../../types";
+import { assertPriceSource } from "../../utils/validate-price-source";
 import { SMA_META } from "../indicator-meta";
 
 /**
@@ -25,6 +26,7 @@ export function sma(
   options: SmaOptions,
 ): Series<number | null> {
   const { period, source = "close" } = options;
+  assertPriceSource("SMA source", source);
 
   if (period < 1) {
     throw new Error("SMA period must be at least 1");

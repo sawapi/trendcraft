@@ -24,6 +24,7 @@
  */
 
 import type { NormalizedCandle, PriceSource } from "../../../types";
+import { assertPriceSource } from "../../../utils/validate-price-source";
 import { CircularBuffer } from "../circular-buffer";
 import { type IndicatorSnapshot, makeSnapshot, resolveResume } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -77,6 +78,7 @@ export function createUlcerIndex(
 
   const period = params.period;
   const source = params.source;
+  assertPriceSource("Ulcer Index source", source);
 
   let prices: CircularBuffer<number>;
   let drawdowns: CircularBuffer<number>;

@@ -12,6 +12,7 @@ import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 import { assertPeriod } from "../../utils/validate-period";
+import { assertPriceSource } from "../../utils/validate-price-source";
 import { CMO_META } from "../indicator-meta";
 
 /**
@@ -49,6 +50,7 @@ export function cmo(
   options: CmoOptions = {},
 ): Series<number | null> {
   const { period = 14, source = "close" } = options;
+  assertPriceSource("CMO source", source);
 
   assertPeriod("CMO period", period);
 

@@ -85,7 +85,7 @@ export function assertResetPeriod(
  * JSON.stringify throws on a BigInt, prints a Symbol as `undefined` and a
  * boxed `new Number(5)` as a valid-looking `5`.
  */
-function showValue(value: unknown): string {
+export function showValue(value: unknown): string {
   if (typeof value === "string") return JSON.stringify(value);
   if (typeof value === "bigint") return `${value}n`;
   if (typeof value === "object" && value !== null) {

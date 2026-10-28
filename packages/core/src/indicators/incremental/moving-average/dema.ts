@@ -16,6 +16,7 @@
  */
 
 import type { NormalizedCandle, PriceSource } from "../../../types";
+import { assertPriceSource } from "../../../utils/validate-price-source";
 import {
   type IndicatorSnapshot,
   makeSnapshot,
@@ -76,6 +77,7 @@ export function createDema(
     "must be a positive integer",
   );
   const source = params.source;
+  assertPriceSource("DEMA source", source);
 
   let ema1: ReturnType<typeof createEma>;
   let ema2: ReturnType<typeof createEma>;

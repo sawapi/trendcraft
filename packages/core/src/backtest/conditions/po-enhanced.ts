@@ -3,7 +3,9 @@
  */
 
 import { type PerfectOrderValueEnhanced, perfectOrderEnhanced } from "../../signals/perfect-order";
+import { MA_TYPES } from "../../signals/perfect-order/utils";
 import type { PresetCondition } from "../../types";
+import { assertOneOf } from "../../utils/validate-keyword";
 import type { PerfectOrderConditionOptions } from "./po-basic";
 
 // ============================================
@@ -49,6 +51,7 @@ export function perfectOrderBullishConfirmed(
     collapseEps = 0.003,
     minConfidence = 0,
   } = options;
+  assertOneOf("perfectOrderBullishConfirmed maType", maType, MA_TYPES);
   const cacheKey = `poe_${periods.join("_")}_${maType}_${slopeLookback}_${persistBars}_${collapseEps}`;
 
   return {
@@ -100,6 +103,7 @@ export function perfectOrderBearishConfirmed(
     collapseEps = 0.003,
     minConfidence = 0,
   } = options;
+  assertOneOf("perfectOrderBearishConfirmed maType", maType, MA_TYPES);
   const cacheKey = `poe_${periods.join("_")}_${maType}_${slopeLookback}_${persistBars}_${collapseEps}`;
 
   return {
@@ -151,6 +155,7 @@ export function perfectOrderConfirmationFormed(
     persistBars = 3,
     collapseEps = 0.003,
   } = options;
+  assertOneOf("perfectOrderConfirmationFormed maType", maType, MA_TYPES);
   const cacheKey = `poe_${periods.join("_")}_${maType}_${slopeLookback}_${persistBars}_${collapseEps}`;
 
   return {
@@ -197,6 +202,7 @@ export function perfectOrderBreakdown(
     persistBars = 3,
     collapseEps = 0.003,
   } = options;
+  assertOneOf("perfectOrderBreakdown maType", maType, MA_TYPES);
   const cacheKey = `poe_${periods.join("_")}_${maType}_${slopeLookback}_${persistBars}_${collapseEps}`;
 
   return {
@@ -243,6 +249,7 @@ export function perfectOrderMaCollapsed(
     persistBars = 3,
     collapseEps = 0.003,
   } = options;
+  assertOneOf("perfectOrderMaCollapsed maType", maType, MA_TYPES);
   const cacheKey = `poe_${periods.join("_")}_${maType}_${slopeLookback}_${persistBars}_${collapseEps}`;
 
   return {
@@ -289,6 +296,7 @@ export function perfectOrderPreBullish(
     persistBars = 3,
     collapseEps = 0.003,
   } = options;
+  assertOneOf("perfectOrderPreBullish maType", maType, MA_TYPES);
   const cacheKey = `poe_${periods.join("_")}_${maType}_${slopeLookback}_${persistBars}_${collapseEps}`;
 
   return {
@@ -333,6 +341,7 @@ export function perfectOrderPreBearish(
     persistBars = 3,
     collapseEps = 0.003,
   } = options;
+  assertOneOf("perfectOrderPreBearish maType", maType, MA_TYPES);
   const cacheKey = `poe_${periods.join("_")}_${maType}_${slopeLookback}_${persistBars}_${collapseEps}`;
 
   return {

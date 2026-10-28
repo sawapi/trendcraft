@@ -10,6 +10,7 @@ import { slopeOverIndex } from "../../core/statistics";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 import { assertPeriod } from "../../utils/validate-period";
+import { assertPriceSource } from "../../utils/validate-price-source";
 import { LINEAR_REG_META } from "../indicator-meta";
 
 /**
@@ -64,6 +65,7 @@ export function linearRegression(
   options: LinearRegressionOptions = {},
 ): Series<LinearRegressionValue | null> {
   const { period = 14, source = "close" } = options;
+  assertPriceSource("Linear Regression source", source);
 
   assertPeriod("Linear Regression period", period, 2);
 

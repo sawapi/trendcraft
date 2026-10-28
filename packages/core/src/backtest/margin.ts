@@ -1,3 +1,5 @@
+import { assertOneOf, assertPositionDirection, keywords } from "../utils/validate-keyword";
+
 /** Margin/leverage configuration */
 export type MarginConfig = {
   /** Leverage ratio (e.g., 2.0 = 2x leverage) */
@@ -36,6 +38,12 @@ export type MarginState = {
   accumulatedInterest: number;
 };
 
+/** Every margin call action {@link MarginConfig} allows. */
+const MARGIN_CALL_ACTIONS = keywords<MarginConfig["marginCallAction"]>()([
+  "liquidate",
+  "reduceToMaintenance",
+]);
+
 /**
  * Reject a margin configuration the engine cannot honour.
  *
@@ -71,6 +79,10 @@ export function assertValidMarginConfig(config: MarginConfig): void {
     throw new Error(
       `margin.interestRate must be a finite number >= 0 (e.g. 0.05 for 5%), got ${config.interestRate}`,
     );
+  }
+  // An unknown action used to reduce to maintenance instead of liquidating.
+  if (config.marginCallAction !== undefined) {
+    assertOneOf("margin.marginCallAction", config.marginCallAction, MARGIN_CALL_ACTIONS);
   }
 }
 
@@ -171,6 +183,7 @@ export function accountEquity(
   borrowedAmount = 0,
   accumulatedInterest = 0,
 ): number {
+  assertPositionDirection("accountEquity direction", direction);
   const positionClaim =
     direction === "short" ? entryValue + (entryValue - positionValue) : positionValue;
   return capital + positionClaim - borrowedAmount - accumulatedInterest;
@@ -183,6 +196,7 @@ export function updateMarginState(
   direction: "long" | "short" = "long",
   entryValue: number = positionValue,
 ): MarginState {
+  assertPositionDirection("updateMarginState direction", direction);
   const equity = accountEquity(
     positionValue,
     capital,

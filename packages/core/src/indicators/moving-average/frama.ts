@@ -8,6 +8,7 @@
 import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
+import { assertPriceSource } from "../../utils/validate-price-source";
 import { FRAMA_META } from "../indicator-meta";
 
 /**
@@ -55,6 +56,7 @@ export function frama(
   options: FramaOptions = {},
 ): Series<number | null> {
   const { period = 16, source = "close" } = options;
+  assertPriceSource("FRAMA source", source);
 
   if (period < 4) {
     throw new Error("FRAMA period must be at least 4");

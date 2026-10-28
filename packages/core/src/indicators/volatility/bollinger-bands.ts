@@ -14,6 +14,7 @@ import type {
 } from "../../types";
 import { assertPositive } from "../../utils/validate-number";
 import { assertPeriod } from "../../utils/validate-period";
+import { assertPriceSource } from "../../utils/validate-price-source";
 import { BB_META } from "../indicator-meta";
 
 /**
@@ -40,6 +41,7 @@ export function bollingerBands(
   options: BollingerBandsOptions = {},
 ): Series<BollingerBandsValue> {
   const { period = 20, stdDev = 2, source = "close" } = options;
+  assertPriceSource("Bollinger Bands source", source);
 
   assertPeriod("Bollinger Bands period", period);
 

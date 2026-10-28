@@ -2,9 +2,17 @@ import { ema } from "../../indicators/moving-average/ema";
 import { sma } from "../../indicators/moving-average/sma";
 import { wma } from "../../indicators/moving-average/wma";
 import type { NormalizedCandle, PriceSource, Series } from "../../types";
-import type { PerfectOrderType, SlopeDirection } from "./types";
+import { keywordError, keywords } from "../../utils/validate-keyword";
+import type { PerfectOrderOptions, PerfectOrderType, SlopeDirection } from "./types";
 
 export { isNormalized } from "../../core/normalize";
+
+/** The moving averages a perfect order can be built from. */
+export const MA_TYPES = keywords<NonNullable<PerfectOrderOptions["maType"]>>()([
+  "sma",
+  "ema",
+  "wma",
+]);
 
 /**
  * Get the appropriate MA function based on type
@@ -20,8 +28,11 @@ export function getMaFunction(
       return ema;
     case "wma":
       return wma;
-    default:
+    case "sma":
       return sma;
+    default:
+      // An unknown type used to fall back to SMA silently.
+      throw keywordError("perfectOrder maType", maType, MA_TYPES);
   }
 }
 

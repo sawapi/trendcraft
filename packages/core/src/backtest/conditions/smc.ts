@@ -17,6 +17,12 @@ import {
   orderBlock,
 } from "../../indicators/smc/order-block";
 import type { NormalizedCandle, PresetCondition, Series } from "../../types";
+import { assertOneOf, keywords } from "../../utils/validate-keyword";
+
+/** Which side an SMC condition filters on; omit it for either. */
+export type SmcSide = "bullish" | "bearish";
+
+const SMC_SIDES = keywords<SmcSide>()(["bullish", "bearish"]);
 
 // ============================================
 // Helper Functions
@@ -145,9 +151,10 @@ export function priceAtOrderBlock(options: OrderBlockConditionOptions = {}): Pre
  * @param options Order Block detection options
  */
 export function orderBlockCreated(
-  type?: "bullish" | "bearish",
+  type?: SmcSide,
   options: OrderBlockConditionOptions = {},
 ): PresetCondition {
+  if (type !== undefined) assertOneOf("orderBlockCreated type", type, SMC_SIDES);
   return {
     type: "preset",
     name: `orderBlockCreated(${type ?? "any"})`,
@@ -167,9 +174,10 @@ export function orderBlockCreated(
  * @param options Order Block detection options
  */
 export function orderBlockMitigated(
-  type?: "bullish" | "bearish",
+  type?: SmcSide,
   options: OrderBlockConditionOptions = {},
 ): PresetCondition {
+  if (type !== undefined) assertOneOf("orderBlockMitigated type", type, SMC_SIDES);
   return {
     type: "preset",
     name: `orderBlockMitigated(${type ?? "any"})`,
@@ -190,10 +198,11 @@ export function orderBlockMitigated(
  * @param options Order Block detection options
  */
 export function hasActiveOrderBlocks(
-  type?: "bullish" | "bearish",
+  type?: SmcSide,
   minCount = 1,
   options: OrderBlockConditionOptions = {},
 ): PresetCondition {
+  if (type !== undefined) assertOneOf("hasActiveOrderBlocks type", type, SMC_SIDES);
   return {
     type: "preset",
     name: `hasActiveOrderBlocks(${type ?? "any"}, ${minCount})`,
@@ -239,9 +248,10 @@ export type LiquiditySweepConditionOptions = LiquiditySweepOptions;
  * ```
  */
 export function liquiditySweepDetected(
-  type?: "bullish" | "bearish",
+  type?: SmcSide,
   options: LiquiditySweepConditionOptions = {},
 ): PresetCondition {
+  if (type !== undefined) assertOneOf("liquiditySweepDetected type", type, SMC_SIDES);
   return {
     type: "preset",
     name: `liquiditySweepDetected(${type ?? "any"})`,
@@ -276,9 +286,10 @@ export function liquiditySweepDetected(
  * ```
  */
 export function liquiditySweepRecovered(
-  type?: "bullish" | "bearish",
+  type?: SmcSide,
   options: LiquiditySweepConditionOptions = {},
 ): PresetCondition {
+  if (type !== undefined) assertOneOf("liquiditySweepRecovered type", type, SMC_SIDES);
   return {
     type: "preset",
     name: `liquiditySweepRecovered(${type ?? "any"})`,
@@ -300,11 +311,12 @@ export function liquiditySweepRecovered(
  * @param options Liquidity Sweep detection options
  */
 export function hasRecentSweeps(
-  type?: "bullish" | "bearish",
+  type?: SmcSide,
   recoveredOnly = false,
   minCount = 1,
   options: LiquiditySweepConditionOptions = {},
 ): PresetCondition {
+  if (type !== undefined) assertOneOf("hasRecentSweeps type", type, SMC_SIDES);
   return {
     type: "preset",
     name: `hasRecentSweeps(${type ?? "any"}, recovered=${recoveredOnly}, ${minCount})`,
@@ -335,9 +347,10 @@ export function hasRecentSweeps(
  */
 export function sweepDepthAbove(
   minDepth: number,
-  type?: "bullish" | "bearish",
+  type?: SmcSide,
   options: LiquiditySweepConditionOptions = {},
 ): PresetCondition {
+  if (type !== undefined) assertOneOf("sweepDepthAbove type", type, SMC_SIDES);
   return {
     type: "preset",
     name: `sweepDepthAbove(${minDepth}%, ${type ?? "any"})`,
