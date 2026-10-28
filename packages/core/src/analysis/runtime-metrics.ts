@@ -21,7 +21,7 @@
 
 import { depthPercent } from "../backtest/drawdown-tracker";
 import type { Trade } from "../types";
-import { assertPositive } from "../utils/validate-number";
+import { assertPositive, assertRate } from "../utils/validate-number";
 import { calculateTradeStats } from "./edge-analysis";
 import type { TradeStats } from "./edge-analysis-types";
 import { periodsPerYearFromSpan, sharpeFromReturns, sortinoFromReturns } from "./return-metrics";
@@ -75,6 +75,9 @@ export type RuntimeMetricsOptions = {
  * @param trades - Array of closed trades
  * @param options - Calculation options
  * @returns Complete runtime metrics
+ * @throws If `annualizationFactor` (or the calendar's `tradingDaysPerYear`)
+ *   is not a finite positive number, or `riskFreeRate` is not a finite number
+ *   greater than -1
  *
  * @example
  * ```ts
@@ -104,6 +107,7 @@ export function calculateRuntimeMetrics(
       : "calculateRuntimeMetrics annualizationFactor",
     annualizationFactor,
   );
+  assertRate("calculateRuntimeMetrics riskFreeRate", riskFreeRate);
 
   const stats = calculateTradeStats(trades);
 

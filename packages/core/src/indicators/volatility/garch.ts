@@ -361,6 +361,19 @@ export function garch(returns: number[], options?: GarchOptions): GarchResult {
 // ---------------------------------------------------------------------------
 
 /**
+ * Validate the EWMA options and resolve the annualisation, so that both entry
+ * points reject an invalid value before returning early on short input.
+ */
+function resolveEwmaOptions(options: EwmaVolatilityOptions | undefined): {
+  lambda: number;
+  sqrtAnnualization: number;
+} {
+  const lambda = options?.lambda ?? 0.94;
+  assertDecayFactor("EWMA lambda", lambda);
+  return { lambda, sqrtAnnualization: Math.sqrt(annualizationFactor(options)) };
+}
+
+/**
  * Compute EWMA (Exponentially Weighted Moving Average) volatility.
  *
  * The conditional variance follows:
@@ -381,8 +394,7 @@ export function garch(returns: number[], options?: GarchOptions): GarchResult {
  * ```
  */
 export function ewmaVolatility(returns: number[], options?: EwmaVolatilityOptions): Series<number> {
-  const lambda = options?.lambda ?? 0.94;
-  assertDecayFactor("EWMA lambda", lambda);
+  const { lambda, sqrtAnnualization } = resolveEwmaOptions(options);
   const T = returns.length;
 
   if (T === 0) return [];
@@ -414,7 +426,6 @@ export function ewmaVolatility(returns: number[], options?: EwmaVolatilityOption
   let sigma2 = sampleVariance(returns.slice(0, seedCount));
   if (sigma2 === 0) sigma2 = 1e-10; // prevent zero variance
 
-  const sqrtAnnualization = Math.sqrt(annualizationFactor(options));
   const result: Series<number> = [];
 
   for (let t = 0; t < T; t++) {
@@ -455,6 +466,7 @@ export function ewmaVolatilityFromCandles(
   candles: Candle[] | NormalizedCandle[],
   options?: EwmaVolatilityFromCandlesOptions,
 ): Series<number> {
+  resolveEwmaOptions(options);
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
   if (normalized.length < 2) return [];
 

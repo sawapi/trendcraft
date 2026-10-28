@@ -51,8 +51,10 @@ describe("omegaRatio", () => {
     expect(Number.isNaN(omegaRatio([0.01, 0.02]))).toBe(true);
   });
 
-  it("returns NaN for an impossible required return", () => {
-    expect(Number.isNaN(omegaRatio(MIXED, { requiredReturn: -1 }))).toBe(true);
+  it("rejects an impossible required return", () => {
+    expect(() => omegaRatio(MIXED, { requiredReturn: -1 })).toThrow(
+      /omegaRatio requiredReturn must be greater than -1/,
+    );
   });
 });
 

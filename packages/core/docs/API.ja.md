@@ -7168,7 +7168,7 @@ const est = estimateRecoveryTime(11, [
 
 ### `ulcerPerformanceIndex(equityCurve, riskFreeRate?, annualizationOpts?)`
 
-年率換算した超過リターンを、アルサー・インデックス（その時点までのピークからのドローダウン率の二乗平均平方根）で割った値です。ボラティリティ全体ではなく、深い、または長いドローダウンを減点します。`riskFreeRate` は年率（デフォルト `0`）です。リターンの年率換算には `annualizationOpts` を使います（[取引カレンダー](#取引カレンダー-trading-calendar)を参照。デフォルトは1年252バー）。2点未満の曲線や、ドローダウンのない曲線では `0` を返します。
+年率換算した超過リターンを、アルサー・インデックス（その時点までのピークからのドローダウン率の二乗平均平方根）で割った値です。ボラティリティ全体ではなく、深い、または長いドローダウンを減点します。`riskFreeRate` は年率（デフォルト `0`）です。リターンの年率換算には `annualizationOpts` を使います（[取引カレンダー](#取引カレンダー-trading-calendar)を参照。デフォルトは1年252バー）。2点未満の曲線や、ドローダウンのない曲線では `0` を返します。`riskFreeRate` は -1 より大きい有限の数、年率換算の値は正の有限の数でなければならず、そうでなければこうした入力でもエラーを投げます。
 
 ```typescript
 import { ulcerPerformanceIndex } from "trendcraft";

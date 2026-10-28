@@ -7230,7 +7230,7 @@ const est = estimateRecoveryTime(11, [
 
 ### `ulcerPerformanceIndex(equityCurve, riskFreeRate?, annualizationOpts?)`
 
-Annualized excess return per unit of the Ulcer Index, the root mean square of the percentage drawdowns from the running peak. It penalizes deep or long drawdowns, not volatility as a whole. `riskFreeRate` is annual (default `0`); the return is annualized with `annualizationOpts` (see [Trading Calendar](#trading-calendar); 252 bars per year by default). Returns `0` for fewer than two points or a curve with no drawdown.
+Annualized excess return per unit of the Ulcer Index, the root mean square of the percentage drawdowns from the running peak. It penalizes deep or long drawdowns, not volatility as a whole. `riskFreeRate` is annual (default `0`); the return is annualized with `annualizationOpts` (see [Trading Calendar](#trading-calendar); 252 bars per year by default). Returns `0` for fewer than two points or a curve with no drawdown. `riskFreeRate` must be a finite number greater than -1 and the annualization a finite positive number; it throws otherwise, even for those inputs.
 
 ```typescript
 import { ulcerPerformanceIndex } from "trendcraft";

@@ -118,6 +118,30 @@ export function assertNonNegative(label: string, value: number): void {
 }
 
 /**
+ * Assert that a rate of return is a finite number greater than -1 (-100%).
+ *
+ * A return of -100% or less has no meaning, and an annual rate at or below it
+ * cannot be de-annualised: `(1 + r) ** (1 / n)` is `NaN` for `r < -1`.
+ * Negative rates above -1 stay valid.
+ *
+ * @param label - Human-readable option name, used verbatim in the message
+ * @param value - The option value to validate
+ * @throws Error if `value` is not finite, or is -1 or less
+ *
+ * @example
+ * ```ts
+ * assertRate("sharpeFromReturns riskFree", -0.005); // ok
+ * assertRate("sharpeFromReturns riskFree", -1); // throws: must be greater than -1
+ * ```
+ */
+export function assertRate(label: string, value: number): void {
+  assertFinite(label, value);
+  if (value <= -1) {
+    throw new Error(`${label} must be greater than -1`);
+  }
+}
+
+/**
  * Assert that a real-valued option is a finite number in `[min, max]`.
  *
  * @param label - Human-readable option name, used verbatim in the message

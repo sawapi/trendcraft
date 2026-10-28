@@ -11,6 +11,7 @@
 import { depthPercent } from "../backtest/drawdown-tracker";
 import { type AnnualizationOptions, annualizationFactor } from "../calendar";
 import { assertSameLength } from "../utils/align";
+import { assertRate } from "../utils/validate-number";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -334,6 +335,8 @@ export function estimateRecoveryTime(
  * @param equityCurve - Array of equity values over time
  * @param riskFreeRate - Annualised risk-free rate (default 0)
  * @returns Ulcer Performance Index value
+ * @throws If `riskFreeRate` is not a finite number greater than -1, or the
+ *   annualisation is not a finite positive number
  *
  * @example
  * ```ts
@@ -349,6 +352,8 @@ export function ulcerPerformanceIndex(
   riskFreeRate = 0,
   annualizationOpts: AnnualizationOptions = {},
 ): number {
+  assertRate("ulcerPerformanceIndex riskFreeRate", riskFreeRate);
+  const periodsPerYear = annualizationFactor(annualizationOpts);
   if (equityCurve.length < 2) return 0;
 
   // Calculate percentage drawdowns from running peak
@@ -367,7 +372,6 @@ export function ulcerPerformanceIndex(
   // Annualised return using the configured trading-days-per-year (default: 252)
   const totalReturn = equityCurve[equityCurve.length - 1] / equityCurve[0] - 1;
   const n = equityCurve.length;
-  const periodsPerYear = annualizationFactor(annualizationOpts);
   const annualReturn = (1 + totalReturn) ** (periodsPerYear / n) - 1;
 
   return (annualReturn - riskFreeRate) / (ulcerIndex / 100);

@@ -85,6 +85,10 @@ export function volatilityRegime(
   options: VolatilityRegimeOptions = {},
 ): Series<VolatilityRegimeValue> {
   const opts = mergeOptions(options);
+  const periodsPerYear = annualizationFactor({
+    calendar: options.calendar,
+    periodsPerYear: options.periodsPerYear,
+  });
 
   // Normalize if needed
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
@@ -100,10 +104,6 @@ export function volatilityRegime(
   const bbSeries = bollingerBands(normalized, { period: opts.bbPeriod });
 
   // Calculate historical volatility (rolling standard deviation of log returns)
-  const periodsPerYear = annualizationFactor({
-    calendar: options.calendar,
-    periodsPerYear: options.periodsPerYear,
-  });
   const hvSeries = calculateHistoricalVolatility(normalized, opts.lookbackPeriod, periodsPerYear);
 
   const result: Series<VolatilityRegimeValue> = [];
