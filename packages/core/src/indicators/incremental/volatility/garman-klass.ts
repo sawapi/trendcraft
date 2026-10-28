@@ -21,7 +21,7 @@ import { CircularBuffer } from "../circular-buffer";
 import {
   type IndicatorSnapshot,
   makeSnapshot,
-  requireParam,
+  requirePeriod,
   resolveResume,
 } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -80,13 +80,7 @@ export function createGarmanKlass(
     resumeInvariantParams: ["annualFactor"],
   });
 
-  const period = requireParam(
-    "garmanKlass",
-    params,
-    "period",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
+  const period = requirePeriod("garmanKlass", params, "period");
   const annualFactor = params.annualFactor;
   assertPositive("Garman-Klass annualFactor", annualFactor);
 

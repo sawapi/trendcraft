@@ -17,7 +17,7 @@ import { CircularBuffer } from "../circular-buffer";
 import {
   type IndicatorSnapshot,
   makeSnapshot,
-  requireParam,
+  requirePeriod,
   resolveResume,
 } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -80,28 +80,9 @@ export function createStochastics(
     defaults: { kPeriod: 14, dPeriod: 3, slowing: 3 },
   });
 
-  const isPositiveInt = (v: number): v is number => Number.isInteger(v) && v >= 1;
-  const kPeriod = requireParam(
-    "stochastics",
-    params,
-    "kPeriod",
-    isPositiveInt,
-    "must be a positive integer",
-  );
-  const dPeriod = requireParam(
-    "stochastics",
-    params,
-    "dPeriod",
-    isPositiveInt,
-    "must be a positive integer",
-  );
-  const slowing = requireParam(
-    "stochastics",
-    params,
-    "slowing",
-    isPositiveInt,
-    "must be a positive integer",
-  );
+  const kPeriod = requirePeriod("stochastics", params, "kPeriod");
+  const dPeriod = requirePeriod("stochastics", params, "dPeriod");
+  const slowing = requirePeriod("stochastics", params, "slowing");
 
   let highBuffer: CircularBuffer<number>;
   let lowBuffer: CircularBuffer<number>;

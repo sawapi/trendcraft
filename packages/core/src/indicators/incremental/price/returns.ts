@@ -21,6 +21,7 @@ import {
   type IndicatorSnapshot,
   makeSnapshot,
   requireParam,
+  requirePeriod,
   resolveResume,
 } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -78,13 +79,7 @@ export function createReturns(
   // donchian-channel.ts, ulcer-index.ts). Pre-fix this file threw a
   // bespoke `returns: option "..." must be ...` message that diverged
   // from the rest of the State Contract validation surface.
-  const period = requireParam(
-    "returns",
-    params,
-    "period",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
+  const period = requirePeriod("returns", params, "period");
   const type = requireParam(
     "returns",
     params,

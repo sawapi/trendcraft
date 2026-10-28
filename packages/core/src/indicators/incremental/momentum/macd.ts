@@ -19,7 +19,7 @@ import { assertPriceSource } from "../../../utils/validate-price-source";
 import {
   type IndicatorSnapshot,
   makeSnapshot,
-  requireParam,
+  requirePeriod,
   resolveResume,
 } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -84,27 +84,9 @@ export function createMacd(
     defaults: { fastPeriod: 12, slowPeriod: 26, signalPeriod: 9, source: "close" },
   });
 
-  const fastPeriod = requireParam(
-    "macd",
-    params,
-    "fastPeriod",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
-  const slowPeriod = requireParam(
-    "macd",
-    params,
-    "slowPeriod",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
-  const signalPeriod = requireParam(
-    "macd",
-    params,
-    "signalPeriod",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
+  const fastPeriod = requirePeriod("macd", params, "fastPeriod");
+  const slowPeriod = requirePeriod("macd", params, "slowPeriod");
+  const signalPeriod = requirePeriod("macd", params, "signalPeriod");
   const source = params.source;
   assertPriceSource("MACD source", source);
   const fastMult = 2 / (fastPeriod + 1);

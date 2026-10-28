@@ -19,7 +19,7 @@ import { CircularBuffer } from "../circular-buffer";
 import {
   type IndicatorSnapshot,
   makeSnapshot,
-  requireParam,
+  requirePeriod,
   resolveResume,
 } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -77,13 +77,7 @@ export function createFrama(
     defaults: { period: 16, source: "close" },
   });
 
-  const period = requireParam(
-    "frama",
-    params,
-    "period",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
+  const period = requirePeriod("frama", params, "period");
   const source = params.source;
   assertPriceSource("FRAMA source", source);
   const effectivePeriod = period % 2 === 0 ? period : period + 1;

@@ -16,7 +16,7 @@ import { createSma, type SmaState } from "../moving-average/sma";
 import {
   type IndicatorSnapshot,
   makeSnapshot,
-  requireParam,
+  requirePeriod,
   resolveResume,
 } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -65,13 +65,7 @@ export function createQStick(
     defaults: { period: 14 },
   });
 
-  const period = requireParam(
-    "qstick",
-    params,
-    "period",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
+  const period = requirePeriod("qstick", params, "period");
 
   let sma: ReturnType<typeof createSma>;
   let count: number;

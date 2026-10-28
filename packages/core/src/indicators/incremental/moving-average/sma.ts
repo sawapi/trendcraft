@@ -17,7 +17,7 @@ import { CircularBuffer } from "../circular-buffer";
 import {
   type IndicatorSnapshot,
   makeSnapshot,
-  requireParam,
+  requirePeriod,
   resolveResume,
 } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -74,13 +74,7 @@ export function createSma(
     defaults: { source: "close" }, // `period` is intentionally absent — no canonical default.
   });
 
-  const period = requireParam(
-    "sma",
-    params,
-    "period",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
+  const period = requirePeriod("sma", params, "period");
   const source = params.source;
   assertPriceSource("SMA source", source);
 

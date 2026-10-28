@@ -20,7 +20,7 @@ import { assertPriceSource } from "../../../utils/validate-price-source";
 import {
   type IndicatorSnapshot,
   makeSnapshot,
-  requireParam,
+  requirePeriod,
   resolveResume,
 } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -105,20 +105,8 @@ export function createRoofingFilter(
 
   // See batch `roofingFilter()` for why the canonical formula requires
   // highPassPeriod >= 2 (only period=1 leaves the unit circle).
-  const highPassPeriod = requireParam(
-    "roofingFilter",
-    params,
-    "highPassPeriod",
-    (v): v is number => Number.isInteger(v) && v >= 2,
-    "must be an integer >= 2",
-  );
-  const lowPassPeriod = requireParam(
-    "roofingFilter",
-    params,
-    "lowPassPeriod",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
+  const highPassPeriod = requirePeriod("roofingFilter", params, "highPassPeriod", 2);
+  const lowPassPeriod = requirePeriod("roofingFilter", params, "lowPassPeriod");
   const source = params.source;
   assertPriceSource("Roofing filter source", source);
 

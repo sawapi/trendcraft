@@ -13,6 +13,7 @@
  */
 
 import type { NormalizedCandle } from "../../../types";
+import { isPeriod } from "../../../utils/validate-period";
 import { CircularBuffer } from "../circular-buffer";
 import { type IndicatorSnapshot, makeSnapshot, resolveResume } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -82,7 +83,7 @@ export function createFractals(
   });
 
   const period = params.period;
-  if (!Number.isInteger(period) || period < 1) {
+  if (!isPeriod(period)) {
     throw new Error('fractals: option "period" must be a positive integer');
   }
   const windowSize = 2 * period + 1;

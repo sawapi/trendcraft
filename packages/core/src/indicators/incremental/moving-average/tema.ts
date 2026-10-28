@@ -15,7 +15,7 @@ import { assertPriceSource } from "../../../utils/validate-price-source";
 import {
   type IndicatorSnapshot,
   makeSnapshot,
-  requireParam,
+  requirePeriod,
   resolveResume,
 } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -65,13 +65,7 @@ export function createTema(
     defaults: { period: 20, source: "close" },
   });
 
-  const period = requireParam(
-    "tema",
-    params,
-    "period",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
+  const period = requirePeriod("tema", params, "period");
   const source = params.source;
   assertPriceSource("TEMA source", source);
 

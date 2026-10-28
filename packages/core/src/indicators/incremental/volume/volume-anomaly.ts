@@ -19,7 +19,7 @@ import { CircularBuffer } from "../circular-buffer";
 import {
   type IndicatorSnapshot,
   makeSnapshot,
-  requireParam,
+  requirePeriod,
   resolveResume,
 } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -86,13 +86,7 @@ export function createVolumeAnomaly(
     resumeInvariantParams: ["highThreshold", "extremeThreshold", "useZScore", "zScoreThreshold"],
   });
 
-  const period = requireParam(
-    "volumeAnomaly",
-    params,
-    "period",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
+  const period = requirePeriod("volumeAnomaly", params, "period");
   const highThreshold = params.highThreshold;
   const extremeThreshold = params.extremeThreshold;
   const useZScore = params.useZScore;

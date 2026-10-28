@@ -16,7 +16,7 @@ import { createSma, type SmaState } from "../moving-average/sma";
 import {
   type IndicatorSnapshot,
   makeSnapshot,
-  requireParam,
+  requirePeriod,
   resolveResume,
 } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -66,13 +66,7 @@ export function createBalanceOfPower(
     defaults: { smoothPeriod: 14 },
   });
 
-  const smoothPeriod = requireParam(
-    "balanceOfPower",
-    params,
-    "smoothPeriod",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
+  const smoothPeriod = requirePeriod("balanceOfPower", params, "smoothPeriod");
 
   let sma: ReturnType<typeof createSma>;
   let count: number;

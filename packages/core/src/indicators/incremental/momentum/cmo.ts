@@ -16,7 +16,7 @@ import { assertPriceSource } from "../../../utils/validate-price-source";
 import {
   type IndicatorSnapshot,
   makeSnapshot,
-  requireParam,
+  requirePeriod,
   resolveResume,
 } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -71,13 +71,7 @@ export function createCmo(
     defaults: { period: 14, source: "close" },
   });
 
-  const period = requireParam(
-    "cmo",
-    params,
-    "period",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
+  const period = requirePeriod("cmo", params, "period");
   const source = params.source;
   assertPriceSource("CMO source", source);
 

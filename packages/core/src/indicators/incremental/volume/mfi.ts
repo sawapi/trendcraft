@@ -26,7 +26,7 @@ import { CircularBuffer } from "../circular-buffer";
 import {
   type IndicatorSnapshot,
   makeSnapshot,
-  requireParam,
+  requirePeriod,
   resolveResume,
 } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -78,13 +78,7 @@ export function createMfi(
     defaults: { period: 14 },
   });
 
-  const period = requireParam(
-    "mfi",
-    params,
-    "period",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
+  const period = requirePeriod("mfi", params, "period");
 
   let prevTp: number | null;
   let flowBuffer: CircularBuffer<number>;

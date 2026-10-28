@@ -16,6 +16,7 @@ import {
   type IndicatorSnapshot,
   makeSnapshot,
   requireParam,
+  requirePeriod,
   resolveResume,
 } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -73,13 +74,7 @@ export function createSupertrend(
     defaults: { period: 10, multiplier: 3 },
   });
 
-  const period = requireParam(
-    "supertrend",
-    params,
-    "period",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
+  const period = requirePeriod("supertrend", params, "period");
   const multiplier = requireParam(
     "supertrend",
     params,

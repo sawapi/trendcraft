@@ -20,7 +20,7 @@ import { CircularBuffer } from "../circular-buffer";
 import {
   type IndicatorSnapshot,
   makeSnapshot,
-  requireParam,
+  requirePeriod,
   resolveResume,
 } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -74,27 +74,9 @@ export function createKama(
     defaults: { period: 10, fastPeriod: 2, slowPeriod: 30, source: "close" },
   });
 
-  const period = requireParam(
-    "kama",
-    params,
-    "period",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
-  const fastPeriod = requireParam(
-    "kama",
-    params,
-    "fastPeriod",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
-  const slowPeriod = requireParam(
-    "kama",
-    params,
-    "slowPeriod",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
+  const period = requirePeriod("kama", params, "period");
+  const fastPeriod = requirePeriod("kama", params, "fastPeriod");
+  const slowPeriod = requirePeriod("kama", params, "slowPeriod");
   const source = params.source;
   assertPriceSource("KAMA source", source);
   const fastSC = 2 / (fastPeriod + 1);

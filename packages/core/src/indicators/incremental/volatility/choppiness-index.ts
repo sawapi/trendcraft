@@ -18,7 +18,7 @@ import { CircularBuffer } from "../circular-buffer";
 import {
   type IndicatorSnapshot,
   makeSnapshot,
-  requireParam,
+  requirePeriod,
   resolveResume,
 } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -74,13 +74,7 @@ export function createChoppinessIndex(
     defaults: { period: 14 },
   });
 
-  const period = requireParam(
-    "choppinessIndex",
-    params,
-    "period",
-    (v): v is number => Number.isInteger(v) && v >= 2,
-    "must be an integer >= 2",
-  );
+  const period = requirePeriod("choppinessIndex", params, "period", 2);
   const log10Period = Math.log10(period);
 
   let trBuffer: CircularBuffer<number>;

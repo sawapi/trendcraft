@@ -17,7 +17,7 @@ import { assertPriceSource } from "../../../utils/validate-price-source";
 import {
   type IndicatorSnapshot,
   makeSnapshot,
-  requireParam,
+  requirePeriod,
   resolveResume,
 } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -71,13 +71,7 @@ export function createT3(
     defaults: { period: 5, vFactor: 0.7, source: "close" },
   });
 
-  const period = requireParam(
-    "t3",
-    params,
-    "period",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
+  const period = requirePeriod("t3", params, "period");
   const vFactor = params.vFactor;
   assertInRange("T3 vFactor", vFactor, 0, 1);
   const source = params.source;

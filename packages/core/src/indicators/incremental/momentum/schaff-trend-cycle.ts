@@ -24,6 +24,7 @@ import {
   type IndicatorSnapshot,
   makeSnapshot,
   requireParam,
+  requirePeriod,
   resolveResume,
 } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -93,27 +94,9 @@ export function createStc(
     defaults: { fastPeriod: 23, slowPeriod: 50, cyclePeriod: 10, factor: 0.5, source: "close" },
   });
 
-  const fastPeriod = requireParam(
-    "stc",
-    params,
-    "fastPeriod",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
-  const slowPeriod = requireParam(
-    "stc",
-    params,
-    "slowPeriod",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
-  const cyclePeriod = requireParam(
-    "stc",
-    params,
-    "cyclePeriod",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
+  const fastPeriod = requirePeriod("stc", params, "fastPeriod");
+  const slowPeriod = requirePeriod("stc", params, "slowPeriod");
+  const cyclePeriod = requirePeriod("stc", params, "cyclePeriod");
   const factor = requireParam(
     "stc",
     params,

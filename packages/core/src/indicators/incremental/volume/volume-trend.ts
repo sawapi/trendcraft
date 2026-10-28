@@ -21,7 +21,7 @@ import { CircularBuffer } from "../circular-buffer";
 import {
   type IndicatorSnapshot,
   makeSnapshot,
-  requireParam,
+  requirePeriod,
   resolveResume,
 } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -93,27 +93,9 @@ export function createVolumeTrend(
     resumeInvariantParams: ["minPriceChange"],
   });
 
-  const pricePeriod = requireParam(
-    "volumeTrend",
-    params,
-    "pricePeriod",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
-  const volumePeriod = requireParam(
-    "volumeTrend",
-    params,
-    "volumePeriod",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
-  const maPeriod = requireParam(
-    "volumeTrend",
-    params,
-    "maPeriod",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
+  const pricePeriod = requirePeriod("volumeTrend", params, "pricePeriod");
+  const volumePeriod = requirePeriod("volumeTrend", params, "volumePeriod");
+  const maPeriod = requirePeriod("volumeTrend", params, "maPeriod");
   const minPriceChange = params.minPriceChange;
   assertNonNegative("Volume Trend minPriceChange", minPriceChange);
 

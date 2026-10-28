@@ -16,7 +16,7 @@ import { CircularBuffer } from "../circular-buffer";
 import {
   type IndicatorSnapshot,
   makeSnapshot,
-  requireParam,
+  requirePeriod,
   resolveResume,
 } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -71,13 +71,7 @@ export function createAroon(
     defaults: { period: 25 },
   });
 
-  const period = requireParam(
-    "aroon",
-    params,
-    "period",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
+  const period = requirePeriod("aroon", params, "period");
 
   const capacity = period + 1;
 

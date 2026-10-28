@@ -18,7 +18,7 @@ import { assertPriceSource } from "../../../utils/validate-price-source";
 import {
   type IndicatorSnapshot,
   makeSnapshot,
-  requireParam,
+  requirePeriod,
   resolveResume,
 } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -69,13 +69,7 @@ export function createHma(
     defaults: { period: 9, source: "close" },
   });
 
-  const period = requireParam(
-    "hma",
-    params,
-    "period",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
+  const period = requirePeriod("hma", params, "period");
   const source = params.source;
   assertPriceSource("HMA source", source);
   const halfPeriod = Math.floor(period / 2);

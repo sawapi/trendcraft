@@ -20,7 +20,7 @@ import { CircularBuffer } from "../circular-buffer";
 import {
   type IndicatorSnapshot,
   makeSnapshot,
-  requireParam,
+  requirePeriod,
   resolveResume,
 } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -79,13 +79,7 @@ export function createBollingerBands(
     resumeInvariantParams: ["stdDev"],
   });
 
-  const period = requireParam(
-    "bollingerBands",
-    params,
-    "period",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
+  const period = requirePeriod("bollingerBands", params, "period");
   const stdDevMult = params.stdDev;
   assertPositive("Standard deviation multiplier", stdDevMult);
   const source = params.source;

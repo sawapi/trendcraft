@@ -17,6 +17,7 @@ import {
   type IndicatorSnapshot,
   makeSnapshot,
   requireParam,
+  requirePeriod,
   resolveResume,
 } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -80,13 +81,7 @@ export function createAtrStops(
     resumeInvariantParams: ["stopMultiplier", "takeProfitMultiplier"],
   });
 
-  const period = requireParam(
-    "atrStops",
-    params,
-    "period",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
+  const period = requirePeriod("atrStops", params, "period");
   const stopMultiplier = requireParam(
     "atrStops",
     params,

@@ -23,7 +23,7 @@ import { CircularBuffer } from "../circular-buffer";
 import {
   type IndicatorSnapshot,
   makeSnapshot,
-  requireParam,
+  requirePeriod,
   resolveResume,
 } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -85,13 +85,7 @@ export function createHistoricalVolatility(
     resumeInvariantParams: ["annualFactor"],
   });
 
-  const period = requireParam(
-    "historicalVolatility",
-    params,
-    "period",
-    (v): v is number => Number.isInteger(v) && v >= 2,
-    "must be an integer >= 2",
-  );
+  const period = requirePeriod("historicalVolatility", params, "period", 2);
   const annualFactor = params.annualFactor;
   assertPositive("Historical Volatility annualFactor", annualFactor);
   const source = params.source;

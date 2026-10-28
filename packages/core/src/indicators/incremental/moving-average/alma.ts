@@ -20,6 +20,7 @@ import {
   type IndicatorSnapshot,
   makeSnapshot,
   requireParam,
+  requirePeriod,
   resolveResume,
 } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -93,13 +94,7 @@ export function createAlma(
 
   // ALMA has full canonical defaults, so `requireParam` is used here
   // for runtime range validation rather than missing-param detection.
-  const period = requireParam(
-    "alma",
-    params,
-    "period",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
+  const period = requirePeriod("alma", params, "period");
   const offset = requireParam(
     "alma",
     params,

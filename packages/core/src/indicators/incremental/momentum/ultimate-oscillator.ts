@@ -22,7 +22,7 @@ import { CircularBuffer } from "../circular-buffer";
 import {
   type IndicatorSnapshot,
   makeSnapshot,
-  requireParam,
+  requirePeriod,
   resolveResume,
 } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -75,28 +75,9 @@ export function createUltimateOscillator(
     defaults: { period1: 7, period2: 14, period3: 28 },
   });
 
-  const isPositiveInt = (v: number): v is number => Number.isInteger(v) && v >= 1;
-  const period1 = requireParam(
-    "ultimateOscillator",
-    params,
-    "period1",
-    isPositiveInt,
-    "must be a positive integer",
-  );
-  const period2 = requireParam(
-    "ultimateOscillator",
-    params,
-    "period2",
-    isPositiveInt,
-    "must be a positive integer",
-  );
-  const period3 = requireParam(
-    "ultimateOscillator",
-    params,
-    "period3",
-    isPositiveInt,
-    "must be a positive integer",
-  );
+  const period1 = requirePeriod("ultimateOscillator", params, "period1");
+  const period2 = requirePeriod("ultimateOscillator", params, "period2");
+  const period3 = requirePeriod("ultimateOscillator", params, "period3");
   const maxPeriod = Math.max(period1, period2, period3);
 
   let bpBuffer: CircularBuffer<number>;

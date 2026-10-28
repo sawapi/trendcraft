@@ -14,7 +14,7 @@ import { CircularBuffer } from "../circular-buffer";
 import {
   type IndicatorSnapshot,
   makeSnapshot,
-  requireParam,
+  requirePeriod,
   resolveResume,
 } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -65,13 +65,7 @@ export function createCmf(
     defaults: { period: 20 },
   });
 
-  const period = requireParam(
-    "cmf",
-    params,
-    "period",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
+  const period = requirePeriod("cmf", params, "period");
 
   let mfvBuffer: CircularBuffer<number>;
   let volBuffer: CircularBuffer<number>;

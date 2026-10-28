@@ -16,7 +16,7 @@ import type { NormalizedCandle } from "../../../types";
 import {
   type IndicatorSnapshot,
   makeSnapshot,
-  requireParam,
+  requirePeriod,
   resolveResume,
 } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -79,20 +79,8 @@ export function createElderForceIndex(
     defaults: { shortPeriod: 2, longPeriod: 13 },
   });
 
-  const shortPeriod = requireParam(
-    "elderForceIndex",
-    params,
-    "shortPeriod",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
-  const longPeriod = requireParam(
-    "elderForceIndex",
-    params,
-    "longPeriod",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
+  const shortPeriod = requirePeriod("elderForceIndex", params, "shortPeriod");
+  const longPeriod = requirePeriod("elderForceIndex", params, "longPeriod");
 
   const shortMultiplier = 2 / (shortPeriod + 1);
   const longMultiplier = 2 / (longPeriod + 1);

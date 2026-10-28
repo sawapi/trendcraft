@@ -20,7 +20,7 @@ import { CircularBuffer } from "../circular-buffer";
 import {
   type IndicatorSnapshot,
   makeSnapshot,
-  requireParam,
+  requirePeriod,
   resolveResume,
 } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -207,20 +207,8 @@ export function createHurst(
     resumeInvariantParams: ["minWindow"],
   });
 
-  const minWindow = requireParam(
-    "hurst",
-    params,
-    "minWindow",
-    (v): v is number => Number.isInteger(v) && v >= 2,
-    "must be an integer >= 2",
-  );
-  const maxWindow = requireParam(
-    "hurst",
-    params,
-    "maxWindow",
-    (v): v is number => Number.isInteger(v) && v >= 2,
-    "must be an integer >= 2",
-  );
+  const minWindow = requirePeriod("hurst", params, "minWindow", 2);
+  const maxWindow = requirePeriod("hurst", params, "maxWindow", 2);
   const source = params.source;
   assertPriceSource("Hurst source", source);
 

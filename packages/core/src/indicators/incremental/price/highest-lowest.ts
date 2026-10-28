@@ -13,6 +13,7 @@
  */
 
 import type { NormalizedCandle } from "../../../types";
+import { isPeriod } from "../../../utils/validate-period";
 import { CircularBuffer } from "../circular-buffer";
 import { type IndicatorSnapshot, makeSnapshot, resolveResume } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -72,7 +73,7 @@ export function createHighestLowest(
   });
 
   const period = params.period;
-  if (!Number.isInteger(period) || period < 1) {
+  if (!isPeriod(period)) {
     throw new Error('highestLowest: option "period" must be a positive integer');
   }
 

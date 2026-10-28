@@ -24,6 +24,7 @@ import {
   type IndicatorSnapshot,
   makeSnapshot,
   requireParam,
+  requirePeriod,
   resolveResume,
 } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -85,20 +86,8 @@ export function createKeltnerChannel(
     resumeInvariantParams: ["multiplier"],
   });
 
-  const emaPeriod = requireParam(
-    "keltnerChannel",
-    params,
-    "emaPeriod",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
-  const atrPeriod = requireParam(
-    "keltnerChannel",
-    params,
-    "atrPeriod",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
+  const emaPeriod = requirePeriod("keltnerChannel", params, "emaPeriod");
+  const atrPeriod = requirePeriod("keltnerChannel", params, "atrPeriod");
   const multiplier = requireParam(
     "keltnerChannel",
     params,

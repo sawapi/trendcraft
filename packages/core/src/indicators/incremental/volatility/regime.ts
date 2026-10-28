@@ -21,7 +21,7 @@ import { CircularBuffer } from "../circular-buffer";
 import {
   type IndicatorSnapshot,
   makeSnapshot,
-  requireParam,
+  requirePeriod,
   resolveResume,
 } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -126,34 +126,10 @@ export function createRegime(
     defaults: { atrPeriod: 14, bbPeriod: 20, dmiPeriod: 14, lookback: 100 },
   });
 
-  const atrPeriod = requireParam(
-    "regime",
-    params,
-    "atrPeriod",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
-  const bbPeriod = requireParam(
-    "regime",
-    params,
-    "bbPeriod",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
-  const dmiPeriod = requireParam(
-    "regime",
-    params,
-    "dmiPeriod",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
-  const lookback = requireParam(
-    "regime",
-    params,
-    "lookback",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
+  const atrPeriod = requirePeriod("regime", params, "atrPeriod");
+  const bbPeriod = requirePeriod("regime", params, "bbPeriod");
+  const dmiPeriod = requirePeriod("regime", params, "dmiPeriod");
+  const lookback = requirePeriod("regime", params, "lookback");
 
   let atrInd: ReturnType<typeof createAtr>;
   let bbInd: ReturnType<typeof createBollingerBands>;
