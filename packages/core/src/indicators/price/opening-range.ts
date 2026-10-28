@@ -9,7 +9,7 @@ import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { assertPositive } from "../../utils/validate-number";
-import { assertPeriod } from "../../utils/validate-period";
+import { assertResetPeriod } from "../../utils/validate-period";
 import {
   assertSessionResetCompatible,
   resolveSessionMembership,
@@ -74,6 +74,8 @@ export type OpeningRangeValue = {
  * @param candles - Array of candles (raw or normalized)
  * @param options - Opening Range options
  * @returns Series of Opening Range values
+ * @throws If `minutes` is not positive, `sessionResetPeriod` is not `"day"` or
+ *   a positive integer, or a bar count is combined with `session`
  *
  * @example
  * ```ts
@@ -93,9 +95,7 @@ export function openingRange(
 ): Series<OpeningRangeValue> {
   const { minutes = 30, sessionResetPeriod = "day", session } = options;
   assertPositive("Opening Range minutes", minutes);
-  if (typeof sessionResetPeriod === "number") {
-    assertPeriod("Opening Range sessionResetPeriod", sessionResetPeriod);
-  }
+  assertResetPeriod("Opening Range sessionResetPeriod", sessionResetPeriod, ["day"]);
 
   if (session) {
     assertSessionResetCompatible("openingRange", "sessionResetPeriod", sessionResetPeriod, "day");

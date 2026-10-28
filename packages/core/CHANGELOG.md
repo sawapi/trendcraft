@@ -1704,6 +1704,35 @@ checks `lambda` before returning on fewer than two candles),
 `volatilityRegime`, `calculateMetricsFromReturns` and
 `ulcerPerformanceIndex`.
 
+### Breaking — session reset options reject an unknown keyword
+
+A reset option is a keyword or a bar count, but only the bar count was
+checked. An unknown keyword such as `vwap(candles, { resetPeriod: "week" })`
+matched neither branch, so the indicator never reset: on the first bar of the
+second day VWAP and TWAP still averaged in the whole first day, and
+`openingRange` kept the first day's range and flagged a breakout against it.
+These options now throw on anything but their keywords or a positive integer,
+whatever the data and including when an incremental indicator resumes from a
+saved state that carries such a keyword, as TA-Lib returns `TA_BAD_PARAM` for
+an unknown moving-average type and pandas raises `Invalid frequency` for the
+VWAP anchor pandas-ta passes to it:
+
+- `resetPeriod` in `vwap`: `"session"`, `"rolling"` or a bar count.
+- `sessionResetPeriod` in `twap` and `createTwap`, and in `marketProfile`:
+  `"session"` or a bar count.
+- `sessionResetPeriod` in `openingRange` and `createOpeningRange`: `"day"` or a
+  bar count.
+
+The message reads, e.g., `VWAP resetPeriod must be one of "session", "rolling"
+or a bar count, got "week"`, and `trendcraft/safe` classifies it as
+`INVALID_PARAMETER`.
+
+`volatilityRegime` also checks `atrPeriod`, `bbPeriod` and `lookbackPeriod` on
+entry. The first two were checked only inside `atr()` and `bollingerBands()`,
+which empty input never reaches. `lookbackPeriod` was not checked at all: `0`
+or a negative value labelled every bar `"normal"` with confidence 0, and a
+fraction crashed with a `TypeError`.
+
 ### Fixed — Safe API reports a non-integer period as INVALID_PARAMETER
 
 `trendcraft/safe` classifies a thrown error into a typed code, but its

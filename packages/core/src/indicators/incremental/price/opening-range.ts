@@ -15,7 +15,7 @@
 
 import type { NormalizedCandle } from "../../../types";
 import { assertPositive } from "../../../utils/validate-number";
-import { assertPeriod } from "../../../utils/validate-period";
+import { assertResetPeriod } from "../../../utils/validate-period";
 import { type IndicatorSnapshot, makeSnapshot, resolveResume } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
 
@@ -93,6 +93,9 @@ function isNewSession(
  * Tracks the high/low during the opening period and detects breakouts after
  * the opening range is established.
  *
+ * @throws If `minutes` is not positive or `sessionResetPeriod` is not `"day"`
+ *   or a positive integer
+ *
  * @example
  * ```ts
  * const orb = createOpeningRange({ minutes: 30 });
@@ -123,9 +126,7 @@ export function createOpeningRange(
   const minutes = params.minutes;
   assertPositive("Opening Range minutes", minutes);
   const sessionResetPeriod = params.sessionResetPeriod;
-  if (typeof sessionResetPeriod === "number") {
-    assertPeriod("Opening Range sessionResetPeriod", sessionResetPeriod);
-  }
+  assertResetPeriod("Opening Range sessionResetPeriod", sessionResetPeriod, ["day"]);
   const orDurationMs = minutes * 60 * 1000;
 
   let sessionStartTime: number | null;
