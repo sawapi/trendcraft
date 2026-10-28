@@ -8,6 +8,8 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertOneOf } from "../../utils/validate-keyword";
+import { PIVOT_METHODS } from "../incremental/price/pivot-points";
 
 /**
  * Pivot Points options
@@ -67,6 +69,7 @@ export function pivotPoints(
   options: PivotPointsOptions = {},
 ): Series<PivotPointsValue> {
   const { method = "standard" } = options;
+  assertOneOf("pivotPoints method", method, PIVOT_METHODS);
 
   // Normalize if needed
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);

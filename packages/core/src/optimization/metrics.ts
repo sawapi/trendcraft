@@ -5,7 +5,12 @@
  */
 
 import type { BacktestResult, NormalizedCandle, PositionDirection } from "../types";
-import type { OptimizationMetric } from "../types/optimization";
+import type {
+  OptimizationConstraint,
+  OptimizationMetric,
+  ParetoObjective,
+} from "../types/optimization";
+import { assertOneOf, keywordError, keywords } from "../utils/validate-keyword";
 import { assertPositive, assertRate } from "../utils/validate-number";
 
 /**
@@ -385,6 +390,63 @@ export function checkConstraint(
     case "==":
       return Math.abs(value - threshold) < 0.0001;
     default:
-      return false;
+      // An unknown operator used to fail every combination silently.
+      throw keywordError("constraint operator", operator, CONSTRAINT_OPERATORS);
   }
+}
+
+/** Every comparison operator a metric constraint accepts. */
+export const CONSTRAINT_OPERATORS = keywords<OptimizationConstraint["operator"]>()([
+  ">",
+  ">=",
+  "<",
+  "<=",
+  "==",
+]);
+
+/** Every metric an optimizer can rank or constrain on. */
+export const OPTIMIZATION_METRICS = keywords<OptimizationMetric>()([
+  "sharpe",
+  "calmar",
+  "mar",
+  "profitFactor",
+  "recoveryFactor",
+  "returns",
+  "winRate",
+  "tradeCount",
+  "maxDrawdown",
+]);
+
+const OBJECTIVE_DIRECTIONS = keywords<ParetoObjective["direction"]>()(["maximize", "minimize"]);
+
+/**
+ * Check an optimizer's keyword options before it runs, so a bad one is
+ * rejected whatever the parameter space.
+ *
+ * An unknown `metric` read `undefined` from the metrics record for every
+ * combination; an unknown constraint operator failed every combination; an
+ * unknown objective direction (e.g. "minimise") maximized.
+ *
+ * @param label - Optimizer name, for the error message
+ * @param options - The optimizer's metric, constraints and objectives
+ * @throws Error naming the first option outside its keywords
+ */
+export function assertOptimizerKeywords(
+  label: string,
+  options: {
+    metric?: unknown;
+    constraints?: readonly { metric?: unknown; operator?: unknown }[];
+    objectives?: readonly { metric?: unknown; direction?: unknown }[];
+  },
+): void {
+  const { metric, constraints = [], objectives = [] } = options;
+  if (metric !== undefined) assertOneOf(`${label} metric`, metric, OPTIMIZATION_METRICS);
+  constraints.forEach((c, i) => {
+    assertOneOf(`${label} constraints[${i}].metric`, c.metric, OPTIMIZATION_METRICS);
+    assertOneOf(`${label} constraints[${i}].operator`, c.operator, CONSTRAINT_OPERATORS);
+  });
+  objectives.forEach((o, i) => {
+    assertOneOf(`${label} objectives[${i}].metric`, o.metric, OPTIMIZATION_METRICS);
+    assertOneOf(`${label} objectives[${i}].direction`, o.direction, OBJECTIVE_DIRECTIONS);
+  });
 }

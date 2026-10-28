@@ -16,6 +16,10 @@
 import { depthPercent, maxDrawdownPercent } from "../backtest/drawdown-tracker";
 import { calculateStats } from "../backtest/engine-utils";
 import type { BacktestResult, EquityPoint, Trade } from "../types";
+import { assertOneOf, keywords } from "../utils/validate-keyword";
+
+const FILTER_TYPES = keywords<EquityCurveFilterType>()(["ma", "drawdown", "winRate", "combined"]);
+const MA_TYPES = keywords<NonNullable<EquityCurveFilterOptions["maType"]>>()(["sma", "ema"]);
 
 // ---------------------------------------------------------------------------
 // Types
@@ -246,6 +250,10 @@ export function applyEquityCurveFilter(
     minWinRate = 40,
     filteredSizeFactor = 0,
   } = options;
+  // An unknown type matched no filter rule and kept every trade; an unknown
+  // maType used SMA.
+  assertOneOf("applyEquityCurveFilter type", type, FILTER_TYPES);
+  assertOneOf("applyEquityCurveFilter maType", maType, MA_TYPES);
 
   const trades = result.trades;
   if (trades.length === 0) {

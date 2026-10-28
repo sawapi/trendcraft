@@ -9,6 +9,7 @@ import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 import { assertPeriod } from "../../utils/validate-period";
+import { assertPriceSource } from "../../utils/validate-price-source";
 import { ROC_META } from "../indicator-meta";
 
 /**
@@ -50,6 +51,7 @@ export function roc(
   options: RocOptions = {},
 ): Series<number | null> {
   const { period = 12, source = "close" } = options;
+  assertPriceSource("ROC source", source);
 
   assertPeriod("ROC period", period);
 

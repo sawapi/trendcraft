@@ -8,6 +8,7 @@ import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 import { assertPeriod } from "../../utils/validate-period";
+import { assertPriceSource } from "../../utils/validate-price-source";
 import { STOCH_RSI_META } from "../indicator-meta";
 import { rsi } from "./rsi";
 
@@ -77,6 +78,7 @@ export function stochRsi(
   options: StochRsiOptions = {},
 ): Series<StochRsiValue> {
   const { rsiPeriod = 14, stochPeriod = 14, kPeriod = 3, dPeriod = 3, source = "close" } = options;
+  assertPriceSource("Stoch RSI source", source);
 
   assertPeriod("RSI period", rsiPeriod);
   assertPeriod("Stoch period", stochPeriod);

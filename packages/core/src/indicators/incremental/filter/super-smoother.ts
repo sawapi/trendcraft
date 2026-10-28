@@ -18,6 +18,7 @@
  */
 
 import type { NormalizedCandle, PriceSource } from "../../../types";
+import { assertPriceSource } from "../../../utils/validate-price-source";
 import {
   type IndicatorSnapshot,
   makeSnapshot,
@@ -94,6 +95,7 @@ export function createSuperSmoother(
     "must be a positive integer",
   );
   const source = params.source;
+  assertPriceSource("Super Smoother source", source);
 
   const { c1, c2, c3 } = coefficients(period);
 

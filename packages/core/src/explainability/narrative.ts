@@ -6,6 +6,10 @@
  */
 
 import type { ConditionTrace } from "../types/explainability";
+import { assertOneOf, keywords } from "../utils/validate-keyword";
+
+const LANGUAGES = keywords<NonNullable<Parameters<typeof generateNarrative>[4]>>()(["en", "ja"]);
+const SIGNAL_TYPES = keywords<Parameters<typeof generateNarrative>[1]>()(["entry", "exit"]);
 
 /**
  * Generate a human-readable narrative from a condition trace
@@ -35,6 +39,10 @@ export function generateNarrative(
   candle: { open: number; high: number; low: number; close: number; volume: number },
   language: "en" | "ja" = "en",
 ): string {
+  // An unknown language fell back to English, and an unknown signalType to
+  // the exit wording.
+  assertOneOf("generateNarrative language", language, LANGUAGES);
+  assertOneOf("generateNarrative signalType", signalType, SIGNAL_TYPES);
   if (language === "ja") {
     return generateJaNarrative(trace, signalType, fired, candle);
   }

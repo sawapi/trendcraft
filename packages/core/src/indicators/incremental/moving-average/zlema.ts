@@ -22,6 +22,7 @@
  */
 
 import type { NormalizedCandle, PriceSource } from "../../../types";
+import { assertPriceSource } from "../../../utils/validate-price-source";
 import { CircularBuffer } from "../circular-buffer";
 import {
   type IndicatorSnapshot,
@@ -92,6 +93,7 @@ export function createZlema(
     "must be a positive integer",
   );
   const source = params.source;
+  assertPriceSource("ZLEMA source", source);
   const lag = Math.floor((period - 1) / 2);
   const multiplier = 2 / (period + 1);
 

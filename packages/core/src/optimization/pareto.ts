@@ -21,6 +21,7 @@ import { err, ok, type Result, tcError } from "../types/result";
 import { DEFAULT_BACKTEST_CAPITAL } from "./constants";
 import { generateParameterCombinations, type StrategyFactory } from "./grid-search";
 import {
+  assertOptimizerKeywords,
   calculateAllMetrics,
   checkConstraint,
   compareMetricBestFirst,
@@ -235,6 +236,7 @@ export function paretoOptimization(
   options: ParetoOptions,
 ): ParetoResult {
   const { objectives, constraints = [], maxCombinations = 10000, progressCallback } = options;
+  assertOptimizerKeywords("paretoOptimization", { constraints, objectives });
 
   if (objectives.length < 2 || objectives.length > 4) {
     throw new Error("Pareto optimization requires 2-4 objectives");

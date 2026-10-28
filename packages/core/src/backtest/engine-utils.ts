@@ -12,8 +12,10 @@ import {
 import type {
   BacktestResult,
   BacktestSettings,
+  BacktestSizingConfig,
   DrawdownPeriod,
   ExitReason,
+  FillMode,
   NormalizedCandle,
   PartialTakeProfitConfig,
   PositionDirection,
@@ -22,8 +24,59 @@ import type {
   Trade,
   VolumeConstraint,
 } from "../types";
+import { assertOneOf, assertPositionDirection, keywords } from "../utils/validate-keyword";
+import type { OrderType, TimeInForce } from "./order-types";
 
 export const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+const FILL_MODES = keywords<FillMode>()(["same-bar-close", "next-bar-open"]);
+const SL_TP_MODES = keywords<SlTpMode>()(["intraday", "close-only"]);
+const TIMES_IN_FORCE = keywords<TimeInForce>()(["day", "gtc", "ioc", "fok", "opg", "cls"]);
+const ORDER_TYPES = keywords<OrderType["type"]>()(["market", "limit", "stop", "stopLimit"]);
+const SIZING_METHODS = keywords<BacktestSizingConfig["method"]>()([
+  "full-capital",
+  "fixed-fractional",
+  "risk-based",
+  "atr-based",
+  "kelly",
+  "custom",
+]);
+
+/**
+ * Check the keyword options a backtest reads, before any early return.
+ *
+ * Each was read with a bare comparison, so an unknown value took whichever
+ * branch the comparison left over. `direction: "Short"` was the worst case:
+ * the engine tested `=== "short"` and entered long, while the trade's
+ * return was computed with `=== "long"` and came out with the short sign.
+ *
+ * @param label - Function name, for the error message
+ * @param options - The backtest options
+ * @throws Error naming the first option outside its keywords
+ */
+export function assertBacktestKeywords(
+  label: string,
+  options: {
+    direction?: unknown;
+    fillMode?: unknown;
+    slTpMode?: unknown;
+    timeInForce?: unknown;
+    orderType?: { type?: unknown };
+    sizing?: { method?: unknown };
+  },
+): void {
+  const { direction, fillMode, slTpMode, timeInForce, orderType, sizing } = options;
+  if (direction !== undefined) assertPositionDirection(`${label} direction`, direction);
+  if (fillMode !== undefined) assertOneOf(`${label} fillMode`, fillMode, FILL_MODES);
+  if (slTpMode !== undefined) assertOneOf(`${label} slTpMode`, slTpMode, SL_TP_MODES);
+  if (timeInForce !== undefined) {
+    assertOneOf(`${label} timeInForce`, timeInForce, TIMES_IN_FORCE);
+  }
+  if (orderType !== undefined) {
+    assertOneOf(`${label} orderType.type`, orderType.type, ORDER_TYPES);
+  }
+  if (sizing !== undefined) assertOneOf(`${label} sizing.method`, sizing.method, SIZING_METHODS);
+}
 
 /**
  * Validate the configured partial exits.

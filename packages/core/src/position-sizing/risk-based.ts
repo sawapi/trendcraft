@@ -8,6 +8,7 @@
  */
 
 import type { PositionSizeResult, RiskBasedSizingOptions } from "../types";
+import { assertPositionDirection } from "../utils/validate-keyword";
 import { applyConstraints, createResult, validateInputs } from "./utils";
 
 /**
@@ -81,6 +82,7 @@ export function riskBasedSize(options: RiskBasedSizingOptions): PositionSizeResu
   } = options;
 
   validateInputs(accountSize, entryPrice, "riskBasedSize");
+  assertPositionDirection("riskBasedSize direction", direction);
 
   if (riskPercent <= 0 || riskPercent > 100) {
     throw new Error("riskBasedSize: riskPercent must be between 0 and 100");

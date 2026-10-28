@@ -12,6 +12,7 @@
  */
 
 import type { NormalizedCandle, PriceSource } from "../../../types";
+import { assertPriceSource } from "../../../utils/validate-price-source";
 import {
   type IndicatorSnapshot,
   makeSnapshot,
@@ -78,6 +79,7 @@ export function createCmo(
     "must be a positive integer",
   );
   const source = params.source;
+  assertPriceSource("CMO source", source);
 
   let prevClose: number | null;
   let avgUp: number;

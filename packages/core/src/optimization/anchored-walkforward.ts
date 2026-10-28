@@ -31,7 +31,7 @@ import {
   combinationSearch,
 } from "./combination-search";
 import { DEFAULT_BACKTEST_CAPITAL } from "./constants";
-import { calculateAllMetrics } from "./metrics";
+import { assertOptimizerKeywords, calculateAllMetrics } from "./metrics";
 import { validatePurgeBars } from "./walkforward";
 import { assertNoOwnWarmup, validateWarmupBars, warmWindow } from "./walkforward-shared";
 
@@ -166,6 +166,7 @@ export function anchoredWalkForwardAnalysis(
   const constraints = options.constraints ?? ([] as OptimizationConstraint[]);
   const warmupBars = options.warmupBars ?? Number.POSITIVE_INFINITY;
   const { progressCallback } = options;
+  assertOptimizerKeywords("anchoredWalkForwardAnalysis", { metric, constraints });
   validateWarmupBars(warmupBars);
 
   // Generate period boundaries

@@ -42,6 +42,7 @@ import { atrBasedSize } from "../../position-sizing/atr-based";
 import { fixedFractionalSize } from "../../position-sizing/fixed-fractional";
 import { riskBasedSize } from "../../position-sizing/risk-based";
 import type { Trade as BacktestTrade, NormalizedCandle } from "../../types";
+import { assertOneOf, keywords } from "../../utils/validate-keyword";
 import { createGuardedSession } from "../guards/guarded-session";
 import type { GuardedSessionOptions } from "../guards/types";
 import type { IndicatorSnapshot, SessionEvent, SessionOptions, Trade as TickTrade } from "../types";
@@ -54,6 +55,14 @@ import type {
   PositionManagerOptions,
   PositionSizingConfig,
 } from "./types";
+
+/** Every sizing method a managed session accepts. */
+const SIZING_METHODS = keywords<PositionSizingConfig["method"]>()([
+  "fixed-fractional",
+  "risk-based",
+  "atr-based",
+  "full-capital",
+]);
 
 /**
  * Calculate number of shares based on sizing config
@@ -170,6 +179,9 @@ export function createManagedSession(
   );
 
   const sizingConfig: PositionSizingConfig = positionOptions.sizing ?? { method: "full-capital" };
+  // An unknown method used to size every entry at 0 shares, so the session
+  // never traded.
+  assertOneOf("createManagedSession sizing.method", sizingConfig.method, SIZING_METHODS);
   const stopLossPercent = positionOptions.stopLoss ?? 0;
   const slippage = positionOptions.slippage ?? 0;
 

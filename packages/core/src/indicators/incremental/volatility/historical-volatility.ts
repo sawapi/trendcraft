@@ -18,6 +18,7 @@
 import { centeredMoments } from "../../../core/statistics";
 import type { NormalizedCandle, PriceSource } from "../../../types";
 import { assertPositive } from "../../../utils/validate-number";
+import { assertPriceSource } from "../../../utils/validate-price-source";
 import { CircularBuffer } from "../circular-buffer";
 import {
   type IndicatorSnapshot,
@@ -94,6 +95,7 @@ export function createHistoricalVolatility(
   const annualFactor = params.annualFactor;
   assertPositive("Historical Volatility annualFactor", annualFactor);
   const source = params.source;
+  assertPriceSource("Historical Volatility source", source);
 
   let buffer: CircularBuffer<number>;
   let prevPrice: number | null;

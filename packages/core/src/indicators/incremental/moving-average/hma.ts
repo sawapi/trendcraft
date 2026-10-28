@@ -14,6 +14,7 @@
  */
 
 import type { NormalizedCandle, PriceSource } from "../../../types";
+import { assertPriceSource } from "../../../utils/validate-price-source";
 import {
   type IndicatorSnapshot,
   makeSnapshot,
@@ -76,6 +77,7 @@ export function createHma(
     "must be a positive integer",
   );
   const source = params.source;
+  assertPriceSource("HMA source", source);
   const halfPeriod = Math.floor(period / 2);
   const sqrtPeriod = Math.floor(Math.sqrt(period));
 

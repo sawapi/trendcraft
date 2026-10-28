@@ -9,12 +9,16 @@
  * @packageDocumentation
  */
 
+import { assertOneOf, keywords } from "../utils/validate-keyword";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
 /** VaR calculation method */
 export type VarMethod = "historical" | "parametric" | "cornishFisher";
+
+const VAR_METHODS = keywords<VarMethod>()(["historical", "parametric", "cornishFisher"]);
 
 /** Options for VaR calculation */
 export type VarOptions = {
@@ -202,6 +206,7 @@ function excessKurtosis(arr: number[], mu: number, sigma: number): number {
 export function calculateVaR(returns: number[], options?: VarOptions): VarResult {
   const confidence = options?.confidence ?? 0.95;
   const method = options?.method ?? "historical";
+  assertOneOf("calculateVaR method", method, VAR_METHODS);
 
   if (returns.length === 0) {
     return {
@@ -315,6 +320,7 @@ export function rollingVaR(returns: number[], options?: RollingVarOptions): Roll
   const window = options?.window ?? 60;
   const confidence = options?.confidence ?? 0.95;
   const method = options?.method ?? "historical";
+  assertOneOf("rollingVaR method", method, VAR_METHODS);
 
   if (returns.length < window) {
     return [];

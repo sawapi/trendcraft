@@ -32,6 +32,7 @@ import type { Position } from "./engine-utils";
 import {
   applySlippage,
   applyVolumeConstraint,
+  assertBacktestKeywords,
   assertValidPartialExits,
   assertValidVolumeConstraint,
   calculateStats,
@@ -137,6 +138,7 @@ export function runBacktest(
     warmupBars = 0,
   } = options;
 
+  assertBacktestKeywords("runBacktest", options);
   const isShort = dir === "short";
   const entrySide = isShort ? "sell" : "buy";
 

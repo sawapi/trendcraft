@@ -10,6 +10,7 @@ import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 import { assertPeriod } from "../../utils/validate-period";
+import { assertPriceSource } from "../../utils/validate-price-source";
 import { HURST_META } from "../indicator-meta";
 
 /**
@@ -54,6 +55,7 @@ export function hurst(
   options: HurstOptions = {},
 ): Series<number | null> {
   const { minWindow = 20, maxWindow = 100, source = "close" } = options;
+  assertPriceSource("Hurst source", source);
   assertPeriod("Hurst minWindow", minWindow, 2);
   assertPeriod("Hurst maxWindow", maxWindow, 2);
 

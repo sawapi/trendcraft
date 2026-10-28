@@ -12,6 +12,7 @@
  */
 
 import type { NormalizedCandle, PriceSource } from "../../../types";
+import { assertPriceSource } from "../../../utils/validate-price-source";
 import {
   type IndicatorSnapshot,
   makeSnapshot,
@@ -89,6 +90,7 @@ export function createEmaRibbon(
     "must be a non-empty array of positive integers",
   );
   const source = params.source;
+  assertPriceSource("EMA Ribbon source", source);
 
   let emas: ReturnType<typeof createEma>[];
   let prevSpread: number | null;

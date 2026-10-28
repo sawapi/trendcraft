@@ -15,6 +15,7 @@
 
 import type { NormalizedCandle, PriceSource } from "../../../types";
 import { assertPositive } from "../../../utils/validate-number";
+import { assertPriceSource } from "../../../utils/validate-price-source";
 import { CircularBuffer } from "../circular-buffer";
 import {
   type IndicatorSnapshot,
@@ -83,6 +84,7 @@ export function createCci(
   const constant = params.constant;
   assertPositive("CCI constant", constant);
   const source = params.source;
+  assertPriceSource("CCI source", source);
 
   let buffer: CircularBuffer<number>;
   let sum: number;

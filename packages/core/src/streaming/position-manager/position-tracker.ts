@@ -30,6 +30,7 @@ import type {
   PositionDirection,
   Trade,
 } from "../../types";
+import { assertPositionDirection } from "../../utils/validate-keyword";
 import type {
   ClosedTradeResult,
   FillRecord,
@@ -99,6 +100,7 @@ export function createPositionTracker(
   fromState?: PositionTrackerState,
 ): PositionTracker {
   const direction: PositionDirection = options.direction ?? "long";
+  assertPositionDirection("createPositionTracker direction", direction);
   const isShort = direction === "short";
   const exitSide: "buy" | "sell" = isShort ? "buy" : "sell";
   const directionSign = isShort ? -1 : 1;

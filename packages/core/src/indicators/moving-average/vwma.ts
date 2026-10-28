@@ -8,6 +8,7 @@
 import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
+import { assertPriceSource } from "../../utils/validate-price-source";
 import { VWMA_META } from "../indicator-meta";
 
 /**
@@ -43,6 +44,7 @@ export function vwma(
   options: VwmaOptions,
 ): Series<number | null> {
   const { period, source = "close" } = options;
+  assertPriceSource("VWMA source", source);
 
   if (period < 1) {
     throw new Error("VWMA period must be at least 1");

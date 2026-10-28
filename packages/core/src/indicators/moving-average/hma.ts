@@ -8,6 +8,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
+import { assertPriceSource } from "../../utils/validate-price-source";
 import { HMA_META } from "../indicator-meta";
 import { wma } from "./wma";
 
@@ -53,6 +54,7 @@ export function hma(
   options: HmaOptions = {},
 ): Series<number | null> {
   const { period = 9, source = "close" } = options;
+  assertPriceSource("HMA source", source);
 
   if (period < 2) {
     throw new Error("HMA period must be at least 2");

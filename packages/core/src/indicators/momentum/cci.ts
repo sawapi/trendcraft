@@ -10,6 +10,7 @@ import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 import { assertPositive } from "../../utils/validate-number";
 import { assertPeriod } from "../../utils/validate-period";
+import { assertPriceSource } from "../../utils/validate-price-source";
 import { CCI_META } from "../indicator-meta";
 
 /**
@@ -54,6 +55,7 @@ export function cci(
   options: CciOptions = {},
 ): Series<number | null> {
   const { period = 20, constant = 0.015, source = "hlc3" } = options;
+  assertPriceSource("CCI source", source);
   assertPositive("CCI constant", constant);
 
   assertPeriod("CCI period", period);

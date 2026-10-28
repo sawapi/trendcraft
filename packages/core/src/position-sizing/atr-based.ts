@@ -9,6 +9,7 @@
  */
 
 import type { AtrBasedSizingOptions, PositionSizeResult } from "../types";
+import { assertPositionDirection, keywordError, keywords } from "../utils/validate-keyword";
 import { applyConstraints, createResult, validateInputs } from "./utils";
 
 /**
@@ -28,6 +29,11 @@ export function calculateAtrStopDistance(atrValue: number, multiplier: number): 
   return atrValue * multiplier;
 }
 
+type AtrStyle = "conservative" | "moderate" | "aggressive";
+
+/** Every style {@link recommendedAtrMultiplier} accepts. */
+const ATR_STYLES = keywords<AtrStyle>()(["conservative", "moderate", "aggressive"]);
+
 /**
  * Get recommended ATR multiplier based on trading style
  *
@@ -40,9 +46,7 @@ export function calculateAtrStopDistance(atrValue: number, multiplier: number): 
  * // mult = 2.0
  * ```
  */
-export function recommendedAtrMultiplier(
-  style: "conservative" | "moderate" | "aggressive",
-): number {
+export function recommendedAtrMultiplier(style: AtrStyle): number {
   switch (style) {
     case "conservative":
       return 3.0; // Wider stops, smaller positions
@@ -51,7 +55,8 @@ export function recommendedAtrMultiplier(
     case "aggressive":
       return 1.5; // Tighter stops, larger positions
     default:
-      return 2.0;
+      // An unknown style used to return the moderate 2.0 silently.
+      throw keywordError("recommendedAtrMultiplier style", style, ATR_STYLES);
   }
 }
 
@@ -92,6 +97,7 @@ export function atrBasedSize(options: AtrBasedSizingOptions): PositionSizeResult
   } = options;
 
   validateInputs(accountSize, entryPrice, "atrBasedSize");
+  assertPositionDirection("atrBasedSize direction", direction);
 
   if (riskPercent <= 0 || riskPercent > 100) {
     throw new Error("atrBasedSize: riskPercent must be between 0 and 100");

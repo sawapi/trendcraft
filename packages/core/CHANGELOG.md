@@ -1733,6 +1733,88 @@ which empty input never reaches. `lookbackPeriod` was not checked at all: `0`
 or a negative value labelled every bar `"normal"` with confidence 0, and a
 fraction crashed with a `TypeError`.
 
+### Breaking — options that take a fixed set of keywords reject an unknown value
+
+Keyword options were read through a `switch` whose `default` quietly picked a
+fallback, or through a single comparison such as `direction === "short" ? …`
+that sent every other value down the remaining branch. A misspelt keyword
+returned a result for a setting nobody asked for. They are now checked on
+entry, whatever the data.
+
+The worst case was `runBacktest(…, { direction: "Short" })`: the engine tested
+`=== "short"` and entered long, while each trade's return was computed with
+`=== "long"` and came out with the short sign, so a run reported
+`totalReturnPercent: -20` beside a trade return of `+20`.
+
+**Price source.** `getPrice` and `getSourcePrice` read the close for any value
+they did not know, so `sma(candles, { source: "hcl3" })` returned the close
+SMA. Every indicator that takes `source` now checks it, in both the batch and
+the incremental forms, as do `perfectOrder`, `perfectOrderEnhanced`,
+`highestLowest` and `ewmaVolatilityFromCandles`; `getPrice` and
+`getSourcePrice` throw. `highestLowest` checked `source` for truthiness, so
+`""` fell back to the high/low default.
+
+**Backtest.** In `runBacktest` and `runBacktestScaled`: `direction`,
+`fillMode`, `slTpMode`, `timeInForce`, `orderType.type` and `sizing.method`.
+In `runBacktestScaled`: `scaledEntry.strategy` (an unknown one gave no tranche
+weights, so nothing was entered) and `scaledEntry.intervalType`. Also
+`margin.marginCallAction` (an unknown action reduced to maintenance) and
+`batchBacktest`'s `allocation` (an unknown one used equal weights).
+
+**Optimization.** `metric` in `gridSearch`, `combinationSearch`,
+`walkForwardAnalysis` and `anchoredWalkForwardAnalysis`; each constraint's
+`metric` and `operator`; and each `paretoOptimization` objective's `metric` and
+`direction`, where "minimise" used to maximize. An unknown metric scored every
+combination as `undefined`, and an unknown operator failed every combination.
+`checkConstraint` throws too. Also `runMonteCarloSimulation`'s `method`
+(unknown: bootstrap), and `rotateStrategies`' `rankingMetric` and
+`allocationMethod`.
+
+**Analysis and risk.** `applyEquityCurveFilter`'s `type` (an unknown one kept
+every trade) and `maType`; `eventStudy`'s `baseline`; `calculateVaR` and
+`rollingVaR`'s `method`; `riskBasedSize`, `atrBasedSize`,
+`createPositionTracker`, `calculateAtrStop`, `calculateAtrTakeProfit`,
+`calculateAtrTrailingStop`, `accountEquity` and `updateMarginState`'s
+`direction`; `recommendedAtrMultiplier`'s `style` (unknown: 2.0); and
+`createManagedSession`'s `sizing.method` (an unknown one sized every entry at
+0 shares, so the session never traded).
+
+**Indicators and conditions.** `pivotPoints` and `createPivotPoints`' `method`
+(unknown: standard pivots in the batch form, all-`null` levels in the
+incremental one); `returns` and `cumulativeReturns`' `type`; `volumeMa`'s
+`type`; `weisWave`'s `method`; `seriesToCandles`' `fillMode`;
+`generateNarrative`'s `language` and `signalType`; `hasRecentSweepSignal`'s
+`type`; and the condition factories `bollingerBreakout` and `bollingerTouch`
+(`band`), `scoreStrength` (`strength`), the seven SMC conditions (`type`) and
+the seventeen perfect-order conditions (`maType`), which now check when the
+condition is built rather than on its first evaluation. The SMC conditions
+tested `type` for truthiness, so `"Bullish"` never matched and `""` meant
+either side; omit `type` for either side, since `""` now throws. Also
+`projectPatternOutcome`, which checks the `direction` each extractor call
+returns: `"short"` or `"Bearish"` used to be scored as bullish.
+
+**Timeframes.** `resample`'s `timeframe.unit` (an unknown unit put every candle
+in its own period, so the series came back unchanged). `resample` parses the
+timeframe before returning on empty input, and an unknown shorthand now reads
+`timeframe must be one of "1m", … , got "1y"` (was `Unknown timeframe
+shorthand: 1y`). Shorthands are looked up as own keys, so `"toString"` no
+longer returns a function as the timeframe.
+
+The message names the option and lists what it accepts, e.g. `SMA source must
+be one of "open", "high", "low", "close", "hl2", "hlc3", "ohlc4", "volume", got
+"hcl3"`, and `trendcraft/safe` classifies it as `INVALID_PARAMETER`. Each list
+is declared with `keywords<T>()` against the option's own type, and the check
+accepts only such a list, so a list that leaves out a member of the type, or
+names one it lacks, does not compile. pandas-ta raises a `KeyError` for a
+column name it cannot find, and TA-Lib returns `TA_BAD_PARAM` for an
+out-of-range moving-average type.
+
+Scope: every keyword option declared in an options type, plus string-union
+parameters of exported functions. The incremental `weisWave` and `returns`
+already rejected an unknown value through `requireParam`. The direction, price
+source, pivot, resample, perfect-order and ATR-style cases were run on the
+previous build; the rest were read from the code.
+
 ### Fixed — Safe API reports a non-integer period as INVALID_PARAMETER
 
 `trendcraft/safe` classifies a thrown error into a typed code, but its

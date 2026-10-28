@@ -4,7 +4,9 @@
 
 import { RUN_LOCAL_KEY_PREFIX } from "../../core/indicator-cache";
 import { type PerfectOrderValueEnhanced, perfectOrderEnhanced } from "../../signals/perfect-order";
+import { MA_TYPES } from "../../signals/perfect-order/utils";
 import type { PresetCondition } from "../../types";
+import { assertOneOf } from "../../utils/validate-keyword";
 import type { PerfectOrderEnhancedConditionOptions } from "./po-enhanced";
 
 // ============================================
@@ -42,6 +44,7 @@ export function perfectOrderPullbackEntry(
     minGapPercent = 0.5,
     lookbackBars = 5,
   } = options;
+  assertOneOf("perfectOrderPullbackEntry maType", maType, MA_TYPES);
   const cacheKey = `poe_pullback_${periods.join("_")}_${maType}_${slopeLookback}_${persistBars}_${collapseEps}`;
   // Mutable per-run state: the run-local prefix keeps it off the shared
   // IndicatorCache (one run's end state must not seed the next run), and
@@ -169,6 +172,7 @@ export function perfectOrderPullbackSellEntry(
     minGapPercent = 0.5,
     lookbackBars = 5,
   } = options;
+  assertOneOf("perfectOrderPullbackSellEntry maType", maType, MA_TYPES);
   const cacheKey = `poe_pullback_${periods.join("_")}_${maType}_${slopeLookback}_${persistBars}_${collapseEps}`;
   // Run-local mutable state — see the buy variant for rationale. The `_sell`
   // segment keeps buy/sell state separate (they share the same cacheKey).
@@ -298,6 +302,7 @@ export function poPlusEntry(options: PerfectOrderEnhancedConditionOptions = {}):
     persistBars = 3,
     collapseEps = 0.003,
   } = options;
+  assertOneOf("poPlusEntry maType", maType, MA_TYPES);
   const cacheKey = `poe_${periods.join("_")}_${maType}_${slopeLookback}_${persistBars}_${collapseEps}`;
 
   return {
@@ -353,6 +358,7 @@ export function pbEntry(options: PerfectOrderEnhancedConditionOptions = {}): Pre
     persistBars = 3,
     collapseEps = 0.003,
   } = options;
+  assertOneOf("pbEntry maType", maType, MA_TYPES);
   const cacheKey = `poe_${periods.join("_")}_${maType}_${slopeLookback}_${persistBars}_${collapseEps}`;
 
   return {
@@ -402,6 +408,7 @@ export function poPlusPbEntry(options: PerfectOrderEnhancedConditionOptions = {}
     persistBars = 3,
     collapseEps = 0.003,
   } = options;
+  assertOneOf("poPlusPbEntry maType", maType, MA_TYPES);
   const cacheKey = `poe_${periods.join("_")}_${maType}_${slopeLookback}_${persistBars}_${collapseEps}`;
 
   return {

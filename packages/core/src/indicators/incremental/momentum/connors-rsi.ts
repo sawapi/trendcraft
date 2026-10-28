@@ -15,6 +15,7 @@
  */
 
 import type { NormalizedCandle, PriceSource } from "../../../types";
+import { assertPriceSource } from "../../../utils/validate-price-source";
 import { CircularBuffer } from "../circular-buffer";
 import {
   type IndicatorSnapshot,
@@ -107,6 +108,7 @@ export function createConnorsRsi(
     "must be a positive integer",
   );
   const source = params.source;
+  assertPriceSource("Connors RSI source", source);
 
   let priceRsi: ReturnType<typeof createRsi>;
   let streakRsi: ReturnType<typeof createRsi>;

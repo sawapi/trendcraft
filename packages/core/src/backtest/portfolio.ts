@@ -24,10 +24,16 @@ import type {
   SymbolData,
   Trade,
 } from "../types";
+import { assertOneOf, keywords } from "../utils/validate-keyword";
 import type { ExtendedCondition } from "./conditions";
 import { maxDrawdownPercent } from "./drawdown-tracker";
 import type { MtfBacktestOptions } from "./engine";
 import { runBacktest } from "./engine";
+
+const ALLOCATIONS = keywords<NonNullable<BatchBacktestOptions["allocation"]>>()([
+  "equal",
+  "custom",
+]);
 
 // ============================================
 // Phase 1: Batch Backtest (Independent)
@@ -84,6 +90,10 @@ export function batchBacktest(
   }
   assertUniqueSymbols(datasets);
   assertNoWarmup(options);
+  // An unknown allocation used equal weights.
+  if (options.allocation !== undefined) {
+    assertOneOf("batchBacktest allocation", options.allocation, ALLOCATIONS);
+  }
 
   // Calculate per-symbol capital allocation
   const allocations = calculateAllocations(datasets, options);

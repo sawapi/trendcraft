@@ -15,6 +15,7 @@
  */
 
 import type { NormalizedCandle, PriceSource } from "../../../types";
+import { assertPriceSource } from "../../../utils/validate-price-source";
 import type { EmaState } from "../moving-average/ema";
 import { createEma } from "../moving-average/ema";
 import {
@@ -105,6 +106,7 @@ export function createTsi(
     "must be a positive integer",
   );
   const source = params.source;
+  assertPriceSource("TSI source", source);
 
   let ema1Mom: ReturnType<typeof createEma>;
   let ema2Mom: ReturnType<typeof createEma>;

@@ -31,7 +31,7 @@ describe("parseTimeframe", () => {
 
   it("should throw on unknown shorthand", () => {
     // @ts-expect-error Testing invalid input
-    expect(() => parseTimeframe("invalid")).toThrow("Unknown timeframe shorthand");
+    expect(() => parseTimeframe("invalid")).toThrow('timeframe must be one of "1m"');
   });
 });
 

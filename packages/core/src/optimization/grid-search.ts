@@ -18,6 +18,7 @@ import type {
 import { err, ok, type Result, tcError } from "../types/result";
 import { DEFAULT_BACKTEST_CAPITAL } from "./constants";
 import {
+  assertOptimizerKeywords,
   calculateAllMetrics,
   checkConstraint,
   compareMetricBestFirst,
@@ -145,6 +146,7 @@ export function gridSearch(
     keepAllResults = false,
     paramFilter,
   } = options;
+  assertOptimizerKeywords("gridSearch", { metric, constraints });
 
   // Check total combinations
   const totalCombinations = countCombinations(parameterRanges);

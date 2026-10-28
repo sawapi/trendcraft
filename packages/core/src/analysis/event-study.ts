@@ -34,7 +34,10 @@
 import { mulberry32 } from "../core/random";
 import { kurtosis, normalCdf, skewness } from "../core/statistics";
 import type { NormalizedCandle, Series } from "../types";
+import { assertOneOf, keywords } from "../utils/validate-keyword";
 import { sampleStd } from "./return-metrics";
+
+const BASELINES = keywords<EventStudyBaseline>()(["mean-adjusted", "raw"]);
 
 /** Abnormal-return baseline. */
 export type EventStudyBaseline = "mean-adjusted" | "raw";
@@ -216,6 +219,8 @@ export function eventStudy(
     seed = 42,
     minSeparation = 0,
   } = options;
+  // An unknown baseline was treated as "mean-adjusted".
+  assertOneOf("eventStudy baseline", baseline, BASELINES);
 
   const timeToIndex = new Map<number, number>();
   for (let i = 0; i < candles.length; i++) timeToIndex.set(candles[i].time, i);

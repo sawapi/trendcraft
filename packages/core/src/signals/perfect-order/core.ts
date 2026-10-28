@@ -10,9 +10,16 @@
 
 import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertOneOf } from "../../utils/validate-keyword";
+import { assertPriceSource } from "../../utils/validate-price-source";
 import type { PerfectOrderOptions, PerfectOrderType, PerfectOrderValue } from "./types";
 import { DEFAULT_HYSTERESIS_MARGIN } from "./types";
-import { calculateStrength, determinePerfectOrderTypeWithHysteresis, getMaFunction } from "./utils";
+import {
+  calculateStrength,
+  determinePerfectOrderTypeWithHysteresis,
+  getMaFunction,
+  MA_TYPES,
+} from "./utils";
 
 /**
  * Detect Perfect Order alignment of multiple moving averages
@@ -60,6 +67,8 @@ export function perfectOrder(
     source = "close",
     hysteresisMargin = DEFAULT_HYSTERESIS_MARGIN,
   } = options;
+  assertOneOf("perfectOrder maType", maType, MA_TYPES);
+  assertPriceSource("perfectOrder source", source);
 
   // Sort and dedupe periods
   const sortedPeriods = [...new Set(periods)].sort((a, b) => a - b);

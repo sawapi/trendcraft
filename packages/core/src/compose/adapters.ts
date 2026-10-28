@@ -6,6 +6,9 @@
 
 import type { NormalizedCandle, Series } from "../types";
 import type { SeriesToCandlesOptions } from "../types/compose";
+import { assertOneOf, keywords } from "../utils/validate-keyword";
+
+const FILL_MODES = keywords<NonNullable<SeriesToCandlesOptions["fillMode"]>>()(["value", "zero"]);
 
 /**
  * Convert a Series<number|null> to pseudo NormalizedCandle[] for use as input to indicators.
@@ -32,6 +35,8 @@ export function seriesToCandles(
   options: SeriesToCandlesOptions = {},
 ): NormalizedCandle[] {
   const { fillMode = "value" } = options;
+  // An unknown mode filled with the value.
+  assertOneOf("seriesToCandles fillMode", fillMode, FILL_MODES);
   return series.map((point) => {
     const v = point.value ?? 0;
     const ohl = fillMode === "zero" ? 0 : v;

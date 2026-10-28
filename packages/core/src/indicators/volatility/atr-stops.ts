@@ -13,6 +13,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { AtrStopsOptions, AtrStopsValue, Candle, NormalizedCandle, Series } from "../../types";
+import { assertPositionDirection } from "../../utils/validate-keyword";
 import { assertPositive } from "../../utils/validate-number";
 import { assertPeriod } from "../../utils/validate-period";
 import { atr } from "./atr";
@@ -136,6 +137,7 @@ export function calculateAtrStop(
   multiplier: number,
   direction: "long" | "short",
 ): number {
+  assertPositionDirection("calculateAtrStop direction", direction);
   const distance = atrValue * multiplier;
   return direction === "long" ? entryPrice - distance : entryPrice + distance;
 }
@@ -155,6 +157,7 @@ export function calculateAtrTakeProfit(
   multiplier: number,
   direction: "long" | "short",
 ): number {
+  assertPositionDirection("calculateAtrTakeProfit direction", direction);
   const distance = atrValue * multiplier;
   return direction === "long" ? entryPrice + distance : entryPrice - distance;
 }
@@ -174,6 +177,7 @@ export function calculateAtrTrailingStop(
   multiplier: number,
   direction: "long" | "short",
 ): number {
+  assertPositionDirection("calculateAtrTrailingStop direction", direction);
   const distance = atrValue * multiplier;
   return direction === "long" ? peakPrice - distance : peakPrice + distance;
 }

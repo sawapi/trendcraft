@@ -10,8 +10,11 @@
  */
 
 import type { PresetCondition, ScoringConfig, ScoringPreset } from "../types";
+import { assertOneOf, keywords } from "../utils/validate-keyword";
 import { calculateScore } from "./calculator";
 import { getPreset } from "./presets";
+
+const STRENGTHS = keywords<Parameters<typeof scoreStrength>[0]>()(["strong", "moderate", "weak"]);
 
 /**
  * Create a backtest condition that triggers when score is above threshold
@@ -86,6 +89,7 @@ export function scoreStrength(
   strength: "strong" | "moderate" | "weak",
   config: ScoringConfig | ScoringPreset,
 ): PresetCondition {
+  assertOneOf("scoreStrength strength", strength, STRENGTHS);
   const resolvedConfig = typeof config === "string" ? getPreset(config) : config;
 
   return {

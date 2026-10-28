@@ -9,6 +9,7 @@ import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 import { assertPeriod } from "../../utils/validate-period";
+import { assertPriceSource } from "../../utils/validate-price-source";
 import { KST_META } from "../indicator-meta";
 
 /**
@@ -65,6 +66,7 @@ export function kst(
     signalPeriod = 9,
     source = "close",
   } = options;
+  assertPriceSource("KST source", source);
   for (const p of rocPeriods) assertPeriod("KST rocPeriods entry", p);
   for (const p of smaPeriods) assertPeriod("KST smaPeriods entry", p);
   assertPeriod("KST signalPeriod", signalPeriod);

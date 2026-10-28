@@ -14,6 +14,7 @@
  */
 
 import type { NormalizedCandle, PriceSource } from "../../../types";
+import { assertPriceSource } from "../../../utils/validate-price-source";
 import type { WmaState } from "../moving-average/wma";
 import { createWma } from "../moving-average/wma";
 import {
@@ -99,6 +100,7 @@ export function createCoppockCurve(
     "must be a positive integer",
   );
   const source = params.source;
+  assertPriceSource("Coppock Curve source", source);
 
   let longRoc: ReturnType<typeof createRoc>;
   let shortRoc: ReturnType<typeof createRoc>;

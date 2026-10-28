@@ -3,7 +3,9 @@
  */
 
 import { type PerfectOrderValue, perfectOrder } from "../../signals/perfect-order";
+import { MA_TYPES } from "../../signals/perfect-order/utils";
 import type { PresetCondition } from "../../types";
+import { assertOneOf } from "../../utils/validate-keyword";
 
 // ============================================
 // Perfect Order Conditions
@@ -39,6 +41,7 @@ export type PerfectOrderConditionOptions = {
  */
 export function perfectOrderBullish(options: PerfectOrderConditionOptions = {}): PresetCondition {
   const { periods = [5, 25, 75], maType = "sma", minStrength = 0 } = options;
+  assertOneOf("perfectOrderBullish maType", maType, MA_TYPES);
   const cacheKey = `po_${periods.join("_")}_${maType}`;
 
   return {
@@ -72,6 +75,7 @@ export function perfectOrderBullish(options: PerfectOrderConditionOptions = {}):
  */
 export function perfectOrderBearish(options: PerfectOrderConditionOptions = {}): PresetCondition {
   const { periods = [5, 25, 75], maType = "sma", minStrength = 0 } = options;
+  assertOneOf("perfectOrderBearish maType", maType, MA_TYPES);
   const cacheKey = `po_${periods.join("_")}_${maType}`;
 
   return {
@@ -107,6 +111,7 @@ export function perfectOrderBearish(options: PerfectOrderConditionOptions = {}):
  */
 export function perfectOrderCollapsed(options: PerfectOrderConditionOptions = {}): PresetCondition {
   const { periods = [5, 25, 75], maType = "sma" } = options;
+  assertOneOf("perfectOrderCollapsed maType", maType, MA_TYPES);
   const cacheKey = `po_${periods.join("_")}_${maType}`;
 
   return {
@@ -142,6 +147,7 @@ export function perfectOrderActiveBullish(
   options: PerfectOrderConditionOptions = {},
 ): PresetCondition {
   const { periods = [5, 25, 75], maType = "sma", minStrength = 0 } = options;
+  assertOneOf("perfectOrderActiveBullish maType", maType, MA_TYPES);
   const cacheKey = `po_${periods.join("_")}_${maType}`;
 
   return {
@@ -171,6 +177,7 @@ export function perfectOrderActiveBearish(
   options: PerfectOrderConditionOptions = {},
 ): PresetCondition {
   const { periods = [5, 25, 75], maType = "sma", minStrength = 0 } = options;
+  assertOneOf("perfectOrderActiveBearish maType", maType, MA_TYPES);
   const cacheKey = `po_${periods.join("_")}_${maType}`;
 
   return {

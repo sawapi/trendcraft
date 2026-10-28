@@ -13,10 +13,20 @@
  */
 
 import type { NormalizedCandle } from "../../../types";
+import { assertOneOf, keywordError, keywords } from "../../../utils/validate-keyword";
 import { type IndicatorSnapshot, makeSnapshot, resolveResume } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
 
 export type PivotMethod = "standard" | "fibonacci" | "woodie" | "camarilla" | "demark";
+
+/** Every value `PivotMethod` allows. */
+export const PIVOT_METHODS = keywords<PivotMethod>()([
+  "standard",
+  "fibonacci",
+  "woodie",
+  "camarilla",
+  "demark",
+]);
 
 export type PivotPointsValue = {
   pivot: number | null;
@@ -134,7 +144,8 @@ function computePivot(
       };
     }
     default:
-      return nullValue;
+      // An unknown method used to return all-null levels silently.
+      throw keywordError("pivotPoints method", method, PIVOT_METHODS);
   }
 }
 
@@ -172,6 +183,7 @@ export function createPivotPoints(
   });
 
   const method: PivotMethod = params.method;
+  assertOneOf("pivotPoints method", method, PIVOT_METHODS);
 
   let prevCandle: { high: number; low: number; close: number } | null;
   let count: number;

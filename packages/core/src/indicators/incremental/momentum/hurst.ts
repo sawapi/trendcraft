@@ -15,6 +15,7 @@
  */
 
 import type { NormalizedCandle, PriceSource } from "../../../types";
+import { assertPriceSource } from "../../../utils/validate-price-source";
 import { CircularBuffer } from "../circular-buffer";
 import {
   type IndicatorSnapshot,
@@ -221,6 +222,7 @@ export function createHurst(
     "must be an integer >= 2",
   );
   const source = params.source;
+  assertPriceSource("Hurst source", source);
 
   let priceBuffer: CircularBuffer<number>;
   let count: number;

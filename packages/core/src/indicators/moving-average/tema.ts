@@ -8,6 +8,7 @@
 import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
+import { assertPriceSource } from "../../utils/validate-price-source";
 import { TEMA_META } from "../indicator-meta";
 
 /**
@@ -44,6 +45,7 @@ export function tema(
   options: TemaOptions = {},
 ): Series<number | null> {
   const { period = 20, source = "close" } = options;
+  assertPriceSource("TEMA source", source);
 
   if (period < 1) {
     throw new Error("TEMA period must be at least 1");

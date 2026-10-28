@@ -4,7 +4,10 @@
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertOneOf, keywords } from "../../utils/validate-keyword";
 import { assertPeriod } from "../../utils/validate-period";
+
+const MA_TYPES = keywords<NonNullable<VolumeMaOptions["type"]>>()(["sma", "ema"]);
 
 /**
  * Options for Volume MA calculation
@@ -34,6 +37,7 @@ export function volumeMa(
   const { period, type = "sma" } = options;
 
   assertPeriod("Volume MA period", period);
+  assertOneOf("Volume MA type", type, MA_TYPES);
 
   // Normalize if needed
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
