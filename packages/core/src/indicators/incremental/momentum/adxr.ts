@@ -16,7 +16,7 @@ import { CircularBuffer } from "../circular-buffer";
 import {
   type IndicatorSnapshot,
   makeSnapshot,
-  requireParam,
+  requirePeriod,
   resolveResume,
 } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -65,27 +65,9 @@ export function createAdxr(
     defaults: { period: 14, dmiPeriod: 14, adxPeriod: 14 },
   });
 
-  const period = requireParam(
-    "adxr",
-    params,
-    "period",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
-  const dmiPeriod = requireParam(
-    "adxr",
-    params,
-    "dmiPeriod",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
-  const adxPeriod = requireParam(
-    "adxr",
-    params,
-    "adxPeriod",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
+  const period = requirePeriod("adxr", params, "period");
+  const dmiPeriod = requirePeriod("adxr", params, "dmiPeriod");
+  const adxPeriod = requirePeriod("adxr", params, "adxPeriod");
 
   // ADXR lookback matches TA-Lib: adx[i] + adx[i-(period-1)]
   const lookback = period - 1;

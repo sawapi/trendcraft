@@ -17,7 +17,7 @@ import { CircularBuffer } from "../circular-buffer";
 import {
   type IndicatorSnapshot,
   makeSnapshot,
-  requireParam,
+  requirePeriod,
   resolveResume,
 } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -68,13 +68,7 @@ export function createRoc(
     defaults: { source: "close" },
   });
 
-  const period = requireParam(
-    "roc",
-    params,
-    "period",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
+  const period = requirePeriod("roc", params, "period");
   const source = params.source;
   assertPriceSource("ROC source", source);
 

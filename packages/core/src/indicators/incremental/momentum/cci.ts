@@ -20,7 +20,7 @@ import { CircularBuffer } from "../circular-buffer";
 import {
   type IndicatorSnapshot,
   makeSnapshot,
-  requireParam,
+  requirePeriod,
   resolveResume,
 } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -74,13 +74,7 @@ export function createCci(
     resumeInvariantParams: ["constant"],
   });
 
-  const period = requireParam(
-    "cci",
-    params,
-    "period",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
+  const period = requirePeriod("cci", params, "period");
   const constant = params.constant;
   assertPositive("CCI constant", constant);
   const source = params.source;

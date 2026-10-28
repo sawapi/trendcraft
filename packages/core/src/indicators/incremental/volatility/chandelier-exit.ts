@@ -14,11 +14,13 @@
  */
 
 import type { ChandelierExitValue, NormalizedCandle } from "../../../types";
+import { isPeriod } from "../../../utils/validate-period";
 import { CircularBuffer } from "../circular-buffer";
 import {
   type IndicatorSnapshot,
   makeSnapshot,
   requireParam,
+  requirePeriod,
   resolveResume,
 } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -73,13 +75,7 @@ export function createChandelierExit(
     defaults: { period: 22, multiplier: 3.0 },
   });
 
-  const period = requireParam(
-    "chandelierExit",
-    params,
-    "period",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
+  const period = requirePeriod("chandelierExit", params, "period");
   const multiplier = requireParam(
     "chandelierExit",
     params,
@@ -92,7 +88,7 @@ export function createChandelierExit(
   // `lookback` (recorded in `meta.params` by getState) because the raw
   // options carry no injected default to diff against.
   const hlLookback = params.lookback ?? period;
-  if (!Number.isInteger(hlLookback) || hlLookback < 1) {
+  if (!isPeriod(hlLookback)) {
     throw new Error(
       'chandelierExit: option "lookback" failed validation (must be a positive integer)',
     );

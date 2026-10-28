@@ -15,7 +15,7 @@ import type { NormalizedCandle } from "../../../types";
 import {
   type IndicatorSnapshot,
   makeSnapshot,
-  requireParam,
+  requirePeriod,
   resolveResume,
 } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -136,27 +136,9 @@ export function createKlinger(
     defaults: { shortPeriod: 34, longPeriod: 55, signalPeriod: 13 },
   });
 
-  const shortPeriod = requireParam(
-    "klinger",
-    params,
-    "shortPeriod",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
-  const longPeriod = requireParam(
-    "klinger",
-    params,
-    "longPeriod",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
-  const signalPeriod = requireParam(
-    "klinger",
-    params,
-    "signalPeriod",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
+  const shortPeriod = requirePeriod("klinger", params, "shortPeriod");
+  const longPeriod = requirePeriod("klinger", params, "longPeriod");
+  const signalPeriod = requirePeriod("klinger", params, "signalPeriod");
 
   let prevHlc: number | null;
   let prevTrend: number;

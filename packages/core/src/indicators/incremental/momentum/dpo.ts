@@ -20,7 +20,7 @@ import { createSma, type SmaState } from "../moving-average/sma";
 import {
   type IndicatorSnapshot,
   makeSnapshot,
-  requireParam,
+  requirePeriod,
   resolveResume,
 } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -83,13 +83,7 @@ export function createDpo(
     defaults: { period: 20, source: "close" },
   });
 
-  const period = requireParam(
-    "dpo",
-    params,
-    "period",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
+  const period = requirePeriod("dpo", params, "period");
   const source = params.source;
   assertPriceSource("DPO source", source);
   const shift = Math.floor(period / 2) + 1;

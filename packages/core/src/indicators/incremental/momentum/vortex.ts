@@ -18,7 +18,7 @@ import { CircularBuffer } from "../circular-buffer";
 import {
   type IndicatorSnapshot,
   makeSnapshot,
-  requireParam,
+  requirePeriod,
   resolveResume,
 } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -76,13 +76,7 @@ export function createVortex(
     defaults: { period: 14 },
   });
 
-  const period = requireParam(
-    "vortex",
-    params,
-    "period",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
+  const period = requirePeriod("vortex", params, "period");
 
   let vmPlusBuffer: CircularBuffer<number>;
   let vmMinusBuffer: CircularBuffer<number>;

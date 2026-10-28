@@ -9,11 +9,29 @@
  * period makes the `i < period - 1` warm-up guard false for every bar, so the
  * output keeps its expected shape while meaning something else entirely.
  *
- * This is the single owner of that rule for the batch indicators. The
- * incremental engine enforces the same rule through `requireParam` in
- * `indicators/incremental/state-contract.ts`; the two surfaces must agree on
- * which values are acceptable, even though they word their errors differently.
+ * `isPeriod` is the single owner of that rule. The batch indicators enforce
+ * it through `assertPeriod`, the incremental engine through `requirePeriod` in
+ * `indicators/incremental/state-contract.ts`; the two word their errors
+ * differently but accept exactly the same values.
  */
+
+/**
+ * Whether `value` is a period: an integer no smaller than `min`.
+ *
+ * @param value - The value to test
+ * @param min - Smallest acceptable value (default 1)
+ * @returns `false` for fractional, non-finite and too-small values
+ *
+ * @example
+ * ```ts
+ * isPeriod(14); // true
+ * isPeriod(14.5); // false
+ * isPeriod(1, 2); // false
+ * ```
+ */
+export function isPeriod(value: number, min = 1): boolean {
+  return Number.isInteger(value) && value >= min;
+}
 
 /**
  * Assert that a period-like option is an integer no smaller than `min`.
@@ -38,12 +56,8 @@
  * ```
  */
 export function assertPeriod(label: string, value: number, min = 1): void {
-  if (value < min) {
-    throw new Error(`${label} must be at least ${min}`);
-  }
-  if (!Number.isInteger(value)) {
-    throw new Error(`${label} must be an integer`);
-  }
+  if (isPeriod(value, min)) return;
+  throw new Error(value < min ? `${label} must be at least ${min}` : `${label} must be an integer`);
 }
 
 /**

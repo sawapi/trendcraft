@@ -25,7 +25,7 @@ import { CircularBuffer } from "../circular-buffer";
 import {
   type IndicatorSnapshot,
   makeSnapshot,
-  requireParam,
+  requirePeriod,
   resolveResume,
 } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -115,34 +115,10 @@ export function createIchimoku(
     defaults: { tenkanPeriod: 9, kijunPeriod: 26, senkouBPeriod: 52, displacement: 26 },
   });
 
-  const tenkanPeriod = requireParam(
-    "ichimoku",
-    params,
-    "tenkanPeriod",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
-  const kijunPeriod = requireParam(
-    "ichimoku",
-    params,
-    "kijunPeriod",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
-  const senkouBPeriod = requireParam(
-    "ichimoku",
-    params,
-    "senkouBPeriod",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
-  const displacement = requireParam(
-    "ichimoku",
-    params,
-    "displacement",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
+  const tenkanPeriod = requirePeriod("ichimoku", params, "tenkanPeriod");
+  const kijunPeriod = requirePeriod("ichimoku", params, "kijunPeriod");
+  const senkouBPeriod = requirePeriod("ichimoku", params, "senkouBPeriod");
+  const displacement = requirePeriod("ichimoku", params, "displacement");
 
   let tenkanHighBuf: CircularBuffer<number>;
   let tenkanLowBuf: CircularBuffer<number>;

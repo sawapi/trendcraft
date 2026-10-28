@@ -21,6 +21,7 @@ import {
   type IndicatorSnapshot,
   makeSnapshot,
   requireParam,
+  requirePeriod,
   resolveResume,
 } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -83,13 +84,7 @@ export function createEmv(
     defaults: { period: 14, volumeDivisor: 100_000_000 },
   });
 
-  const period = requireParam(
-    "emv",
-    params,
-    "period",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
+  const period = requirePeriod("emv", params, "period");
   const volumeDivisor = requireParam(
     "emv",
     params,

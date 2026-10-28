@@ -16,7 +16,7 @@ import type { NormalizedCandle } from "../../../types";
 import {
   type IndicatorSnapshot,
   makeSnapshot,
-  requireParam,
+  requirePeriod,
   resolveResume,
 } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -66,13 +66,7 @@ export function createAtr(
     defaults: { period: 14 },
   });
 
-  const period = requireParam(
-    "atr",
-    params,
-    "period",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
+  const period = requirePeriod("atr", params, "period");
 
   let prevClose: number | null;
   let atrValue: number | null;

@@ -23,7 +23,7 @@ import { createEma } from "../moving-average/ema";
 import {
   type IndicatorSnapshot,
   makeSnapshot,
-  requireParam,
+  requirePeriod,
   resolveResume,
 } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -131,20 +131,8 @@ export function createTrix(
     defaults: { period: 15, signalPeriod: 9 },
   });
 
-  const period = requireParam(
-    "trix",
-    params,
-    "period",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
-  const signalPeriod = requireParam(
-    "trix",
-    params,
-    "signalPeriod",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
+  const period = requirePeriod("trix", params, "period");
+  const signalPeriod = requirePeriod("trix", params, "signalPeriod");
 
   let ema1: ReturnType<typeof createEma>;
   let ema2: ReturnType<typeof makeNullEma>;

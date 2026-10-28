@@ -12,6 +12,7 @@
  */
 
 import type { NormalizedCandle, PriceSource } from "../../../types";
+import { isPeriod } from "../../../utils/validate-period";
 import { assertPriceSource } from "../../../utils/validate-price-source";
 import {
   type IndicatorSnapshot,
@@ -85,8 +86,7 @@ export function createEmaRibbon(
     "emaRibbon",
     params,
     "periods",
-    (v): v is number[] =>
-      Array.isArray(v) && v.length > 0 && v.every((n) => Number.isInteger(n) && n >= 1),
+    (v): v is number[] => Array.isArray(v) && v.length > 0 && v.every((n) => isPeriod(n)),
     "must be a non-empty array of positive integers",
   );
   const source = params.source;

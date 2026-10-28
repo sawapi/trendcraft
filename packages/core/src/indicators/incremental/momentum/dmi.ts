@@ -20,7 +20,7 @@ import type { NormalizedCandle } from "../../../types";
 import {
   type IndicatorSnapshot,
   makeSnapshot,
-  requireParam,
+  requirePeriod,
   resolveResume,
 } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -87,20 +87,8 @@ export function createDmi(
     defaults: { period: 14, adxPeriod: 14 },
   });
 
-  const period = requireParam(
-    "dmi",
-    params,
-    "period",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
-  const adxPeriod = requireParam(
-    "dmi",
-    params,
-    "adxPeriod",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
+  const period = requirePeriod("dmi", params, "period");
+  const adxPeriod = requirePeriod("dmi", params, "adxPeriod");
 
   let count: number;
   let prevClose: number | null;

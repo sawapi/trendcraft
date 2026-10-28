@@ -13,6 +13,8 @@
  * consumer upgrade guide is `docs/migration-0.3-to-0.4.md`.
  */
 
+import { isPeriod } from "../../utils/validate-period";
+
 /**
  * Metadata attached to every snapshot. Lets us version per-indicator,
  * detect snapshot mix-ups, and compare params on resume.
@@ -554,8 +556,8 @@ export function deserializeIndicatorSnapshot<TState = unknown>(
  *   "sma",
  *   params,
  *   "period",
- *   (v) => Number.isInteger(v) && v >= 1,
- *   "must be a positive integer",
+ *   (v) => v > 0,
+ *   "must be positive",
  * );
  * ```
  *
@@ -592,6 +594,37 @@ export function requireParam<TParams, K extends keyof TParams>(
     );
   }
   return narrowed;
+}
+
+/**
+ * {@link requireParam} for a period: an integer no smaller than `min`.
+ *
+ * Applies the same rule as the batch indicators' `assertPeriod`, through the
+ * shared `isPeriod`, so the two surfaces cannot disagree on which values are
+ * acceptable.
+ *
+ * @example
+ * ```ts
+ * const params: { period?: number; minWindow?: number } = { period: 14, minWindow: 8 };
+ * const period = requirePeriod("sma", params, "period");
+ * const minWindow = requirePeriod("hurst", params, "minWindow", 2);
+ * ```
+ *
+ * @returns the validated value, narrowed to `NonNullable<TParams[K]>`.
+ */
+export function requirePeriod<TParams, K extends keyof TParams>(
+  indicator: string,
+  params: TParams,
+  key: K,
+  min = 1,
+): NonNullable<TParams[K]> {
+  return requireParam(
+    indicator,
+    params,
+    key,
+    (v) => isPeriod(v as number, min),
+    min === 1 ? "must be a positive integer" : `must be an integer >= ${min}`,
+  );
 }
 
 /**

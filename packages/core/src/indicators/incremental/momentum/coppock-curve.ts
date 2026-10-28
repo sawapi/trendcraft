@@ -20,7 +20,7 @@ import { createWma } from "../moving-average/wma";
 import {
   type IndicatorSnapshot,
   makeSnapshot,
-  requireParam,
+  requirePeriod,
   resolveResume,
 } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -78,27 +78,9 @@ export function createCoppockCurve(
     defaults: { wmaPeriod: 10, longRocPeriod: 14, shortRocPeriod: 11, source: "close" },
   });
 
-  const wmaPeriod = requireParam(
-    "coppockCurve",
-    params,
-    "wmaPeriod",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
-  const longRocPeriod = requireParam(
-    "coppockCurve",
-    params,
-    "longRocPeriod",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
-  const shortRocPeriod = requireParam(
-    "coppockCurve",
-    params,
-    "shortRocPeriod",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
+  const wmaPeriod = requirePeriod("coppockCurve", params, "wmaPeriod");
+  const longRocPeriod = requirePeriod("coppockCurve", params, "longRocPeriod");
+  const shortRocPeriod = requirePeriod("coppockCurve", params, "shortRocPeriod");
   const source = params.source;
   assertPriceSource("Coppock Curve source", source);
 

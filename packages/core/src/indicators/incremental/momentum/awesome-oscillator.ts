@@ -15,7 +15,7 @@ import { createSma, type SmaState } from "../moving-average/sma";
 import {
   type IndicatorSnapshot,
   makeSnapshot,
-  requireParam,
+  requirePeriod,
   resolveResume,
 } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -67,21 +67,8 @@ export function createAwesomeOscillator(
     defaults: { fastPeriod: 5, slowPeriod: 34 },
   });
 
-  const isPositiveInt = (v: number): v is number => Number.isInteger(v) && v >= 1;
-  const fastPeriod = requireParam(
-    "awesomeOscillator",
-    params,
-    "fastPeriod",
-    isPositiveInt,
-    "must be a positive integer",
-  );
-  const slowPeriod = requireParam(
-    "awesomeOscillator",
-    params,
-    "slowPeriod",
-    isPositiveInt,
-    "must be a positive integer",
-  );
+  const fastPeriod = requirePeriod("awesomeOscillator", params, "fastPeriod");
+  const slowPeriod = requirePeriod("awesomeOscillator", params, "slowPeriod");
 
   let fastSma: ReturnType<typeof createSma>;
   let slowSma: ReturnType<typeof createSma>;

@@ -22,7 +22,7 @@ import { assertPriceSource } from "../../../utils/validate-price-source";
 import {
   type IndicatorSnapshot,
   makeSnapshot,
-  requireParam,
+  requirePeriod,
   resolveResume,
 } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -95,27 +95,9 @@ export function createPpo(
     defaults: { fastPeriod: 12, slowPeriod: 26, signalPeriod: 9, source: "close" },
   });
 
-  const fastPeriod = requireParam(
-    "ppo",
-    params,
-    "fastPeriod",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
-  const slowPeriod = requireParam(
-    "ppo",
-    params,
-    "slowPeriod",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
-  const signalPeriod = requireParam(
-    "ppo",
-    params,
-    "signalPeriod",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
+  const fastPeriod = requirePeriod("ppo", params, "fastPeriod");
+  const slowPeriod = requirePeriod("ppo", params, "slowPeriod");
+  const signalPeriod = requirePeriod("ppo", params, "signalPeriod");
   const source = params.source;
   assertPriceSource("PPO source", source);
   const fastMult = 2 / (fastPeriod + 1);

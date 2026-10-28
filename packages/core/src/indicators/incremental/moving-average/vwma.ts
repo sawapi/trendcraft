@@ -19,7 +19,7 @@ import { CircularBuffer } from "../circular-buffer";
 import {
   type IndicatorSnapshot,
   makeSnapshot,
-  requireParam,
+  requirePeriod,
   resolveResume,
 } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -78,13 +78,7 @@ export function createVwma(
     defaults: { source: "close" }, // `period` is intentionally absent — no canonical default.
   });
 
-  const period = requireParam(
-    "vwma",
-    params,
-    "period",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
+  const period = requirePeriod("vwma", params, "period");
   const source = params.source;
   assertPriceSource("VWMA source", source);
 

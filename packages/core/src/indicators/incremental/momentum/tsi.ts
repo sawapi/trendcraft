@@ -21,7 +21,7 @@ import { createEma } from "../moving-average/ema";
 import {
   type IndicatorSnapshot,
   makeSnapshot,
-  requireParam,
+  requirePeriod,
   resolveResume,
 } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -84,27 +84,9 @@ export function createTsi(
     defaults: { longPeriod: 25, shortPeriod: 13, signalPeriod: 7, source: "close" },
   });
 
-  const longPeriod = requireParam(
-    "tsi",
-    params,
-    "longPeriod",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
-  const shortPeriod = requireParam(
-    "tsi",
-    params,
-    "shortPeriod",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
-  const signalPeriod = requireParam(
-    "tsi",
-    params,
-    "signalPeriod",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
+  const longPeriod = requirePeriod("tsi", params, "longPeriod");
+  const shortPeriod = requirePeriod("tsi", params, "shortPeriod");
+  const signalPeriod = requirePeriod("tsi", params, "signalPeriod");
   const source = params.source;
   assertPriceSource("TSI source", source);
 

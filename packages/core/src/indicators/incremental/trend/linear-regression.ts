@@ -26,7 +26,7 @@ import { CircularBuffer } from "../circular-buffer";
 import {
   type IndicatorSnapshot,
   makeSnapshot,
-  requireParam,
+  requirePeriod,
   resolveResume,
 } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -92,13 +92,7 @@ export function createLinearRegression(
     defaults: { period: 14, source: "close" },
   });
 
-  const period = requireParam(
-    "linearRegression",
-    params,
-    "period",
-    (v): v is number => Number.isInteger(v) && v >= 2,
-    "must be an integer >= 2",
-  );
+  const period = requirePeriod("linearRegression", params, "period", 2);
   const source = params.source;
   assertPriceSource("Linear Regression source", source);
 

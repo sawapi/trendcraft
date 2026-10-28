@@ -22,7 +22,7 @@ import { assertPriceSource } from "../../../utils/validate-price-source";
 import {
   type IndicatorSnapshot,
   makeSnapshot,
-  requireParam,
+  requirePeriod,
   resolveResume,
 } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -87,13 +87,7 @@ export function createSuperSmoother(
     defaults: { period: 10, source: "close" },
   });
 
-  const period = requireParam(
-    "superSmoother",
-    params,
-    "period",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
+  const period = requirePeriod("superSmoother", params, "period");
   const source = params.source;
   assertPriceSource("Super Smoother source", source);
 

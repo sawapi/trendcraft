@@ -20,7 +20,7 @@ import { CircularBuffer } from "../circular-buffer";
 import {
   type IndicatorSnapshot,
   makeSnapshot,
-  requireParam,
+  requirePeriod,
   resolveResume,
 } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -86,27 +86,9 @@ export function createConnorsRsi(
     defaults: { rsiPeriod: 3, streakPeriod: 2, rocPeriod: 100, source: "close" },
   });
 
-  const rsiPeriod = requireParam(
-    "connorsRsi",
-    params,
-    "rsiPeriod",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
-  const streakPeriod = requireParam(
-    "connorsRsi",
-    params,
-    "streakPeriod",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
-  const rocPeriod = requireParam(
-    "connorsRsi",
-    params,
-    "rocPeriod",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
+  const rsiPeriod = requirePeriod("connorsRsi", params, "rsiPeriod");
+  const streakPeriod = requirePeriod("connorsRsi", params, "streakPeriod");
+  const rocPeriod = requirePeriod("connorsRsi", params, "rocPeriod");
   const source = params.source;
   assertPriceSource("Connors RSI source", source);
 

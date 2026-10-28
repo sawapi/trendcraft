@@ -24,7 +24,7 @@ import { CircularBuffer } from "../circular-buffer";
 import {
   type IndicatorSnapshot,
   makeSnapshot,
-  requireParam,
+  requirePeriod,
   resolveResume,
 } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -109,34 +109,10 @@ export function createStochRsi(
     defaults: { rsiPeriod: 14, stochPeriod: 14, kPeriod: 3, dPeriod: 3, source: "close" },
   });
 
-  const rsiPeriod = requireParam(
-    "stochRsi",
-    params,
-    "rsiPeriod",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
-  const stochPeriod = requireParam(
-    "stochRsi",
-    params,
-    "stochPeriod",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
-  const kPeriod = requireParam(
-    "stochRsi",
-    params,
-    "kPeriod",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
-  const dPeriod = requireParam(
-    "stochRsi",
-    params,
-    "dPeriod",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
+  const rsiPeriod = requirePeriod("stochRsi", params, "rsiPeriod");
+  const stochPeriod = requirePeriod("stochRsi", params, "stochPeriod");
+  const kPeriod = requirePeriod("stochRsi", params, "kPeriod");
+  const dPeriod = requirePeriod("stochRsi", params, "dPeriod");
   const source = params.source;
   assertPriceSource("Stoch RSI source", source);
 

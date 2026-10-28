@@ -17,7 +17,7 @@ import { CircularBuffer } from "../circular-buffer";
 import {
   type IndicatorSnapshot,
   makeSnapshot,
-  requireParam,
+  requirePeriod,
   resolveResume,
 } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -68,13 +68,7 @@ export function createImi(
     defaults: { period: 14 },
   });
 
-  const period = requireParam(
-    "imi",
-    params,
-    "period",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
+  const period = requirePeriod("imi", params, "period");
 
   let gainsBuffer: CircularBuffer<number>;
   let lossesBuffer: CircularBuffer<number>;

@@ -25,7 +25,7 @@ import { createEma } from "../moving-average/ema";
 import {
   type IndicatorSnapshot,
   makeSnapshot,
-  requireParam,
+  requirePeriod,
   resolveResume,
 } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -74,20 +74,8 @@ export function createMassIndex(
     defaults: { emaPeriod: 9, sumPeriod: 25 },
   });
 
-  const emaPeriod = requireParam(
-    "massIndex",
-    params,
-    "emaPeriod",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
-  const sumPeriod = requireParam(
-    "massIndex",
-    params,
-    "sumPeriod",
-    (v): v is number => Number.isInteger(v) && v >= 1,
-    "must be a positive integer",
-  );
+  const emaPeriod = requirePeriod("massIndex", params, "emaPeriod");
+  const sumPeriod = requirePeriod("massIndex", params, "sumPeriod");
 
   let ema1: ReturnType<typeof createEma>;
   let ema2: ReturnType<typeof createEma>;
