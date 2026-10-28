@@ -7030,13 +7030,13 @@ const rotation = rotateStrategies([resultA, resultB, resultC], {
 
 | オプション | デフォルト | 説明 |
 |--------|---------|-------------|
-| `lookbackTrades` | `20` | ランク付けに使う直近トレード数 |
+| `lookbackTrades` | `20` | ランク付けに使う直近トレード数（正の整数） |
 | `rankingMetric` | `'returnPercent'` | `'returnPercent'`、`'sharpeRatio'`、`'profitFactor'`、`'winRate'` |
-| `maxActiveStrategies` | 全戦略 | 配分する最大戦略数 |
-| `minAllocation` | `0.05` | 戦略あたりの最小配分 |
+| `maxActiveStrategies` | 全戦略 | 配分する最大戦略数（正の整数） |
+| `minAllocation` | `0.05` | 戦略あたりの最小配分（`[0, 1]`） |
 | `allocationMethod` | `'proportional'` | `'equal'`、`'proportional'`、`'topN'` |
 
-ウェイトは常に有限で `[0, 1]` に収まり、合計 1 になります（`maxActiveStrategies` が正の整数の場合）。ルックバック内に負けトレードがない `profitFactor` は `Infinity` で、`'proportional'` ではその戦略が配分の全部を受け取り（複数あれば等分）、`metricValue` は `Infinity` のまま返ります（JSON では `null` になります）。`maxActiveStrategies` 内の戦略は配分がなくても `weight: 0` の行として `allocations` に残り、`activeCount` は `weight > 0` の行数です。
+ウェイトは常に有限で `[0, 1]` に収まり、合計 1 になります。上の範囲外の値はエラーになります。ルックバック内に負けトレードがない `profitFactor` は `Infinity` で、`'proportional'` ではその戦略が配分の全部を受け取り（複数あれば等分）、`metricValue` は `Infinity` のまま返ります（JSON では `null` になります）。`maxActiveStrategies` 内の戦略は配分がなくても `weight: 0` の行として `allocations` に残り、`activeCount` は `weight > 0` の行数です。
 
 ---
 

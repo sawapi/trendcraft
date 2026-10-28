@@ -6,6 +6,26 @@
 
 import { macd, rsi, stochastics } from "../../indicators";
 import type { NormalizedCandle, PrecomputedIndicators, SignalDefinition } from "../../types";
+import { assertInRange } from "../../utils/validate-number";
+import { assertPeriod } from "../../utils/validate-period";
+
+/**
+ * Check MACD periods when the evaluator is created. `macd()` checks them too,
+ * but only once a bar is evaluated.
+ */
+function assertMacdPeriods(
+  label: string,
+  fastPeriod: number,
+  slowPeriod: number,
+  signalPeriod: number,
+): void {
+  assertPeriod(`${label} fastPeriod`, fastPeriod);
+  assertPeriod(`${label} slowPeriod`, slowPeriod);
+  assertPeriod(`${label} signalPeriod`, signalPeriod);
+  if (fastPeriod >= slowPeriod) {
+    throw new Error(`${label} fastPeriod must be less than slowPeriod`);
+  }
+}
 
 /**
  * Create RSI oversold signal evaluator
@@ -15,6 +35,7 @@ import type { NormalizedCandle, PrecomputedIndicators, SignalDefinition } from "
  *
  * @param threshold - RSI oversold threshold (default: 30)
  * @param period - RSI period (default: 14)
+ * @throws Error if `threshold` is outside [0, 100] or `period` is not a positive integer
  * @example
  * ```ts
  * import { ScoreBuilder, createRsiOversoldEvaluator } from "trendcraft";
@@ -28,6 +49,8 @@ export function createRsiOversoldEvaluator(
   threshold = 30,
   period = 14,
 ): SignalDefinition["evaluate"] {
+  assertInRange("createRsiOversoldEvaluator threshold", threshold, 0, 100);
+  assertPeriod("createRsiOversoldEvaluator period", period);
   return (
     candles: NormalizedCandle[],
     index: number,
@@ -64,11 +87,14 @@ export function createRsiOversoldEvaluator(
  *
  * @param threshold - RSI overbought threshold (default: 70)
  * @param period - RSI period (default: 14)
+ * @throws Error if `threshold` is outside [0, 100] or `period` is not a positive integer
  */
 export function createRsiOverboughtEvaluator(
   threshold = 70,
   period = 14,
 ): SignalDefinition["evaluate"] {
+  assertInRange("createRsiOverboughtEvaluator threshold", threshold, 0, 100);
+  assertPeriod("createRsiOverboughtEvaluator period", period);
   return (
     candles: NormalizedCandle[],
     index: number,
@@ -104,12 +130,19 @@ export function createRsiOverboughtEvaluator(
  * @param lowerBound - Lower bound of neutral zone (default: 40)
  * @param upperBound - Upper bound of neutral zone (default: 60)
  * @param period - RSI period (default: 14)
+ * @throws Error if a bound is outside [0, 100], `lowerBound` exceeds `upperBound`, or `period` is not a positive integer
  */
 export function createRsiNeutralEvaluator(
   lowerBound = 40,
   upperBound = 60,
   period = 14,
 ): SignalDefinition["evaluate"] {
+  assertInRange("createRsiNeutralEvaluator lowerBound", lowerBound, 0, 100);
+  assertInRange("createRsiNeutralEvaluator upperBound", upperBound, 0, 100);
+  if (lowerBound > upperBound) {
+    throw new Error("createRsiNeutralEvaluator lowerBound must not exceed upperBound");
+  }
+  assertPeriod("createRsiNeutralEvaluator period", period);
   return (
     candles: NormalizedCandle[],
     index: number,
@@ -138,6 +171,7 @@ export function createRsiNeutralEvaluator(
  * Create MACD bullish crossover signal evaluator
  *
  * Returns 1 when MACD line crosses above signal line.
+ * @throws Error if a period is not a positive integer, or `fastPeriod` is not less than `slowPeriod`
  * @example
  * ```ts
  * import { ScoreBuilder, createMacdBullishEvaluator } from "trendcraft";
@@ -152,6 +186,7 @@ export function createMacdBullishEvaluator(
   slowPeriod = 26,
   signalPeriod = 9,
 ): SignalDefinition["evaluate"] {
+  assertMacdPeriods("createMacdBullishEvaluator", fastPeriod, slowPeriod, signalPeriod);
   return (
     candles: NormalizedCandle[],
     index: number,
@@ -201,12 +236,14 @@ export function createMacdBullishEvaluator(
  * Create MACD bearish crossover signal evaluator
  *
  * Returns 1 when MACD line crosses below signal line.
+ * @throws Error if a period is not a positive integer, or `fastPeriod` is not less than `slowPeriod`
  */
 export function createMacdBearishEvaluator(
   fastPeriod = 12,
   slowPeriod = 26,
   signalPeriod = 9,
 ): SignalDefinition["evaluate"] {
+  assertMacdPeriods("createMacdBearishEvaluator", fastPeriod, slowPeriod, signalPeriod);
   return (
     candles: NormalizedCandle[],
     index: number,
@@ -258,6 +295,7 @@ export function createMacdBearishEvaluator(
  * @param threshold - Oversold threshold (default: 20)
  * @param kPeriod - %K period (default: 14)
  * @param dPeriod - %D period (default: 3)
+ * @throws Error if `threshold` is outside [0, 100] or a period is not a positive integer
  * @example
  * ```ts
  * import { ScoreBuilder } from "trendcraft";
@@ -272,6 +310,9 @@ export function createStochOversoldEvaluator(
   kPeriod = 14,
   dPeriod = 3,
 ): SignalDefinition["evaluate"] {
+  assertInRange("createStochOversoldEvaluator threshold", threshold, 0, 100);
+  assertPeriod("createStochOversoldEvaluator kPeriod", kPeriod);
+  assertPeriod("createStochOversoldEvaluator dPeriod", dPeriod);
   return (
     candles: NormalizedCandle[],
     index: number,
@@ -317,12 +358,16 @@ export function createStochOversoldEvaluator(
  * @param threshold - Overbought threshold (default: 80)
  * @param kPeriod - %K period (default: 14)
  * @param dPeriod - %D period (default: 3)
+ * @throws Error if `threshold` is outside [0, 100] or a period is not a positive integer
  */
 export function createStochOverboughtEvaluator(
   threshold = 80,
   kPeriod = 14,
   dPeriod = 3,
 ): SignalDefinition["evaluate"] {
+  assertInRange("createStochOverboughtEvaluator threshold", threshold, 0, 100);
+  assertPeriod("createStochOverboughtEvaluator kPeriod", kPeriod);
+  assertPeriod("createStochOverboughtEvaluator dPeriod", dPeriod);
   return (
     candles: NormalizedCandle[],
     index: number,
@@ -362,6 +407,7 @@ export function createStochOverboughtEvaluator(
  * Create Stochastics bullish crossover evaluator
  *
  * Returns 1 when %K crosses above %D in oversold territory.
+ * @throws Error if `oversoldThreshold` is outside [0, 100] or a period is not a positive integer
  * @example
  * ```ts
  * import { ScoreBuilder } from "trendcraft";
@@ -376,6 +422,9 @@ export function createStochBullishCrossEvaluator(
   kPeriod = 14,
   dPeriod = 3,
 ): SignalDefinition["evaluate"] {
+  assertInRange("createStochBullishCrossEvaluator oversoldThreshold", oversoldThreshold, 0, 100);
+  assertPeriod("createStochBullishCrossEvaluator kPeriod", kPeriod);
+  assertPeriod("createStochBullishCrossEvaluator dPeriod", dPeriod);
   return (
     candles: NormalizedCandle[],
     index: number,

@@ -7,6 +7,21 @@
 import { ema, sma } from "../../indicators";
 import { perfectOrder, perfectOrderEnhanced } from "../../signals";
 import type { NormalizedCandle, PrecomputedIndicators, SignalDefinition } from "../../types";
+import { assertNonNegative } from "../../utils/validate-number";
+import { assertPeriod } from "../../utils/validate-period";
+
+/**
+ * Check a moving-average cross's periods when the evaluator is created. With
+ * the short period at or above the long one, a golden cross would score the
+ * death cross and the reverse.
+ */
+function assertCrossPeriods(label: string, shortPeriod: number, longPeriod: number): void {
+  assertPeriod(`${label} shortPeriod`, shortPeriod);
+  assertPeriod(`${label} longPeriod`, longPeriod);
+  if (shortPeriod >= longPeriod) {
+    throw new Error(`${label} shortPeriod must be less than longPeriod`);
+  }
+}
 
 /**
  * Create Perfect Order bullish signal evaluator
@@ -109,11 +124,13 @@ export function createPerfectOrderBearishEvaluator(
  * Create Perfect Order confirmation (PO+) evaluator
  *
  * Returns 1 when PO is confirmed with proper MA slopes.
+ * @throws Error if `slopeLookback` is not a positive integer
  */
 export function createPOConfirmationEvaluator(
   periods: number[] = [5, 20, 60],
   slopeLookback = 3,
 ): SignalDefinition["evaluate"] {
+  assertPeriod("createPOConfirmationEvaluator slopeLookback", slopeLookback);
   return (
     candles: NormalizedCandle[],
     index: number,
@@ -175,6 +192,7 @@ export function createPOConfirmationEvaluator(
  * Create pullback entry evaluator
  *
  * Returns 1 when price pulls back to key MA level in uptrend.
+ * @throws Error if `maPeriod` is not a positive integer or `tolerancePercent` is negative
  * @example
  * ```ts
  * import { ScoreBuilder, createPullbackEntryEvaluator } from "trendcraft";
@@ -188,6 +206,8 @@ export function createPullbackEntryEvaluator(
   maPeriod = 20,
   tolerancePercent = 1,
 ): SignalDefinition["evaluate"] {
+  assertPeriod("createPullbackEntryEvaluator maPeriod", maPeriod);
+  assertNonNegative("createPullbackEntryEvaluator tolerancePercent", tolerancePercent);
   return (
     candles: NormalizedCandle[],
     index: number,
@@ -245,6 +265,7 @@ export function createPullbackEntryEvaluator(
  * Create golden cross evaluator
  *
  * Returns 1 when short MA crosses above long MA.
+ * @throws Error if a period is not a positive integer, or `shortPeriod` is not less than `longPeriod`
  * @example
  * ```ts
  * import { ScoreBuilder } from "trendcraft";
@@ -258,6 +279,7 @@ export function createGoldenCrossEvaluator(
   shortPeriod = 50,
   longPeriod = 200,
 ): SignalDefinition["evaluate"] {
+  assertCrossPeriods("createGoldenCrossEvaluator", shortPeriod, longPeriod);
   return (
     candles: NormalizedCandle[],
     index: number,
@@ -319,11 +341,13 @@ export function createGoldenCrossEvaluator(
  * Create death cross evaluator
  *
  * Returns 1 when short MA crosses below long MA.
+ * @throws Error if a period is not a positive integer, or `shortPeriod` is not less than `longPeriod`
  */
 export function createDeathCrossEvaluator(
   shortPeriod = 50,
   longPeriod = 200,
 ): SignalDefinition["evaluate"] {
+  assertCrossPeriods("createDeathCrossEvaluator", shortPeriod, longPeriod);
   return (
     candles: NormalizedCandle[],
     index: number,
@@ -381,8 +405,10 @@ export function createDeathCrossEvaluator(
 
 /**
  * Create price above EMA evaluator
+ * @throws Error if `period` is not a positive integer
  */
 export function createPriceAboveEmaEvaluator(period = 20): SignalDefinition["evaluate"] {
+  assertPeriod("createPriceAboveEmaEvaluator period", period);
   return (
     candles: NormalizedCandle[],
     index: number,
@@ -411,8 +437,10 @@ export function createPriceAboveEmaEvaluator(period = 20): SignalDefinition["eva
 
 /**
  * Create price below EMA evaluator
+ * @throws Error if `period` is not a positive integer
  */
 export function createPriceBelowEmaEvaluator(period = 20): SignalDefinition["evaluate"] {
+  assertPeriod("createPriceBelowEmaEvaluator period", period);
   return (
     candles: NormalizedCandle[],
     index: number,

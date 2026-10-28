@@ -11,6 +11,8 @@
 import { profitFactorFromReturns } from "../analysis/return-metrics";
 import type { BacktestResult } from "../types";
 import { assertOneOf, keywords } from "../utils/validate-keyword";
+import { assertInRange } from "../utils/validate-number";
+import { assertPeriod } from "../utils/validate-period";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -118,6 +120,8 @@ function computeMetric(
  * @param results - Array of backtest results (one per strategy)
  * @param options - Rotation options
  * @returns Allocation weights and rankings
+ * @throws Error if `lookbackTrades` or `maxActiveStrategies` is not a positive integer,
+ *   or `minAllocation` is outside [0, 1]
  *
  * @example
  * ```ts
@@ -146,6 +150,13 @@ export function rotateStrategies(
   } = options;
   assertOneOf("rotateStrategies rankingMetric", rankingMetric, RANKING_METRICS);
   assertOneOf("rotateStrategies allocationMethod", allocationMethod, ALLOCATION_METHODS);
+  // `slice(-NaN)` kept every trade; a maxActiveStrategies of 0 returned no
+  // allocations and a negative one dropped the lowest-ranked strategies.
+  assertPeriod("rotateStrategies lookbackTrades", lookbackTrades);
+  if (options.maxActiveStrategies !== undefined) {
+    assertPeriod("rotateStrategies maxActiveStrategies", maxActiveStrategies);
+  }
+  assertInRange("rotateStrategies minAllocation", minAllocation, 0, 1);
 
   if (results.length === 0) {
     return { allocations: [], activeCount: 0, rankings: [] };
