@@ -7089,13 +7089,13 @@ const rotation = rotateStrategies([resultA, resultB, resultC], {
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `lookbackTrades` | `20` | Recent trades for ranking |
+| `lookbackTrades` | `20` | Recent trades for ranking (positive integer) |
 | `rankingMetric` | `'returnPercent'` | `'returnPercent'`, `'sharpeRatio'`, `'profitFactor'`, `'winRate'` |
-| `maxActiveStrategies` | all | Max strategies to allocate to |
-| `minAllocation` | `0.05` | Minimum allocation per strategy |
+| `maxActiveStrategies` | all | Max strategies to allocate to (positive integer) |
+| `minAllocation` | `0.05` | Minimum allocation per strategy, in `[0, 1]` |
 | `allocationMethod` | `'proportional'` | `'equal'`, `'proportional'`, `'topN'` |
 
-Weights are always finite, within `[0, 1]`, and sum to 1 (for a positive integer `maxActiveStrategies`). A `profitFactor` with no losing trade in the lookback is `Infinity`; under `'proportional'` such a strategy takes the whole allocation (several share it equally) and its `metricValue` is reported as `Infinity`, which JSON serializes as `null`. Every strategy within `maxActiveStrategies` keeps a row in `allocations`, at `weight: 0` when it receives nothing; `activeCount` counts the rows with `weight > 0`.
+Weights are always finite, within `[0, 1]`, and sum to 1. A value outside the ranges above throws. A `profitFactor` with no losing trade in the lookback is `Infinity`; under `'proportional'` such a strategy takes the whole allocation (several share it equally) and its `metricValue` is reported as `Infinity`, which JSON serializes as `null`. Every strategy within `maxActiveStrategies` keeps a row in `allocations`, at `weight: 0` when it receives nothing; `activeCount` counts the rows with `weight > 0`.
 
 ---
 

@@ -326,3 +326,28 @@ describe("minAllocation redistribution", () => {
     expect(rotation.allocations.map((a) => a.weight)).toEqual([1, 0]);
   });
 });
+
+describe("numeric options", () => {
+  const results = [makeResult([100, 200]), makeResult([50]), makeResult([-100])];
+
+  it.each([
+    ["lookbackTrades", { lookbackTrades: Number.NaN }],
+    ["lookbackTrades", { lookbackTrades: 0 }],
+    ["lookbackTrades", { lookbackTrades: 2.5 }],
+    ["maxActiveStrategies", { maxActiveStrategies: 0 }],
+    ["maxActiveStrategies", { maxActiveStrategies: -1 }],
+    ["maxActiveStrategies", { maxActiveStrategies: Number.NaN }],
+    ["minAllocation", { minAllocation: -0.1 }],
+    ["minAllocation", { minAllocation: 1.5 }],
+    ["minAllocation", { minAllocation: Number.NaN }],
+  ])("rejects a bad %s (%o)", (name, options) => {
+    // maxActiveStrategies: 0 returned no allocations, -1 silently dropped the
+    // lowest-ranked strategy, and lookbackTrades: NaN ranked on all history.
+    expect(() => rotateStrategies(results, options)).toThrow(new RegExp(name));
+  });
+
+  it("still defaults maxActiveStrategies to every strategy, including none", () => {
+    expect(rotateStrategies([]).allocations).toEqual([]);
+    expect(rotateStrategies(results, { allocationMethod: "equal" }).activeCount).toBe(3);
+  });
+});

@@ -2,6 +2,26 @@
 
 ## [Unreleased]
 
+### Breaking — scoring evaluator factories and `rotateStrategies` reject out-of-range numbers
+
+The `create*Evaluator` factories in scoring check their arguments when they
+are called. Periods must be positive integers, RSI and Stochastics thresholds
+lie in `[0, 100]`, volume thresholds are positive, `tolerancePercent` is not
+negative, a cross's short period is below its long one, and MACD's fast
+period is below its slow one. The CMF thresholds keep to their side of zero:
+`(0, 1]` for `createCmfPositiveEvaluator`, `[-1, 0)` for
+`createCmfNegativeEvaluator`. Before, `createCmfNegativeEvaluator(0.1)`
+scored a positive CMF as negative money flow, and a golden-cross evaluator
+with its periods swapped scored death crosses. Bad periods used to throw only
+when the first bar was scored. The `ScoreBuilder` methods built on these
+factories (`addRsiOversold`, `addGoldenCross`, `addCmfPositive` and the rest)
+build the evaluator immediately, so they throw at the builder call too.
+
+`rotateStrategies` rejects a `lookbackTrades` or `maxActiveStrategies` that is
+not a positive integer, and a `minAllocation` outside `[0, 1]`.
+`maxActiveStrategies: 0` returned no allocations, `-1` dropped the
+lowest-ranked strategy, and `lookbackTrades: NaN` ranked on every trade.
+
 ### Added — `runBacktestScaled` runs short positions with two or more tranches
 
 The multi-tranche path rejected `direction: "short"` (it used to run it as a

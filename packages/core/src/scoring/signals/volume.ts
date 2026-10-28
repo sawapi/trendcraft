@@ -6,6 +6,8 @@
 
 import { cmf, volumeAnomaly, volumeMa, volumeTrend } from "../../indicators";
 import type { NormalizedCandle, PrecomputedIndicators, SignalDefinition } from "../../types";
+import { assertInRange, assertPositive } from "../../utils/validate-number";
+import { assertPeriod } from "../../utils/validate-period";
 
 /**
  * Create volume spike evaluator
@@ -14,6 +16,7 @@ import type { NormalizedCandle, PrecomputedIndicators, SignalDefinition } from "
  *
  * @param threshold - Volume ratio threshold (default: 1.5 = 50% above avg)
  * @param period - MA period for average (default: 20)
+ * @throws Error if `threshold` is not positive or `period` is not a positive integer
  * @example
  * ```ts
  * import { ScoreBuilder, createVolumeSpikeEvaluator } from "trendcraft";
@@ -27,6 +30,8 @@ export function createVolumeSpikeEvaluator(
   threshold = 1.5,
   period = 20,
 ): SignalDefinition["evaluate"] {
+  assertPositive("createVolumeSpikeEvaluator threshold", threshold);
+  assertPeriod("createVolumeSpikeEvaluator period", period);
   return (
     candles: NormalizedCandle[],
     index: number,
@@ -68,11 +73,14 @@ export function createVolumeSpikeEvaluator(
  *
  * @param zThreshold - Z-score threshold (default: 2)
  * @param period - Period for stats (default: 20)
+ * @throws Error if `zThreshold` is not positive or `period` is not a positive integer
  */
 export function createVolumeAnomalyEvaluator(
   zThreshold = 2,
   period = 20,
 ): SignalDefinition["evaluate"] {
+  assertPositive("createVolumeAnomalyEvaluator zThreshold", zThreshold);
+  assertPeriod("createVolumeAnomalyEvaluator period", period);
   return (
     candles: NormalizedCandle[],
     index: number,
@@ -119,8 +127,10 @@ export function createVolumeAnomalyEvaluator(
  * Create bullish volume trend evaluator
  *
  * Returns 1 when volume is increasing with price (healthy uptrend).
+ * @throws Error if `maPeriod` is not a positive integer
  */
 export function createBullishVolumeTrendEvaluator(maPeriod = 20): SignalDefinition["evaluate"] {
+  assertPeriod("createBullishVolumeTrendEvaluator maPeriod", maPeriod);
   return (
     candles: NormalizedCandle[],
     index: number,
@@ -171,8 +181,10 @@ export function createBullishVolumeTrendEvaluator(maPeriod = 20): SignalDefiniti
  * Create bearish volume trend evaluator
  *
  * Returns 1 when volume pattern suggests distribution.
+ * @throws Error if `maPeriod` is not a positive integer
  */
 export function createBearishVolumeTrendEvaluator(maPeriod = 20): SignalDefinition["evaluate"] {
+  assertPeriod("createBearishVolumeTrendEvaluator maPeriod", maPeriod);
   return (
     candles: NormalizedCandle[],
     index: number,
@@ -224,6 +236,7 @@ export function createBearishVolumeTrendEvaluator(maPeriod = 20): SignalDefiniti
  *
  * @param threshold - CMF threshold (default: 0.1)
  * @param period - CMF period (default: 20)
+ * @throws Error if `threshold` is not in (0, 1] or `period` is not a positive integer
  * @example
  * ```ts
  * import { ScoreBuilder } from "trendcraft";
@@ -237,6 +250,13 @@ export function createCmfPositiveEvaluator(
   threshold = 0.1,
   period = 20,
 ): SignalDefinition["evaluate"] {
+  // CMF lies in [-1, 1]. The score divides by the threshold, and one at or
+  // below 0 would score a negative CMF as positive.
+  assertInRange("createCmfPositiveEvaluator threshold", threshold, 0, 1);
+  if (threshold === 0) {
+    throw new Error("createCmfPositiveEvaluator threshold must be greater than 0");
+  }
+  assertPeriod("createCmfPositiveEvaluator period", period);
   return (
     candles: NormalizedCandle[],
     index: number,
@@ -278,11 +298,19 @@ export function createCmfPositiveEvaluator(
  *
  * @param threshold - CMF threshold (default: -0.1)
  * @param period - CMF period (default: 20)
+ * @throws Error if `threshold` is not in [-1, 0) or `period` is not a positive integer
  */
 export function createCmfNegativeEvaluator(
   threshold = -0.1,
   period = 20,
 ): SignalDefinition["evaluate"] {
+  // Mirror of the positive evaluator: a threshold at or above 0 scored a
+  // positive CMF as negative (0.154 for a threshold of +0.1).
+  assertInRange("createCmfNegativeEvaluator threshold", threshold, -1, 0);
+  if (threshold === 0) {
+    throw new Error("createCmfNegativeEvaluator threshold must be less than 0");
+  }
+  assertPeriod("createCmfNegativeEvaluator period", period);
   return (
     candles: NormalizedCandle[],
     index: number,
@@ -322,11 +350,14 @@ export function createCmfNegativeEvaluator(
  * Create high volume on up candle evaluator
  *
  * Returns 1 when there's high volume on an up candle (bullish accumulation).
+ * @throws Error if `volumeThreshold` is not positive or `period` is not a positive integer
  */
 export function createHighVolumeUpCandleEvaluator(
   volumeThreshold = 1.5,
   period = 20,
 ): SignalDefinition["evaluate"] {
+  assertPositive("createHighVolumeUpCandleEvaluator volumeThreshold", volumeThreshold);
+  assertPeriod("createHighVolumeUpCandleEvaluator period", period);
   return (
     candles: NormalizedCandle[],
     index: number,
