@@ -48,6 +48,7 @@ function comparable(t: Trade) {
     exitPrice: t.exitPrice,
     returnPercent: Number(t.returnPercent.toFixed(8)),
     exitReason: t.exitReason,
+    direction: t.direction,
     isPartial: t.isPartial,
     exitPercent: t.exitPercent,
     holdingDays: t.holdingDays,
@@ -272,6 +273,23 @@ describe("runBacktestScaled matches runBacktest when only one tranche fills", ()
     }
   }
 
+  // ATR-based levels, which the plain grid above does not reach
+  for (const fillMode of ["next-bar-open", "same-bar-close"] as const) {
+    optionGrid.push({
+      fillMode,
+      slTpMode: "intraday",
+      atrRisk: { atrPeriod: 5, atrStopMultiplier: 1.5, atrTakeProfitMultiplier: 2 },
+    });
+    optionGrid.push({
+      fillMode,
+      slTpMode: "intraday",
+      atrRisk: { atrPeriod: 5, atrTrailingMultiplier: 1.5, useEntryAtr: true },
+    });
+  }
+  // Every row runs long and short. `direction` is left unset for the long
+  // half, so the default is compared as well.
+  const directionalGrid = optionGrid.flatMap((opts) => [opts, { ...opts, direction: "short" }]);
+
   // Deterministic LCG so failures are reproducible
   let seed = 424242;
   function rand(): number {
@@ -295,11 +313,11 @@ describe("runBacktestScaled matches runBacktest when only one tranche fills", ()
     return out;
   }
 
-  it("trade-for-trade parity across fillMode x slTpMode x exit-option grid", () => {
+  it("trade-for-trade parity across direction x fillMode x slTpMode x exit-option grid", () => {
     let comparisons = 0;
     for (let s = 0; s < 15; s++) {
       const candles = makeRandomSeries(60 + Math.floor(rand() * 120));
-      for (const opts of optionGrid) {
+      for (const opts of directionalGrid) {
         // (a) one-shot entry; the second signal tranche never fires
         {
           const ref = runBacktest(candles, at(3), periodicExit, {
@@ -335,6 +353,6 @@ describe("runBacktestScaled matches runBacktest when only one tranche fills", ()
         }
       }
     }
-    expect(comparisons).toBe(15 * optionGrid.length * 2);
+    expect(comparisons).toBe(15 * optionGrid.length * 2 * 2);
   });
 });

@@ -26,6 +26,7 @@ const IMPLEMENTED_OPTIONS = [
   "benchmark",
   "mtfTimeframes",
   "atrRisk",
+  "direction",
 ] as const satisfies readonly (keyof MtfBacktestOptions)[];
 
 /**
@@ -34,7 +35,6 @@ const IMPLEMENTED_OPTIONS = [
  * so moving an option between the two lists here is a deliberate act.
  */
 const UNSUPPORTED_OPTIONS = [
-  "direction",
   "atrTrailingStop",
   "breakevenStop",
   "scaleOut",
@@ -83,7 +83,6 @@ type _NoBacktestOptionIsClassifiedTwice = AssertNever<DoublyClassifiedOption>;
 const SAMPLE_UNSUPPORTED_VALUES: Required<
   Pick<MtfBacktestOptions, (typeof UNSUPPORTED_OPTIONS)[number]>
 > = {
-  direction: "short",
   atrTrailingStop: { multiplier: 2 },
   breakevenStop: { threshold: 5 },
   scaleOut: { levels: [{ threshold: 5, sellPercent: 50 }] },
@@ -151,15 +150,15 @@ describe("runBacktestScaled option support", () => {
     it("names every offending option in one message", () => {
       expect(() =>
         runWith({
-          direction: SAMPLE_UNSUPPORTED_VALUES.direction,
+          atrTrailingStop: SAMPLE_UNSUPPORTED_VALUES.atrTrailingStop,
           margin: SAMPLE_UNSUPPORTED_VALUES.margin,
           sizing: SAMPLE_UNSUPPORTED_VALUES.sizing,
         }),
-      ).toThrow(/does not implement direction, margin, sizing\b/);
+      ).toThrow(/does not implement atrTrailingStop, margin, sizing\b/);
     });
 
     it("ignores keys that are present but undefined", () => {
-      expect(() => runWith({ direction: undefined, margin: undefined })).not.toThrow();
+      expect(() => runWith({ timeExit: undefined, margin: undefined })).not.toThrow();
     });
   });
 
@@ -177,17 +176,17 @@ describe("runBacktestScaled option support", () => {
     it("honors an unsupported option when tranches is 1", () => {
       // With one tranche the run is delegated to runBacktest, which implements
       // every option — so rejecting there would break working callers.
-      const short = runWith({ direction: "short" }, 1);
-      const long = runWith({}, 1);
+      const timed = runWith({ timeExit: { maxHoldDays: 3 } }, 1);
+      const held = runWith({}, 1);
 
-      expect(short.tradeCount).toBe(1);
-      expect(long.tradeCount).toBe(1);
-      // Prices rise over the window, so the two directions cannot agree.
-      expect(short.totalReturnPercent).not.toBeCloseTo(long.totalReturnPercent, 6);
+      expect(timed.trades[0].exitReason).toBe("timeExit");
+      expect(held.trades[0].exitReason).toBe("endOfData");
     });
 
     it("rejects the same option once tranches reaches 2", () => {
-      expect(() => runWith({ direction: "short" }, 2)).toThrow(/does not implement direction/);
+      expect(() => runWith({ timeExit: { maxHoldDays: 3 } }, 2)).toThrow(
+        /does not implement timeExit/,
+      );
     });
 
     it("still validates data when asked to, unlike the multi-tranche path", () => {
@@ -223,7 +222,7 @@ describe("runBacktestScaled option support", () => {
         scaledEntry: { tranches: 1, strategy: "equal", intervalType: "signal" },
       };
 
-      expect(options.direction).toBe("short");
+      expect(options.timeExit).toEqual({ maxHoldDays: 10 });
       expect(options.fundamentals).toHaveLength(1);
       expect(options.validateData).toBe(true);
     });

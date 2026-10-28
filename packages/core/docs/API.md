@@ -4571,7 +4571,7 @@ const result = runBacktestScaled(candles, goldenCrossCondition(), deadCrossCondi
 | `tranches` | `number` | required | Number of entry tranches (2-10) |
 | `strategy` | `'equal' \| 'pyramid' \| 'reverse-pyramid'` | required | Weight distribution strategy |
 | `intervalType` | `'signal' \| 'price'` | required | How to trigger additional entries |
-| `priceInterval` | `number` | `-2` | Price change % for next tranche (negative = dip) |
+| `priceInterval` | `number` | `-2` | Price change % for next tranche (negative = against the position: a dip for a long, a rise for a short) |
 
 **Strategies:**
 | Strategy | Description | Example (3 tranches) |
@@ -4584,13 +4584,15 @@ const result = runBacktestScaled(candles, goldenCrossCondition(), deadCrossCondi
 | Type | Trigger |
 |------|---------|
 | `signal` | Add tranche on each entry signal |
-| `price` | Add tranche when price drops by `priceInterval` % from first entry |
+| `price` | Add tranche each time price moves `priceInterval` % from first entry |
 
 **Options not supported with 2+ tranches:**
 
 The multi-tranche path is a separate engine from `runBacktest` and implements only part of its options. When `scaledEntry.tranches >= 2`, these throw rather than being silently ignored:
 
-`direction`, `atrTrailingStop`, `breakevenStop`, `scaleOut`, `timeExit`, `slippageModel`, `orderType`, `orderTTL`, `timeInForce`, `volumeConstraint`, `margin`, `sizing`, `fundamentals`, `validateData`
+`atrTrailingStop`, `breakevenStop`, `scaleOut`, `timeExit`, `slippageModel`, `orderType`, `orderTTL`, `timeInForce`, `volumeConstraint`, `margin`, `sizing`, `fundamentals`, `validateData`, `warmupBars`
+
+`direction: "short"` is supported: stop-loss, take-profit, trailing and ATR levels are measured from the average entry in the short's direction, and slippage and P&L follow `runBacktest`.
 
 `ScaledBacktestOptions` still accepts them, because whether they are honored depends on `scaledEntry.tranches` — a value, not a type. To use them, call `runBacktest` directly, or run with `tranches: 1`, which delegates to `runBacktest` and honors all of them.
 

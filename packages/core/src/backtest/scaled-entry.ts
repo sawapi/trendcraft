@@ -15,6 +15,7 @@ import type {
   ExitReason,
   FillMode,
   NormalizedCandle,
+  PositionDirection,
   ScaledEntryConfig,
   ScaledEntryIntervalType,
   ScaledEntryStrategy,
@@ -27,11 +28,19 @@ import { evaluateCondition, seedBenchmark } from "./conditions";
 import { drawdownFromEquityCurve } from "./drawdown-tracker";
 import type { MtfBacktestOptions } from "./engine";
 import {
+  adverseOffset,
+  adversePrice,
   assertBacktestKeywords,
   assertValidPartialExits,
-  checkProfitTrigger,
-  checkStopTrigger,
+  checkProfitTriggerDirectional,
+  checkStopTriggerDirectional,
+  favorableOffset,
+  favorablePrice,
+  orderSides,
+  settleClose,
+  trailingAnchor,
 } from "./engine-utils";
+import { accountEquity } from "./margin";
 import {
   applySlippage,
   calculateStats,
@@ -49,9 +58,9 @@ const INTERVAL_TYPES = keywords<ScaledEntryIntervalType>()(["signal", "price"]);
  * With a single tranche `runBacktestScaled` delegates to `runBacktest`, which
  * implements all of them. The multi-tranche path is a second engine that never
  * grew the same features, and accepting these options silently produced
- * plausible but wrong results: a `direction: "short"` run, for instance,
- * behaved exactly like a long one and reported the inverse P&L as if it were
- * real.
+ * plausible but wrong results: before `direction` was implemented here, a
+ * short run behaved exactly like a long one and reported the inverse P&L as
+ * if it were real.
  *
  * Covers the whole option surface `runBacktest` accepts, not just
  * `BacktestOptions`: `fundamentals` and `validateData` reach the single-tranche
@@ -64,7 +73,6 @@ const INTERVAL_TYPES = keywords<ScaledEntryIntervalType>()(["signal", "price"]);
  * calls that do support them.
  */
 const UNSUPPORTED_MULTI_TRANCHE_OPTIONS = [
-  "direction",
   "atrTrailingStop",
   "breakevenStop",
   "scaleOut",
@@ -138,8 +146,10 @@ type ScaledPosition = {
   avgEntryPrice: number;
   /** Total shares held */
   totalShares: number;
-  /** Peak price (for trailing stop) */
+  /** Highest price since entry (a long's trailing-stop anchor) */
   peakPrice: number;
+  /** Lowest price since entry (a short's trailing-stop anchor) */
+  troughPrice: number;
   /** Whether partial take profit has been taken */
   partialTaken: boolean;
   /** Entry ATR for fixed stop calculation */
@@ -237,6 +247,7 @@ export function runBacktestScaled(
     scaledEntry,
     fillMode = "next-bar-open" as FillMode,
     slTpMode = "close-only" as SlTpMode,
+    direction: dir = "long" as PositionDirection,
   } = options;
 
   assertBacktestKeywords("runBacktestScaled", options);
@@ -255,6 +266,7 @@ export function runBacktestScaled(
   const settings: BacktestSettings = {
     fillMode,
     slTpMode,
+    direction: dir === "short" ? "short" : undefined,
     stopLoss,
     takeProfit,
     trailingStop,
@@ -306,6 +318,10 @@ export function runBacktestScaled(
   // Calculate tranche weights
   const trancheWeights = calculateTrancheWeights(tranches, strategy);
 
+  // A long buys to open and sells to close; a short the reverse. The price
+  // levels below come from the same direction-aware helpers runBacktest uses.
+  const sides = orderSides(dir);
+
   let position: ScaledPosition | null = null;
   let currentCapital = capital;
   const returns: number[] = [];
@@ -326,10 +342,14 @@ export function runBacktestScaled(
     entryPrice: number,
     time: number,
     entryAtr: number | null,
-  ): ScaledPosition {
+  ): ScaledPosition | null {
     const trancheCapital = currentCapital * trancheWeights[0];
     const entryCommission = commission + trancheCapital * (commissionRate / 100);
     const shares = (trancheCapital - entryCommission) / entryPrice;
+    // Refuse the entry, as runBacktest does, when nothing is left to size it
+    // from. A short can lose more than the account holds, and sizing from
+    // negative capital gave negative shares: a "short" that traded as a long.
+    if (!(shares > 0)) return null;
 
     const opened: ScaledPosition = {
       tranches: [
@@ -345,6 +365,7 @@ export function runBacktestScaled(
       avgEntryPrice: entryPrice,
       totalShares: shares,
       peakPrice: entryPrice,
+      troughPrice: entryPrice,
       partialTaken: false,
       entryAtr,
       reservedCapital: currentCapital - trancheCapital,
@@ -372,6 +393,9 @@ export function runBacktestScaled(
         : pos.committedCapital * trancheWeight;
     const entryCommission = commission + trancheCapital * (commissionRate / 100);
     const shares = (trancheCapital - entryCommission) / entryPrice;
+    // A tranche the commission alone would swallow is not entered; its
+    // capital stays reserved.
+    if (!(shares > 0)) return;
 
     pos.tranches.push({
       time,
@@ -395,7 +419,14 @@ export function runBacktestScaled(
    */
   function markToMarketEquity(close: number): number {
     if (position === null) return currentCapital;
-    return currentCapital + position.totalShares * close + position.reservedCapital;
+    return (
+      accountEquity(
+        close * position.totalShares,
+        currentCapital,
+        dir,
+        position.avgEntryPrice * position.totalShares,
+      ) + position.reservedCapital
+    );
   }
 
   function closeShares(
@@ -407,17 +438,18 @@ export function runBacktestScaled(
     opts: { withSlippage: boolean; releaseReserved: boolean; partial?: { exitPercent: number } },
   ): void {
     const exitPrice = opts.withSlippage
-      ? applySlippage(rawExitPrice, slippage, "sell")
+      ? applySlippage(rawExitPrice, slippage, sides.exit)
       : rawExitPrice;
 
-    const grossReturn = (exitPrice - pos.avgEntryPrice) * sharesToClose;
-    const exitValue = exitPrice * sharesToClose;
-    const exitCommission = commission + exitValue * (commissionRate / 100);
-
-    let tax = 0;
-    if (grossReturn > 0 && taxRate > 0) {
-      tax = grossReturn * (taxRate / 100);
-    }
+    const { grossReturn, exitCommission, tax, netProceeds } = settleClose({
+      direction: dir,
+      entryPrice: pos.avgEntryPrice,
+      exitPrice,
+      shares: sharesToClose,
+      commission,
+      commissionRate,
+      taxRate,
+    });
 
     // The trade's return carries its share of the entry commissions too.
     // They left `currentCapital` when the tranches were bought, so they are
@@ -438,13 +470,13 @@ export function runBacktestScaled(
       return: netReturn,
       returnPercent,
       holdingDays,
+      ...(dir === "short" ? { direction: "short" as const } : {}),
       ...(opts.partial ? { isPartial: true, exitPercent: opts.partial.exitPercent } : {}),
       exitReason,
     });
 
     // Add back any reserved capital that wasn't used (full closes only)
-    currentCapital +=
-      exitValue - exitCommission - tax + (opts.releaseReserved ? pos.reservedCapital : 0);
+    currentCapital += netProceeds + (opts.releaseReserved ? pos.reservedCapital : 0);
     returns.push(returnPercent / 100);
   }
 
@@ -481,7 +513,7 @@ export function runBacktestScaled(
     // === Fill pending tranche (next-bar-open mode) at this bar's open ===
     // An open fill owns the whole bar, so management below runs normally.
     if (pendingTranche !== null) {
-      const fillPrice = applySlippage(candle.open, slippage, "buy");
+      const fillPrice = applySlippage(candle.open, slippage, sides.entry);
       if (position === null) {
         position = openFirstTranche(fillPrice, candle.time, pendingTranche.entryAtr);
       } else {
@@ -507,7 +539,7 @@ export function runBacktestScaled(
         if (fillMode === "same-bar-close") {
           // Close fill: position management starts on the next bar
           position = openFirstTranche(
-            applySlippage(candle.close, slippage, "buy"),
+            applySlippage(candle.close, slippage, sides.entry),
             candle.time,
             entryAtr,
           );
@@ -519,10 +551,13 @@ export function runBacktestScaled(
     } else {
       // === Position management ===
 
-      // Fold this bar into the peak before trigger checks (mirrors the
-      // single-entry engine's ordering)
+      // Fold this bar into the peak and trough before trigger checks
+      // (mirrors the single-entry engine's ordering)
       if (candle.high > position.peakPrice) {
         position.peakPrice = candle.high;
+      }
+      if (candle.low < position.troughPrice) {
+        position.troughPrice = candle.low;
       }
 
       let shouldExit = false;
@@ -541,8 +576,8 @@ export function runBacktestScaled(
 
       // Stop loss check (using average entry price)
       if (stopLoss !== undefined) {
-        const stopLossPrice = position.avgEntryPrice * (1 - stopLoss / 100);
-        const triggered = checkStopTrigger(candle, stopLossPrice, slTpMode);
+        const stopLossPrice = adversePrice(position.avgEntryPrice, stopLoss, dir);
+        const triggered = checkStopTriggerDirectional(candle, stopLossPrice, slTpMode, dir);
         if (triggered) {
           shouldExit = true;
           exitPrice = triggered.price;
@@ -552,8 +587,12 @@ export function runBacktestScaled(
 
       // ATR-based stop loss
       if (!shouldExit && currentAtr !== null && atrRisk?.atrStopMultiplier !== undefined) {
-        const atrStopPrice = position.avgEntryPrice - currentAtr * atrRisk.atrStopMultiplier;
-        const triggered = checkStopTrigger(candle, atrStopPrice, slTpMode);
+        const atrStopPrice = adverseOffset(
+          position.avgEntryPrice,
+          currentAtr * atrRisk.atrStopMultiplier,
+          dir,
+        );
+        const triggered = checkStopTriggerDirectional(candle, atrStopPrice, slTpMode, dir);
         if (triggered) {
           shouldExit = true;
           exitPrice = triggered.price;
@@ -563,8 +602,8 @@ export function runBacktestScaled(
 
       // Take profit check
       if (!shouldExit && takeProfit !== undefined) {
-        const takeProfitPrice = position.avgEntryPrice * (1 + takeProfit / 100);
-        const triggered = checkProfitTrigger(candle, takeProfitPrice, slTpMode);
+        const takeProfitPrice = favorablePrice(position.avgEntryPrice, takeProfit, dir);
+        const triggered = checkProfitTriggerDirectional(candle, takeProfitPrice, slTpMode, dir);
         if (triggered) {
           shouldExit = true;
           exitPrice = triggered.price;
@@ -574,8 +613,12 @@ export function runBacktestScaled(
 
       // ATR-based take profit
       if (!shouldExit && currentAtr !== null && atrRisk?.atrTakeProfitMultiplier !== undefined) {
-        const atrTpPrice = position.avgEntryPrice + currentAtr * atrRisk.atrTakeProfitMultiplier;
-        const triggered = checkProfitTrigger(candle, atrTpPrice, slTpMode);
+        const atrTpPrice = favorableOffset(
+          position.avgEntryPrice,
+          currentAtr * atrRisk.atrTakeProfitMultiplier,
+          dir,
+        );
+        const triggered = checkProfitTriggerDirectional(candle, atrTpPrice, slTpMode, dir);
         if (triggered) {
           shouldExit = true;
           exitPrice = triggered.price;
@@ -586,9 +629,17 @@ export function runBacktestScaled(
       // Partial take profit (on entire scaled position; executes immediately
       // at the trigger price, mirroring the single-entry engine)
       if (!shouldExit && partialTakeProfit && !position.partialTaken) {
-        const partialThresholdPrice =
-          position.avgEntryPrice * (1 + partialTakeProfit.threshold / 100);
-        const partialTrigger = checkProfitTrigger(candle, partialThresholdPrice, slTpMode);
+        const partialThresholdPrice = favorablePrice(
+          position.avgEntryPrice,
+          partialTakeProfit.threshold,
+          dir,
+        );
+        const partialTrigger = checkProfitTriggerDirectional(
+          candle,
+          partialThresholdPrice,
+          slTpMode,
+          dir,
+        );
         if (partialTrigger) {
           const sellFraction = partialTakeProfit.sellPercent / 100;
           const sharesToSell = position.totalShares * sellFraction;
@@ -640,8 +691,8 @@ export function runBacktestScaled(
 
       // Trailing stop check
       if (!shouldExit && trailingStop !== undefined) {
-        const trailingStopPrice = position.peakPrice * (1 - trailingStop / 100);
-        const triggered = checkStopTrigger(candle, trailingStopPrice, slTpMode);
+        const trailingStopPrice = adversePrice(trailingAnchor(position, dir), trailingStop, dir);
+        const triggered = checkStopTriggerDirectional(candle, trailingStopPrice, slTpMode, dir);
         if (triggered) {
           shouldExit = true;
           exitPrice = triggered.price;
@@ -651,8 +702,12 @@ export function runBacktestScaled(
 
       // ATR-based trailing stop
       if (!shouldExit && currentAtr !== null && atrRisk?.atrTrailingMultiplier !== undefined) {
-        const atrTrailPrice = position.peakPrice - currentAtr * atrRisk.atrTrailingMultiplier;
-        const triggered = checkStopTrigger(candle, atrTrailPrice, slTpMode);
+        const atrTrailPrice = adverseOffset(
+          trailingAnchor(position, dir),
+          currentAtr * atrRisk.atrTrailingMultiplier,
+          dir,
+        );
+        const triggered = checkStopTriggerDirectional(candle, atrTrailPrice, slTpMode, dir);
         if (triggered) {
           shouldExit = true;
           exitPrice = triggered.price;
@@ -709,16 +764,21 @@ export function runBacktestScaled(
             mtfContext,
           );
         } else {
-          // Price-based: add when price drops by priceInterval %
-          const currentTrancheIndex = position.tranches.length;
-          const targetPrice =
-            position.firstEntryPrice * (1 + (priceInterval / 100) * currentTrancheIndex);
-          shouldAddTranche = candle.close <= targetPrice;
+          // Price-based: add each time price moves priceInterval % from the
+          // first entry. A negative interval is a move against the position, so
+          // the default -2 adds on a 2% drop for a long and on a 2% rise for
+          // a short: both average into the position at better prices.
+          const move = (priceInterval / 100) * position.tranches.length;
+          if (dir === "short") {
+            shouldAddTranche = candle.close >= position.firstEntryPrice * (1 - move);
+          } else {
+            shouldAddTranche = candle.close <= position.firstEntryPrice * (1 + move);
+          }
         }
 
         if (shouldAddTranche) {
           if (fillMode === "same-bar-close") {
-            addTranche(position, applySlippage(candle.close, slippage, "buy"), candle.time);
+            addTranche(position, applySlippage(candle.close, slippage, sides.entry), candle.time);
           } else {
             // next-bar-open mode: queue the tranche for the next bar's open
             pendingTranche = { entryAtr: null };

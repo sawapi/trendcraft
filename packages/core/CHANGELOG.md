@@ -2,6 +2,31 @@
 
 ## [Unreleased]
 
+### Added — `runBacktestScaled` runs short positions with two or more tranches
+
+The multi-tranche path rejected `direction: "short"` (it used to run it as a
+long). It now runs it:
+
+- Stop-loss, take-profit, partial take-profit, trailing and ATR levels are
+  measured from the average entry in the short's direction. The trailing stop
+  hangs from the lowest price since entry.
+- Slippage moves both fills against the short. P&L, cash settlement and the
+  mark-to-market equity curve use the same definitions as `runBacktest`, which
+  are now shared helpers rather than two copies.
+- With `intervalType: "price"`, a negative `priceInterval` adds tranches as
+  price rises, so a short averages in at better prices just as a long does on
+  a dip.
+- `settings.direction` and each trade's `direction` record the short.
+- A short can lose more than the account holds. Once capital is at or below
+  zero, a new entry is refused, as `runBacktest` refuses it.
+
+In either direction, a tranche whose size the commission alone would swallow
+is no longer entered with negative shares; it is skipped and its capital stays
+reserved.
+
+With one tranche filled, a short run now matches `runBacktest` trade for trade
+across the fill and stop modes, as a long run already did.
+
 ### Breaking — requires Node.js 22 or later
 
 `engines.node` is now `>=22.0.0` (was `>=18.0.0`). Node.js 18 and 20 have

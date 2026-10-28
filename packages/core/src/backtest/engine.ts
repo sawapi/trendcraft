@@ -30,6 +30,8 @@ import { evaluateCondition, RUN_LOCAL_CACHE_KEYS, seedBenchmark } from "./condit
 import { drawdownFromEquityCurve } from "./drawdown-tracker";
 import type { Position } from "./engine-utils";
 import {
+  adverseOffset,
+  adversePrice,
   applySlippage,
   applyVolumeConstraint,
   assertBacktestKeywords,
@@ -41,7 +43,11 @@ import {
   checkStopTriggerDirectional,
   clampCandleToPostFill,
   emptyResult,
+  favorableOffset,
+  favorablePrice,
   MS_PER_DAY,
+  orderSides,
+  trailingAnchor,
 } from "./engine-utils";
 import type { MarginState } from "./margin";
 import {
@@ -140,7 +146,7 @@ export function runBacktest(
 
   assertBacktestKeywords("runBacktest", options);
   const isShort = dir === "short";
-  const entrySide = isShort ? "sell" : "buy";
+  const entrySide = orderSides(dir).entry;
 
   // Resolve slippage model (explicit model takes precedence over legacy numeric)
   const slippageModel: SlippageModel | undefined = resolveSlippageModel(slippage, slippageModelOpt);
@@ -336,7 +342,7 @@ export function runBacktest(
    * Long: entry * (1 - sl%), Short: entry * (1 + sl%)
    */
   function calcStopLossPrice(entryPrice: number, slPercent: number): number {
-    return isShort ? entryPrice * (1 + slPercent / 100) : entryPrice * (1 - slPercent / 100);
+    return adversePrice(entryPrice, slPercent, dir);
   }
 
   /**
@@ -344,21 +350,21 @@ export function runBacktest(
    * Long: entry * (1 + tp%), Short: entry * (1 - tp%)
    */
   function calcTakeProfitPrice(entryPrice: number, tpPercent: number): number {
-    return isShort ? entryPrice * (1 - tpPercent / 100) : entryPrice * (1 + tpPercent / 100);
+    return favorablePrice(entryPrice, tpPercent, dir);
   }
 
   /**
    * Calculate ATR stop loss price based on direction
    */
   function calcAtrStopPrice(entryPrice: number, atrVal: number, multiplier: number): number {
-    return isShort ? entryPrice + atrVal * multiplier : entryPrice - atrVal * multiplier;
+    return adverseOffset(entryPrice, atrVal * multiplier, dir);
   }
 
   /**
    * Calculate ATR take profit price based on direction
    */
   function calcAtrTpPrice(entryPrice: number, atrVal: number, multiplier: number): number {
-    return isShort ? entryPrice - atrVal * multiplier : entryPrice + atrVal * multiplier;
+    return favorableOffset(entryPrice, atrVal * multiplier, dir);
   }
 
   /**
@@ -366,16 +372,14 @@ export function runBacktest(
    * Long: peakPrice * (1 - trail%), Short: troughPrice * (1 + trail%)
    */
   function calcTrailingStopPrice(pos: Position, trailPercent: number): number {
-    return isShort
-      ? pos.troughPrice * (1 + trailPercent / 100)
-      : pos.peakPrice * (1 - trailPercent / 100);
+    return adversePrice(trailingAnchor(pos, dir), trailPercent, dir);
   }
 
   /**
    * Calculate ATR trailing price based on direction
    */
   function calcAtrTrailPrice(pos: Position, atrVal: number, multiplier: number): number {
-    return isShort ? pos.troughPrice + atrVal * multiplier : pos.peakPrice - atrVal * multiplier;
+    return adverseOffset(trailingAnchor(pos, dir), atrVal * multiplier, dir);
   }
 
   /**
@@ -1031,9 +1035,7 @@ export function runBacktest(
           breakevenStop.threshold,
         );
         const buffer = breakevenStop.buffer ?? 0;
-        const breakevenStopPrice = isShort
-          ? position.entryPrice * (1 - buffer / 100)
-          : position.entryPrice * (1 + buffer / 100);
+        const breakevenStopPrice = favorablePrice(position.entryPrice, buffer, dir);
 
         // Activate breakeven if threshold is reached
         if (!position.breakevenActivated) {
