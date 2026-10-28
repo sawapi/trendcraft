@@ -178,20 +178,20 @@ export type TradeCloseResult = {
  */
 export function calculateTradeClose(ctx: TradeCloseContext): TradeCloseResult {
   const direction = ctx.position.direction ?? "long";
-  const exitSide = direction === "long" ? "sell" : "buy";
-  const exitPriceWithSlippage = applySlippage(ctx.exitPrice, ctx.slippage, exitSide);
-  const priceDiff =
-    direction === "long"
-      ? exitPriceWithSlippage - ctx.position.entryPrice
-      : ctx.position.entryPrice - exitPriceWithSlippage;
-  const grossReturn = priceDiff * ctx.sharesToClose;
-  const exitValue = exitPriceWithSlippage * ctx.sharesToClose;
-  const exitCommission = ctx.commission + exitValue * (ctx.commissionRate / 100);
-
-  let tax = 0;
-  if (grossReturn > 0 && ctx.taxRate > 0) {
-    tax = grossReturn * (ctx.taxRate / 100);
-  }
+  const exitPriceWithSlippage = applySlippage(
+    ctx.exitPrice,
+    ctx.slippage,
+    orderSides(direction).exit,
+  );
+  const { grossReturn, exitCommission, tax, netProceeds } = settleClose({
+    direction,
+    entryPrice: ctx.position.entryPrice,
+    exitPrice: exitPriceWithSlippage,
+    shares: ctx.sharesToClose,
+    commission: ctx.commission,
+    commissionRate: ctx.commissionRate,
+    taxRate: ctx.taxRate,
+  });
 
   // The trade's return carries every cost of the round trip: its pro-rata
   // share of the entry commission and any margin interest, besides the exit
@@ -229,16 +229,6 @@ export function calculateTradeClose(ctx: TradeCloseContext): TradeCloseResult {
       trade.exitPercent = ctx.exitPercent;
     }
   }
-
-  // For long: net proceeds = sell value - costs
-  // For short: net proceeds = entry value + profit - costs
-  //   = entryPrice*shares + (entryPrice - exitPrice)*shares - costs
-  //   = 2*entryPrice*shares - exitValue - costs
-  const entryValue = ctx.position.entryPrice * ctx.sharesToClose;
-  const netProceeds =
-    direction === "short"
-      ? entryValue + grossReturn - exitCommission - tax
-      : exitValue - exitCommission - tax;
 
   return {
     trade,
@@ -355,6 +345,113 @@ export function checkProfitTriggerDirectional(
     return checkStopTrigger(candle, targetPrice, slTpMode);
   }
   return checkProfitTrigger(candle, targetPrice, slTpMode);
+}
+
+/**
+ * Order sides for a position: a long buys to open and sells to close, a short
+ * the reverse. Slippage on each side moves the fill against the trader.
+ */
+export function orderSides(direction: PositionDirection): {
+  entry: "buy" | "sell";
+  exit: "buy" | "sell";
+} {
+  return direction === "short" ? { entry: "sell", exit: "buy" } : { entry: "buy", exit: "sell" };
+}
+
+/**
+ * The price `percent`% in the position's favor from `price`: above it for a
+ * long, below it for a short. Take-profit levels are built from it.
+ */
+export function favorablePrice(
+  price: number,
+  percent: number,
+  direction: PositionDirection,
+): number {
+  return direction === "short" ? price * (1 - percent / 100) : price * (1 + percent / 100);
+}
+
+/**
+ * The price `percent`% against the position from `price`: below it for a
+ * long, above it for a short. Stop-loss and trailing-stop levels are built
+ * from it.
+ */
+export function adversePrice(price: number, percent: number, direction: PositionDirection): number {
+  return direction === "short" ? price * (1 + percent / 100) : price * (1 - percent / 100);
+}
+
+/** `price` moved by an absolute `distance` in the position's favor (ATR take profit). */
+export function favorableOffset(
+  price: number,
+  distance: number,
+  direction: PositionDirection,
+): number {
+  return direction === "short" ? price - distance : price + distance;
+}
+
+/** `price` moved by an absolute `distance` against the position (ATR stops). */
+export function adverseOffset(
+  price: number,
+  distance: number,
+  direction: PositionDirection,
+): number {
+  return direction === "short" ? price + distance : price - distance;
+}
+
+/**
+ * The extreme a trailing stop hangs from: the highest price since entry for a
+ * long, the lowest for a short.
+ */
+export function trailingAnchor(
+  extremes: { peakPrice: number; troughPrice: number },
+  direction: PositionDirection,
+): number {
+  return direction === "short" ? extremes.troughPrice : extremes.peakPrice;
+}
+
+/**
+ * Cash settlement of closing `shares` at `exitPrice` (slippage already
+ * applied). The single definition of a close's P&L and proceeds, shared by
+ * `runBacktest` and the multi-tranche path of `runBacktestScaled`.
+ *
+ * Net proceeds are what returns to cash. A long sells its shares, so it gets
+ * the exit value. A short gets back the entry value it set aside plus its
+ * profit: `entryValue + (entryPrice - exitPrice) * shares`. Entry costs are
+ * not deducted here; they left cash when the position opened.
+ */
+export function settleClose(args: {
+  direction: PositionDirection;
+  entryPrice: number;
+  exitPrice: number;
+  shares: number;
+  commission: number;
+  commissionRate: number;
+  taxRate: number;
+}): {
+  grossReturn: number;
+  exitValue: number;
+  exitCommission: number;
+  tax: number;
+  netProceeds: number;
+} {
+  const priceDiff =
+    args.direction === "short"
+      ? args.entryPrice - args.exitPrice
+      : args.exitPrice - args.entryPrice;
+  const grossReturn = priceDiff * args.shares;
+  const exitValue = args.exitPrice * args.shares;
+  const exitCommission = args.commission + exitValue * (args.commissionRate / 100);
+
+  let tax = 0;
+  if (grossReturn > 0 && args.taxRate > 0) {
+    tax = grossReturn * (args.taxRate / 100);
+  }
+
+  const netProceeds =
+    args.direction === "short"
+      ? args.entryPrice * args.shares + grossReturn - exitCommission - tax
+      : exitValue - exitCommission - tax;
+
+  return { grossReturn, exitValue, exitCommission, tax, netProceeds };
 }
 
 /**

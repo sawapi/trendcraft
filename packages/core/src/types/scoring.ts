@@ -231,7 +231,11 @@ export type ScaledEntryConfig = {
   strategy: ScaledEntryStrategy;
   /** Entry interval type */
   intervalType: ScaledEntryIntervalType;
-  /** Price interval in percent (for 'price' type, e.g., -2 = buy 2% lower each time) */
+  /**
+   * Price interval in percent (for 'price' type), measured from the first entry.
+   * Negative is a move against the position: -2 buys 2% lower each time for a
+   * long and sells short 2% higher each time for a short.
+   */
   priceInterval?: number;
 };
 

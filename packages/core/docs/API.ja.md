@@ -4528,7 +4528,7 @@ const result = runBacktestScaled(candles, goldenCrossCondition(), deadCrossCondi
 | `tranches` | `number` | 必須 | エントリートランシェ数 (2-10) |
 | `strategy` | `'equal' \| 'pyramid' \| 'reverse-pyramid'` | 必須 | 配分戦略 |
 | `intervalType` | `'signal' \| 'price'` | 必須 | 追加エントリーのトリガー方法 |
-| `priceInterval` | `number` | `-2` | 次のトランシェの価格変動 %（負の値 = 下落） |
+| `priceInterval` | `number` | `-2` | 次のトランシェの価格変動 %（負の値 = ポジションに不利な方向。ロングは下落、ショートは上昇） |
 
 **戦略:**
 | 戦略 | 説明 | 例（3トランシェ） |
@@ -4547,7 +4547,9 @@ const result = runBacktestScaled(candles, goldenCrossCondition(), deadCrossCondi
 
 マルチトランシェ経路は `runBacktest` とは別のエンジンで、そのオプションの一部しか実装していません。`scaledEntry.tranches >= 2` の場合、以下は黙って無視されるのではなくエラーになります:
 
-`direction`, `atrTrailingStop`, `breakevenStop`, `scaleOut`, `timeExit`, `slippageModel`, `orderType`, `orderTTL`, `timeInForce`, `volumeConstraint`, `margin`, `sizing`, `fundamentals`, `validateData`
+`atrTrailingStop`, `breakevenStop`, `scaleOut`, `timeExit`, `slippageModel`, `orderType`, `orderTTL`, `timeInForce`, `volumeConstraint`, `margin`, `sizing`, `fundamentals`, `validateData`, `warmupBars`
+
+`direction: "short"` には対応しています。損切り・利確・トレーリング・ATR の各水準は平均建値からショートの向きに測り、スリッページと損益は `runBacktest` と同じ扱いです。
 
 `ScaledBacktestOptions` 型はこれらを受け付けたままです。有効になるかどうかは `scaledEntry.tranches` という値に依存し、型では表現できないためです。使用したい場合は `runBacktest` を直接呼ぶか、`tranches: 1` で実行してください（`runBacktest` に委譲され、すべてのオプションが有効になります）。
 

@@ -2174,7 +2174,7 @@ const top20 = result.results.slice(0, 20);
 | タイプ | 説明 |
 |------|-------------|
 | `signal` | 各エントリーシグナルでトランシェ追加 |
-| `price` | priceInterval % の価格下落でトランシェ追加 |
+| `price` | ポジションに不利な方向へ priceInterval % 動いたらトランシェ追加（ロングは下落、ショートは上昇） |
 
 ### 使用例
 
@@ -2203,7 +2203,7 @@ const result2 = runBacktestScaled(candles, goldenCrossCondition(), deadCrossCond
 });
 ```
 
-> **注意:** 2トランシェ以上では `runBacktest` とは別のエンジンで動作し、`BacktestOptions` の一部しか実装していません。`direction`, `margin`, `sizing`, `scaleOut`, `timeExit`, `orderType` などは適用されずエラーになります（全リストは API リファレンス参照）。必要な場合は `runBacktest`（または `tranches: 1`）を使ってください。
+> **注意:** 2トランシェ以上では `runBacktest` とは別のエンジンで動作し、`BacktestOptions` の一部しか実装していません。`margin`, `sizing`, `scaleOut`, `timeExit`, `orderType` などは適用されずエラーになります（全リストは API リファレンス参照）。必要な場合は `runBacktest`（または `tranches: 1`）を使ってください。
 
 ### 戦略の選び方
 
