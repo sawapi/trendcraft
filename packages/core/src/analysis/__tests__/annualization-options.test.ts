@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 import { at, stepCandles } from "../../backtest/__tests__/step-candles";
 import { runBacktest } from "../../backtest/engine";
 import { US_EQUITY_CALENDAR } from "../../calendar";
+import { ewmaVolatility, ewmaVolatilityFromCandles } from "../../indicators/volatility/garch";
+import { volatilityRegime } from "../../indicators/volatility/regime";
 import { calculateSharpeRatio } from "../../optimization/metrics";
+import { ulcerPerformanceIndex } from "../../risk/drawdown-analysis";
+import { calculateMetricsFromReturns } from "../../risk/stress-test";
 import { backtestByRegime } from "../backtest-by-regime";
 import {
   captureRatios,
@@ -137,4 +141,45 @@ describe("rolling window validation", () => {
       expect(() => call(1)).not.toThrow();
     });
   }
+});
+
+// These read the rate through annualizationFactor, which validates it, but
+// used to return before reaching it on empty, short or flat input.
+const EARLY_RETURN: [string, () => unknown][] = [
+  ["ewmaVolatility with no returns", () => ewmaVolatility([], { periodsPerYear: 0 })],
+  [
+    "ewmaVolatilityFromCandles with one candle",
+    () => ewmaVolatilityFromCandles(CANDLES.slice(0, 1), { periodsPerYear: 0 }),
+  ],
+  ["volatilityRegime with no candles", () => volatilityRegime([], { periodsPerYear: 0 })],
+  [
+    "calculateMetricsFromReturns with no returns",
+    () => calculateMetricsFromReturns([], { periodsPerYear: 0 }),
+  ],
+  [
+    "calculateMetricsFromReturns with flat returns",
+    () => calculateMetricsFromReturns([0, 0, 0], { periodsPerYear: 0 }),
+  ],
+  [
+    "ulcerPerformanceIndex with one point",
+    () => ulcerPerformanceIndex([100], 0, { periodsPerYear: 0 }),
+  ],
+  [
+    "ulcerPerformanceIndex with no drawdown",
+    () => ulcerPerformanceIndex([100, 101, 102], 0, { periodsPerYear: 0 }),
+  ],
+];
+
+describe("annualizationFactor callers validate before returning early", () => {
+  for (const [desc, call] of EARLY_RETURN) {
+    it(`${desc} rejects periodsPerYear 0`, () => {
+      expect(call).toThrow(/periodsPerYear must be positive/);
+    });
+  }
+
+  it("ewmaVolatilityFromCandles with one candle rejects an invalid lambda", () => {
+    expect(() => ewmaVolatilityFromCandles(CANDLES.slice(0, 1), { lambda: 2 })).toThrow(
+      /EWMA lambda must be between 0 and 1/,
+    );
+  });
 });

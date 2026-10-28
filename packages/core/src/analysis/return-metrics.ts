@@ -19,9 +19,10 @@
  *   `periodsPerYear` that is not a finite positive number throws, and so does
  *   a rolling window that is not an integer of at least 1. A zero factor would
  *   otherwise scale every ratio to 0 and a negative one turn it into `NaN`.
+ *   Rates (`riskFree`, `requiredReturn`) must be finite and greater than -1.
  */
 
-import { assertPositive } from "../utils/validate-number";
+import { assertInRange, assertPositive, assertRate } from "../utils/validate-number";
 import { assertPeriod } from "../utils/validate-period";
 
 /**
@@ -74,6 +75,9 @@ export type OmegaOptions = {
  * @param options - Threshold and annualisation options
  * @returns Omega ratio, or `NaN` when fewer than two observations or no
  *   observations fall below the threshold
+ * @throws If `riskFree` or `requiredReturn` is not a finite number greater
+ *   than -1 (empyrical returns `NaN` for such a `requiredReturn`), or
+ *   `periodsPerYear` is not a finite positive number
  *
  * @example
  * ```ts
@@ -85,16 +89,12 @@ export type OmegaOptions = {
 export function omegaRatio(returns: number[], options: OmegaOptions = {}): number {
   const { riskFree = 0, requiredReturn = 0, periodsPerYear = 252 } = options;
   assertPositive("omegaRatio periodsPerYear", periodsPerYear);
+  assertRate("omegaRatio riskFree", riskFree);
+  assertRate("omegaRatio requiredReturn", requiredReturn);
   if (returns.length < 2) return Number.NaN;
 
-  let returnThreshold: number;
-  if (periodsPerYear === 1) {
-    returnThreshold = requiredReturn;
-  } else if (requiredReturn <= -1) {
-    return Number.NaN;
-  } else {
-    returnThreshold = (1 + requiredReturn) ** (1 / periodsPerYear) - 1;
-  }
+  const returnThreshold =
+    periodsPerYear === 1 ? requiredReturn : (1 + requiredReturn) ** (1 / periodsPerYear) - 1;
 
   let numer = 0;
   let denom = 0;
@@ -116,8 +116,10 @@ export function omegaRatio(returns: number[], options: OmegaOptions = {}): numbe
  * percentile, linear-interpolated).
  *
  * @param returns - Periodic returns as fractions
- * @param cutoff - Upper percentile in (0.5, 1) (default 0.95)
+ * @param cutoff - Upper percentile in [0.5, 1] (default 0.95). Below 0.5 the
+ *   "upper" percentile would fall under the lower one and invert the ratio.
  * @returns Tail ratio, or `NaN` when empty or the lower percentile is 0
+ * @throws If `cutoff` is not a finite number in [0.5, 1]
  *
  * @example
  * ```ts
@@ -127,6 +129,7 @@ export function omegaRatio(returns: number[], options: OmegaOptions = {}): numbe
  * ```
  */
 export function tailRatio(returns: number[], cutoff = 0.95): number {
+  assertInRange("tailRatio cutoff", cutoff, 0.5, 1);
   if (returns.length === 0) return Number.NaN;
   const sorted = [...returns].sort((a, b) => a - b);
   const upper = percentileLinear(sorted, cutoff);
@@ -255,10 +258,12 @@ export function payoffRatioFromReturns(returns: number[]): number {
  * `Infinity`/`NaN` edge behaviour of its components.
  *
  * @param returns - Periodic returns as fractions
- * @param cutoff - Tail-ratio cutoff (default 0.95)
+ * @param cutoff - Tail-ratio cutoff in [0.5, 1] (default 0.95)
  * @returns Common-sense ratio
+ * @throws If `cutoff` is not a finite number in [0.5, 1]
  */
 export function commonSenseRatio(returns: number[], cutoff = 0.95): number {
+  assertInRange("commonSenseRatio cutoff", cutoff, 0.5, 1);
   return profitFactorFromReturns(returns) * tailRatio(returns, cutoff);
 }
 
@@ -321,6 +326,8 @@ export type RollingOptions = {
  * @param returns - Periodic returns as fractions
  * @param options - Annualisation options (`window` is ignored)
  * @returns Annualised Sharpe ratio, or `NaN` when undefined
+ * @throws If `periodsPerYear` is not a finite positive number, or `riskFree`
+ *   is not a finite number greater than -1
  *
  * @example
  * ```ts
@@ -332,6 +339,7 @@ export type RollingOptions = {
 export function sharpeFromReturns(returns: number[], options: RollingOptions = {}): number {
   const { riskFree = 0, periodsPerYear = 252, annualize = true } = options;
   assertPositive("sharpeFromReturns periodsPerYear", periodsPerYear);
+  assertRate("sharpeFromReturns riskFree", riskFree);
   if (returns.length < 2) return Number.NaN;
 
   const sd = sampleStd(returns);
@@ -362,6 +370,8 @@ export function sharpeFromReturns(returns: number[], options: RollingOptions = {
  * @param returns - Periodic returns as fractions
  * @param options - Annualisation options (`window` is ignored)
  * @returns Annualised Sortino ratio, or `NaN` when undefined
+ * @throws If `periodsPerYear` is not a finite positive number, or `riskFree`
+ *   is not a finite number greater than -1
  *
  * @example
  * ```ts
@@ -373,6 +383,7 @@ export function sharpeFromReturns(returns: number[], options: RollingOptions = {
 export function sortinoFromReturns(returns: number[], options: RollingOptions = {}): number {
   const { riskFree = 0, periodsPerYear = 252, annualize = true } = options;
   assertPositive("sortinoFromReturns periodsPerYear", periodsPerYear);
+  assertRate("sortinoFromReturns riskFree", riskFree);
   if (returns.length < 2) return Number.NaN;
 
   const perPeriodRf = riskFree === 0 ? 0 : (1 + riskFree) ** (1 / periodsPerYear) - 1;
@@ -447,6 +458,9 @@ export function periodsPerYearFromSpan(
  * @param returns - Periodic returns as fractions
  * @param options - Window and annualisation options
  * @returns Rolling Sharpe series, same length as `returns`
+ * @throws If `window` is not an integer of at least 1, `periodsPerYear` is not
+ *   a finite positive number, or `riskFree` is not a finite number greater
+ *   than -1
  *
  * @example
  * ```ts
@@ -459,6 +473,7 @@ export function rollingSharpe(returns: number[], options: RollingOptions = {}): 
   const { window = 126, riskFree = 0, periodsPerYear = 252, annualize = true } = options;
   assertPeriod("rollingSharpe window", window);
   assertPositive("rollingSharpe periodsPerYear", periodsPerYear);
+  assertRate("rollingSharpe riskFree", riskFree);
 
   const out: number[] = new Array(returns.length).fill(Number.NaN);
   for (let i = window - 1; i < returns.length; i++) {
@@ -479,6 +494,8 @@ export function rollingSharpe(returns: number[], options: RollingOptions = {}): 
  * @param returns - Periodic returns as fractions
  * @param options - Window and annualisation options (`riskFree`/`annualize` ignored)
  * @returns Rolling volatility series, same length as `returns`
+ * @throws If `window` is not an integer of at least 1, or `periodsPerYear` is
+ *   not a finite positive number
  */
 export function rollingVolatility(returns: number[], options: RollingOptions = {}): number[] {
   const { window = 126, periodsPerYear = 252 } = options;

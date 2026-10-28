@@ -231,6 +231,7 @@ export function calculateMetricsFromReturns(
   maxDrawdown: number;
   sharpe: number;
 } {
+  const periodsPerYear = annualizationFactor(annualizationOpts);
   if (returns.length === 0) {
     return { totalReturn: 0, maxDrawdown: 0, sharpe: 0 };
   }
@@ -245,7 +246,7 @@ export function calculateMetricsFromReturns(
   // Annualized Sharpe ratio
   const mean = returns.reduce((s, v) => s + v, 0) / returns.length;
   const sd = stddev(returns);
-  const sharpe = sd === 0 ? 0 : (mean / sd) * Math.sqrt(annualizationFactor(annualizationOpts));
+  const sharpe = sd === 0 ? 0 : (mean / sd) * Math.sqrt(periodsPerYear);
 
   return { totalReturn, maxDrawdown: maxDd, sharpe };
 }

@@ -30,7 +30,7 @@
 import { maxDrawdownPercent } from "../backtest/drawdown-tracker";
 import { calculateDailyReturns } from "../optimization/metrics";
 import type { BacktestResult, NormalizedCandle, Series } from "../types";
-import { assertPositive } from "../utils/validate-number";
+import { assertPositive, assertRate } from "../utils/validate-number";
 import {
   annualizedReturnFraction,
   periodsPerYearFromSpan,
@@ -133,7 +133,9 @@ function maxDrawdownPercentFromReturns(returns: number[]): number {
  * @param result - The backtest result to attribute
  * @param options - Candles, per-bar regime labels and annualisation options
  * @returns A per-regime performance table plus the empirical transition matrix
- * @throws If `regimes` is not aligned index-for-index with `candles`
+ * @throws If `regimes` is not aligned index-for-index with `candles`,
+ *   `periodsPerYear` is given and is not a finite positive number, or
+ *   `riskFree` is not a finite number greater than -1
  *
  * @example
  * ```ts
@@ -161,6 +163,7 @@ export function backtestByRegime(
   if (periodsPerYearOption !== undefined) {
     assertPositive("backtestByRegime periodsPerYear", periodsPerYearOption);
   }
+  assertRate("backtestByRegime riskFree", riskFree);
 
   if (regimes.length !== candles.length) {
     throw new Error(

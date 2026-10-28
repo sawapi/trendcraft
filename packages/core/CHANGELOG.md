@@ -1670,6 +1670,40 @@ all `NaN`. The messages name the function, e.g.
 `rollingSharpe window must be at least 1` (was `rollingSharpe: window must be
 at least 1`).
 
+### Breaking — return metrics reject an invalid rate or tail cutoff
+
+Rates were used as given. `sharpeFromReturns(returns, { riskFree: -1 })`
+de-annualised the rate to `-1` per period, so every excess return was about
+`+1` and the Sharpe became roughly `sqrt(252) / sd`, in the hundreds or
+thousands for daily returns; below `-1` the de-annualising root is `NaN`, and a `NaN` rate
+propagated into every ratio. A rate of return of -100% or less has no
+meaning, so these options must now be finite and greater than -1, whatever
+the data:
+
+- **Risk-free rate:** `riskFree` in `sharpeFromReturns`, `sortinoFromReturns`,
+  `rollingSharpe`, `omegaRatio`, `report` and `backtestByRegime`;
+  `riskFreeRate` in `calculateSharpeRatio`, `calculateAllMetrics`,
+  `calculateRuntimeMetrics` and `ulcerPerformanceIndex`.
+- **Required return:** `requiredReturn` in `omegaRatio` and `report`.
+  `omegaRatio` used to return `NaN` for `requiredReturn <= -1`, as
+  empyrical and quantstats do (quantstats with a "must be > -1" warning); it
+  now throws. With `periodsPerYear: 1` it used no bound at all.
+
+`tailRatio` and `commonSenseRatio` now require `cutoff` in `[0.5, 1]`. A
+cutoff above 1 or `NaN` returned `NaN`, where numpy and pandas raise an
+error for such a quantile. Below 0.5 the "upper" percentile falls under the
+lower one, so `tailRatio(returns, 0.05)` silently returned the reciprocal of
+the 0.95 ratio; quantstats accepts that, but the documented range was
+already `(0.5, 1)`.
+
+Several functions that read the annualisation through `annualizationFactor`
+returned before reaching it on empty, short or flat input, so an invalid
+`periodsPerYear` or calendar was only caught for some data. They now check it
+on entry: `ewmaVolatility` and `ewmaVolatilityFromCandles` (which also
+checks `lambda` before returning on fewer than two candles),
+`volatilityRegime`, `calculateMetricsFromReturns` and
+`ulcerPerformanceIndex`.
+
 ### Fixed — Safe API reports a non-integer period as INVALID_PARAMETER
 
 `trendcraft/safe` classifies a thrown error into a typed code, but its

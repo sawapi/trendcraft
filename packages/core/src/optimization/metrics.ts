@@ -6,7 +6,7 @@
 
 import type { BacktestResult, NormalizedCandle, PositionDirection } from "../types";
 import type { OptimizationMetric } from "../types/optimization";
-import { assertPositive } from "../utils/validate-number";
+import { assertPositive, assertRate } from "../utils/validate-number";
 
 /**
  * Calculate Sharpe Ratio from returns series
@@ -14,6 +14,8 @@ import { assertPositive } from "../utils/validate-number";
  * @param riskFreeRate Annual risk-free rate (default: 0)
  * @param periodsPerYear Number of periods per year (default: 252 for daily)
  * @returns Annualized Sharpe Ratio
+ * @throws If `periodsPerYear` is not a finite positive number, or
+ *   `riskFreeRate` is not a finite number greater than -1
  * @example
  * ```ts
  * import { calculateSharpeRatio } from "trendcraft";
@@ -29,6 +31,7 @@ export function calculateSharpeRatio(
   periodsPerYear = 252,
 ): number {
   assertPositive("calculateSharpeRatio periodsPerYear", periodsPerYear);
+  assertRate("calculateSharpeRatio riskFreeRate", riskFreeRate);
   if (returns.length === 0) return 0;
 
   // Calculate mean return
@@ -265,6 +268,7 @@ export function calculateDailyReturns(
  * @param candles Candle data
  * @param options Calculation options
  * @returns Record of all metrics
+ * @throws If `riskFreeRate` is not a finite number greater than -1
  * @example
  * ```ts
  * import { runBacktest, calculateAllMetrics, goldenCrossCondition, deadCrossCondition } from "trendcraft";
@@ -285,6 +289,7 @@ export function calculateAllMetrics(
   } = {},
 ): Record<OptimizationMetric, number> {
   const { initialCapital = 100000, riskFreeRate = 0 } = options;
+  assertRate("calculateAllMetrics riskFreeRate", riskFreeRate);
 
   // Basic metrics from result
   const winRate = result.winRate;
