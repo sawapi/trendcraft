@@ -300,8 +300,8 @@ Helper: `param(name, min, max, step)`, `constraint(fn)`, `getTopResults(result, 
 
 ## Stress Testing
 
-- `stressTest(returns, scenario, initialCapital?)` — Run a single stress scenario
-- `runAllStressTests(returns, initialCapital?)` — Run all preset scenarios
+- `stressTest(returns, scenario, initialCapital?, annualizationOpts?)` — Run a single stress scenario
+- `runAllStressTests(returns, initialCapital?, annualizationOpts?)` — Run all preset scenarios
 - `generateShockedReturns(baseReturns, shock)` — Generate stressed return series
 
 Preset scenarios: `lehman2008`, `covidCrash2020`, `flashCrash2010`, `volmageddon2018`, `blackMonday1987`, `svbCrisis2023`

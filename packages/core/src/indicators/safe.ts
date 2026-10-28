@@ -101,9 +101,9 @@ function classifyErrorCode(message: string): TrendCraftErrorCode {
   // when it words the error for the whole array. A rejected period is a bad
   // parameter, not an indicator failure, so it must not fall through to
   // INDICATOR_ERROR. "between" and "a finite number" come from the
-  // real-valued option validators.
+  // real-valued option validators, "one of" from the reset-option one.
   if (
-    /must be (at least|at most|positive|greater|less|non-negative|between|a finite number|an? integer|integers)/i.test(
+    /must be (at least|at most|positive|greater|less|non-negative|between|one of|a finite number|an? integer|integers)/i.test(
       message,
     )
   ) {

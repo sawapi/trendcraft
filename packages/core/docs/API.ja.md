@@ -7481,7 +7481,7 @@ const slippage = calculateDynamicSlippage(
 
 ## ストレステスト
 
-### `stressTest(returns, scenario, initialCapital?)`
+### `stressTest(returns, scenario, initialCapital?, annualizationOpts?)`
 
 単一のストレスシナリオに対する戦略のレジリエンスをテストします。リターン系列に合成的なショックを適用し、主要メトリクスへの影響を測定します。
 
@@ -7502,7 +7502,7 @@ const result = stressTest(dailyReturns, PRESET_SCENARIOS.lehman2008, 1_000_000);
 // result.stressedVaR, result.stressedCVaR
 ```
 
-### `runAllStressTests(returns, initialCapital?)`
+### `runAllStressTests(returns, initialCapital?, annualizationOpts?)`
 
 すべてのプリセットストレスシナリオを一括実行します。
 
@@ -7529,7 +7529,7 @@ const summary = runAllStressTests(dailyReturns, 1_000_000);
 
 **プリセットシナリオ:** `lehman2008`, `covidCrash2020`, `flashCrash2010`, `volmageddon2018`, `blackMonday1987`, `svbCrisis2023`
 
-### `calculateMetricsFromReturns(returns)`
+### `calculateMetricsFromReturns(returns, annualizationOpts?)`
 
 リターン系列から基本的なパフォーマンスメトリクスを計算します。`{ totalReturn, maxDrawdown, sharpe }` を返します。
 

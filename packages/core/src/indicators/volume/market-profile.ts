@@ -9,7 +9,7 @@ import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { assertInRange, assertNonNegative, assertPositive } from "../../utils/validate-number";
-import { assertPeriod } from "../../utils/validate-period";
+import { assertResetPeriod } from "../../utils/validate-period";
 
 /**
  * Market Profile value
@@ -53,6 +53,8 @@ export type MarketProfileOptions = {
  * @param candles - Array of candles (raw or normalized)
  * @param options - Options
  * @returns Series of Market Profile values
+ * @throws If `sessionResetPeriod` is not `"session"` or a positive integer,
+ *   `tickSize` is negative or not finite, or `valueAreaPercent` is not in (0, 1]
  *
  * @example
  * ```ts
@@ -72,9 +74,7 @@ export function marketProfile(
   assertNonNegative("Market Profile tickSize", rawTickSize);
   assertPositive("Market Profile valueAreaPercent", valueAreaPercent);
   assertInRange("Market Profile valueAreaPercent", valueAreaPercent, 0, 1);
-  if (typeof sessionResetPeriod === "number") {
-    assertPeriod("Market Profile sessionResetPeriod", sessionResetPeriod);
-  }
+  assertResetPeriod("Market Profile sessionResetPeriod", sessionResetPeriod, ["session"]);
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
 

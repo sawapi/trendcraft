@@ -16,6 +16,7 @@ import type {
   VolatilityRegimeOptions,
   VolatilityRegimeValue,
 } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 import { atr } from "./atr";
 import { bollingerBands } from "./bollinger-bands";
 
@@ -67,6 +68,9 @@ const DEFAULT_OPTIONS: ResolvedOptions = {
  * @param candles - Array of candles (raw or normalized)
  * @param options - Configuration options
  * @returns Series of volatility regime values
+ * @throws If `atrPeriod`, `bbPeriod` or `lookbackPeriod` is not a positive
+ *   integer, a threshold is not a percentile from 0 to 100, or `periodsPerYear`
+ *   or `calendar` gives an invalid annualisation rate
  *
  * @example
  * ```ts
@@ -331,10 +335,16 @@ function mergeOptions(options: VolatilityRegimeOptions): ResolvedOptions {
       );
     }
   }
-  return {
+  const resolved = {
     atrPeriod: options.atrPeriod ?? DEFAULT_OPTIONS.atrPeriod,
     bbPeriod: options.bbPeriod ?? DEFAULT_OPTIONS.bbPeriod,
     lookbackPeriod: options.lookbackPeriod ?? DEFAULT_OPTIONS.lookbackPeriod,
     thresholds,
   };
+  // Checked here rather than left to atr() and bollingerBands(), which empty
+  // input never reaches; lookbackPeriod has no inner indicator to check it.
+  assertPeriod("volatilityRegime atrPeriod", resolved.atrPeriod);
+  assertPeriod("volatilityRegime bbPeriod", resolved.bbPeriod);
+  assertPeriod("volatilityRegime lookbackPeriod", resolved.lookbackPeriod);
+  return resolved;
 }

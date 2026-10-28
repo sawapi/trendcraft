@@ -18,7 +18,7 @@
  */
 
 import type { NormalizedCandle } from "../../../types";
-import { assertPeriod } from "../../../utils/validate-period";
+import { assertResetPeriod } from "../../../utils/validate-period";
 import {
   assertSessionResetCompatible,
   resolveSessionMembership,
@@ -87,6 +87,9 @@ export type TwapOptions = {
 /**
  * Create an incremental TWAP indicator
  *
+ * @throws If `sessionResetPeriod` is not `"session"` or a positive integer, or
+ *   a bar count is combined with `session`
+ *
  * @example
  * ```ts
  * const twap = createTwap();
@@ -113,9 +116,7 @@ export function createTwap(
   });
 
   const sessionResetPeriod = params.sessionResetPeriod;
-  if (typeof sessionResetPeriod === "number") {
-    assertPeriod("TWAP sessionResetPeriod", sessionResetPeriod);
-  }
+  assertResetPeriod("TWAP sessionResetPeriod", sessionResetPeriod, ["session"]);
   const session = params.session;
   const MS_PER_DAY = 86400000;
 

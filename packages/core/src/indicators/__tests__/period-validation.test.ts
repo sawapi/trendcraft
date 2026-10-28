@@ -854,7 +854,11 @@ describe("period guard inventory", () => {
   const integerChecked = (text: string): Set<string> =>
     new Set([
       ...[...text.matchAll(/Number\.isInteger\(\s*([A-Za-z0-9_]+)\s*\)/g)].map((m) => m[1]),
-      ...[...text.matchAll(/assertPeriod\(\s*"[^"]*"\s*,\s*([A-Za-z0-9_]+)/g)].map((m) => m[1]),
+      ...[
+        ...text.matchAll(
+          /assert(?:Reset)?Period\(\s*"[^"]*"\s*,\s*(?:[A-Za-z0-9_]+\.)?([A-Za-z0-9_]+)/g,
+        ),
+      ].map((m) => m[1]),
     ]);
 
   const collect = (dir: string, out: string[] = []): string[] => {
@@ -914,6 +918,10 @@ describe("period guard inventory", () => {
     }
     // The adaptive family reads its options one by one: `options.x ?? default`.
     for (const m of text.matchAll(/const (\w+) = options\??\.\w+ \?\?/g)) {
+      if (new RegExp(`^${NAME_PART}$`).test(m[1])) destructured.add(m[1]);
+    }
+    // volatilityRegime merges them into an object: `x: options.x ?? default`.
+    for (const m of text.matchAll(/(\w+): options\??\.\w+ \?\?/g)) {
       if (new RegExp(`^${NAME_PART}$`).test(m[1])) destructured.add(m[1]);
     }
     const checked = integerChecked(text);

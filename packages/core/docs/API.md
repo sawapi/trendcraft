@@ -7545,7 +7545,7 @@ Resolves a `SlippageModel` from either a fixed percentage or a model config. Ret
 
 ## Stress Testing
 
-### `stressTest(returns, scenario, initialCapital?)`
+### `stressTest(returns, scenario, initialCapital?, annualizationOpts?)`
 
 Test strategy resilience against a single stress scenario. Applies synthetic shocks to the return series and measures impact on key metrics.
 
@@ -7567,7 +7567,7 @@ const result = stressTest(dailyReturns, PRESET_SCENARIOS.lehman2008, 1_000_000);
 // result.stressedVaR, result.stressedCVaR
 ```
 
-### `runAllStressTests(returns, initialCapital?)`
+### `runAllStressTests(returns, initialCapital?, annualizationOpts?)`
 
 Run all preset stress scenarios at once.
 
@@ -7594,7 +7594,7 @@ Generate a stressed return series by applying a shock.
 
 **Preset scenarios:** `lehman2008`, `covidCrash2020`, `flashCrash2010`, `volmageddon2018`, `blackMonday1987`, `svbCrisis2023`.
 
-### `calculateMetricsFromReturns(returns)`
+### `calculateMetricsFromReturns(returns, annualizationOpts?)`
 
 Calculate basic performance metrics from a return series. Returns `{ totalReturn, maxDrawdown, sharpe }`.
 
