@@ -7,6 +7,12 @@ import { ViewTransition } from "../core/animation";
 import { DataLayer } from "../core/data-layer";
 import { safeDevicePixelRatio } from "../core/dpr";
 import type { DrawHelper } from "../core/draw-helper";
+import {
+  type ChartFeatureName,
+  type ChartFeatures,
+  type DrawingFeature,
+  REGISTER_FEATURE,
+} from "../core/features";
 import { DEFAULT_FONT_FAMILY } from "../core/font";
 import { autoFormatPrice, setMonthNames } from "../core/format";
 import { type ChartLocale, mergeLocale } from "../core/i18n";
@@ -48,23 +54,25 @@ import type {
 } from "../core/types";
 import { DARK_THEME, LIGHT_THEME } from "../core/types";
 import type { ShapeCheck } from "../core/validation";
-import {
-  checkBacktest,
-  checkSignals,
-  checkTrades,
-  isFiniteOHLC,
-  summarizeIssues,
-} from "../core/validation";
+import { isFiniteOHLC, summarizeIssues } from "../core/validation";
 import { type InteractionOptionsUpdate, Viewport } from "../core/viewport";
 import { APPLY_WITH_ORIGIN, attachViewportOrigin } from "../core/viewport-origin";
 import { INDICATOR_PRESETS, type IndicatorPreset } from "../integration/indicator-presets";
 import { introspect } from "../integration/series-introspector";
 import { ChartAria } from "./chart-aria";
-import { DrawingTool } from "./drawing-tool";
+import type { DrawingTool } from "./drawing-tool";
 import { InfoOverlay } from "./info-overlay";
 import { LegendOverlay } from "./legend-overlay";
 import { renderPaneTitles } from "./overlay-renderer";
 import { renderFrame } from "./render-pipeline";
+
+/** The register function that enables each feature, for the warning. */
+const FEATURE_REGISTRARS: Record<ChartFeatureName, string> = {
+  drawing: "registerDrawingTools",
+  backtest: "registerBacktest",
+  markers: "registerMarkers",
+  scores: "registerScores",
+};
 
 // ============================================
 // Default Options
@@ -155,6 +163,10 @@ export class CanvasChart implements ChartInstance {
   private _seriesBadgeMode: "absolute" | "visible" = "absolute";
   private _chartType: import("../core/types").ChartType;
   private _drawingTool: DrawingTool | null = null;
+  /** Optional features attached through `@trendcraft/chart/features`. */
+  private _features: ChartFeatures = {};
+  /** Features already reported missing, so each warns once per chart. */
+  private _missingFeatureWarned = new Set<ChartFeatureName>();
   private _detachDrawTap: (() => void) | null = null;
   private _detachDoubleTap: (() => void) | null = null;
   /**
@@ -584,20 +596,8 @@ export class CanvasChart implements ChartInstance {
       this._layout.setLayout(DEFAULT_LAYOUT_NO_VOLUME);
     }
 
-    // Interactive drawing: unified mouse + touch tap handler
-    this._drawingTool = new DrawingTool({
-      getCandles: () => this._data.candles,
-      getTimeScale: () => this._timeScale,
-      getLayout: () => this._layout,
-      getPriceScales: () => this._priceScales,
-      getViewportState: () => this._viewport.state,
-      addDrawing: (d) => this.addDrawing(d),
-      emit: (event, data) => this._emit(event, data),
-      requestRender: () => {
-        this._needsRender = true;
-      },
-      locale: this._locale,
-    });
+    // Interactive drawing: unified mouse + touch tap handler. The drawing
+    // tool itself is created when the drawing feature is registered.
     this._detachDrawTap = onTap(this._canvas, (pos) => {
       // Drawing mode owns every tap while engaged — even taps it can't place
       // (volume pane, outside data range) must NOT fall through to the
@@ -887,22 +887,77 @@ export class CanvasChart implements ChartInstance {
   }
 
   addSignals(signals: SignalMarker[]): void {
-    const value = this._applyCheck("addSignals", signals, checkSignals(signals));
+    const markers = this._feature("markers", "addSignals");
+    if (!markers) return;
+    const value = this._applyCheck("addSignals", signals, markers.checkSignals(signals));
     if (value === null) return;
     this._data.setSignals(value);
     this._needsRender = true;
   }
 
   addTrades(trades: TradeMarker[]): void {
-    const value = this._applyCheck("addTrades", trades, checkTrades(trades));
+    const markers = this._feature("markers", "addTrades");
+    if (!markers) return;
+    const value = this._applyCheck("addTrades", trades, markers.checkTrades(trades));
     if (value === null) return;
     this._data.setTrades(value);
     this._needsRender = true;
   }
 
+  // ---- Optional features ----
+
+  /**
+   * Attach a feature from `@trendcraft/chart/features`. Called by the
+   * register functions, not by applications.
+   *
+   * @internal
+   */
+  [REGISTER_FEATURE]<K extends ChartFeatureName>(
+    name: K,
+    feature: NonNullable<ChartFeatures[K]>,
+  ): void {
+    if (this._destroyed) return;
+    this._features[name] = feature;
+    if (name === "drawing" && this._drawingTool === null) {
+      this._drawingTool = (feature as DrawingFeature).createTool({
+        getCandles: () => this._data.candles,
+        getTimeScale: () => this._timeScale,
+        getLayout: () => this._layout,
+        getPriceScales: () => this._priceScales,
+        getViewportState: () => this._viewport.state,
+        addDrawing: (d) => this.addDrawing(d),
+        emit: (event, data) => this._emit(event, data),
+        requestRender: () => {
+          this._needsRender = true;
+        },
+        locale: this._locale,
+      });
+    }
+    this._needsRender = true;
+  }
+
+  /**
+   * The registered feature, or null after warning once per chart that the
+   * method needs it.
+   */
+  private _feature<K extends ChartFeatureName>(name: K, method: string): ChartFeatures[K] | null {
+    const feature = this._features[name];
+    if (feature) return feature;
+    if (!this._missingFeatureWarned.has(name)) {
+      this._missingFeatureWarned.add(name);
+      this._warn(
+        `${method}: the "${name}" feature is not registered; call ${FEATURE_REGISTRARS[name]}(chart) from "@trendcraft/chart/features" first`,
+        undefined,
+        "FEATURE_NOT_REGISTERED",
+      );
+    }
+    return null;
+  }
+
   // ---- Public API: Drawings ----
 
   addDrawing(drawing: Drawing): void {
+    if (!this._feature("drawing", "addDrawing")) return;
     this._data.addDrawing(drawing);
     this._needsRender = true;
   }
@@ -917,6 +972,7 @@ export class CanvasChart implements ChartInstance {
   }
 
   setDrawingTool(tool: DrawingType | null): void {
+    if (tool !== null && !this._feature("drawing", "setDrawingTool")) return;
     this._drawingTool?.setTool(tool);
     this._canvas.style.cursor = tool ? "cell" : "crosshair";
     this._needsRender = true;
@@ -928,16 +984,20 @@ export class CanvasChart implements ChartInstance {
    * (used by Ctrl+Alt+H for a "blank chart" view); otherwise the
    * action names a drawing tool to activate.
    */
-  private _handleHotkeyAction(action: import("../core/types").HotkeyAction): void {
+  private _handleHotkeyAction(action: import("../core/types").HotkeyAction): boolean {
     if (action === "cancel") {
       this.setDrawingTool(null);
-      return;
+      return true;
     }
     if (action === "toggleOverlays") {
       this._toggleAllOverlays();
-      return;
+      return true;
     }
+    // A drawing hotkey without the drawing feature does nothing, silently:
+    // the keystroke is the end user's, not a mistake by the host app.
+    if (!this._features.drawing) return false;
     this.setDrawingTool(action);
+    return true;
   }
 
   private _toggleAllOverlays(): void {
@@ -972,7 +1032,9 @@ export class CanvasChart implements ChartInstance {
   // ---- Public API: Backtest Visualization ----
 
   addBacktest(result: import("../core/types").BacktestResultData): void {
-    const check = checkBacktest(result);
+    const backtest = this._feature("backtest", "addBacktest");
+    if (!backtest) return;
+    const check = backtest.check(result);
     if (!check.ok) {
       this._warn(`addBacktest: ${check.reason}`, result, "INVALID_INPUT");
       return;
@@ -986,11 +1048,13 @@ export class CanvasChart implements ChartInstance {
   }
 
   addPatterns(patterns: import("../core/types").ChartPatternSignal[]): void {
+    if (!this._feature("backtest", "addPatterns")) return;
     this._data.setPatterns(patterns);
     this._needsRender = true;
   }
 
   addScores(scores: import("../core/types").DataPoint<number | null>[]): void {
+    if (!this._feature("scores", "addScores")) return;
     this._data.setScores(scores);
     this._needsRender = true;
   }
@@ -1636,6 +1700,7 @@ export class CanvasChart implements ChartInstance {
       drawHelper: this._drawHelper,
       emit: (event, data) => this._emit(event, data),
       drawingPreview: this._drawingTool?.buildPreview(),
+      features: this._features,
       locale: this._locale,
       crosshair: this._crosshairOpts,
     });

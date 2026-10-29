@@ -137,7 +137,8 @@ export type InteractionContext = {
   resizePanes?: (gap: number, dy: number) => void;
   /** Live settings — read per event, see {@link InteractionSettings}. */
   settings: InteractionSettings;
-  dispatch?: (action: HotkeyAction) => void;
+  /** Run a hotkey action; returning `false` means the host could not act on it. */
+  dispatch?: (action: HotkeyAction) => unknown;
   /** Something needs a repaint (crosshair, pane resize, drawing preview…). */
   onUpdate: () => void;
   /**

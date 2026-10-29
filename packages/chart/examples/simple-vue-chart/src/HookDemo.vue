@@ -10,6 +10,7 @@
 -->
 
 <script setup lang="ts">
+import { registerDrawingTools } from "@trendcraft/chart/features";
 import { useTrendChart } from "@trendcraft/chart/vue";
 import { sma } from "trendcraft";
 import { ref, watchEffect } from "vue";
@@ -24,6 +25,7 @@ const { containerRef, chart } = useTrendChart({
   indicators,
   theme: "dark",
   options: { watermark: "HOOK" },
+  features: [registerDrawingTools],
 });
 
 const lastEvent = ref("—");

@@ -6,6 +6,7 @@
 
 import type { CandleData } from "@trendcraft/chart";
 import { createChart } from "@trendcraft/chart";
+import { registerBacktest } from "@trendcraft/chart/features";
 import { registerTrendCraftPresets } from "@trendcraft/chart/presets";
 import { deadCrossCondition, goldenCrossCondition, runBacktest, sma } from "trendcraft";
 
@@ -16,6 +17,7 @@ export function run(stage: HTMLElement, candles: CandleData[]): void {
     fontFamily: '"Helvetica Neue", Arial, sans-serif',
   });
   registerTrendCraftPresets(chart);
+  registerBacktest(chart);
 
   chart.setCandles(candles);
   chart.addIndicator(sma(candles, { period: 20 }));

@@ -50,6 +50,8 @@ Everything the chart draws is either:
 | **Drawings** | Discriminated union (`hline`, `trendline`, etc.) | User-drawn annotations via `addDrawing()` |
 | **Overlays** | Framework-provided helpers (`addSignals`, `addTrades`, `addBacktest`, `addPatterns`, `addScores`) | Pre-baked visualizations of higher-level trading concepts |
 
+Drawings and overlays are optional features: register them from `@trendcraft/chart/features` (`registerDrawingTools`, `registerMarkers`, `registerBacktest`, `registerScores`, or `registerAll`). A chart that never uses them does not ship their code. See [API.md#optional-features](./API.md#optional-features).
+
 `time` is always epoch milliseconds (the chart's `TimeValue` type — the same epoch-ms `time` carried by `trendcraft`'s normalized candles). `value` shape varies — see [Auto-detection from `__meta`](#auto-detection-from-__meta).
 
 ### Compound values
@@ -232,7 +234,7 @@ chart.on('error', (data) => {
 });
 ```
 
-Top-level rejections (`INVALID_INPUT`) cause the call to be a no-op. Per-element rejections (`INVALID_SHAPE`) drop the offending entries and accept the rest, so a single bad row does not blank a whole signal overlay.
+Top-level rejections (`INVALID_INPUT`) cause the call to be a no-op. So does calling an overlay or drawing method whose feature is not registered (`FEATURE_NOT_REGISTERED`, warned once per feature). Per-element rejections (`INVALID_SHAPE`) drop the offending entries and accept the rest, so a single bad row does not blank a whole signal overlay.
 
 ## Extra visualization layers
 

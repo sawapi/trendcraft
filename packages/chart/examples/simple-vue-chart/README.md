@@ -28,9 +28,10 @@ pnpm dev
 ```vue
 <script setup lang="ts">
 import { watchEffect } from 'vue';
+import { registerDrawingTools } from '@trendcraft/chart/features';
 import { useTrendChart } from '@trendcraft/chart/vue';
 
-const { containerRef, chart } = useTrendChart({ candles });
+const { containerRef, chart } = useTrendChart({ candles, features: [registerDrawingTools] });
 
 watchEffect((onCleanup) => {
   if (!chart.value) return;

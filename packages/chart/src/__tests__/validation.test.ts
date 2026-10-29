@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { checkBacktest, checkSignals, checkTrades, summarizeIssues } from "../core/validation";
+import { checkBacktest, checkSignals, checkTrades } from "../core/feature-validation";
+import { summarizeIssues } from "../core/validation";
 
 describe("checkSignals", () => {
   it("rejects non-array input", () => {

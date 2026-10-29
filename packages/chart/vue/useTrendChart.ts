@@ -94,6 +94,13 @@ export type UseTrendChartOptions = {
   backtest?: Reactive<BacktestResultData | undefined>;
   patterns?: Reactive<ChartPatternSignal[] | undefined>;
   scores?: Reactive<DataPoint<number | null>[] | undefined>;
+  /**
+   * Optional features from `@trendcraft/chart/features` (e.g.
+   * `[registerBacktest, registerMarkers]`). `signals`, `trades`, `drawings`,
+   * `backtest`, `patterns` and `scores` need theirs. Read once, when the
+   * chart is created.
+   */
+  features?: Reactive<((chart: ChartInstance) => void)[] | undefined>;
   plugins?: Reactive<
     | {
         renderers?: AnySeriesRendererPlugin[];
@@ -136,6 +143,7 @@ export function useTrendChart(opts: UseTrendChartOptions): UseTrendChartResult {
       theme: toValue(opts.theme) ?? "dark",
     });
     optionsTracker = createChartOptionsTracker(initialOptions);
+    for (const register of toValue(opts.features) ?? []) register(instance);
 
     // Subscribe events unconditionally and read the callback at dispatch
     // time, so a callback supplied after mount is honoured and the

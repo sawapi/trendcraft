@@ -32,6 +32,11 @@
       "import": "./dist/replay.js",
       "require": "./dist/replay.cjs"
     },
+    "./features": {
+      "types": "./dist/features.d.ts",
+      "import": "./dist/features.js",
+      "require": "./dist/features.cjs"
+    },
     "./react": {
       "types": "./dist/react/index.d.ts",
       "import": "./dist/react/index.js",
@@ -147,6 +152,11 @@
       "name": "Replay (live simulator)",
       "path": "dist/replay.js",
       "limit": "3 kB"
+    },
+    {
+      "name": "Features (all)",
+      "path": "dist/features.js",
+      "limit": "6.25 kB"
     },
     {
       "name": "Sparkline (React)",

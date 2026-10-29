@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { definePrimitive, defineSeriesRenderer } from "@trendcraft/chart";
+import { registerBacktest } from "@trendcraft/chart/features";
 // biome-ignore lint/correctness/noUnusedImports: used as <TrendChart> in the .vue template — Biome can't see template usage.
 import { TrendChart } from "@trendcraft/chart/vue";
 import {
@@ -171,6 +172,9 @@ const plugins = computed(() => {
 function toggleTheme() {
   theme.value = theme.value === "dark" ? "light" : "dark";
 }
+
+// biome-ignore lint/correctness/noUnusedVariables: bound to template via `:features` — Biome can't see the .vue template usage.
+const features = [registerBacktest];
 </script>
 
 <template>
@@ -194,6 +198,7 @@ function toggleTheme() {
       :candles="candles"
       :indicators="indicators"
       :backtest="backtestResult"
+      :features="features"
       :plugins="plugins"
       :theme="theme"
       :options="{ watermark: 'VUE', volume: !showVolOverlay }"

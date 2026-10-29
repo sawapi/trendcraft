@@ -12,6 +12,7 @@
     "lib": ["ES2022", "DOM"],
     "paths": {
       "@trendcraft/chart": ["../../src/index.ts"],
+      "@trendcraft/chart/features": ["../../src/features/index.ts"],
       "@trendcraft/chart/vue": ["../../vue/TrendChart.ts"],
       "trendcraft": ["../../../core/src/index.ts"]
     }

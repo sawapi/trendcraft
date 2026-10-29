@@ -30,6 +30,7 @@ import type {
   CandleData,
   ChartEvent,
   ChartEventMap,
+  ChartInstance,
   ChartOptions,
   ChartPatternSignal,
   DataPoint,
@@ -61,6 +62,11 @@ export const TrendChart = defineComponent({
     backtest: { type: Object as PropType<BacktestResultData>, default: undefined },
     patterns: { type: Array as PropType<ChartPatternSignal[]>, default: undefined },
     scores: { type: Array as PropType<DataPoint<number | null>[]>, default: undefined },
+    /** Optional features from `@trendcraft/chart/features`; read when the chart is created. */
+    features: {
+      type: Array as PropType<((chart: ChartInstance) => void)[]>,
+      default: undefined,
+    },
     plugins: {
       type: Object as PropType<{
         renderers?: AnySeriesRendererPlugin[];
@@ -109,6 +115,7 @@ export const TrendChart = defineComponent({
       backtest: () => props.backtest,
       patterns: () => props.patterns,
       scores: () => props.scores,
+      features: () => props.features,
       plugins: () => props.plugins,
       chartType: () => props.chartType,
       layout: () => props.layout,

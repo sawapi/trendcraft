@@ -11,6 +11,7 @@ Complete API surface for `@trendcraft/chart`. This is the reference; for concept
 | `@trendcraft/chart/presets` | `registerTrendCraftPresets` — opt-in introspection rules + visual presets for TrendCraft-specific indicator shapes | Browser only |
 | `@trendcraft/chart/sparkline` | `createSparkline`, `createSparklineGroup`, line/candle mini-chart renderers | Browser only |
 | `@trendcraft/chart/replay` | `createLiveSimulator` — replay historical candles as a live feed | Any (Node / SSR / tests) |
+| `@trendcraft/chart/features` | `registerDrawingTools`, `registerBacktest`, `registerMarkers`, `registerScores`, `registerAll` — optional features (see [Optional features](#optional-features)) | Browser only |
 | `@trendcraft/chart/react` | `TrendChart` component, `useTrendChart` hook | React 18+, browser only |
 | `@trendcraft/chart/react/sparkline` | `Sparkline`, `SparklineList` React components | React 18+, browser only |
 | `@trendcraft/chart/vue` | `TrendChart` component, `useTrendChart` composable | Vue 3.3+, browser only |
@@ -25,6 +26,7 @@ Complete API surface for `@trendcraft/chart`. This is the reference; for concept
   - [Indicator methods](#indicator-methods)
   - [Overlay methods](#overlay-methods)
   - [Drawing methods](#drawing-methods)
+  - [Optional features](#optional-features)
   - [Viewport methods](#viewport-methods)
   - [Event methods](#event-methods)
   - [Theme and options methods](#theme-and-options-methods)
@@ -184,6 +186,8 @@ Summary info for every registered series: `{ id, paneId, type, label, visible }`
 
 ### Overlay methods
 
+These methods need a feature from `@trendcraft/chart/features`: `addSignals` / `addTrades` need `registerMarkers`, `addBacktest` / `addPatterns` need `registerBacktest`, and `addScores` needs `registerScores`. Without it, the call warns once (`FEATURE_NOT_REGISTERED`) and does nothing. See [Optional features](#optional-features).
+
 ```typescript
 addSignals(signals: SignalMarker[]): void
 ```
@@ -219,6 +223,34 @@ setDrawingTool(tool: DrawingType | null): void
 ```
 
 `setDrawingTool(tool)` puts the chart into interactive-drawing mode — the next user click places a drawing of that type. `setDrawingTool(null)` exits.
+
+Drawings and the drawing tools (including the `Alt+H` / `Alt+T` / `Alt+F` hotkeys) need `registerDrawingTools` from `@trendcraft/chart/features`. Without it, `addDrawing` and `setDrawingTool` warn once (`FEATURE_NOT_REGISTERED`) and do nothing; `getDrawings` returns `[]`. A drawing hotkey pressed on such a chart is ignored silently and left to the page: the keystroke is the user's, not a mistake in the app.
+
+### Optional features
+
+Drawing tools, backtest and pattern display, signal and trade markers, and the score heatmap are not in the core bundle. Register the ones a chart uses; the others stay out of your bundle.
+
+```typescript
+import { createChart } from '@trendcraft/chart';
+import { registerBacktest, registerMarkers } from '@trendcraft/chart/features';
+
+const chart = createChart(container);
+registerBacktest(chart);
+registerMarkers(chart);
+chart.addBacktest(backtestResult);
+```
+
+| Register function | Enables | Adds to a bundle (brotli) |
+|---|---|---|
+| `registerDrawingTools(chart)` | `addDrawing`, `setDrawingTool`, drawing hotkeys, the drawing auto-injection helpers | 1.8 kB |
+| `registerBacktest(chart)` | `addBacktest`, `addPatterns` | 1.3 kB |
+| `registerMarkers(chart)` | `addSignals`, `addTrades` | 0.6 kB |
+| `registerScores(chart)` | `addScores` | 0.2 kB |
+| `registerAll(chart)` | all of the above | 3.8 kB |
+
+Sizes are the increase over a bundle of everything `@trendcraft/chart` exports (41.5 kB), measured with esbuild (minified, brotli level 11).
+
+Registering twice is harmless. In React and Vue, pass the functions as the `features` prop (see [Framework wrappers](#framework-wrappers)).
 
 ### Viewport methods
 
@@ -483,7 +515,7 @@ conn.disconnect();
 
 Four TrendCraft indicators (`autoTrendLine`, `channelLine`, `fibonacciRetracement`, `fibonacciExtension`) produce shape data the chart already renders via its built-in drawing types. These helpers convert raw swing anchors into `Drawing` objects and attach them — no primitive plugin required.
 
-Every helper takes pre-computed **swing anchors**, so the chart package stays runtime-free of `trendcraft`. Compose with `getAlternatingSwingPoints` (or any equivalent) on the caller side:
+The chart needs the drawing feature (`registerDrawingTools`, see [Optional features](#optional-features)). Every helper takes pre-computed **swing anchors**, so the chart package stays runtime-free of `trendcraft`. Compose with `getAlternatingSwingPoints` (or any equivalent) on the caller side:
 
 ```typescript
 import { getAlternatingSwingPoints } from 'trendcraft';
@@ -494,6 +526,9 @@ import {
   addAutoChannelLine,
   type SwingAnchor,
 } from '@trendcraft/chart';
+import { registerDrawingTools } from '@trendcraft/chart/features';
+
+registerDrawingTools(chart);
 
 // getAlternatingSwingPoints returns the SwingAnchor shape directly.
 const anchors: SwingAnchor[] = getAlternatingSwingPoints(
@@ -516,7 +551,7 @@ addAutoChannelLine(chart, anchors, { extendToTime: nowMs });
 | `addAutoTrendLine` | `trendline` | last two same-type swings (highs → resistance, lows → support) |
 | `addAutoChannelLine` | `channel` | last three alternating swings (two same-type as base, opposite for width) |
 
-All helpers return the drawing id (so you can later `chart.removeDrawing(id)`), or `null` if insufficient anchors were supplied. `extendToTime` projects the line endpoint forward using the slope of the two base anchors.
+All helpers return the drawing id (so you can later `chart.removeDrawing(id)`), or `null` if insufficient anchors were supplied or the drawing feature is not registered. `extendToTime` projects the line endpoint forward using the slope of the two base anchors.
 
 Exported constants: `DEFAULT_FIB_RETRACEMENT_LEVELS`, `DEFAULT_FIB_EXTENSION_LEVELS`.
 
@@ -585,12 +620,13 @@ import { TrendChart, useTrendChart } from '@trendcraft/chart/react';
   candles={candles}
   indicators={[sma(candles, { period: 20 }), rsi(candles)]}
   backtest={backtestResult}
+  features={[registerBacktest]}
   theme="dark"
   onCrosshairMove={(data) => {}}
 />
 ```
 
-Props mirror the `useTrendChart` options: `candles`, `indicators`, `signals`, `trades`, `drawings`, `timeframes`, `backtest`, `patterns`, `scores`, `plugins`, `chartType`, `layout`, `theme`, `fitOnLoad`, one event handler per chart event (`onClick`, `onDoubleClick`, `onCrosshairMove`, `onVisibleRangeChange`, `onResize`, `onPaneResize`, `onSeriesAdded`, `onSeriesRemoved`, `onSeriesEditRequest`, `onSeriesRemoveRequest`, `onDataFiltered`, `onDrawingComplete`, `onDrawingToolChanged`, `onError`), an `options` prop carrying the remaining `ChartOptions`, plus `style` / `className`. Expose the underlying `ChartInstance` via ref.
+Props mirror the `useTrendChart` options: `candles`, `indicators`, `signals`, `trades`, `drawings`, `timeframes`, `backtest`, `patterns`, `scores`, `features`, `plugins`, `chartType`, `layout`, `theme`, `fitOnLoad`, one event handler per chart event (`onClick`, `onDoubleClick`, `onCrosshairMove`, `onVisibleRangeChange`, `onResize`, `onPaneResize`, `onSeriesAdded`, `onSeriesRemoved`, `onSeriesEditRequest`, `onSeriesRemoveRequest`, `onDataFiltered`, `onDrawingComplete`, `onDrawingToolChanged`, `onError`), an `options` prop carrying the remaining `ChartOptions`, plus `style` / `className`. Expose the underlying `ChartInstance` via ref.
 
 Each handler receives its event's payload, `ChartEventMap[event]` (see [Event payloads](#event-payloads)). `onSeriesEditRequest` / `onSeriesRemoveRequest` are subscribed only while given, because the legend shows its ⚙ / ✕ only while someone listens. Handlers may be inline arrows; the subscription is held for the life of the chart and dispatches to the callbacks of the latest committed render. `options` is diffed against what was previously passed through the wrapper, so only fields whose value changed reach `applyOptions` — passing a creation-only field such as `locale` at mount does not warn, and dropping a field then re-supplying it unchanged does not either. Plain objects and arrays are compared structurally; function-valued options (`priceFormatter`, `timeFormatter`, `formatInfoOverlay`) by identity, so memoize them (`useCallback` / a module-level function) rather than passing a new arrow each render — `formatInfoOverlay` is creation-only and warns on every new identity. The diff is not against the chart's live state: an imperative call on the instance (`setChartType`, a container resize) is not undone by an unchanged `options` prop.
 
@@ -598,7 +634,11 @@ Each handler receives its event's payload, `ChartEventMap[event]` (see [Event pa
 
 ```tsx
 function MyChart({ candles }: { candles: CandleData[] }) {
-  const { containerRef, chart } = useTrendChart({ candles, theme: 'dark' });
+  const { containerRef, chart } = useTrendChart({
+    candles,
+    theme: 'dark',
+    features: [registerDrawingTools],
+  });
   useEffect(() => {
     if (!chart) return;
     chart.setDrawingTool('hline');
@@ -608,6 +648,8 @@ function MyChart({ candles }: { candles: CandleData[] }) {
 ```
 
 `chart` is `null` before mount, the live instance after — drops into `useEffect` deps cleanly.
+
+`features` takes register functions from `@trendcraft/chart/features`. The `signals`, `trades`, `drawings`, `backtest`, `patterns` and `scores` props need their feature. Features are attached when the chart is created; changing the array later has no effect.
 
 ### Vue
 
@@ -622,6 +664,7 @@ import { TrendChart, useTrendChart } from '@trendcraft/chart/vue';
   :candles="candles"
   :indicators="[sma(candles, { period: 20 }), rsi(candles)]"
   :backtest="backtestResult"
+  :features="[registerBacktest]"
   theme="dark"
   @click="(data) => data.time !== null && showBar(data.index)"
   @crosshairMove="onCrosshairMove"

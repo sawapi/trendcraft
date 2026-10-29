@@ -15,8 +15,10 @@ function mockChart() {
   const addDrawing = vi.fn((d: Drawing) => {
     drawings.push(d);
   });
-  // Minimal ChartInstance shape — only addDrawing is exercised.
-  return { chart: { addDrawing } as unknown as ChartInstance, drawings, addDrawing };
+  // Minimal ChartInstance shape — addDrawing, and getDrawings for the
+  // helpers' check that the chart took the drawing.
+  const getDrawings = () => drawings;
+  return { chart: { addDrawing, getDrawings } as unknown as ChartInstance, drawings, addDrawing };
 }
 
 const anchors: SwingAnchor[] = [
@@ -180,5 +182,17 @@ describe("drawing-helpers", () => {
       addAutoFibRetracement(env.chart, anchors, { id: "pinned" });
       expect(env.drawings[0].id).toBe("pinned");
     });
+  });
+});
+
+describe("without the drawing feature", () => {
+  it("returns null when the chart did not take the drawing", () => {
+    // A chart without registerDrawingTools ignores addDrawing.
+    const chart = { addDrawing: vi.fn(), getDrawings: () => [] } as unknown as ChartInstance;
+    const anchors = [
+      { time: 1, price: 10, type: "low" as const, index: 0 },
+      { time: 2, price: 20, type: "high" as const, index: 1 },
+    ];
+    expect(addAutoFibRetracement(chart, anchors)).toBeNull();
   });
 });

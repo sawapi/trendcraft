@@ -11,6 +11,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@trendcraft/chart/vue": resolve(__dirname, useDist ? "../../dist/vue/TrendChart.js" : "../../vue/TrendChart.ts"),
+      "@trendcraft/chart/features": resolve(__dirname, useDist ? "../../dist/features.js" : "../../src/features/index.ts"),
       "@trendcraft/chart": resolve(__dirname, useDist ? "../../dist/index.js" : "../../src/index.ts"),
       "trendcraft": resolve(__dirname, useDist ? "../../../core/dist/index.js" : "../../../core/src/index.ts"),
     },
