@@ -3,6 +3,7 @@
  */
 
 import { getField } from "../snapshot-utils";
+import { commitsState } from "./core";
 import { crossOver, crossUnder } from "./cross";
 import type { StreamingPresetCondition } from "./types";
 
@@ -34,10 +35,12 @@ export function adxRising(key = "dmi"): StreamingPresetCondition {
   return {
     type: "preset",
     name: `adxRising(${key})`,
-    evaluate: (snapshot) => {
+    evaluate: (snapshot, _candle, context) => {
       const adx = getField(snapshot, key, "adx");
       const rising = prevAdx !== null && adx !== null && adx > prevAdx;
-      prevAdx = adx;
+      if (commitsState(context)) {
+        prevAdx = adx;
+      }
       return rising;
     },
   };

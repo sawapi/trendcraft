@@ -5,6 +5,7 @@
  */
 
 import { getField } from "../snapshot-utils";
+import { commitsState } from "./core";
 import type { StreamingPresetCondition } from "./types";
 
 /**
@@ -63,10 +64,12 @@ export function supertrendFlip(key = "supertrend"): StreamingPresetCondition {
   return {
     type: "preset",
     name: `supertrendFlip(${key})`,
-    evaluate: (snapshot) => {
+    evaluate: (snapshot, _candle, context) => {
       const dir = definedDirection(getField(snapshot, key, "direction"));
       const flipped = prevDir !== null && dir !== null && dir !== prevDir;
-      prevDir = dir;
+      if (commitsState(context)) {
+        prevDir = dir;
+      }
       return flipped;
     },
   };
@@ -124,10 +127,12 @@ export function sarFlip(key = "parabolicSar"): StreamingPresetCondition {
   return {
     type: "preset",
     name: `sarFlip(${key})`,
-    evaluate: (snapshot) => {
+    evaluate: (snapshot, _candle, context) => {
       const dir = definedDirection(getField(snapshot, key, "direction"));
       const flipped = prevDir !== null && dir !== null && dir !== prevDir;
-      prevDir = dir;
+      if (commitsState(context)) {
+        prevDir = dir;
+      }
       return flipped;
     },
   };

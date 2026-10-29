@@ -5,6 +5,7 @@
  */
 
 import { getField, getNumber } from "../snapshot-utils";
+import { commitsState } from "./core";
 import type { StreamingPresetCondition } from "./types";
 
 /**
@@ -19,11 +20,13 @@ export function priceDroppedAtr(multiplier = 2.0, key = "atr"): StreamingPresetC
   return {
     type: "preset",
     name: `priceDroppedAtr(${multiplier}x)`,
-    evaluate: (snapshot, candle) => {
+    evaluate: (snapshot, candle, context) => {
       const atr = getNumber(snapshot, key);
       const dropped =
         prevClose !== null && atr !== null && prevClose - candle.close > atr * multiplier;
-      prevClose = candle.close;
+      if (commitsState(context)) {
+        prevClose = candle.close;
+      }
       return dropped;
     },
   };
@@ -41,11 +44,13 @@ export function priceGainedAtr(multiplier = 1.0, key = "atr"): StreamingPresetCo
   return {
     type: "preset",
     name: `priceGainedAtr(${multiplier}x)`,
-    evaluate: (snapshot, candle) => {
+    evaluate: (snapshot, candle, context) => {
       const atr = getNumber(snapshot, key);
       const gained =
         prevClose !== null && atr !== null && candle.close - prevClose > atr * multiplier;
-      prevClose = candle.close;
+      if (commitsState(context)) {
+        prevClose = candle.close;
+      }
       return gained;
     },
   };
@@ -62,10 +67,10 @@ export function newHigh(key = "donchian"): StreamingPresetCondition {
   return {
     type: "preset",
     name: `newHigh(${key})`,
-    evaluate: (snapshot, candle) => {
+    evaluate: (snapshot, candle, context) => {
       const upper = getNumber(snapshot, key) ?? getField(snapshot, key, "upper");
       const isNew = prevUpper !== null && candle.high > prevUpper;
-      if (upper !== null) prevUpper = upper;
+      if (upper !== null && commitsState(context)) prevUpper = upper;
       return isNew;
     },
   };
@@ -82,10 +87,10 @@ export function newLow(key = "donchian"): StreamingPresetCondition {
   return {
     type: "preset",
     name: `newLow(${key})`,
-    evaluate: (snapshot, candle) => {
+    evaluate: (snapshot, candle, context) => {
       const lower = getNumber(snapshot, key) ?? getField(snapshot, key, "lower");
       const isNew = prevLower !== null && candle.low < prevLower;
-      if (lower !== null) prevLower = lower;
+      if (lower !== null && commitsState(context)) prevLower = lower;
       return isNew;
     },
   };

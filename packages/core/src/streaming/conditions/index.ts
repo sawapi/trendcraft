@@ -69,6 +69,7 @@ export type {
   IndicatorSnapshot,
   StreamingCombinedCondition,
   StreamingCondition,
+  StreamingConditionContext,
   StreamingConditionFn,
   StreamingPresetCondition,
 } from "./types";

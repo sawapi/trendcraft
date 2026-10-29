@@ -16,7 +16,22 @@
  */
 
 import type { NormalizedCandle } from "../../types";
-import type { IndicatorSnapshot, StreamingCombinedCondition, StreamingCondition } from "./types";
+import type {
+  IndicatorSnapshot,
+  StreamingCombinedCondition,
+  StreamingCondition,
+  StreamingConditionContext,
+} from "./types";
+
+const CONFIRMED: StreamingConditionContext = { mode: "next" };
+
+/**
+ * Whether a stateful condition may record this bar as its previous value:
+ * true for a confirmed bar, false for a peek at a forming one.
+ */
+export function commitsState(context?: StreamingConditionContext): boolean {
+  return context?.mode !== "peek";
+}
 
 /**
  * Combine conditions with AND logic (all must be true)
@@ -66,9 +81,18 @@ export function not(condition: StreamingCondition): StreamingCombinedCondition {
 /**
  * Evaluate a streaming condition against a snapshot and candle.
  *
+ * `and`, `or` and `not` evaluate every child on every bar rather than
+ * stopping at the first decisive one. A child that compares with the
+ * previous bar (a cross, a rising check) must see every confirmed bar: if
+ * `and(rsiBelow(30), smaGoldenCross())` skipped the cross whenever RSI was
+ * above 30, the cross would later compare against values from bars ago and
+ * report crosses that never happened.
+ *
  * @param condition - The condition to evaluate
  * @param snapshot - Current indicator values
  * @param candle - Current candle
+ * @param context - `{ mode: "peek" }` for a forming bar, so stateful
+ *   conditions leave their state unchanged (default: a confirmed bar)
  * @returns Whether the condition is met
  *
  * @example
@@ -81,25 +105,29 @@ export function evaluateStreamingCondition(
   condition: StreamingCondition,
   snapshot: IndicatorSnapshot,
   candle: NormalizedCandle,
+  context: StreamingConditionContext = CONFIRMED,
 ): boolean {
   // Function condition
   if (typeof condition === "function") {
-    return condition(snapshot, candle);
+    return condition(snapshot, candle, context);
   }
 
   // Preset condition
   if (condition.type === "preset") {
-    return condition.evaluate(snapshot, candle);
+    return condition.evaluate(snapshot, candle, context);
   }
 
-  // Combined conditions
+  // Combined conditions: evaluate every child (see above), then combine.
+  const results = condition.conditions.map((c) =>
+    evaluateStreamingCondition(c, snapshot, candle, context),
+  );
   switch (condition.type) {
     case "and":
-      return condition.conditions.every((c) => evaluateStreamingCondition(c, snapshot, candle));
+      return results.every(Boolean);
     case "or":
-      return condition.conditions.some((c) => evaluateStreamingCondition(c, snapshot, candle));
+      return results.some(Boolean);
     case "not":
-      return !evaluateStreamingCondition(condition.conditions[0], snapshot, candle);
+      return !results[0];
     default:
       return false;
   }
