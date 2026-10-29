@@ -3,7 +3,7 @@
 A per-package checklist for publishing `@trendcraft/chart` to npm.
 The full cross-package release workflow (including `trendcraft` coordination and tag naming) lives in the root [`RELEASING.md`](../../RELEASING.md).
 
-## Before tagging
+## Before publishing
 
 - [ ] All intended work is merged to `main`
 - [ ] `packages/chart/CHANGELOG.md` has a versioned heading (promoted from `Unreleased`) with a concrete date
@@ -19,9 +19,16 @@ The full cross-package release workflow (including `trendcraft` coordination and
 
 ## Publish
 
+Use the **Publish** workflow with `@trendcraft/chart` ticked (dry run first), as described in the root [`RELEASING.md`](../../RELEASING.md). It publishes after trendcraft when both are released together. By hand:
+
 ```sh
 cd packages/chart
 pnpm publish           # runs prepublishOnly: build + test + verify:publish
+```
+
+Then tag the published commit (tag after publishing, as for every package):
+
+```sh
 git tag chart-v<x.y.z>
 git push origin chart-v<x.y.z>
 ```
