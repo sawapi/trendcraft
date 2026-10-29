@@ -29,12 +29,52 @@ describe("RendererRegistry", () => {
   it("warns and overwrites on duplicate renderer registration", () => {
     const registry = new RendererRegistry();
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const r1 = defineSeriesRenderer({ type: "dup", render: vi.fn() });
+    const destroy = vi.fn();
+    const r1 = defineSeriesRenderer({ type: "dup", render: vi.fn(), destroy });
     const r2 = defineSeriesRenderer({ type: "dup", render: vi.fn() });
     registry.registerRenderer(r1);
     registry.registerRenderer(r2);
     expect(warn).toHaveBeenCalledOnce();
     expect(registry.getRenderer("dup")).toBe(r2);
+    // The replaced renderer is cleaned up like an unregistered one
+    expect(destroy).toHaveBeenCalledOnce();
+    warn.mockRestore();
+  });
+
+  it("does nothing when the same renderer is registered again", () => {
+    const registry = new RendererRegistry();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const init = vi.fn();
+    const r = defineSeriesRenderer({ type: "same", render: vi.fn(), init });
+    registry.registerRenderer(r);
+    registry.registerRenderer(r);
+    expect(warn).not.toHaveBeenCalled();
+    expect(init).toHaveBeenCalledOnce();
+    warn.mockRestore();
+  });
+
+  it("unregisters a renderer by type, running its destroy hook", () => {
+    const registry = new RendererRegistry();
+    const destroy = vi.fn();
+    registry.registerRenderer(defineSeriesRenderer({ type: "gone", render: vi.fn(), destroy }));
+    registry.unregisterRenderer("gone");
+    expect(destroy).toHaveBeenCalledOnce();
+    expect(registry.getRenderer("gone")).toBeUndefined();
+    expect(() => registry.unregisterRenderer("never-registered")).not.toThrow();
+  });
+
+  it("unregisters only the given plugin when one is passed", () => {
+    const registry = new RendererRegistry();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const old = defineSeriesRenderer({ type: "t", render: vi.fn() });
+    const now = defineSeriesRenderer({ type: "t", render: vi.fn(), destroy: vi.fn() });
+    registry.registerRenderer(old);
+    registry.registerRenderer(now);
+    registry.unregisterRenderer("t", old);
+    expect(registry.getRenderer("t")).toBe(now);
+    expect(now.destroy).not.toHaveBeenCalled();
+    registry.unregisterRenderer("t", now);
+    expect(registry.getRenderer("t")).toBeUndefined();
     warn.mockRestore();
   });
 

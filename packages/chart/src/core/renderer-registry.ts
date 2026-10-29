@@ -20,13 +20,33 @@ export class RendererRegistry {
   private _renderers = new Map<string, AnyRendererPlugin>();
   private _primitives = new Map<string, PrimitiveEntry>();
 
-  /** Register a custom series renderer */
+  /**
+   * Register a custom series renderer. Registering the same plugin object
+   * again does nothing, so a framework wrapper can re-apply its props; a
+   * different plugin for a registered type replaces it, with a warning, after
+   * running the old one's `destroy` hook.
+   */
   registerRenderer<TConfig>(plugin: SeriesRendererPlugin<TConfig>): void {
-    if (this._renderers.has(plugin.type)) {
+    const existing = this._renderers.get(plugin.type);
+    if (existing === plugin) return;
+    if (existing) {
       console.warn(`[trendcraft/chart] Renderer "${plugin.type}" already registered, overwriting.`);
+      existing.destroy?.();
     }
     plugin.init?.();
     this._renderers.set(plugin.type, plugin);
+  }
+
+  /**
+   * Remove a renderer by type, running its `destroy` hook. Unknown types are
+   * ignored. With `plugin`, only that plugin is removed: nothing happens when
+   * another one has since been registered for the type.
+   */
+  unregisterRenderer<TConfig>(type: string, plugin?: SeriesRendererPlugin<TConfig>): void {
+    const current = this._renderers.get(type);
+    if (!current || (plugin !== undefined && current !== plugin)) return;
+    current.destroy?.();
+    this._renderers.delete(type);
   }
 
   /** Get a renderer by type name */

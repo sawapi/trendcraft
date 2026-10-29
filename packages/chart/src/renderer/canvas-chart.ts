@@ -1478,6 +1478,11 @@ export class CanvasChart implements ChartInstance {
     this._needsRender = true;
   }
 
+  unregisterRenderer<TConfig>(type: string, plugin?: SeriesRendererPlugin<TConfig>): void {
+    this._rendererRegistry.unregisterRenderer(type, plugin);
+    this._needsRender = true;
+  }
+
   registerPrimitive<TState>(plugin: PrimitivePlugin<TState>): void {
     this._rendererRegistry.registerPrimitive(plugin);
     this._needsRender = true;

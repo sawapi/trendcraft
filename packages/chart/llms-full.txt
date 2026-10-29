@@ -197,6 +197,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — `chart.unregisterRenderer(type, plugin?)`
+
+Removes a series renderer plugin, running its `destroy` hook, the counterpart
+of `removePrimitive`. With `plugin`, it removes only that plugin and leaves a
+renderer registered for the type since. The React and Vue wrappers use it: a
+renderer they registered that is dropped from the `plugins` prop, or replaced
+by another object of its type, is now unregistered, where it used to stay
+registered, unless other code has registered that type since. While a renderer
+is listed the prop wins: it is re-applied when `plugins` changes. When a type
+is listed twice, the last one is used.
+
+### Fixed — re-registering the same renderer warned and re-ran `init`
+
+`registerRenderer` warned "already registered, overwriting" and called `init`
+again even for the same plugin object. The React and Vue wrappers re-register
+every renderer whenever `plugins` changes, so toggling a plugin in the
+examples filled the console with warnings. Registering the same object again
+now does nothing; a different plugin for a registered type still replaces it
+with the warning.
+
+### Changed — a replaced renderer's `destroy` now runs
+
+When `registerRenderer` replaces the renderer of a registered type with a
+different plugin, it now calls the old plugin's `destroy` first, as
+`unregisterRenderer` and `chart.destroy()` do. It used to be dropped without
+it, leaking whatever `init` had set up.
+
 ### Fixed — fractional volume below 1,000 was rounded to a whole number
 
 `formatVolume`, used by the info overlay, rounded volumes under 1,000 to whole
@@ -2550,11 +2577,14 @@ applyOptions(options: Partial<ChartOptions>): void
 
 ```typescript
 registerRenderer<TConfig>(plugin: SeriesRendererPlugin<TConfig>): void
+unregisterRenderer(type: string, plugin?: SeriesRendererPlugin): void
 registerPrimitive<TState>(plugin: PrimitivePlugin<TState>): void
 removePrimitive(name: string): void
 addRule(rule: IntrospectionRule): void
 addPreset(name: string, preset: IndicatorPreset): void
 ```
+
+Registering the same renderer object again does nothing; a different renderer for a registered `type` replaces it with a warning, after running the old one's `destroy`. `unregisterRenderer(type)` runs the renderer's `destroy` and removes it, the counterpart of `removePrimitive`; with `plugin`, it removes the renderer only if that plugin still holds the type. The React and Vue wrappers' `plugins` prop applies changes this way, and the prop wins: while a renderer is listed, the wrapper re-applies it whenever `plugins` changes, replacing one registered for that type elsewhere. A renderer it registered that is dropped from the list, or replaced by another object of its type, is unregistered, unless other code has registered that type since; that renderer is left alone. List one renderer per type; for a type listed twice the last one is used.
 
 See [PLUGINS.md](https://github.com/sawapi/trendcraft/blob/main/packages/chart/docs/PLUGINS.md) for plugin authoring details.
 
@@ -3516,8 +3546,8 @@ chart.addIndicator(renkoData, { type: 'renko', pane: 'main' });
 | `render` | `(ctx, config) => void` | Yes | Draw the series. Called once per frame for the visible range. |
 | `priceRange` | `(series, start, end) => [min, max]` | No | Auto-scale hint. If omitted, the chart falls back to reading `value` as a scalar or numeric channels. |
 | `formatValue` | `(series, index) => string \| null` | No | Tooltip formatter. If omitted, the chart uses the default compound formatter. |
-| `init` | `() => void` | No | Called once when `registerRenderer` is invoked. Rarely needed. |
-| `destroy` | `() => void` | No | Called on `chart.destroy()`. Release any external resources here. |
+| `init` | `() => void` | No | Called once when `registerRenderer` registers it (not again for the same object). Rarely needed. |
+| `destroy` | `() => void` | No | Called on `chart.unregisterRenderer(type)`, when another renderer of the same `type` replaces it, or on `chart.destroy()`. Release any external resources here. |
 
 ### Implementation tips
 
@@ -3695,10 +3725,10 @@ Access `pane.width` / `pane.height` in primitives when you want pane-relative la
 
 ```
 registerRenderer(plugin)
-  → plugin.init?.()                    [once]
+  → plugin.init?.()                    [once; registering the same object again is a no-op]
   → (each frame that pane is painted)
     → plugin.render(context, config)
-  → chart.destroy()
+  → unregisterRenderer(type), a replacement of the same type, or chart.destroy()
     → plugin.destroy?.()               [once]
 ```
 
@@ -3710,6 +3740,8 @@ registerPrimitive(plugin)
   → removePrimitive(name) or chart.destroy()
     → plugin.destroy?.()               [once]
 ```
+
+Unregistering a type removes it entirely. If your renderer had replaced a built-in one of the same `type` (for example one added by `registerTrendCraftPresets`), the built-in is not restored: register it again, or those series fall back to generic drawing.
 
 `init` and `destroy` are for external resources (event listeners on `window`, audio workers, etc.). Plain object state lives in the closure or `defaultState` — you don't need `init` for that.
 

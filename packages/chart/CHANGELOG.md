@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — `chart.unregisterRenderer(type, plugin?)`
+
+Removes a series renderer plugin, running its `destroy` hook, the counterpart
+of `removePrimitive`. With `plugin`, it removes only that plugin and leaves a
+renderer registered for the type since. The React and Vue wrappers use it: a
+renderer they registered that is dropped from the `plugins` prop, or replaced
+by another object of its type, is now unregistered, where it used to stay
+registered, unless other code has registered that type since. While a renderer
+is listed the prop wins: it is re-applied when `plugins` changes. When a type
+is listed twice, the last one is used.
+
+### Fixed — re-registering the same renderer warned and re-ran `init`
+
+`registerRenderer` warned "already registered, overwriting" and called `init`
+again even for the same plugin object. The React and Vue wrappers re-register
+every renderer whenever `plugins` changes, so toggling a plugin in the
+examples filled the console with warnings. Registering the same object again
+now does nothing; a different plugin for a registered type still replaces it
+with the warning.
+
+### Changed — a replaced renderer's `destroy` now runs
+
+When `registerRenderer` replaces the renderer of a registered type with a
+different plugin, it now calls the old plugin's `destroy` first, as
+`unregisterRenderer` and `chart.destroy()` do. It used to be dropped without
+it, leaking whatever `init` had set up.
+
 ### Fixed — fractional volume below 1,000 was rounded to a whole number
 
 `formatVolume`, used by the info overlay, rounded volumes under 1,000 to whole
