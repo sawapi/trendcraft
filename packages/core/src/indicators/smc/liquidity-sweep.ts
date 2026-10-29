@@ -13,7 +13,7 @@
  * Bearish Sweep: Price breaks above a swing high, then recovers below it
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { assertOneOf, keywords } from "../../utils/validate-keyword";
@@ -157,7 +157,7 @@ export function liquiditySweep(
   assertPeriod("maxTrackedSweeps", maxTrackedSweeps);
   assertNonNegative("minSweepDepth", minSweepDepth);
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   if (normalized.length === 0) {
     return [];

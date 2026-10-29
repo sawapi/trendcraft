@@ -5,7 +5,7 @@
  * dynamic support/resistance levels.
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { assertPositive } from "../../utils/validate-number";
@@ -91,7 +91,7 @@ export function supertrend(
   assertPositive("Supertrend multiplier", multiplier);
 
   // Normalize if needed
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   const result: Series<SupertrendValue> = [];
 

@@ -12,6 +12,7 @@
  * Migrated to the 0.4.0 State Contract.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle, PriceSource } from "../../../types";
 import { assertPriceSource } from "../../../utils/validate-price-source";
 import { createSma, type SmaState } from "../moving-average/sma";
@@ -203,10 +204,12 @@ export function createKst(
 
   const indicator: IncrementalIndicator<KstValue | null, IndicatorSnapshot<KstState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       return computeNext(candle);
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       return computePeek(candle);
     },
 

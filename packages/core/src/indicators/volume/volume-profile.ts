@@ -5,7 +5,7 @@
  * significant support/resistance zones and the Point of Control (POC).
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type {
   Candle,
@@ -69,7 +69,7 @@ export function volumeProfile(
   assertLevels(levels);
   if (period !== undefined) assertPeriod("Volume profile period", period);
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   if (normalized.length === 0) {
     return createEmptyProfile();
@@ -109,7 +109,7 @@ export function volumeProfileSeries(
   assertLevels(levels);
   assertPeriod("Volume profile period", period);
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
   const len = normalized.length;
 
   if (len === 0) {

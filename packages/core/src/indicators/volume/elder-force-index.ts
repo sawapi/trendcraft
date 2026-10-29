@@ -8,7 +8,7 @@
  * Sellshort*.
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { assertPeriod } from "../../utils/validate-period";
@@ -73,7 +73,7 @@ export function elderForceIndex(
   assertPeriod("Elder Force Index shortPeriod", shortPeriod);
   assertPeriod("Elder Force Index longPeriod", longPeriod);
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   if (normalized.length === 0) {
     return [];

@@ -5,7 +5,7 @@
  * to any detected pattern signals to improve quality and reduce false positives.
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import { linearRegression } from "../../indicators/trend/linear-regression";
 import { atr as calcAtr } from "../../indicators/volatility/atr";
 import type { Candle, NormalizedCandle } from "../../types";
@@ -83,7 +83,7 @@ export function filterPatterns(
 
   if (patterns.length === 0) return [];
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
   const atrData = calcAtr(normalized, { period: atrPeriod });
   const lrData = trendContext ? linearRegression(normalized, { period: trendPeriod }) : null;
 

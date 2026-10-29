@@ -18,6 +18,7 @@
  * `session` is supplied.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle } from "../../../types";
 import { resolveSessionMembership, type SessionDefinition } from "../../session/session-definition";
 import { type IndicatorSnapshot, makeSnapshot, resolveResume } from "../state-contract";
@@ -166,12 +167,14 @@ export function createVwap(
 
   const indicator: IncrementalIndicator<VwapValue, IndicatorSnapshot<VwapState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       count++;
       const value = processCandle(candle, true);
       return { time: candle.time, value };
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       return { time: candle.time, value: processCandle(candle, false) };
     },
 

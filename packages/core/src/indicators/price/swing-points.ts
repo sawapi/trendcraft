@@ -6,7 +6,7 @@
  * A swing low is a bar with a lower low than the surrounding bars.
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { assertPeriod } from "../../utils/validate-period";
@@ -91,7 +91,7 @@ export function swingPoints(
   assertPeriod("leftBars", leftBars);
   assertPeriod("rightBars", rightBars);
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   if (normalized.length === 0) {
     return [];
@@ -185,7 +185,7 @@ export function getSwingHighs(
   const swings = swingPoints(candles, options);
   const result: Array<{ time: number; price: number; index: number }> = [];
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   for (let i = 0; i < swings.length; i++) {
     if (swings[i].value.isSwingHigh) {
@@ -236,7 +236,7 @@ export function getAlternatingSwingPoints(
   count: number,
   options: SwingPointOptions = {},
 ): AlternatingSwingPoint[] {
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   if (normalized.length === 0 || count <= 0) {
     return [];
@@ -301,7 +301,7 @@ export function getSwingLows(
   const swings = swingPoints(candles, options);
   const result: Array<{ time: number; price: number; index: number }> = [];
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   for (let i = 0; i < swings.length; i++) {
     if (swings[i].value.isSwingLow) {

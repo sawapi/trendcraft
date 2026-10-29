@@ -6,7 +6,7 @@
  * Common thresholds: above 61.8 = choppy, below 38.2 = trending.
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { assertPeriod } from "../../utils/validate-period";
@@ -54,7 +54,7 @@ export function choppinessIndex(
 
   assertPeriod("Choppiness Index period", period, 2);
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   if (normalized.length === 0) {
     return [];

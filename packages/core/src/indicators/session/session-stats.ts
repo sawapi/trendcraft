@@ -5,7 +5,7 @@
  * bullish percentage) over a configurable lookback period.
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import type { Candle, NormalizedCandle } from "../../types";
 import { assertPeriod } from "../../utils/validate-period";
 import {
@@ -79,7 +79,7 @@ export function sessionStats(
   assertPeriod("Session stats lookback", lookback);
   if (candles.length === 0) return [];
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   const sessionDefs = options?.sessions ?? getIctSessions();
 

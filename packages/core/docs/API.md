@@ -3443,6 +3443,8 @@ const normalized = normalizeCandles(candles);
 // All timestamps converted to Unix milliseconds
 ```
 
+Every candle must have a finite `time`, `open`, `high`, `low`, `close` and `volume`. A `NaN` or `±Infinity`, or a missing volume, throws, naming the bar and the field (`candle 12 has a non-finite close (NaN)`). Every public function that takes candles checks them the same way, already-normalized candles included, and so do the streaming inputs (pipeline, incremental indicators, resampler, aggregator, live candle). An array is scanned once; later calls check appended bars, and rescan the array if its first or last candle was replaced (a rolling window, or a new object for the forming bar). A candle modified in place, or replaced anywhere but the first or last position, is not re-checked. Data with no volume should use `0`; fractional volume is fine. `validateCandles` does not throw: it reports these values as findings, so use it to find and drop bad rows.
+
 ---
 
 ### Price Source Helpers

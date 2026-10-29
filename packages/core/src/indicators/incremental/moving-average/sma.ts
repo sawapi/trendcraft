@@ -11,6 +11,7 @@
  * may be omitted to inherit from the snapshot.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle, PriceSource } from "../../../types";
 import { assertPriceSource } from "../../../utils/validate-price-source";
 import { CircularBuffer } from "../circular-buffer";
@@ -117,6 +118,7 @@ export function createSma(
 
   const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<SmaState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const price = getSourcePrice(candle, source);
 
       if (buffer.isFull) {
@@ -136,6 +138,7 @@ export function createSma(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const price = getSourcePrice(candle, source);
       const newSum = buffer.isFull ? sum - buffer.oldest() + price : sum + price;
       const newLength = Math.min(buffer.length + 1, period);

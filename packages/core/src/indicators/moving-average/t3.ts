@@ -7,7 +7,7 @@
  * T3 = GD(GD(GD(n)))
  */
 
-import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized, getPrice } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 import { assertInRange } from "../../utils/validate-number";
@@ -64,7 +64,7 @@ export function t3(
     throw new Error("T3 period must be an integer");
   }
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   // Extract prices
   const prices = normalized.map((c) => getPrice(c, source));

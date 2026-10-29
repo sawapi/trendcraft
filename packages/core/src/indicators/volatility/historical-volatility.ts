@@ -5,7 +5,7 @@
  * providing a statistical measure of price volatility.
  */
 
-import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized, getPrice } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 import { assertPositive } from "../../utils/validate-number";
@@ -59,7 +59,7 @@ export function historicalVolatility(
 
   assertPeriod("Historical Volatility period", period, 2);
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
   const result: Series<number | null> = [];
   const prices = normalized.map((c) => getPrice(c, source));
 

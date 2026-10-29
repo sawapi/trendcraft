@@ -19,6 +19,7 @@
  * Migrated to the 0.4.0 State Contract.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import { slopeOverIndex } from "../../../core/statistics";
 import type { NormalizedCandle, PriceSource } from "../../../types";
 import { assertPriceSource } from "../../../utils/validate-price-source";
@@ -162,12 +163,14 @@ export function createLinearRegression(
     IndicatorSnapshot<LinearRegressionState>
   > = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       buffer.push(getSourcePrice(candle, source));
       count++;
       return { time: candle.time, value: compute() };
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const y = getSourcePrice(candle, source);
       if (!buffer.isFull && buffer.length + 1 < period) {
         return { time: candle.time, value: null };

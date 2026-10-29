@@ -17,6 +17,7 @@
  * derived from the periods in the factory closure and not persisted.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle, PriceSource } from "../../../types";
 import { assertPriceSource } from "../../../utils/validate-price-source";
 import {
@@ -155,6 +156,7 @@ export function createPpo(
 
   const indicator: IncrementalIndicator<PpoValue | null, IndicatorSnapshot<PpoState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       count++;
       const price = getSourcePrice(candle, source);
 
@@ -201,6 +203,7 @@ export function createPpo(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const price = getSourcePrice(candle, source);
       const peekCount = count + 1;
 

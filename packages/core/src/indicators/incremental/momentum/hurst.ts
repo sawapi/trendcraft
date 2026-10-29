@@ -14,6 +14,7 @@
  * Migrated to the 0.4.0 State Contract.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle, PriceSource } from "../../../types";
 import { assertPriceSource } from "../../../utils/validate-price-source";
 import { CircularBuffer } from "../circular-buffer";
@@ -235,6 +236,7 @@ export function createHurst(
 
   const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<HurstState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const price = getSourcePrice(candle, source);
       priceBuffer.push(price);
       count++;
@@ -251,6 +253,7 @@ export function createHurst(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const price = getSourcePrice(candle, source);
 
       // After the simulated push the buffer holds

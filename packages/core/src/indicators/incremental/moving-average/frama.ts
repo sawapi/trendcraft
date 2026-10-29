@@ -13,6 +13,7 @@
  * 4. FRAMA = alpha * source + (1 - alpha) * prevFRAMA.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle, PriceSource } from "../../../types";
 import { assertPriceSource } from "../../../utils/validate-price-source";
 import { CircularBuffer } from "../circular-buffer";
@@ -138,6 +139,7 @@ export function createFrama(
 
   const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<FramaState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const price = getSourcePrice(candle, source);
       count++;
       highBuffer.push(candle.high);
@@ -161,6 +163,7 @@ export function createFrama(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const price = getSourcePrice(candle, source);
 
       // Mirror next(): it pushes first, then gates on

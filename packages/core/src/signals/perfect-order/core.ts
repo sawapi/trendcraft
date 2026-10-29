@@ -8,7 +8,7 @@
  * - Collapse when: price < shortMA × (1 - margin) OR MA order broken
  */
 
-import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized, getPrice } from "../../core/normalize";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { assertOneOf } from "../../utils/validate-keyword";
 import { assertPriceSource } from "../../utils/validate-price-source";
@@ -86,7 +86,7 @@ export function perfectOrder(
   }
 
   // Normalize candles
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   // Calculate all MAs
   const maFn = getMaFunction(maType);

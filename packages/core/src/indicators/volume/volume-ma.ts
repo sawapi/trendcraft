@@ -2,7 +2,7 @@
  * Volume Moving Average indicator
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { assertOneOf, keywords } from "../../utils/validate-keyword";
 import { assertPeriod } from "../../utils/validate-period";
@@ -40,7 +40,7 @@ export function volumeMa(
   assertOneOf("Volume MA type", type, MA_TYPES);
 
   // Normalize if needed
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   if (normalized.length === 0) {
     return [];

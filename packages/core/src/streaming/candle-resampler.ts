@@ -17,6 +17,7 @@
  * ```
  */
 
+import { assertFiniteCandle } from "../core/normalize";
 import type { NormalizedCandle } from "../types";
 import type { CandleResampler, CandleResamplerOptions, CandleResamplerState } from "./types";
 
@@ -88,6 +89,7 @@ export function createCandleResampler(
 
   return {
     addCandle(candle: NormalizedCandle): NormalizedCandle | null {
+      assertFiniteCandle(candle);
       const periodStart = getIntervalStart(candle.time, targetIntervalMs);
 
       // First candle ever

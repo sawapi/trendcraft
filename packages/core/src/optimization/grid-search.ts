@@ -6,6 +6,7 @@
 
 import { runBacktest } from "../backtest";
 import { IndicatorCache } from "../core/indicator-cache";
+import { assertFiniteCandles } from "../core/normalize";
 import type { BacktestOptions, Condition, NormalizedCandle } from "../types";
 import type {
   GridSearchOptions,
@@ -138,6 +139,7 @@ export function gridSearch(
   parameterRanges: ParameterRange[],
   options: GridSearchOptions = {},
 ): GridSearchResult {
+  assertFiniteCandles(candles);
   const {
     metric = "sharpe",
     constraints = [],
@@ -346,6 +348,7 @@ export function gridSearchSafe(
   parameterRanges: ParameterRange[],
   options: GridSearchOptions = {},
 ): Result<GridSearchResult> {
+  assertFiniteCandles(candles);
   try {
     return ok(gridSearch(candles, createStrategy, parameterRanges, options));
   } catch (error) {

@@ -10,7 +10,7 @@
  * - Bear Pennant: Sharp down move + small symmetrical triangle
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import { getSwingHighs, getSwingLows } from "../../indicators/price/swing-points";
 import { atr as calcAtr } from "../../indicators/volatility/atr";
 import type { Candle, NormalizedCandle } from "../../types";
@@ -202,7 +202,7 @@ export function detectFlag(
     volumeLookback = 10,
   } = options;
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
   const minTotalBars = maxPoleBars + minConsolidationBars;
   if (normalized.length < minTotalBars) return [];
 

@@ -5,7 +5,7 @@
  * Useful for swing traders to identify stocks outperforming the market.
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { assertFinite, assertNonNegative } from "../../utils/validate-number";
@@ -78,8 +78,8 @@ export function benchmarkRS(
   assertPeriod("RS smaPeriod", smaPeriod);
   assertNonNegative("RS flatThreshold", flatThreshold);
 
-  const stockNorm = isNormalized(candles) ? candles : normalizeCandles(candles);
-  const benchNorm = isNormalized(benchmark) ? benchmark : normalizeCandles(benchmark);
+  const stockNorm = ensureNormalized(candles);
+  const benchNorm = ensureNormalized(benchmark);
 
   // Align data by timestamp
   const alignedData = alignByTime(stockNorm, benchNorm);

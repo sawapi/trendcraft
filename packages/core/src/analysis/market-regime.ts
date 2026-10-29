@@ -18,7 +18,7 @@
  * ```
  */
 
-import { isNormalized, normalizeCandles } from "../core/normalize";
+import { ensureNormalized } from "../core/normalize";
 import { dmi } from "../indicators/momentum/dmi";
 import { ema } from "../indicators/moving-average/ema";
 import { atr } from "../indicators/volatility/atr";
@@ -120,9 +120,7 @@ export function detectMarketRegime(
 ): MarketRegimeResult {
   const opts = resolveOptions(options);
 
-  const normalized: NormalizedCandle[] = isNormalized(candles)
-    ? candles
-    : normalizeCandles(candles);
+  const normalized: NormalizedCandle[] = ensureNormalized(candles);
 
   if (normalized.length === 0) {
     return { volatility: "normal", trend: "sideways", trendStrength: 0 };

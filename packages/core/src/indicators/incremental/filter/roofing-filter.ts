@@ -15,6 +15,7 @@
  * Migrated to the 0.4.0 State Contract.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle, PriceSource } from "../../../types";
 import { assertPriceSource } from "../../../utils/validate-price-source";
 import {
@@ -151,6 +152,7 @@ export function createRoofingFilter(
 
   const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<RoofingFilterState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const price = getSourcePrice(candle, source);
 
       if (count < 2) {
@@ -175,6 +177,7 @@ export function createRoofingFilter(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const price = getSourcePrice(candle, source);
       if (count < 2) return { time: candle.time, value: null };
       const { filtVal } = step(price);

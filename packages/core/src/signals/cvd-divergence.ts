@@ -13,7 +13,7 @@
  * divergence; see {@link detectDivergence}.
  */
 
-import { isNormalized, normalizeCandles } from "../core/normalize";
+import { ensureNormalized } from "../core/normalize";
 import { cvd } from "../indicators/volume/cvd";
 import type { Candle, NormalizedCandle } from "../types";
 import type { DivergenceOptions, DivergenceSignal } from "./divergence";
@@ -37,7 +37,7 @@ export function cvdDivergence(
   candles: Candle[] | NormalizedCandle[],
   options: DivergenceOptions = {},
 ): DivergenceSignal[] {
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   if (normalized.length < 10) return [];
 

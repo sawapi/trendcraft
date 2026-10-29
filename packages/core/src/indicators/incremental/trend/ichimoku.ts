@@ -20,6 +20,7 @@
  * Migrated to the 0.4.0 State Contract.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
 import {
@@ -194,11 +195,13 @@ export function createIchimoku(
 
   const indicator: IncrementalIndicator<IchimokuValue, IndicatorSnapshot<IchimokuState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const value = processCandle(candle);
       return { time: candle.time, value };
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const saved = indicator.getState().state;
       const result = indicator.next(candle);
 

@@ -12,7 +12,7 @@
  * close prices directly, which conflated trend with tail risk.
  */
 
-import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized, getPrice } from "../../core/normalize";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { assertFinite, assertPositive } from "../../utils/validate-number";
 import { assertPeriod } from "../../utils/validate-period";
@@ -117,7 +117,7 @@ export function adaptiveBollinger(
     throw new Error("Adaptive Bollinger maxMultiplier must be >= minMultiplier");
   }
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
   if (normalized.length === 0) return [];
 
   const result: Series<AdaptiveBollingerValue> = [];

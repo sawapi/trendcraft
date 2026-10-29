@@ -22,6 +22,7 @@
  * CVD = cumulative sum of delta
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle } from "../../../types";
 import { type IndicatorSnapshot, makeSnapshot, resolveResume } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -89,12 +90,14 @@ export function createCvd(
 
   const indicator: IncrementalIndicator<number, IndicatorSnapshot<CvdState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       count++;
       cumDelta += computeDelta(candle);
       return { time: candle.time, value: cumDelta };
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       return { time: candle.time, value: cumDelta + computeDelta(candle) };
     },
 

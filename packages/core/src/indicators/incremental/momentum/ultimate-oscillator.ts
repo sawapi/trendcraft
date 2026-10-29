@@ -17,6 +17,7 @@
  * Migrated to the 0.4.0 State Contract.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
 import {
@@ -130,6 +131,7 @@ export function createUltimateOscillator(
     IndicatorSnapshot<UltimateOscillatorState>
   > = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       count++;
 
       if (prevClose === null) {
@@ -150,6 +152,7 @@ export function createUltimateOscillator(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       if (prevClose === null) {
         return { time: candle.time, value: null };
       }

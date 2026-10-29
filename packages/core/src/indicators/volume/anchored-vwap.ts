@@ -6,7 +6,7 @@
  * like earnings, breakouts, or highs/lows.
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { assertInRange } from "../../utils/validate-number";
@@ -84,7 +84,7 @@ export function anchoredVwap(
   assertPeriod("Anchored VWAP bands", bands, 0);
   assertInRange("Anchored VWAP bands", bands, 0, 2);
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   if (normalized.length === 0) {
     return [];

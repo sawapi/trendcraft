@@ -5,7 +5,7 @@
  * Consists of a U-shaped cup followed by a smaller pullback (handle).
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import { getSwingHighs, getSwingLows } from "../../indicators/price/swing-points";
 import type { Candle, NormalizedCandle } from "../../types";
 import { causalPatternTimes, validateBreakoutVolume } from "./double-pattern-utils";
@@ -52,7 +52,7 @@ export function cupWithHandle(
     swingLookback = 5,
   } = options;
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   if (normalized.length < minCupLength + minHandleLength) {
     return [];

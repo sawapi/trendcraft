@@ -14,6 +14,7 @@
  * Migrated to the 0.4.0 State Contract.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle, PriceSource } from "../../../types";
 import { assertPriceSource } from "../../../utils/validate-price-source";
 import { createSma, type SmaState } from "../moving-average/sma";
@@ -110,6 +111,7 @@ export function createDpo(
 
   const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<DpoState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       count++;
       const price = getSourcePrice(candle, source);
       pending.push({ time: candle.time, price });
@@ -137,6 +139,7 @@ export function createDpo(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const smaVal = sma.peek(candle).value;
       const peekCount = count + 1;
       const price = getSourcePrice(candle, source);

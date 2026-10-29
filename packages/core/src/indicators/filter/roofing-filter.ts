@@ -6,7 +6,7 @@
  * isolating the dominant cycle in price data.
  */
 
-import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized, getPrice } from "../../core/normalize";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 import { assertPeriod } from "../../utils/validate-period";
 import { assertPriceSource } from "../../utils/validate-price-source";
@@ -59,7 +59,7 @@ export function roofingFilter(
   assertPeriod("Roofing filter highPassPeriod", highPassPeriod, 2);
   assertPeriod("Roofing filter lowPassPeriod", lowPassPeriod);
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   const result: Series<number | null> = [];
 

@@ -5,7 +5,7 @@
  * This can identify sustained high trading activity.
  */
 
-import { isNormalized, normalizeCandles } from "../core/normalize";
+import { ensureNormalized } from "../core/normalize";
 import type { Candle, NormalizedCandle } from "../types";
 
 /**
@@ -71,7 +71,7 @@ export function volumeAboveAverage(
     throw new Error("Volume above average period must be at least 2");
   }
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   if (normalized.length <= period) {
     return [];

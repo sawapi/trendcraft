@@ -3,7 +3,7 @@
  * Detects when one series crosses over/under another
  */
 
-import { isNormalized, normalizeCandles } from "../core/normalize";
+import { ensureNormalized } from "../core/normalize";
 import { sma } from "../indicators/moving-average/sma";
 import type { Candle, NormalizedCandle, Series } from "../types";
 
@@ -149,7 +149,7 @@ export function goldenCross(
   }
 
   // Normalize candles for consistency
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   // Calculate SMAs
   const shortSma = sma(normalized, { period: shortPeriod });
@@ -186,7 +186,7 @@ export function deadCross(
   }
 
   // Normalize candles for consistency
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   // Calculate SMAs
   const shortSma = sma(normalized, { period: shortPeriod });
@@ -313,7 +313,7 @@ export function validateCrossSignals(
 
   if (candles.length === 0) return [];
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   // Calculate SMAs
   const shortSma = sma(normalized, { period: shortPeriod });

@@ -29,6 +29,7 @@
  * ```
  */
 
+import { assertFiniteCandles } from "../core/normalize";
 import type { ConditionRegistry } from "../strategy/registry";
 import type { StrategyJSON } from "../strategy/types";
 import type { Condition, NormalizedCandle } from "../types";
@@ -73,6 +74,7 @@ export function gridSearchFromJSON(
   registry: ConditionRegistry<Condition>,
   options?: GridSearchOptions,
 ): GridSearchResult {
+  assertFiniteCandles(candles);
   validateRangePaths(strategy, ranges, registry);
   return gridSearch(
     candles,
@@ -108,6 +110,7 @@ export function gridSearchFromJSONSafe(
   registry: ConditionRegistry<Condition>,
   options?: GridSearchOptions,
 ): Result<GridSearchResult> {
+  assertFiniteCandles(candles);
   try {
     return ok(gridSearchFromJSON(candles, strategy, ranges, registry, options));
   } catch (error) {

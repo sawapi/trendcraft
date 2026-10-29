@@ -21,6 +21,7 @@
  * Migrated to the 0.4.0 State Contract.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
 import {
@@ -154,11 +155,13 @@ export function createMfi(
 
   const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<MfiState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const value = computeNext(candle);
       return { time: candle.time, value };
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       // Save and restore for peek
       const savedTp = prevTp;
       const savedBuffer = flowBuffer.snapshot();

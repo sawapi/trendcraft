@@ -27,6 +27,7 @@
  * ```
  */
 
+import { assertFiniteCandle } from "../core/normalize";
 import type { NormalizedCandle } from "../types";
 import { evaluateStreamingCondition } from "./conditions/core";
 import type {
@@ -144,11 +145,13 @@ export function createPipeline(
 
   return {
     next(candle: NormalizedCandle): PipelineResult {
+      assertFiniteCandle(candle);
       const snapshot = buildSnapshot(instances, candle, "next");
       return evaluate(options, snapshot, candle, "next");
     },
 
     peek(candle: NormalizedCandle): PipelineResult {
+      assertFiniteCandle(candle);
       const snapshot = buildSnapshot(instances, candle, "peek");
       return evaluate(options, snapshot, candle, "peek");
     },

@@ -5,7 +5,7 @@
  * to identify long-term money flow trends.
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { assertPeriod } from "../../utils/validate-period";
@@ -79,7 +79,7 @@ export function klinger(
   assertPeriod("Klinger longPeriod", longPeriod);
   assertPeriod("Klinger signalPeriod", signalPeriod);
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
   const len = normalized.length;
 
   if (len === 0) {

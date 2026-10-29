@@ -12,6 +12,7 @@
  * may be omitted to inherit from the snapshot.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle, PriceSource } from "../../../types";
 import { assertPriceSource } from "../../../utils/validate-price-source";
 import { CircularBuffer } from "../circular-buffer";
@@ -128,6 +129,7 @@ export function createWma(
 
   const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<WmaState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const price = getSourcePrice(candle, source);
       count++;
 
@@ -162,6 +164,7 @@ export function createWma(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const price = getSourcePrice(candle, source);
       const peekLength = Math.min(buffer.length + 1, period);
       if (peekLength < period) {

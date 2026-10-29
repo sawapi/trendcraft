@@ -47,9 +47,17 @@ const OPTION_BAGS: Array<Record<string, unknown>> = [
   { shortPeriod: 5, longPeriod: 20 },
 ];
 
+/**
+ * Finite ticks that still poison a recursive state (a zero or negative price
+ * under a logarithm or a ratio). Non-finite ticks no longer get this far:
+ * `next()` rejects them, which the last block checks.
+ */
 const BAD_TICKS: Array<[string, number]> = [
   ["zero", 0],
   ["negative", -5],
+];
+
+const NON_FINITE: Array<[string, number]> = [
   ["+Infinity", Number.POSITIVE_INFINITY],
   ["-Infinity", Number.NEGATIVE_INFINITY],
   ["NaN", Number.NaN],
@@ -161,6 +169,26 @@ describe("resuming from JSON matches resuming from the object", () => {
               matches: true,
             });
           }
+        }
+      }
+    });
+  }
+});
+
+describe("every incremental indicator rejects a non-finite tick", () => {
+  for (const [name, factory] of factories) {
+    it(`${name}`, () => {
+      const built = construct(factory);
+      if (built === null) return; // needs options this harness does not know
+
+      for (const [label, bad] of NON_FINITE) {
+        for (const field of ["close", "volume", "time"] as const) {
+          const live = factory(built.options);
+          for (let i = 0; i < 5; i++) live.next(candle(i, 100 + i));
+          const tick = { ...candle(5, 105), [field]: bad };
+          expect(() => live.next(tick), `${name} / ${field} ${label}`).toThrow(
+            new RegExp(`non-finite ${field}`),
+          );
         }
       }
     });

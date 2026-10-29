@@ -10,6 +10,7 @@
  * Migrated to the 0.4.0 State Contract.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
 import {
@@ -138,6 +139,7 @@ export function createWilliamsR(
 
   const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<WilliamsRState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       highBuffer.push(candle.high);
       lowBuffer.push(candle.low);
       count++;
@@ -147,6 +149,7 @@ export function createWilliamsR(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       // Create temporary snapshots to compute without mutation
       const tempHigh = CircularBuffer.fromSnapshot(highBuffer.snapshot());
       const tempLow = CircularBuffer.fromSnapshot(lowBuffer.snapshot());

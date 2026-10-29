@@ -11,6 +11,7 @@
  * Migrated to the 0.4.0 State Contract.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle } from "../../../types";
 import {
   type IndicatorSnapshot,
@@ -191,6 +192,7 @@ export function createKlinger(
 
   const indicator: IncrementalIndicator<KlingerValue, IndicatorSnapshot<KlingerState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       count++;
 
       if (prevHlc === null) {
@@ -226,6 +228,7 @@ export function createKlinger(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       if (prevHlc === null) {
         return { time: candle.time, value: nullValue };
       }

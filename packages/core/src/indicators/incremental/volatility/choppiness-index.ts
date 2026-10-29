@@ -13,6 +13,7 @@
  * (raw values, no per-period derivation needed).
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
 import {
@@ -144,6 +145,7 @@ export function createChoppinessIndex(
 
   const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<ChoppinessIndexState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       count++;
 
       // TR calculation
@@ -167,6 +169,7 @@ export function createChoppinessIndex(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       if (prevClose === null) {
         return { time: candle.time, value: null };
       }

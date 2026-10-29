@@ -3,7 +3,7 @@
  * Measures buying and selling pressure as a cumulative indicator
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { OBV_META } from "../indicator-meta";
@@ -35,7 +35,7 @@ import { OBV_META } from "../indicator-meta";
  * ```
  */
 export function obv(candles: Candle[] | NormalizedCandle[]): Series<number> {
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   if (normalized.length === 0) {
     return [];

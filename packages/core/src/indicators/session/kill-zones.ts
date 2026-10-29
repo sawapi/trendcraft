@@ -10,7 +10,7 @@
  * Note: All times are in UTC. DST is ignored (fixed UTC-5 offset).
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { isInSession } from "./session-definition";
 import { getTzHourMinute } from "./tz-utils";
@@ -130,7 +130,7 @@ export function killZones(
 ): Series<KillZoneValue> {
   if (candles.length === 0) return [];
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   const zoneDefs = zones ?? getIctKillZones();
   const result: Series<KillZoneValue> = [];

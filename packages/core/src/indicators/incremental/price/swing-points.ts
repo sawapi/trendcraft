@@ -21,6 +21,7 @@
  * Migrated to the 0.4.0 State Contract.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle } from "../../../types";
 import { assertPeriod } from "../../../utils/validate-period";
 import { CircularBuffer } from "../circular-buffer";
@@ -169,6 +170,7 @@ export function createSwingPoints(
 
   const indicator: IncrementalIndicator<SwingPointValue, IndicatorSnapshot<SwingPointsState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       buffer.push({
         high: candle.high,
         low: candle.low,
@@ -205,6 +207,7 @@ export function createSwingPoints(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       // Simulate the buffer state after push without mutating.
       const needed = windowSize - 1;
       if (buffer.length < needed) {

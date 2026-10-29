@@ -16,7 +16,7 @@
  * matching StockCharts canonical TRIX (no zero-padding seed contamination).
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { assertPeriod } from "../../utils/validate-period";
@@ -108,7 +108,7 @@ export function trix(
   assertPeriod("TRIX period", period);
   assertPeriod("TRIX signal period", signalPeriod);
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   if (normalized.length === 0) return [];
 

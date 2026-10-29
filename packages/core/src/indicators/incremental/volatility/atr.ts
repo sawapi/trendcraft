@@ -12,6 +12,7 @@
  * `IndicatorSnapshot<AtrState>` and `fromState` accepts the same.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle } from "../../../types";
 import {
   type IndicatorSnapshot,
@@ -95,6 +96,7 @@ export function createAtr(
 
   const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<AtrState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       count++;
 
       if (prevClose === null) {
@@ -126,6 +128,7 @@ export function createAtr(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       if (prevClose === null || count < period) {
         return { time: candle.time, value: null };
       }

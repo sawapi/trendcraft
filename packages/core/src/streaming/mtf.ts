@@ -36,6 +36,7 @@
  * ```
  */
 
+import { assertFiniteCandle } from "../core/normalize";
 import type { NormalizedCandle } from "../types";
 import { createCandleResampler } from "./candle-resampler";
 import type {
@@ -211,6 +212,7 @@ export function createStreamingMtf(
 
   return {
     next(candle: NormalizedCandle): MtfSnapshot {
+      assertFiniteCandle(candle);
       for (const inst of instances) {
         processCandle(inst, candle, "next");
       }
@@ -218,6 +220,7 @@ export function createStreamingMtf(
     },
 
     peek(candle: NormalizedCandle): MtfSnapshot {
+      assertFiniteCandle(candle);
       return buildMtfSnapshot("peek", candle);
     },
 

@@ -7,6 +7,7 @@
 
 import { runBacktest } from "../backtest";
 import { IndicatorCache } from "../core/indicator-cache";
+import { assertFiniteCandles } from "../core/normalize";
 import type { BacktestOptions, NormalizedCandle } from "../types";
 import type {
   OptimizationMetric,
@@ -235,6 +236,7 @@ export function paretoOptimization(
   paramRanges: ParameterRange[],
   options: ParetoOptions,
 ): ParetoResult {
+  assertFiniteCandles(candles);
   const { objectives, constraints = [], maxCombinations = 10000, progressCallback } = options;
   assertOptimizerKeywords("paretoOptimization", { constraints, objectives });
 
@@ -377,6 +379,7 @@ export function paretoOptimizationSafe(
   paramRanges: ParameterRange[],
   options: ParetoOptions,
 ): Result<ParetoResult> {
+  assertFiniteCandles(candles);
   try {
     return ok(paretoOptimization(candles, createStrategy, paramRanges, options));
   } catch (e) {

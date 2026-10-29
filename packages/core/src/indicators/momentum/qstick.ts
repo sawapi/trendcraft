@@ -5,7 +5,7 @@
  * (Close - Open), measuring buying/selling pressure.
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { assertPeriod } from "../../utils/validate-period";
@@ -47,7 +47,7 @@ export function qstick(
 
   assertPeriod("QStick period", period);
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
   const result: Series<number | null> = [];
 
   // Calculate Close - Open for each bar

@@ -12,6 +12,7 @@
  * Migrated to the 0.4.0 State Contract.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle } from "../../../types";
 import {
   type IndicatorSnapshot,
@@ -140,6 +141,7 @@ export function createElderForceIndex(
     IndicatorSnapshot<ElderForceIndexState>
   > = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const raw = computeRawForce(candle);
       count++;
 
@@ -155,6 +157,7 @@ export function createElderForceIndex(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const raw = prevClose === null ? 0 : (candle.close - prevClose) * candle.volume;
       const peekCount = count + 1;
 

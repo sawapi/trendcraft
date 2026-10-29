@@ -44,6 +44,7 @@
  * bar-for-bar parity.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle, PriceSource } from "../../../types";
 import { assertPositive } from "../../../utils/validate-number";
 import { assertPriceSource } from "../../../utils/validate-price-source";
@@ -137,6 +138,7 @@ export function createMcGinleyDynamic(
 
   const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<McGinleyDynamicState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const price = getSourcePrice(candle, source);
       count++;
 
@@ -160,6 +162,7 @@ export function createMcGinleyDynamic(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const price = getSourcePrice(candle, source);
       const peekCount = count + 1;
 

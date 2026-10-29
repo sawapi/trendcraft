@@ -7,6 +7,7 @@
 import { createFundamentalsMap } from "../core/fundamentals";
 import { createCachedIndicators, type IndicatorCache } from "../core/indicator-cache";
 import { buildMtfSetup, updateMtfIndices } from "../core/mtf-context";
+import { assertFiniteCandles } from "../core/normalize";
 import { atr } from "../indicators/volatility/atr";
 import type {
   AtrRiskOptions,
@@ -117,6 +118,7 @@ export function runBacktest(
   options: BacktestOptions | MtfBacktestOptions,
   cache?: IndicatorCache,
 ): BacktestResult {
+  assertFiniteCandles(candles);
   const {
     capital,
     direction: dir = "long" as PositionDirection,

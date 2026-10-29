@@ -15,6 +15,7 @@
  * Migrated to the 0.4.0 State Contract.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import { centeredMoments } from "../../../core/statistics";
 import type { NormalizedCandle, PriceSource } from "../../../types";
 import { assertPositive } from "../../../utils/validate-number";
@@ -135,6 +136,7 @@ export function createHistoricalVolatility(
     IndicatorSnapshot<HistoricalVolatilityState>
   > = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       count++;
       const price = getSourcePrice(candle, source);
 
@@ -162,6 +164,7 @@ export function createHistoricalVolatility(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       if (prevPrice === null) {
         return { time: candle.time, value: null };
       }

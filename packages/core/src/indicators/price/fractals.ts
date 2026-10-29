@@ -6,7 +6,7 @@
  * or the lowest low (down fractal) compared to surrounding bars.
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { assertPeriod } from "../../utils/validate-period";
@@ -70,7 +70,7 @@ export function fractals(
 
   assertPeriod("Fractals period", period);
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
   const result: Series<FractalValue> = [];
 
   for (let i = 0; i < normalized.length; i++) {

@@ -10,7 +10,7 @@
  * - Doji (12-16): four_price, dragonfly, gravestone, long_legged, standard
  */
 
-import { isNormalized, normalizeCandles } from "../core/normalize";
+import { ensureNormalized } from "../core/normalize";
 import { candlestickPatterns } from "../signals/candlestick";
 import type { CandlestickPatternName } from "../signals/candlestick/types";
 import {
@@ -296,7 +296,7 @@ export function computeVolumeRatios(
  * ```
  */
 export function tokenizeCandles(candles: Candle[] | NormalizedCandle[]): number[] {
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
   const volumeRatios = computeVolumeRatios(normalized);
   return normalized.map((c, i) => quantizeCandle(c, volumeRatios[i]).id);
 }

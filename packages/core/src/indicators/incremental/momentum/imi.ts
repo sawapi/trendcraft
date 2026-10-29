@@ -12,6 +12,7 @@
  * Migrated to the 0.4.0 State Contract.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
 import {
@@ -122,6 +123,7 @@ export function createImi(
 
   const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<ImiState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       count++;
 
       const gain = candle.close > candle.open ? candle.close - candle.open : 0;
@@ -148,6 +150,7 @@ export function createImi(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       if (gainsBuffer.length < period - 1) {
         return { time: candle.time, value: null };
       }

@@ -9,7 +9,7 @@
  * - Low volatility -> longer period (smoother, less noise)
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { assertPeriod } from "../../utils/validate-period";
 import { rsi } from "../momentum/rsi";
@@ -65,7 +65,7 @@ export function adaptiveRsi(
   candles: Candle[] | NormalizedCandle[],
   options: AdaptiveRsiOptions = {},
 ): Series<AdaptiveRsiValue> {
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
   const basePeriod = options.basePeriod ?? 14;
   const minPeriod = options.minPeriod ?? 6;
   const maxPeriod = options.maxPeriod ?? 28;

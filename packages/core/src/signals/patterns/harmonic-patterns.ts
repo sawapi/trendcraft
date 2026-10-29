@@ -5,7 +5,7 @@
  * Fibonacci ratio validation on XABCD swing point structures.
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import { getAlternatingSwingPoints } from "../../indicators/price/swing-points";
 import type { Candle, NormalizedCandle } from "../../types";
 import { causalPatternTimes } from "./double-pattern-utils";
@@ -169,7 +169,7 @@ export function detectHarmonicPatterns(
     patterns: patternFilter = ALL_HARMONIC_TYPES,
   } = options;
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
   if (normalized.length < 10) return [];
 
   // Get enough alternating swing points to form XABCD windows

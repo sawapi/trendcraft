@@ -5,7 +5,7 @@
  * indicating a shift in trading activity that often precedes price moves.
  */
 
-import { isNormalized, normalizeCandles } from "../core/normalize";
+import { ensureNormalized } from "../core/normalize";
 import type { Candle, NormalizedCandle } from "../types";
 
 /**
@@ -103,7 +103,7 @@ export function volumeMaCross(
     throw new Error("Long period must be greater than short period");
   }
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   if (normalized.length <= longPeriod) {
     return [];

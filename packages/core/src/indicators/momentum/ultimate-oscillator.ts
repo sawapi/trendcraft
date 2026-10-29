@@ -5,7 +5,7 @@
  * of three different timeframes to reduce false signals.
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { assertPeriod } from "../../utils/validate-period";
@@ -57,7 +57,7 @@ export function ultimateOscillator(
   assertPeriod("Ultimate Oscillator period2", period2);
   assertPeriod("Ultimate Oscillator period3", period3);
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
   const result: Series<number | null> = [];
   const maxPeriod = Math.max(period1, period2, period3);
 

@@ -13,6 +13,7 @@
  * Migrated to the 0.4.0 State Contract.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle, PriceSource } from "../../../types";
 import { assertPositive } from "../../../utils/validate-number";
 import { assertPriceSource } from "../../../utils/validate-price-source";
@@ -127,6 +128,7 @@ export function createCci(
 
   const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<CciState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const tp = getSourcePrice(candle, source);
 
       if (buffer.isFull) {
@@ -142,6 +144,7 @@ export function createCci(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const tp = getSourcePrice(candle, source);
 
       let newSum: number;

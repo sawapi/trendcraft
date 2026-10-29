@@ -14,6 +14,7 @@
  * Migrated to the 0.4.0 State Contract.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import { slopeOverIndex } from "../../../core/statistics";
 import type { NormalizedCandle, VolumeTrendValue } from "../../../types";
 import { assertNonNegative } from "../../../utils/validate-number";
@@ -307,12 +308,14 @@ export function createVolumeTrend(
 
   const indicator: IncrementalIndicator<VolumeTrendValue, IndicatorSnapshot<VolumeTrendState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       count++;
       const value = processCandle(candle);
       return { time: candle.time, value };
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       // For peek we simulate without mutating state. After the
       // simulated push each buffer is full iff it currently holds
       // at least `period - 1` values.

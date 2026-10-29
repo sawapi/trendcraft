@@ -5,7 +5,7 @@
  * commonly used as an execution benchmark.
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { assertResetPeriod } from "../../utils/validate-period";
@@ -79,7 +79,7 @@ export function twap(
     assertSessionResetCompatible("twap", "sessionResetPeriod", sessionResetPeriod, "session");
   }
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   if (normalized.length === 0) {
     return [];

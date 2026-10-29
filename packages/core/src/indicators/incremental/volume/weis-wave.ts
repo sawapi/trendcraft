@@ -12,6 +12,7 @@
  * Migrated to the 0.4.0 State Contract.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle } from "../../../types";
 import {
   type IndicatorSnapshot,
@@ -154,12 +155,14 @@ export function createWeisWave(
 
   const indicator: IncrementalIndicator<WeisWaveValue, IndicatorSnapshot<WeisWaveState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       count++;
       const value = processCandle(candle);
       return { time: candle.time, value };
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       // Run the real `next()` and put the saved state back, instead of
       // hand-maintaining a mirror of `processCandle` — a mirror has to
       // restate every rule (first bar, second-bar adoption, reversal)

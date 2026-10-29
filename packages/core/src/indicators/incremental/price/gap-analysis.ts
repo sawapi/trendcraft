@@ -18,6 +18,7 @@
  * Migrated to the 0.4.0 State Contract.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle } from "../../../types";
 import { assertNonNegative } from "../../../utils/validate-number";
 import { type IndicatorSnapshot, makeSnapshot, resolveResume } from "../state-contract";
@@ -191,6 +192,7 @@ export function createGapAnalysis(
 
   const indicator: IncrementalIndicator<GapValue, IndicatorSnapshot<GapAnalysisState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       count++;
 
       const { value, newGap, filledIndices } = processBar(candle, prevCandle, activeGaps);
@@ -210,6 +212,7 @@ export function createGapAnalysis(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const { value } = processBar(candle, prevCandle, activeGaps);
       return { time: candle.time, value };
     },

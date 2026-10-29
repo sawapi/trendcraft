@@ -15,6 +15,7 @@
  * `period` / `type` apply from the next bar onward.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
 import {
@@ -124,6 +125,7 @@ export function createReturns(
 
   const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<ReturnsState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const current = candle.close;
       let value: number | null = null;
       if (buffer.isFull) {
@@ -136,6 +138,7 @@ export function createReturns(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       if (!buffer.isFull) return { time: candle.time, value: null };
       return { time: candle.time, value: calc(candle.close, buffer.oldest()) };
     },

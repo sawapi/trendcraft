@@ -11,6 +11,7 @@
  * Migrated to the 0.4.0 State Contract.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle, PriceSource } from "../../../types";
 import { assertInRange } from "../../../utils/validate-number";
 import { assertPriceSource } from "../../../utils/validate-price-source";
@@ -141,11 +142,13 @@ export function createT3(
 
   const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<T3State>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       count++;
       return { time: candle.time, value: cascade(candle, false) };
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       return { time: candle.time, value: cascade(candle, true) };
     },
 

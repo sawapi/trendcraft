@@ -12,6 +12,7 @@
  * Migrated to the 0.4.0 State Contract.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle } from "../../../types";
 import { isPeriod } from "../../../utils/validate-period";
 import { CircularBuffer } from "../circular-buffer";
@@ -134,6 +135,7 @@ export function createFractals(
 
   const indicator: IncrementalIndicator<FractalValue, IndicatorSnapshot<FractalsState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       buffer.push({ high: candle.high, low: candle.low, time: candle.time });
       count++;
 
@@ -148,6 +150,7 @@ export function createFractals(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       if (buffer.length < windowSize - 1) {
         return { time: candle.time, value: nullValue };
       }

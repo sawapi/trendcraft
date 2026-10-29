@@ -65,7 +65,7 @@
  * @module signals/range-bound
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import { dmi } from "../../indicators/momentum/dmi";
 import { atr } from "../../indicators/volatility/atr";
 import { bollingerBands } from "../../indicators/volatility/bollinger-bands";
@@ -119,7 +119,7 @@ export function rangeBound(
 ): Series<RangeBoundValue> {
   const opts = { ...DEFAULTS, ...options };
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   if (normalized.length === 0) {
     return [];

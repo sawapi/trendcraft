@@ -11,6 +11,7 @@
  * `IndicatorSnapshot<RocState>` and `fromState` accepts the same.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle, PriceSource } from "../../../types";
 import { assertPriceSource } from "../../../utils/validate-price-source";
 import { CircularBuffer } from "../circular-buffer";
@@ -97,6 +98,7 @@ export function createRoc(
 
   const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<RocState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const price = getSourcePrice(candle, source);
       buffer.push(price);
       count++;
@@ -112,6 +114,7 @@ export function createRoc(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const price = getSourcePrice(candle, source);
 
       if (buffer.length < period) {

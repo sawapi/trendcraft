@@ -5,7 +5,7 @@
  * relative to the open against the full range.
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { assertPeriod } from "../../utils/validate-period";
@@ -48,7 +48,7 @@ export function balanceOfPower(
 
   assertPeriod("BOP smooth period", smoothPeriod);
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
   const result: Series<number | null> = [];
 
   // Calculate raw BOP

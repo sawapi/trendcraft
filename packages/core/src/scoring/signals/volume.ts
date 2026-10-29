@@ -4,6 +4,7 @@
  * Signal evaluators for volume-based indicators.
  */
 
+import { checkedPrefix } from "../../core/normalize";
 import { cmf, volumeAnomaly, volumeMa, volumeTrend } from "../../indicators";
 import type { NormalizedCandle, PrecomputedIndicators, SignalDefinition } from "../../types";
 import { assertInRange, assertPositive } from "../../utils/validate-number";
@@ -46,7 +47,7 @@ export function createVolumeSpikeEvaluator(
     if (precomputed?.volumeMa20 && period === 20) {
       avgVol = precomputed.volumeMa20[index];
     } else {
-      const slice = candles.slice(0, index + 1);
+      const slice = checkedPrefix(candles, index + 1);
       const volMaSeries = volumeMa(slice, { period });
       avgVol = volMaSeries[volMaSeries.length - 1]?.value;
     }
@@ -98,7 +99,7 @@ export function createVolumeAnomalyEvaluator(
     if (precomputed?.volumeAnomaly && period === 20 && zThreshold === 2) {
       current = precomputed.volumeAnomaly[index];
     } else {
-      const slice = candles.slice(0, index + 1);
+      const slice = checkedPrefix(candles, index + 1);
       const anomalySeries = volumeAnomaly(slice, { period, zScoreThreshold: zThreshold });
       const anomalyValue = anomalySeries[anomalySeries.length - 1]?.value;
       if (anomalyValue) {
@@ -154,7 +155,7 @@ export function createBullishVolumeTrendEvaluator(maPeriod = 20): SignalDefiniti
     if (precomputed?.volumeTrend && maPeriod === 20) {
       current = precomputed.volumeTrend[index];
     } else {
-      const slice = candles.slice(0, index + 1);
+      const slice = checkedPrefix(candles, index + 1);
       const trendSeries = volumeTrend(slice, { maPeriod });
       current = trendSeries[trendSeries.length - 1]?.value;
     }
@@ -208,7 +209,7 @@ export function createBearishVolumeTrendEvaluator(maPeriod = 20): SignalDefiniti
     if (precomputed?.volumeTrend && maPeriod === 20) {
       current = precomputed.volumeTrend[index];
     } else {
-      const slice = candles.slice(0, index + 1);
+      const slice = checkedPrefix(candles, index + 1);
       const trendSeries = volumeTrend(slice, { maPeriod });
       current = trendSeries[trendSeries.length - 1]?.value;
     }
@@ -271,7 +272,7 @@ export function createCmfPositiveEvaluator(
     if (precomputed?.cmf20 && period === 20) {
       current = precomputed.cmf20[index];
     } else {
-      const slice = candles.slice(0, index + 1);
+      const slice = checkedPrefix(candles, index + 1);
       const cmfSeries = cmf(slice, { period });
       current = cmfSeries[cmfSeries.length - 1]?.value;
     }
@@ -325,7 +326,7 @@ export function createCmfNegativeEvaluator(
     if (precomputed?.cmf20 && period === 20) {
       current = precomputed.cmf20[index];
     } else {
-      const slice = candles.slice(0, index + 1);
+      const slice = checkedPrefix(candles, index + 1);
       const cmfSeries = cmf(slice, { period });
       current = cmfSeries[cmfSeries.length - 1]?.value;
     }
@@ -377,7 +378,7 @@ export function createHighVolumeUpCandleEvaluator(
     if (precomputed?.volumeMa20 && period === 20) {
       avgVol = precomputed.volumeMa20[index];
     } else {
-      const slice = candles.slice(0, index + 1);
+      const slice = checkedPrefix(candles, index + 1);
       const volMaSeries = volumeMa(slice, { period });
       avgVol = volMaSeries[volMaSeries.length - 1]?.value;
     }

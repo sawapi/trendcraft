@@ -95,6 +95,16 @@ export function createCandleAggregator(
 
   return {
     addTrade(trade: Trade): NormalizedCandle | null {
+      // A non-finite trade would become a non-finite candle.
+      if (
+        !Number.isFinite(trade.time) ||
+        !Number.isFinite(trade.price) ||
+        !Number.isFinite(trade.volume)
+      ) {
+        throw new Error(
+          `trade has a non-finite time, price or volume (time ${trade.time}, price ${trade.price}, volume ${trade.volume})`,
+        );
+      }
       const periodStart = getIntervalStart(trade.time, intervalMs);
 
       // First trade ever

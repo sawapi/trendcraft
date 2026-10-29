@@ -5,7 +5,7 @@
  * of equivalent smoothing. Based on John Ehlers' digital signal processing work.
  */
 
-import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized, getPrice } from "../../core/normalize";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 import { assertPeriod } from "../../utils/validate-period";
 import { assertPriceSource } from "../../utils/validate-price-source";
@@ -51,7 +51,7 @@ export function superSmoother(
 
   assertPeriod("Super Smoother period", period);
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   const result: Series<number | null> = [];
 

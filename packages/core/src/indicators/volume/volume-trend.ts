@@ -5,7 +5,7 @@
  * Key principle: Healthy trends should be supported by increasing volume.
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import { slopeOverIndex } from "../../core/statistics";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series, VolumeTrendValue } from "../../types";
@@ -64,7 +64,7 @@ export function volumeTrend(
 
   const minPeriod = Math.max(pricePeriod, volumePeriod, maPeriod);
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   if (normalized.length === 0) {
     return [];

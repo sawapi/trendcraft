@@ -124,12 +124,14 @@ describe("McGinley Dynamic — poisoned state is refused on resume", () => {
 
   it("refuses a snapshot whose warm-up total went non-finite", () => {
     // Before warm-up completes the recursive state is `sum`, not `prevMd`.
-    // An infinite price makes it infinite, JSON makes that null, and
-    // `null + price` is a number — so the resumed run seeds its average from
-    // a total that lost every bar before the bad tick.
+    // Two finite but huge prices overflow it to Infinity (a non-finite price
+    // is rejected outright), JSON makes that null, and `null + price` is a
+    // number — so the resumed run would seed its average from a total that
+    // lost every bar before the overflow.
     const live = createMcGinleyDynamic({ period });
-    for (let i = 0; i < 5; i++) live.next(candle(i, 100 + i));
-    live.next({ ...candle(5, 100), close: Number.POSITIVE_INFINITY });
+    for (let i = 0; i < 4; i++) live.next(candle(i, 100 + i));
+    live.next({ ...candle(4, 1.7e308), open: 1.7e308, high: 1.7e308 });
+    live.next({ ...candle(5, 1.7e308), open: 1.7e308, high: 1.7e308 });
     for (let i = 6; i < 10; i++) live.next(candle(i, 100 + i));
 
     const text = JSON.stringify(live.getState());
@@ -200,26 +202,20 @@ describe("EWMA volatility — a bad tick no longer poisons the recursion", () =>
     expect(compared).toBe(candles.length - options.seedSize);
   });
 
-  it("survives an infinite price, in step with the batch indicator", () => {
-    // `Infinity > 0` is true, so a "price is positive" test lets an infinite
-    // tick through and `ln(Infinity / price)` poisons the recursion. Both
-    // implementations require a usable price, not merely a positive one.
+  it("rejects an infinite price on both sides", () => {
+    // `Infinity > 0` is true, so a "price is positive" test used to let an
+    // infinite tick through to `ln(Infinity / price)`. A non-finite candle
+    // is now rejected before any indicator sees it.
     const candles: NormalizedCandle[] = [];
     for (let i = 0; i < 30; i++) candles.push(candle(i, 100 + i * 0.5));
     candles[20] = { ...candles[20], close: Number.POSITIVE_INFINITY };
 
     const live = createEwmaVolatility(options);
-    const liveValues = candles.map((c) => live.next(c).value);
-    const emitted = liveValues.slice(options.seedSize).filter((v): v is number => v !== null);
-    expect(emitted.length).toBeGreaterThan(0);
-    expect(emitted.every((v) => Number.isFinite(v))).toBe(true);
-
-    const batchByTime = new Map(
-      ewmaVolatilityFromCandles(candles, { lambda: options.lambda }).map((p) => [p.time, p.value]),
+    for (let i = 0; i < 20; i++) live.next(candles[i]);
+    expect(() => live.next(candles[20])).toThrow(/non-finite close/);
+    expect(() => ewmaVolatilityFromCandles(candles, { lambda: options.lambda })).toThrow(
+      /candle 20 has a non-finite close/,
     );
-    for (let i = options.seedSize; i < candles.length; i++) {
-      expect(liveValues[i]).toBeCloseTo(batchByTime.get(candles[i].time) as number, 10);
-    }
   });
 
   it("survives a price jump whose ratio overflows", () => {
@@ -251,12 +247,12 @@ describe("EWMA volatility — a bad tick no longer poisons the recursion", () =>
   });
 
   it("stays resumable when the snapshot is taken right after a bad tick", () => {
-    // Tolerating a bad tick has to hold across persistence too: the price is
-    // not carried into the state as `Infinity`, which JSON would turn into a
-    // null the resumed run reads as "no candle seen yet".
+    // Tolerating a bad tick has to hold across persistence too: the unusable
+    // price is stored as 0, not carried into the state as a value that JSON
+    // would turn into a null the resumed run reads as "no candle seen yet".
     const candles: NormalizedCandle[] = [];
     for (let i = 0; i < 20; i++) candles.push(candle(i, 100 + i * 0.5));
-    candles[19] = { ...candles[19], close: Number.POSITIVE_INFINITY };
+    candles[19] = { ...candles[19], close: 0, low: 0 };
 
     const live = createEwmaVolatility(options);
     for (const c of candles) live.next(c);

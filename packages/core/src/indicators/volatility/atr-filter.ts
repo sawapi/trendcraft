@@ -10,7 +10,7 @@
  * - Threshold 2.3% achieves 100% precision in filtering out low-volatility failures
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { assertPeriod } from "../../utils/validate-period";
 import { atr } from "./atr";
@@ -87,7 +87,7 @@ export function calculateAtrPercentDetail(
   assertPeriod("ATR filter lookbackPeriod", lookbackPeriod);
   assertPeriod("ATR filter atrPeriod", atrPeriod);
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   if (normalized.length < atrPeriod) {
     return { atrPercent: 0, sampleCount: 0 };
@@ -166,7 +166,7 @@ export function atrPercentSeries(
   atrPeriod = 14,
 ): Series<number | null> {
   assertPeriod("ATR filter atrPeriod", atrPeriod);
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   if (normalized.length === 0) {
     return [];

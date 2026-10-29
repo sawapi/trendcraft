@@ -4,6 +4,7 @@
  * Functions for calculating advanced performance metrics for backtest optimization.
  */
 
+import { assertFiniteCandles } from "../core/normalize";
 import type { BacktestResult, NormalizedCandle, PositionDirection } from "../types";
 import type {
   OptimizationConstraint,
@@ -293,6 +294,7 @@ export function calculateAllMetrics(
     riskFreeRate?: number;
   } = {},
 ): Record<OptimizationMetric, number> {
+  assertFiniteCandles(candles);
   const { initialCapital = 100000, riskFreeRate = 0 } = options;
   assertRate("calculateAllMetrics riskFreeRate", riskFreeRate);
 

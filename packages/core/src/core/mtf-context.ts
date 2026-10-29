@@ -6,6 +6,7 @@
  */
 
 import type { MtfContext, MtfDataset, NormalizedCandle, TimeframeShorthand } from "../types";
+import { assertFiniteCandles } from "./normalize";
 import { resample } from "./resample";
 
 /**
@@ -47,6 +48,7 @@ export function createMtfContext(
   baseCandles: NormalizedCandle[],
   timeframes: TimeframeShorthand[],
 ): MtfContext {
+  assertFiniteCandles(baseCandles);
   const datasets = new Map<TimeframeShorthand, MtfDataset>();
   const indices = new Map<TimeframeShorthand, number>();
 
@@ -89,6 +91,7 @@ export function buildMtfIndexMap(
   baseCandles: NormalizedCandle[],
   mtfContext: MtfContext,
 ): Map<TimeframeShorthand, number[]> {
+  assertFiniteCandles(baseCandles);
   const indexMap = new Map<TimeframeShorthand, number[]>();
 
   for (const [tf, dataset] of mtfContext.datasets) {

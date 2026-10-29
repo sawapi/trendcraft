@@ -14,6 +14,7 @@
  * Migrated to the 0.4.0 State Contract.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle } from "../../../types";
 import { createDmi, type DmiState } from "../../incremental/momentum/dmi";
 import { createSma, type SmaState } from "../../incremental/moving-average/sma";
@@ -159,6 +160,7 @@ export function createRegime(
 
   const indicator: IncrementalIndicator<RegimeValue | null, IndicatorSnapshot<RegimeState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       count++;
 
       const atrResult = atrInd.next(candle);
@@ -216,6 +218,7 @@ export function createRegime(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const atrResult = atrInd.peek(candle);
       const bbResult = bbInd.peek(candle);
       const dmiResult = dmiInd.peek(candle);

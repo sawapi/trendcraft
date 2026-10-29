@@ -5,7 +5,7 @@
  * Formula: HMA(n) = WMA(2 * WMA(n/2) - WMA(n), sqrt(n))
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 import { assertPriceSource } from "../../utils/validate-price-source";
@@ -63,7 +63,7 @@ export function hma(
     throw new Error("HMA period must be an integer");
   }
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   if (normalized.length === 0) {
     return [];

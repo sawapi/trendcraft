@@ -9,7 +9,7 @@
  * produce a strength ranking (0-100).
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import { mulberry32 } from "../../core/random";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
@@ -474,7 +474,7 @@ export function srZones(
   assertInteger("S/R zones seed", seed);
   assertPeriod("S/R zones swingLookback", swingLookback);
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   if (normalized.length === 0) {
     return { zones: [], rawLevels: [] };
@@ -604,7 +604,7 @@ export function srZonesSeries(
   options: SrZonesOptions = {},
   lookback = 200,
 ): Series<SrZone[]> {
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
   const result: Series<SrZone[]> = [];
 
   for (let i = 0; i < normalized.length; i++) {

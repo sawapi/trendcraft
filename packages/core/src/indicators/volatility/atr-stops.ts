@@ -10,7 +10,7 @@
  * - Take profit targets: Use ATR-based targets for consistent risk/reward
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { AtrStopsOptions, AtrStopsValue, Candle, NormalizedCandle, Series } from "../../types";
 import { assertPositionDirection } from "../../utils/validate-keyword";
@@ -64,7 +64,7 @@ export function atrStops(
   assertPositive("ATR Stops takeProfitMultiplier", takeProfitMultiplier);
 
   // Normalize if needed
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   if (normalized.length === 0) {
     return [];

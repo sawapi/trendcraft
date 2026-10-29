@@ -4,6 +4,7 @@
  * Signal evaluators for trend-based indicators (Perfect Order, MA Cross, etc.)
  */
 
+import { checkedPrefix } from "../../core/normalize";
 import { ema, sma } from "../../indicators";
 import { perfectOrder, perfectOrderEnhanced } from "../../signals";
 import type { NormalizedCandle, PrecomputedIndicators, SignalDefinition } from "../../types";
@@ -57,7 +58,7 @@ export function createPerfectOrderBullishEvaluator(
     if (precomputed?.perfectOrder && isDefaultPeriods) {
       current = precomputed.perfectOrder[index];
     } else {
-      const poSeries = perfectOrder(candles.slice(0, index + 1), {
+      const poSeries = perfectOrder(checkedPrefix(candles, index + 1), {
         periods,
       });
       const poValue = poSeries[poSeries.length - 1]?.value;
@@ -102,7 +103,7 @@ export function createPerfectOrderBearishEvaluator(
     if (precomputed?.perfectOrder && isDefaultPeriods) {
       current = precomputed.perfectOrder[index];
     } else {
-      const poSeries = perfectOrder(candles.slice(0, index + 1), {
+      const poSeries = perfectOrder(checkedPrefix(candles, index + 1), {
         periods,
       });
       const poValue = poSeries[poSeries.length - 1]?.value;
@@ -152,7 +153,7 @@ export function createPOConfirmationEvaluator(
     if (precomputed?.perfectOrderEnhanced && isDefaultPeriods && slopeLookback === 3) {
       current = precomputed.perfectOrderEnhanced[index];
     } else {
-      const poSeries = perfectOrderEnhanced(candles.slice(0, index + 1), {
+      const poSeries = perfectOrderEnhanced(checkedPrefix(candles, index + 1), {
         periods,
         enhanced: true,
         slopeLookback,
@@ -225,7 +226,7 @@ export function createPullbackEntryEvaluator(
       maValue = smaData[index];
       prevMa = index >= 5 ? smaData[index - 4] : null;
     } else {
-      const slice = candles.slice(0, index + 1);
+      const slice = checkedPrefix(candles, index + 1);
       const smaSeries = sma(slice, { period: maPeriod });
       maValue = smaSeries[smaSeries.length - 1]?.value;
       if (smaSeries.length < 5) return 0;
@@ -302,7 +303,7 @@ export function createGoldenCrossEvaluator(
       prevShort = shortData[index - 1];
       prevLong = longData[index - 1];
     } else {
-      const slice = candles.slice(0, index + 1);
+      const slice = checkedPrefix(candles, index + 1);
       const shortMa = sma(slice, { period: shortPeriod });
       const longMa = sma(slice, { period: longPeriod });
       currentShort = shortMa[shortMa.length - 1]?.value;
@@ -370,7 +371,7 @@ export function createDeathCrossEvaluator(
       prevShort = shortData[index - 1];
       prevLong = longData[index - 1];
     } else {
-      const slice = candles.slice(0, index + 1);
+      const slice = checkedPrefix(candles, index + 1);
       const shortMa = sma(slice, { period: shortPeriod });
       const longMa = sma(slice, { period: longPeriod });
       currentShort = shortMa[shortMa.length - 1]?.value;
@@ -423,7 +424,7 @@ export function createPriceAboveEmaEvaluator(period = 20): SignalDefinition["eva
     if (precomputed?.ema?.has(period)) {
       emaValue = precomputed.ema.get(period)?.[index];
     } else {
-      const slice = candles.slice(0, index + 1);
+      const slice = checkedPrefix(candles, index + 1);
       const emaSeries = ema(slice, { period });
       emaValue = emaSeries[emaSeries.length - 1]?.value;
     }
@@ -455,7 +456,7 @@ export function createPriceBelowEmaEvaluator(period = 20): SignalDefinition["eva
     if (precomputed?.ema?.has(period)) {
       emaValue = precomputed.ema.get(period)?.[index];
     } else {
-      const slice = candles.slice(0, index + 1);
+      const slice = checkedPrefix(candles, index + 1);
       const emaSeries = ema(slice, { period });
       emaValue = emaSeries[emaSeries.length - 1]?.value;
     }

@@ -51,11 +51,152 @@ export function normalizeCandle(candle: Candle): NormalizedCandle {
   };
 }
 
+const CANDLE_FIELDS = ["time", "open", "high", "low", "close", "volume"] as const;
+
 /**
- * Normalize an array of candles and sort by time ascending
+ * What {@link assertFiniteCandles} last checked in an array: its length and
+ * its first and last candle objects. Indicators call one another and
+ * conditions run once per bar on the same array, so without this every
+ * nested or per-bar call would scan the whole input again.
+ *
+ * The next call scans only appended bars when the first and last checked
+ * candles are still in place, and the whole array otherwise. That covers
+ * the usual live patterns: appending a bar, a fixed-size rolling window
+ * (shift and push), and replacing the forming bar with a new object. A
+ * candle modified in place, or replaced anywhere but the first or last
+ * position, is not re-checked.
+ */
+type CheckedSpan = {
+  length: number;
+  first: NormalizedCandle | undefined;
+  last: NormalizedCandle | undefined;
+};
+const checkedSpans = new WeakMap<readonly NormalizedCandle[], CheckedSpan>();
+
+function rememberChecked(candles: readonly NormalizedCandle[]): void {
+  checkedSpans.set(candles, {
+    length: candles.length,
+    first: candles[0],
+    last: candles[candles.length - 1],
+  });
+}
+
+/** How many leading candles are known to be checked already. */
+function checkedPrefixLength(candles: readonly NormalizedCandle[]): number {
+  const span = checkedSpans.get(candles);
+  if (span === undefined || candles.length < span.length) return 0;
+  if (span.length === 0) return 0;
+  if (candles[0] !== span.first || candles[span.length - 1] !== span.last) return 0;
+  return span.length;
+}
+
+/** The field that makes a candle non-finite, or null if it is finite. */
+function nonFiniteField(candle: NormalizedCandle): (typeof CANDLE_FIELDS)[number] | null {
+  // One expression on the common path; the loop below only names the field.
+  if (
+    Number.isFinite(candle.time) &&
+    Number.isFinite(candle.open) &&
+    Number.isFinite(candle.high) &&
+    Number.isFinite(candle.low) &&
+    Number.isFinite(candle.close) &&
+    Number.isFinite(candle.volume)
+  ) {
+    return null;
+  }
+  for (const field of CANDLE_FIELDS) {
+    if (!Number.isFinite(candle[field])) return field;
+  }
+  return null;
+}
+
+/**
+ * Reject a candle whose time, prices or volume are not finite numbers.
+ *
+ * One `NaN` close used to poison every running-sum and recursive indicator
+ * from that bar on (SMA, EMA, ATR), while RSI counted the bar as unchanged
+ * and kept printing plausible values. A non-finite time left the series
+ * unsorted. TA-Lib leaves the check to its callers, on the grounds that
+ * replacing a `NaN` "feels like hiding a problem": a `NaN` should make you
+ * ask why it is there. Rejecting it at the boundary is that question asked
+ * up front.
+ *
+ * @param candle - The candle to check
+ * @param index - Its position in the input, for the message
+ * @throws Error naming the bar and the field
+ */
+export function assertFiniteCandle(candle: NormalizedCandle, index?: number): void {
+  const field = nonFiniteField(candle);
+  if (field !== null) {
+    const where = index === undefined ? "candle" : `candle ${index}`;
+    throw new Error(`${where} has a non-finite ${field} (${String(candle[field])})`);
+  }
+}
+
+/**
+ * Reject an array containing a candle with a non-finite time, price or
+ * volume. See {@link assertFiniteCandle}. A call on an array checked
+ * before scans only appended bars, or the whole array if its first or last
+ * checked candle was replaced.
+ */
+export function assertFiniteCandles(candles: readonly NormalizedCandle[]): void {
+  const from = checkedPrefixLength(candles);
+  if (from === candles.length && from > 0) return;
+  for (let i = from; i < candles.length; i++) {
+    assertFiniteCandle(candles[i], i);
+  }
+  rememberChecked(candles);
+}
+
+/**
+ * `candles.slice(0, end)` for a caller that evaluates a prefix every bar.
+ * A prefix of a checked array is checked too, so it is not scanned again.
+ */
+export function checkedPrefix(
+  candles: readonly NormalizedCandle[],
+  end: number,
+): NormalizedCandle[] {
+  const prefix = candles.slice(0, end);
+  if (prefix.length > 0 && checkedPrefixLength(candles) >= prefix.length) {
+    rememberChecked(prefix);
+  }
+  return prefix;
+}
+
+/**
+ * Normalize times and sort, without checking that values are finite. For the
+ * data validator, which must report bad rows rather than throw on them.
+ */
+export function normalizeCandlesUnchecked(candles: Candle[]): NormalizedCandle[] {
+  return candles.map(normalizeCandle).sort((a, b) => a.time - b.time);
+}
+
+/**
+ * Normalize an array of candles and sort by time ascending.
+ *
+ * @throws Error if a candle has a non-finite time, price or volume
  */
 export function normalizeCandles(candles: Candle[]): NormalizedCandle[] {
-  return candles.map(normalizeCandle).sort((a, b) => a.time - b.time);
+  const normalized = candles.map(normalizeCandle);
+  // Before sorting: a NaN time would leave the sort order undefined.
+  assertFiniteCandles(normalized);
+  return normalized.sort((a, b) => a.time - b.time);
+}
+
+/**
+ * Return candles in normalized form, checking that every value is finite.
+ *
+ * The entry point every batch function uses: it normalizes when the times
+ * are not epoch milliseconds yet, and checks the values either way, since
+ * already-normalized input skips {@link normalizeCandles}.
+ *
+ * @throws Error if a candle has a non-finite time, price or volume
+ */
+export function ensureNormalized(candles: Candle[] | NormalizedCandle[]): NormalizedCandle[] {
+  if (isNormalized(candles)) {
+    assertFiniteCandles(candles);
+    return candles;
+  }
+  return normalizeCandles(candles);
 }
 
 /**
@@ -150,8 +291,11 @@ export function normalizeAndValidate(
   candles: Candle[],
   validation?: ValidationOptions,
 ): { candles: NormalizedCandle[]; validation?: ValidationResult } {
-  const normalized = normalizeCandles(candles);
-  if (!validation) return { candles: normalized };
+  // Without validation options this is plain normalization, which rejects
+  // non-finite values. With them, the validator reports those values as
+  // findings instead, so it gets the candles unchecked.
+  if (!validation) return { candles: normalizeCandles(candles) };
+  const normalized = normalizeCandlesUnchecked(candles);
   const result = validateCandles(normalized, validation);
   return {
     candles: result.cleanedCandles ?? normalized,

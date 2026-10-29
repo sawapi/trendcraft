@@ -4,7 +4,7 @@
  * Runs all enabled validation checks and returns a unified result.
  */
 
-import { isNormalized, normalizeCandles } from "../core/normalize";
+import { isNormalized, normalizeCandlesUnchecked } from "../core/normalize";
 import type { Candle, NormalizedCandle } from "../types";
 import { detectDuplicates, removeDuplicates } from "./duplicate-detection";
 import { detectGaps } from "./gap-detection";
@@ -44,7 +44,9 @@ export function validateCandles(
   candles: Candle[] | NormalizedCandle[],
   options?: ValidationOptions,
 ): ValidationResult {
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  // Unchecked: a non-finite value is one of the findings this reports, so
+  // it must reach the checks below instead of throwing here.
+  const normalized = isNormalized(candles) ? candles : normalizeCandlesUnchecked(candles);
 
   const opts: ValidationOptions = options ?? {};
   const findings: ValidationFinding[] = [];

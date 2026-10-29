@@ -5,7 +5,7 @@
  * based on market conditions, reducing lag in fast markets.
  */
 
-import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized, getPrice } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 import { assertPositive } from "../../utils/validate-number";
@@ -67,7 +67,7 @@ export function mcginleyDynamic(
     throw new Error("McGinley Dynamic period must be an integer");
   }
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   if (normalized.length === 0) {
     return [];

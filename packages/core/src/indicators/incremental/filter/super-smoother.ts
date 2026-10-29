@@ -17,6 +17,7 @@
  * Migrated to the 0.4.0 State Contract.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle, PriceSource } from "../../../types";
 import { assertPriceSource } from "../../../utils/validate-price-source";
 import {
@@ -112,6 +113,7 @@ export function createSuperSmoother(
 
   const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<SuperSmootherState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const price = getSourcePrice(candle, source);
 
       if (count === 0) {
@@ -141,6 +143,7 @@ export function createSuperSmoother(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const price = getSourcePrice(candle, source);
       if (count < 2) return { time: candle.time, value: null };
       const out = (c1 * (price + (prevPrice as number))) / 2 + c2 * outPrev1 + c3 * outPrev2;

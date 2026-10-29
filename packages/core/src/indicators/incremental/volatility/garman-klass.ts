@@ -15,6 +15,7 @@
  * Migrated to the 0.4.0 State Contract.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle } from "../../../types";
 import { assertPositive } from "../../../utils/validate-number";
 import { CircularBuffer } from "../circular-buffer";
@@ -130,6 +131,7 @@ export function createGarmanKlass(
 
   const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<GarmanKlassState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       count++;
 
       const component = computeComponent(candle);
@@ -173,6 +175,7 @@ export function createGarmanKlass(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const component = computeComponent(candle);
       if (component === null || buffer.length < period - 1) {
         return { time: candle.time, value: null };

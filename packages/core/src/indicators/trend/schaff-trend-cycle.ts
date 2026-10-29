@@ -5,7 +5,7 @@
  * more accurate trend cycle indicator.
  */
 
-import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized, getPrice } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 import { assertFinite } from "../../utils/validate-number";
@@ -89,7 +89,7 @@ export function schaffTrendCycle(
     throw new Error("Schaff Trend Cycle factor must be in (0, 1]");
   }
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
   const prices = normalized.map((c) => getPrice(c, source));
 
   // Calculate fast and slow EMA

@@ -5,6 +5,7 @@
  * TA-Lib compatible initialization using MINUS_DM for initial direction.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle } from "../../../types";
 import {
   type IndicatorSnapshot,
@@ -223,6 +224,7 @@ export function createParabolicSar(
 
   const indicator: IncrementalIndicator<ParabolicSarValue, IndicatorSnapshot<ParabolicSarState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       count++;
 
       if (count === 1) {
@@ -277,6 +279,7 @@ export function createParabolicSar(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       if (count === 0) {
         return { time: candle.time, value: nullValue };
       }

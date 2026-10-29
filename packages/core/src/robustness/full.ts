@@ -8,6 +8,7 @@
 
 import { runBacktest } from "../backtest";
 import { IndicatorCache } from "../core/indicator-cache";
+import { assertFiniteCandles } from "../core/normalize";
 import { mulberry32 } from "../core/random";
 import { DEFAULT_BACKTEST_CAPITAL } from "../optimization/constants";
 import { runMonteCarloSimulation } from "../optimization/monte-carlo";
@@ -63,6 +64,7 @@ export function calculateRobustnessScore(
   parameterRanges: ParameterRange[],
   options: RobustnessOptions = {},
 ): RobustnessResult {
+  assertFiniteCandles(candles);
   const mcSims = options.monteCarloSimulations ?? 500;
   const wfWindowSize = options.walkForwardWindowSize ?? 252;
   const wfStepSize = options.walkForwardStepSize ?? 63;

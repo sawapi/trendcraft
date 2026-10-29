@@ -5,7 +5,7 @@
  * returning Series<CandleFormerValue>.
  */
 
-import { isNormalized, normalizeCandles } from "../core/normalize";
+import { ensureNormalized } from "../core/normalize";
 import type { Candle, NormalizedCandle, Series } from "../types";
 import { forward, predict, weightsToParams } from "./model";
 import {
@@ -46,7 +46,7 @@ export function candleFormer(
   const { weights, temperature = 1.0 } = options;
   const { seqLen } = weights.config;
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   if (normalized.length === 0) return [];
 

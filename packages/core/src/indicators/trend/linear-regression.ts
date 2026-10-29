@@ -5,7 +5,7 @@
  * and R-squared for a rolling window of price data.
  */
 
-import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized, getPrice } from "../../core/normalize";
 import { slopeOverIndex } from "../../core/statistics";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
@@ -69,7 +69,7 @@ export function linearRegression(
 
   assertPeriod("Linear Regression period", period, 2);
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
   const result: Series<LinearRegressionValue | null> = [];
   const prices = normalized.map((c) => getPrice(c, source));
 

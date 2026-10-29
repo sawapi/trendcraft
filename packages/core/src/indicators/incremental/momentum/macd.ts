@@ -14,6 +14,7 @@
  * periods in the factory closure and not persisted.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { MacdValue, NormalizedCandle, PriceSource } from "../../../types";
 import { assertPriceSource } from "../../../utils/validate-price-source";
 import {
@@ -144,6 +145,7 @@ export function createMacd(
 
   const indicator: IncrementalIndicator<MacdValue, IndicatorSnapshot<MacdState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       count++;
       const price = getSourcePrice(candle, source);
 
@@ -190,6 +192,7 @@ export function createMacd(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const price = getSourcePrice(candle, source);
       const peekCount = count + 1;
 

@@ -14,6 +14,7 @@
  * the batch `standardDeviation()`.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import { centeredMoments } from "../../../core/statistics";
 import type { NormalizedCandle, PriceSource } from "../../../types";
 import { assertPriceSource } from "../../../utils/validate-price-source";
@@ -137,6 +138,7 @@ export function createStandardDeviation(
     IndicatorSnapshot<StandardDeviationState>
   > = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const price = getSourcePrice(candle, source);
       buffer.push(price);
       count++;
@@ -144,6 +146,7 @@ export function createStandardDeviation(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const price = getSourcePrice(candle, source);
       if (Math.min(buffer.length + 1, period) < period) {
         return { time: candle.time, value: null };

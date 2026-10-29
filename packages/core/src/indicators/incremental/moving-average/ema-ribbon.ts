@@ -11,6 +11,7 @@
  * Migrated to the 0.4.0 State Contract.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle, PriceSource } from "../../../types";
 import { isPeriod } from "../../../utils/validate-period";
 import { assertPriceSource } from "../../../utils/validate-price-source";
@@ -137,6 +138,7 @@ export function createEmaRibbon(
 
   const indicator: IncrementalIndicator<EmaRibbonValue, IndicatorSnapshot<EmaRibbonState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       count++;
       const values = emas.map((e) => e.next(candle).value);
       const { bullish, expanding } = computeMetrics(values);
@@ -154,6 +156,7 @@ export function createEmaRibbon(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const values = emas.map((e) => e.peek(candle).value);
       const allValid = values.every((v) => v !== null);
 

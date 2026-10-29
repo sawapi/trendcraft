@@ -9,7 +9,7 @@
  * - Descending: Descending upper + flat lower line
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import { getSwingHighs, getSwingLows } from "../../indicators/price/swing-points";
 import { atr as calcAtr } from "../../indicators/volatility/atr";
 import type { Candle, NormalizedCandle } from "../../types";
@@ -141,7 +141,7 @@ export function detectTriangle(
     minBars = 15,
   } = options;
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
   if (normalized.length < minBars) return [];
 
   const results: PatternSignal[] = [];

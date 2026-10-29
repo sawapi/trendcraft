@@ -7,7 +7,7 @@
  */
 
 import { annualizationFactor } from "../../calendar";
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import type {
   Candle,
   NormalizedCandle,
@@ -95,7 +95,7 @@ export function volatilityRegime(
   });
 
   // Normalize if needed
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   if (normalized.length === 0) {
     return [];

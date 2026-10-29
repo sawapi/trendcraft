@@ -8,7 +8,7 @@
  * the industry-standard TA-Lib implementation.
  */
 
-import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized, getPrice } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 import { assertPeriod } from "../../utils/validate-period";
@@ -54,7 +54,7 @@ export function cmo(
 
   assertPeriod("CMO period", period);
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
   const result: Series<number | null> = [];
   const prices = normalized.map((c) => getPrice(c, source));
 

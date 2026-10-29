@@ -5,7 +5,7 @@
  * They are calculated based on the high, low, and close of the previous period.
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { assertOneOf } from "../../utils/validate-keyword";
@@ -72,7 +72,7 @@ export function pivotPoints(
   assertOneOf("pivotPoints method", method, PIVOT_METHODS);
 
   // Normalize if needed
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   const result: Series<PivotPointsValue> = [];
 

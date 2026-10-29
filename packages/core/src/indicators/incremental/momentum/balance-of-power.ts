@@ -11,6 +11,7 @@
  * Migrated to the 0.4.0 State Contract.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle } from "../../../types";
 import { createSma, type SmaState } from "../moving-average/sma";
 import {
@@ -87,12 +88,14 @@ export function createBalanceOfPower(
 
   const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<BalanceOfPowerState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       count++;
       const bop = rawBop(candle);
       return sma.next(makeCandle(candle.time, bop));
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const bop = rawBop(candle);
       return sma.peek(makeCandle(candle.time, bop));
     },

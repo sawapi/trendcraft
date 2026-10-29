@@ -5,6 +5,7 @@
 
 import type { NormalizedCandle, Timeframe, TimeframeShorthand, TimeframeUnit } from "../types";
 import { assertOneOf, keywordError, keywords } from "../utils/validate-keyword";
+import { assertFiniteCandles } from "./normalize";
 
 /** Every value `TimeframeUnit` allows. */
 const TIMEFRAME_UNITS = keywords<TimeframeUnit>()(["minute", "hour", "day", "week", "month"]);
@@ -170,6 +171,7 @@ export function resample(
   candles: NormalizedCandle[],
   timeframe: TimeframeShorthand | Timeframe,
 ): NormalizedCandle[] {
+  assertFiniteCandles(candles);
   // Parsed first so an unknown timeframe is rejected even with no candles.
   const tf = parseTimeframe(timeframe);
   if (candles.length === 0) {

@@ -12,7 +12,7 @@
  * - CVD = running sum of delta
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { assertPeriod } from "../../utils/validate-period";
@@ -88,7 +88,7 @@ function computeEma(values: number[], period: number): (number | null)[] {
  * ```
  */
 export function cvd(candles: Candle[] | NormalizedCandle[]): Series<number> {
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
   const result: Series<number> = [];
   let cumulative = 0;
 

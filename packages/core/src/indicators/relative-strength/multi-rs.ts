@@ -5,7 +5,7 @@
  * Useful for sector rotation and finding the strongest stocks.
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import type { Candle, NormalizedCandle } from "../../types";
 import { assertInRange } from "../../utils/validate-number";
 import { assertPeriod } from "../../utils/validate-period";
@@ -77,7 +77,7 @@ export function rankByRS(
   // Calculate RS for each symbol
   const entries = Array.from(symbolsData.entries());
   for (const [symbol, candles] of entries) {
-    const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+    const normalized = ensureNormalized(candles);
 
     if (normalized.length <= period) {
       continue; // Skip if insufficient data
@@ -185,8 +185,8 @@ export function compareRS(
   symbol2: Candle[] | NormalizedCandle[],
   period = 52,
 ): number {
-  const norm1 = isNormalized(symbol1) ? symbol1 : normalizeCandles(symbol1);
-  const norm2 = isNormalized(symbol2) ? symbol2 : normalizeCandles(symbol2);
+  const norm1 = ensureNormalized(symbol1);
+  const norm2 = ensureNormalized(symbol2);
 
   if (norm1.length <= period || norm2.length <= period) {
     return 0;

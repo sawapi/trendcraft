@@ -13,6 +13,7 @@
  * snapshot; explicit options override.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle, PriceSource } from "../../../types";
 import { assertPriceSource } from "../../../utils/validate-price-source";
 import { CircularBuffer } from "../circular-buffer";
@@ -170,6 +171,7 @@ export function createAlma(
 
   const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<AlmaState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const price = getSourcePrice(candle, source);
       count++;
       buffer.push(price);
@@ -186,6 +188,7 @@ export function createAlma(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const price = getSourcePrice(candle, source);
 
       const peekLength = Math.min(buffer.length + 1, period);

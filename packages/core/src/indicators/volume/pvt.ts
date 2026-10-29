@@ -5,7 +5,7 @@
  * providing a more nuanced view of volume flow.
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 
@@ -29,7 +29,7 @@ import type { Candle, NormalizedCandle, Series } from "../../types";
  * ```
  */
 export function pvt(candles: Candle[] | NormalizedCandle[]): Series<number | null> {
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
   const result: Series<number | null> = [];
 
   if (normalized.length === 0) return result;

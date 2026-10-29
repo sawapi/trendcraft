@@ -6,6 +6,7 @@
  */
 
 import * as conditions from "../backtest/conditions";
+import { assertFiniteCandles } from "../core/normalize";
 import type { NormalizedCandle } from "../types";
 import type { OptimizationMetric } from "../types/optimization";
 import { err, ok, type Result, tcError } from "../types/result";
@@ -302,6 +303,7 @@ export function combinationSearchSafe(
   exitConditions: ConditionDefinition[],
   options: CombinationSearchOptions = {},
 ): Result<CombinationSearchResult> {
+  assertFiniteCandles(candles);
   try {
     return ok(combinationSearch(candles, entryConditions, exitConditions, options));
   } catch (error) {

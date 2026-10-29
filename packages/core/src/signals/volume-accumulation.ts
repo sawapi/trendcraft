@@ -5,7 +5,7 @@
  * This can identify accumulation phases before significant price moves.
  */
 
-import { isNormalized, normalizeCandles } from "../core/normalize";
+import { ensureNormalized } from "../core/normalize";
 import { slopeOverIndex } from "../core/statistics";
 import type { Candle, NormalizedCandle } from "../types";
 
@@ -115,7 +115,7 @@ export function volumeAccumulation(
     throw new Error("Volume accumulation period must be at least 2");
   }
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   if (normalized.length <= period) {
     return [];

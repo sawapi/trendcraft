@@ -18,6 +18,7 @@
  * Migrated to the 0.4.0 State Contract.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle } from "../../../types";
 import { createEma, type EmaState } from "../moving-average/ema";
 import {
@@ -127,6 +128,7 @@ export function createKeltnerChannel(
     IndicatorSnapshot<KeltnerChannelState>
   > = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       count++;
       const emaResult = emaInd.next(candle);
       const atrResult = atrInd.next(candle);
@@ -135,6 +137,7 @@ export function createKeltnerChannel(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const emaResult = emaInd.peek(candle);
       const atrResult = atrInd.peek(candle);
       const value = computeValue(emaResult.value, atrResult.value);

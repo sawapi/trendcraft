@@ -9,6 +9,7 @@
  * Migrated to the 0.4.0 State Contract.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
 import {
@@ -115,6 +116,7 @@ export function createCmf(
 
   const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<CmfState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       count++;
 
       const mfv = computeMfv(candle);
@@ -140,6 +142,7 @@ export function createCmf(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       if (mfvBuffer.length + 1 < period && !mfvBuffer.isFull) {
         return { time: candle.time, value: null };
       }
