@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+### Fixed — margin interest counts against equity while the position is open
+
+Margin interest is charged in cash when a position closes. Until then it was
+invisible:
+
+- The equity curve stayed flat and then dropped by the whole charge on the
+  exit bar, which also understated drawdowns during the hold.
+- The margin-call check judged equity without it, so interest alone could
+  never trigger a call, however long the loan ran.
+
+The interest owed so far now counts against equity on every bar, in the
+equity curve and in the margin ratio. Trade returns and final capital are
+unchanged: the amount charged at the exit is the same. Runs with margin and
+`interestRate` can show a different `maxDrawdown` and earlier margin calls.
+
 ### Breaking — `RiskParityOptions.riskFreeRate` is removed
 
 `riskParityAllocation` never read `riskFreeRate`: passing it changed nothing.

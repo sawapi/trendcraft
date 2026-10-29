@@ -4621,7 +4621,9 @@ annual rate is divided by 365 and multiplied by the *fractional* days each loan
 was outstanding, so a one-hour trade pays one hour of interest. The charge is
 deducted in cash at exit, and a partial exit bills each tranche for the balance
 outstanding while that tranche was open. It is part of that exit's
-`Trade.return`.
+`Trade.return`. While the position is open, the interest owed so far already
+counts against equity, so it shows in the equity curve day by day and counts
+toward a margin call.
 
 This is not how brokers bill. Fidelity, for example, charges daily on settled
 debit balances ([margin rates](https://www.fidelity.com/trading/margin-loans/margin-rates)),
