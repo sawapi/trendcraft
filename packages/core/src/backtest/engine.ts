@@ -430,13 +430,26 @@ export function runBacktest(
   }
 
   /**
+   * Margin interest the open position owes at `time` and has not paid yet:
+   * the outstanding loan, at the daily rate, since entry. It is exactly what
+   * {@link deductMarginInterest} charges if the rest of the position closes
+   * at `time`, so counting it in equity while the position is open moves no
+   * cost, it only stops the cost from appearing all at once at the exit.
+   */
+  function unpaidMarginInterest(time: number): number {
+    if (position === null || !marginConfig?.interestRate || !marginState) return 0;
+    const heldDays = Math.max(0, (time - position.entryTime) / MS_PER_DAY);
+    return accrueInterest(marginState, marginConfig.interestRate / 365, heldDays);
+  }
+
+  /**
    * Mark-to-market account equity at a candle's close, via the shared
    * {@link accountEquity} definition — pure cash when flat, `cash + position
-   * claim` for the common non-margin case, less loan and accrued interest under
-   * margin. Sharing the formula keeps the equity curve consistent with
-   * margin-call accounting.
+   * claim` for the common non-margin case, less loan and the interest owed so
+   * far under margin. Sharing the formula keeps the equity curve consistent
+   * with margin-call accounting.
    */
-  function markToMarketEquity(close: number): number {
+  function markToMarketEquity(close: number, time: number): number {
     if (position === null) return currentCapital;
     return accountEquity(
       close * position.shares,
@@ -444,7 +457,7 @@ export function runBacktest(
       position.direction ?? "long",
       position.entryPrice * position.shares,
       marginState?.borrowedAmount ?? 0,
-      marginState?.accumulatedInterest ?? 0,
+      unpaidMarginInterest(time),
     );
   }
 
@@ -471,8 +484,9 @@ export function runBacktest(
    *
    * The charge is settled in cash immediately, so it is deliberately NOT
    * added to `accumulatedInterest` — the equity check subtracts that field
-   * as *unpaid* interest, and recording a paid charge there would deduct
-   * it from equity a second time.
+   * as *unpaid* interest (the margin check sets it to the interest owed so
+   * far), and recording a paid charge there would deduct it from equity a
+   * second time.
    *
    * Returns the amount charged, which the caller passes to
    * `calculateTradeClose` so the trade's return carries it.
@@ -794,8 +808,11 @@ export function runBacktest(
         // (not the entry notional) is what lets the margin ratio actually
         // fall below maintenance as the position loses value; the direction
         // and entry notional let shorts gain equity as the price falls.
+        // The interest owed so far reduces equity before it is paid, so a
+        // loan that has been running for months is not judged on cash it no
+        // longer really has.
         marginState = updateMarginState(
-          marginState,
+          { ...marginState, accumulatedInterest: unpaidMarginInterest(candle.time) },
           positionValue,
           currentCapital,
           dir,
@@ -959,7 +976,7 @@ export function runBacktest(
 
       // Skip remaining checks if the partial take profit closed the position
       if (position === null) {
-        equityCurve[i] = markToMarketEquity(candle.close);
+        equityCurve[i] = markToMarketEquity(candle.close, candle.time);
         continue;
       }
 
@@ -1021,7 +1038,7 @@ export function runBacktest(
 
       // Skip remaining checks if position was closed by scale-out
       if (position === null) {
-        equityCurve[i] = markToMarketEquity(candle.close);
+        equityCurve[i] = markToMarketEquity(candle.close, candle.time);
         continue;
       }
 
@@ -1182,7 +1199,7 @@ export function runBacktest(
         foldBarIntoPosition(position, mgmtCandle);
       }
     }
-    equityCurve[i] = markToMarketEquity(candle.close);
+    equityCurve[i] = markToMarketEquity(candle.close, candle.time);
   }
 
   // Close any open position at the end

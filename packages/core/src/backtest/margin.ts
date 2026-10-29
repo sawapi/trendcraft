@@ -35,7 +35,11 @@ export type MarginState = {
   marginRatio: number;
   /** Whether margin call is triggered */
   isMarginCall: boolean;
-  /** Accumulated interest cost */
+  /**
+   * Interest owed and not yet paid, as of the last margin check. The engine
+   * settles interest in cash when a position (or part of it) closes; until
+   * then it counts here, so equity and the margin ratio already reflect it.
+   */
   accumulatedInterest: number;
 };
 
