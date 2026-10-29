@@ -160,6 +160,29 @@ describe("formatVolume", () => {
 
   it("formats small numbers as-is", () => {
     expect(formatVolume(999)).toBe("999");
+    expect(formatVolume(0)).toBe("0");
+  });
+
+  it("keeps fractional volume below 1,000", () => {
+    expect(formatVolume(0.3)).toBe("0.3");
+    expect(formatVolume(0.5)).toBe("0.5");
+    expect(formatVolume(12.5)).toBe("12.5");
+    expect(formatVolume(123.456)).toBe("123");
+    expect(formatVolume(0.000123456)).toBe("0.000123");
+    expect(formatVolume(9.996)).toBe("10");
+    expect(formatVolume(-0.25)).toBe("-0.25");
+  });
+
+  it("never prints an exponent", () => {
+    expect(formatVolume(2.5e-7)).toBe("0.00000025");
+    expect(formatVolume(1.23456e-12)).toBe("0.00000000000123");
+  });
+
+  it("moves to the next unit when rounding reaches 1,000", () => {
+    expect(formatVolume(999.6)).toBe("1.0K");
+    expect(formatVolume(999_949)).toBe("999.9K");
+    expect(formatVolume(999_960)).toBe("1.0M");
+    expect(formatVolume(999_960_000)).toBe("1.0B");
   });
 
   it("handles NaN", () => {

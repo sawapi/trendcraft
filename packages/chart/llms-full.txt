@@ -197,6 +197,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — fractional volume below 1,000 was rounded to a whole number
+
+`formatVolume`, used by the info overlay, rounded volumes under 1,000 to whole
+numbers, so 0.3 read "0" and 12.5 read "13". Crypto, fractional shares and
+thin intraday bars carry such volumes. A fractional volume under 1,000 now
+shows 3 significant digits without trailing zeros or exponent ("0.3",
+"12.5", "0.00000025"). The unit is also chosen after rounding, as in
+lightweight-charts' volume formatter, so 999.6 reads "1.0K" and 999,960
+"1.0M" rather than "1000" and "1000.0K".
+
 ### Fixed — the crosshair showed a time on daily bars
 
 The time axis leaves the hour off daily and coarser bars, where it is only the
