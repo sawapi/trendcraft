@@ -274,15 +274,21 @@ export function estimateBarIntervalMs(candles: readonly { time: number }[]): num
 // ============================================
 
 /**
- * Format volume with K/M/B abbreviation.
+ * Format volume with K/M/B abbreviation. Below 1,000 a whole number is shown
+ * as is and a fractional one (crypto, fractional shares) to 3 significant
+ * digits without trailing zeros or exponent, so 0.3 reads "0.3", not "0".
+ * The unit is chosen after rounding, so 999.96K reads "1.0M", not "1000.0K".
  */
 export function formatVolume(vol: number): string {
   if (!Number.isFinite(vol)) return "—";
   const abs = Math.abs(vol);
-  if (abs >= 1_000_000_000) return `${(vol / 1_000_000_000).toFixed(1)}B`;
-  if (abs >= 1_000_000) return `${(vol / 1_000_000).toFixed(1)}M`;
-  if (abs >= 1_000) return `${(vol / 1_000).toFixed(1)}K`;
-  return vol.toFixed(0);
+  if (abs >= 999_950_000) return `${(vol / 1_000_000_000).toFixed(1)}B`;
+  if (abs >= 999_950) return `${(vol / 1_000_000).toFixed(1)}M`;
+  if (abs >= 999.5) return `${(vol / 1_000).toFixed(1)}K`;
+  if (Number.isInteger(vol) || abs === 0) return vol.toFixed(0);
+  const digits = Math.min(20, Math.max(0, 2 - Math.floor(Math.log10(abs))));
+  const text = vol.toFixed(digits);
+  return text.includes(".") ? text.replace(/\.?0+$/, "") : text;
 }
 
 // ============================================
