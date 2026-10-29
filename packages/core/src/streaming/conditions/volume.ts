@@ -63,12 +63,12 @@ export function cmfBelow(threshold = 0, key = "cmf"): StreamingPresetCondition {
  *
  * @param key - Snapshot key (default: "obv")
  */
-export function obvRising(key = "obv"): StreamingPresetCondition {
+export function obvUpTick(key = "obv"): StreamingPresetCondition {
   let prevObv: number | null = null;
 
   return {
     type: "preset",
-    name: `obvRising(${key})`,
+    name: `obvUpTick(${key})`,
     evaluate: (snapshot, _candle, context) => {
       const val = getNumber(snapshot, key);
       const rising = prevObv !== null && val !== null && val > prevObv;
@@ -85,12 +85,12 @@ export function obvRising(key = "obv"): StreamingPresetCondition {
  *
  * @param key - Snapshot key (default: "obv")
  */
-export function obvFalling(key = "obv"): StreamingPresetCondition {
+export function obvDownTick(key = "obv"): StreamingPresetCondition {
   let prevObv: number | null = null;
 
   return {
     type: "preset",
-    name: `obvFalling(${key})`,
+    name: `obvDownTick(${key})`,
     evaluate: (snapshot, _candle, context) => {
       const val = getNumber(snapshot, key);
       const falling = prevObv !== null && val !== null && val < prevObv;
@@ -108,11 +108,11 @@ export function obvFalling(key = "obv"): StreamingPresetCondition {
  * @param signalKey - Snapshot key for OBV signal line (default: "obvSignal")
  * @param key - Snapshot key for OBV (default: "obv")
  */
-export function obvCrossUp(signalKey = "obvSignal", key = "obv"): StreamingPresetCondition {
+export function obvSignalCrossUp(signalKey = "obvSignal", key = "obv"): StreamingPresetCondition {
   const cross = crossOver(key, signalKey);
   return {
     type: "preset",
-    name: `obvCrossUp(${key}, ${signalKey})`,
+    name: `obvSignalCrossUp(${key}, ${signalKey})`,
     evaluate: cross.evaluate,
   };
 }
@@ -123,11 +123,39 @@ export function obvCrossUp(signalKey = "obvSignal", key = "obv"): StreamingPrese
  * @param signalKey - Snapshot key for OBV signal line (default: "obvSignal")
  * @param key - Snapshot key for OBV (default: "obv")
  */
-export function obvCrossDown(signalKey = "obvSignal", key = "obv"): StreamingPresetCondition {
+export function obvSignalCrossDown(signalKey = "obvSignal", key = "obv"): StreamingPresetCondition {
   const cross = crossUnder(key, signalKey);
   return {
     type: "preset",
-    name: `obvCrossDown(${key}, ${signalKey})`,
+    name: `obvSignalCrossDown(${key}, ${signalKey})`,
     evaluate: cross.evaluate,
   };
 }
+
+/**
+ * @deprecated Renamed to {@link obvUpTick}, which says what it tests: OBV is above the previous bar.
+ * The backtest condition named `obvRising` is a different rule. This alias will
+ * be removed in a future release.
+ */
+export const obvRising = obvUpTick;
+
+/**
+ * @deprecated Renamed to {@link obvDownTick}, which says what it tests: OBV is below the previous bar.
+ * The backtest condition named `obvFalling` is a different rule. This alias will
+ * be removed in a future release.
+ */
+export const obvFalling = obvDownTick;
+
+/**
+ * @deprecated Renamed to {@link obvSignalCrossUp}, which says what it tests: OBV crosses above its signal line.
+ * The backtest condition named `obvCrossUp` is a different rule. This alias will
+ * be removed in a future release.
+ */
+export const obvCrossUp = obvSignalCrossUp;
+
+/**
+ * @deprecated Renamed to {@link obvSignalCrossDown}, which says what it tests: OBV crosses below its signal line.
+ * The backtest condition named `obvCrossDown` is a different rule. This alias will
+ * be removed in a future release.
+ */
+export const obvCrossDown = obvSignalCrossDown;

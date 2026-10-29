@@ -76,37 +76,22 @@ const DISJOINT_PARAMS: Record<string, string> = {
     "same rule (%K crosses %D); backtest computes them from kPeriod/dPeriod, streaming reads a snapshot key",
   stochCrossDown:
     "same rule (%K crosses %D); backtest computes them from kPeriod/dPeriod, streaming reads a snapshot key",
-
-  // RULE DIFFERS — a portable leaf resolves to two different conditions.
-  perfectOrderBullish:
-    "RULE DIFFERS: backtest fires on the bar the order FORMS (`formed` edge, plus a strength floor) over an SMA ribbon; streaming fires on any bar where an EMA ribbon is bullish (a level)",
-  perfectOrderBearish:
-    "RULE DIFFERS: backtest fires on the `formed` edge over an SMA ribbon; streaming tests strict ordering of an EMA ribbon on every bar",
-  perfectOrderCollapsed:
-    "RULE DIFFERS: backtest reads `collapsed` (the alignment broke); streaming reads `expanding === false` (the spread stopped widening) — a different quantity",
-  obvCrossUp:
-    "RULE DIFFERS: backtest crosses SMA(OBV, shortPeriod) over SMA(OBV, longPeriod); streaming crosses raw OBV over a single signal line",
-  obvCrossDown:
-    "RULE DIFFERS: backtest crosses SMA(OBV, shortPeriod) under SMA(OBV, longPeriod); streaming crosses raw OBV under a single signal line",
-  obvRising:
-    "RULE DIFFERS: backtest compares OBV to its value `period` bars ago; streaming compares to the previous bar only",
-  obvFalling:
-    "RULE DIFFERS: backtest compares OBV to its value `period` bars ago; streaming compares to the previous bar only",
-  volatilityExpanding:
-    "RULE DIFFERS: backtest needs the ATR percentile to exceed its lookback mean by `threshold`; streaming fires on any tick up",
-  volatilityContracting:
-    "RULE DIFFERS: backtest needs the ATR percentile to fall below its lookback mean by `threshold`; streaming fires on any tick down",
 };
 
 describe("registry parity (backtest ↔ streaming)", () => {
+  // `names()`, not `has()`: a deprecated alias resolves through `has()`, but
+  // it names a condition that is no longer the shared one.
+  const streamingNames = new Set(streamingRegistry.names());
   const sharedNames = backtestRegistry
     .names()
-    .filter((name) => streamingRegistry.has(name))
+    .filter((name) => streamingNames.has(name))
     .sort();
 
   it("has a non-trivial overlap to guard", () => {
     // Sanity floor: if this drops, an import or registration regressed.
-    expect(sharedNames.length).toBeGreaterThan(20);
+    // (19 since nine streaming conditions were renamed off names they shared
+    // with a different backtest rule.)
+    expect(sharedNames.length).toBeGreaterThanOrEqual(19);
   });
 
   it("every shared name with no overlapping params is accounted for", () => {

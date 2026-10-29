@@ -2,6 +2,40 @@
 
 ## [Unreleased]
 
+### Deprecated — nine streaming conditions renamed to say what they test
+
+Nine names were shared by a backtest condition and a streaming condition
+that test different things. A strategy JSON leaf with one of these names
+meant one rule in a backtest and another when streamed:
+
+| Old streaming name | New name | Backtest rule under the old name |
+|---|---|---|
+| `perfectOrderBullish` / `perfectOrderBearish` | `emaRibbonBullish` / `emaRibbonBearish` | fires on the bar the order forms |
+| `perfectOrderCollapsed` | `emaRibbonContracting` | the order broke (streaming tested a narrowing spread) |
+| `obvCrossUp` / `obvCrossDown` | `obvSignalCrossUp` / `obvSignalCrossDown` | two OBV moving averages cross |
+| `obvRising` / `obvFalling` | `obvUpTick` / `obvDownTick` | OBV against its value N bars ago |
+| `volatilityExpanding` / `volatilityContracting` | `atrRising` / `atrFalling` | ATR percentile against its recent mean |
+
+The streaming side takes the new names, and the shared names keep their
+backtest meaning. Each streaming condition keeps its rule. Its `name` string
+changes with it, also when created through a deprecated alias:
+`obvRising().name` is now `"obvUpTick(obv)"`. Code that matches on condition
+names, in logs or in explain and trace output, sees the new names.
+
+- The old streaming factory exports stay as `@deprecated` aliases of the
+  same functions.
+- `streamingRegistry` keeps the old names loadable through a new
+  `ConditionRegistry.alias()`: they resolve to the renamed condition and
+  log a one-time deprecation warning. `names()` and `list()` show only the
+  new names.
+
+The old names will be removed in a later release. The backtest meanings
+match common usage of the (Japanese) term パーフェクトオーダー: the entry is
+"the moment it completes" (「完成した瞬間」), the position is held while the
+order lasts, a collapse is the alignment breaking (「並びが崩れる」), and SMA
+is the usual moving average
+([CREX guide](https://crexgroup.com/ja/sec/knowledge-license/stock-perfect-order-guide-2/)).
+
 ### Breaking — a candle with a non-finite time, price or volume throws
 
 **Most likely to affect you: candles without a volume now throw.** `volume`

@@ -40,30 +40,58 @@ import { describeType, isPlainObject } from "./utils";
  */
 export class ConditionRegistry<T = unknown> {
   private entries = new Map<string, ConditionRegistryEntry<T>>();
+  /** Deprecated name → current name. Not listed by `names()` or `list()`. */
+  private aliases = new Map<string, string>();
+  private warnedAliases = new Set<string>();
 
   /**
    * Register a condition entry
    * @throws Error if a condition with the same name is already registered
    */
   register(entry: ConditionRegistryEntry<T>): void {
-    if (this.entries.has(entry.name)) {
+    if (this.entries.has(entry.name) || this.aliases.has(entry.name)) {
       throw new Error(`Condition "${entry.name}" is already registered`);
     }
     this.entries.set(entry.name, entry);
   }
 
   /**
-   * Get a registered condition entry by name
+   * Keep a renamed condition loadable under its old name.
+   *
+   * `get`, `has` and `hydrate` resolve `oldName` to `newName`; hydrating it
+   * logs a one-time deprecation warning. `names()` and `list()` show only the
+   * current name, so tools offering conditions do not offer the old one.
+   *
+   * @throws Error if `newName` is not registered or `oldName` is taken
    */
-  get(name: string): ConditionRegistryEntry<T> | undefined {
-    return this.entries.get(name);
+  alias(oldName: string, newName: string): void {
+    if (!this.entries.has(newName)) {
+      throw new Error(`Cannot alias "${oldName}": "${newName}" is not registered`);
+    }
+    if (this.entries.has(oldName) || this.aliases.has(oldName)) {
+      throw new Error(`Condition "${oldName}" is already registered`);
+    }
+    this.aliases.set(oldName, newName);
+  }
+
+  /** The current name a deprecated alias resolves to, or undefined. */
+  aliasTarget(name: string): string | undefined {
+    return this.aliases.get(name);
   }
 
   /**
-   * Check if a condition is registered
+   * Get a registered condition entry by name (an alias resolves to the
+   * entry it points to)
+   */
+  get(name: string): ConditionRegistryEntry<T> | undefined {
+    return this.entries.get(this.aliases.get(name) ?? name);
+  }
+
+  /**
+   * Check if a condition is registered, under its current name or an alias
    */
   has(name: string): boolean {
-    return this.entries.has(name);
+    return this.entries.has(name) || this.aliases.has(name);
   }
 
   /**
@@ -128,9 +156,17 @@ export class ConditionRegistry<T = unknown> {
     }
 
     // Leaf node
-    const entry = this.entries.get(spec.name);
+    const entry = this.get(spec.name);
     if (!entry) {
       throw new Error(`Unknown condition: "${spec.name}"`);
+    }
+    const renamedTo = this.aliases.get(spec.name);
+    if (renamedTo !== undefined && !this.warnedAliases.has(spec.name)) {
+      this.warnedAliases.add(spec.name);
+      console.warn(
+        `[trendcraft] Condition "${spec.name}" is deprecated; use "${renamedTo}". ` +
+          "The old name will be removed in a future release.",
+      );
     }
 
     // A param the entry does not declare is a mistake, not a no-op. Dropping

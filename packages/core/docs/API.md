@@ -4950,7 +4950,7 @@ const isEntry = evaluateStreamingCondition(entryCondition, snapshot, candle);
 const preview = evaluateStreamingCondition(entryCondition, snapshot, candle, { mode: "peek" });
 ```
 
-Conditions that compare with the previous bar (crosses, `*Rising` / `*Falling`, `*Flip`, `newHigh` / `newLow`, `priceDroppedAtr` / `priceGainedAtr`, `volatilityExpanding` / `volatilityContracting`) keep that bar internally. `context.mode` decides whether this call may move it:
+Conditions that compare with the previous bar (crosses, `*Rising` / `*Falling`, `obvUpTick` / `obvDownTick`, `*Flip`, `newHigh` / `newLow`, `priceDroppedAtr` / `priceGainedAtr`) keep that bar internally. `context.mode` decides whether this call may move it:
 
 - `"next"` (the default): a confirmed bar. The condition records it as its new previous bar.
 - `"peek"`: a forming bar that may still change. The condition answers but records nothing, so the next confirmed bar is still compared with the last confirmed one. `pipeline.peek()` passes this. Pine Script works the same way: it rolls a realtime bar's state back before each update and commits it only when the bar closes.
@@ -4973,6 +4973,17 @@ Conditions that compare with the previous bar (crosses, `*Rising` / `*Falling`, 
 | `priceBelow(indicatorKey)` | Price (close) is below the indicator value | — |
 | `indicatorAbove(key, threshold)` | Indicator value is above threshold | — |
 | `indicatorBelow(key, threshold)` | Indicator value is below threshold | — |
+
+Nine streaming conditions were renamed so that each name says what it tests. The backtest conditions with the old names follow a different rule. The old streaming names still work, as deprecated aliases: the factory functions are the same functions, and a strategy JSON leaf with an old name loads the renamed condition and logs a one-time warning.
+
+| Old streaming name | New name | What it tests |
+|---|---|---|
+| `perfectOrderBullish` | `emaRibbonBullish` | The EMA ribbon is in bullish order on this bar (a state) |
+| `perfectOrderBearish` | `emaRibbonBearish` | The EMA ribbon is in bearish order on this bar (a state) |
+| `perfectOrderCollapsed` | `emaRibbonContracting` | The ribbon's spread is not expanding (it may still be in order) |
+| `obvRising` / `obvFalling` | `obvUpTick` / `obvDownTick` | OBV is above / below the previous bar |
+| `obvCrossUp` / `obvCrossDown` | `obvSignalCrossUp` / `obvSignalCrossDown` | OBV crosses its signal line |
+| `volatilityExpanding` / `volatilityContracting` | `atrRising` / `atrFalling` | ATR is above / below the previous bar |
 
 You can also pass a plain function as a condition:
 

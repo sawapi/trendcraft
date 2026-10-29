@@ -11,10 +11,10 @@ import type { StreamingPresetCondition } from "./types";
  *
  * @param key - Snapshot key for EMA ribbon (default: "emaRibbon")
  */
-export function perfectOrderBullish(key = "emaRibbon"): StreamingPresetCondition {
+export function emaRibbonBullish(key = "emaRibbon"): StreamingPresetCondition {
   return {
     type: "preset",
-    name: `perfectOrderBullish(${key})`,
+    name: `emaRibbonBullish(${key})`,
     evaluate: (snapshot) => {
       const val = snapshot[key];
       if (val == null || typeof val !== "object") return false;
@@ -28,10 +28,10 @@ export function perfectOrderBullish(key = "emaRibbon"): StreamingPresetCondition
  *
  * @param key - Snapshot key for EMA ribbon (default: "emaRibbon")
  */
-export function perfectOrderBearish(key = "emaRibbon"): StreamingPresetCondition {
+export function emaRibbonBearish(key = "emaRibbon"): StreamingPresetCondition {
   return {
     type: "preset",
-    name: `perfectOrderBearish(${key})`,
+    name: `emaRibbonBearish(${key})`,
     evaluate: (snapshot) => {
       const val = snapshot[key];
       if (val == null || typeof val !== "object") return false;
@@ -70,10 +70,10 @@ export function perfectOrderForming(key = "emaRibbon"): StreamingPresetCondition
  *
  * @param key - Snapshot key for EMA ribbon (default: "emaRibbon")
  */
-export function perfectOrderCollapsed(key = "emaRibbon"): StreamingPresetCondition {
+export function emaRibbonContracting(key = "emaRibbon"): StreamingPresetCondition {
   return {
     type: "preset",
-    name: `perfectOrderCollapsed(${key})`,
+    name: `emaRibbonContracting(${key})`,
     evaluate: (snapshot) => {
       const val = snapshot[key];
       if (val == null || typeof val !== "object") return false;
@@ -82,3 +82,24 @@ export function perfectOrderCollapsed(key = "emaRibbon"): StreamingPresetConditi
     },
   };
 }
+
+/**
+ * @deprecated Renamed to {@link emaRibbonBullish}, which says what it tests: the EMA ribbon is in bullish order on this bar (a state, not the bar it forms).
+ * The backtest condition named `perfectOrderBullish` is a different rule. This alias will
+ * be removed in a future release.
+ */
+export const perfectOrderBullish = emaRibbonBullish;
+
+/**
+ * @deprecated Renamed to {@link emaRibbonBearish}, which says what it tests: the EMA ribbon is in bearish order on this bar (a state, not the bar it forms).
+ * The backtest condition named `perfectOrderBearish` is a different rule. This alias will
+ * be removed in a future release.
+ */
+export const perfectOrderBearish = emaRibbonBearish;
+
+/**
+ * @deprecated Renamed to {@link emaRibbonContracting}, which says what it tests: the EMA ribbon spread is not expanding (it may still be in order).
+ * The backtest condition named `perfectOrderCollapsed` is a different rule. This alias will
+ * be removed in a future release.
+ */
+export const perfectOrderCollapsed = emaRibbonContracting;

@@ -4901,7 +4901,7 @@ const isEntry = evaluateStreamingCondition(entryCondition, snapshot, candle);
 const preview = evaluateStreamingCondition(entryCondition, snapshot, candle, { mode: "peek" });
 ```
 
-前の足と比べる条件（クロス、`*Rising` / `*Falling`、`*Flip`、`newHigh` / `newLow`、`priceDroppedAtr` / `priceGainedAtr`、`volatilityExpanding` / `volatilityContracting`）は、前の足の値を内部に持っています。その値を更新してよいかは `context.mode` で決まります。
+前の足と比べる条件（クロス、`*Rising` / `*Falling`、`obvUpTick` / `obvDownTick`、`*Flip`、`newHigh` / `newLow`、`priceDroppedAtr` / `priceGainedAtr`）は、前の足の値を内部に持っています。その値を更新してよいかは `context.mode` で決まります。
 
 - `"next"`（既定）: 確定した足。条件はこの足を新しい「前の足」として記録します。
 - `"peek"`: まだ変わりうる確定前の足。条件は答えますが何も記録しないので、次の確定足は最後の確定足と比べられます。`pipeline.peek()` はこれを渡します。Pine Script も同じで、リアルタイムの足は更新のたびに状態を巻き戻し、足が閉じたときだけ確定させます。
@@ -4924,6 +4924,17 @@ const preview = evaluateStreamingCondition(entryCondition, snapshot, candle, { m
 | `priceBelow(indicatorKey)` | 価格（終値）がインジケーター値より下 | — |
 | `indicatorAbove(key, threshold)` | インジケーター値が閾値より上 | — |
 | `indicatorBelow(key, threshold)` | インジケーター値が閾値より下 | — |
+
+ストリーミング条件のうち 9 個は、何を判定しているかが名前で分かるように改名しました。古い名前のバックテスト条件は別のルールです。古いストリーミング名は非推奨の別名として引き続き使えます。ファクトリー関数は同じ関数で、strategy JSON の葉に古い名前があれば改名後の条件として読み込み、一度だけ警告を出します。
+
+| 旧ストリーミング名 | 新しい名前 | 判定内容 |
+|---|---|---|
+| `perfectOrderBullish` | `emaRibbonBullish` | その足で EMA リボンが強気の並び（状態） |
+| `perfectOrderBearish` | `emaRibbonBearish` | その足で EMA リボンが弱気の並び（状態） |
+| `perfectOrderCollapsed` | `emaRibbonContracting` | リボンの幅が広がっていない（並びは保っている場合もある） |
+| `obvRising` / `obvFalling` | `obvUpTick` / `obvDownTick` | OBV が前の足より上 / 下 |
+| `obvCrossUp` / `obvCrossDown` | `obvSignalCrossUp` / `obvSignalCrossDown` | OBV がシグナル線と交差 |
+| `volatilityExpanding` / `volatilityContracting` | `atrRising` / `atrFalling` | ATR が前の足より上 / 下 |
 
 プレーンな関数を条件として渡すこともできます:
 
