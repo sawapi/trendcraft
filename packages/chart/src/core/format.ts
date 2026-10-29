@@ -230,10 +230,16 @@ export function pickNiceStep(rangeMs: number, maxTicks: number): number {
 }
 
 /**
- * Format time for crosshair label (always show full detail), in `timeZone`
- * (browser local when omitted).
+ * Format time for crosshair label, in `timeZone` (browser local when
+ * omitted). Shows the date, plus the wall-clock time unless it is midnight
+ * or the bars are daily or coarser (`intervalMs` ≥ one day), where the hour
+ * is a time-zone artifact; the time axis applies the same rule.
+ *
+ * @param time - Epoch milliseconds
+ * @param timeZone - IANA zone to read the wall clock in
+ * @param intervalMs - Bar interval, e.g. from the candles' spacing
  */
-export function formatCrosshairTime(time: number, timeZone?: string): string {
+export function formatCrosshairTime(time: number, timeZone?: string, intervalMs?: number): string {
   const d = wallClock(time, timeZone);
   const y = d.getUTCFullYear();
   const m = pad2(d.getUTCMonth() + 1);
@@ -241,10 +247,26 @@ export function formatCrosshairTime(time: number, timeZone?: string): string {
   const h = d.getUTCHours();
   const min = d.getUTCMinutes();
 
-  if (h === 0 && min === 0) {
+  if ((h === 0 && min === 0) || (intervalMs ?? 0) >= DAY_MS) {
     return `${y}-${m}-${day}`;
   }
   return `${y}-${m}-${day} ${pad2(h)}:${pad2(min)}`;
+}
+
+/**
+ * Bar interval of a candle series: the smallest positive gap among its first
+ * 32 bars (a weekend or holiday gap is larger, so it does not count). `0`
+ * with fewer than two bars.
+ */
+export function estimateBarIntervalMs(candles: readonly { time: number }[]): number {
+  const n = candles.length;
+  if (n < 2) return 0;
+  let min = Number.POSITIVE_INFINITY;
+  for (let i = 1; i < n && i <= 32; i++) {
+    const dt = candles[i].time - candles[i - 1].time;
+    if (dt > 0 && dt < min) min = dt;
+  }
+  return Number.isFinite(min) ? min : 0;
 }
 
 // ============================================

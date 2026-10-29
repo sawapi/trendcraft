@@ -9,7 +9,12 @@
 
 import { pickReadableTextColor } from "../core/color-utils";
 import { canvasFont, DEFAULT_FONT_FAMILY } from "../core/font";
-import { autoFormatPrice, formatCrosshairTime, measureTextWidth } from "../core/format";
+import {
+  autoFormatPrice,
+  estimateBarIntervalMs,
+  formatCrosshairTime,
+  measureTextWidth,
+} from "../core/format";
 import type { PriceScale, TimeScale } from "../core/scale";
 import type { CandleData, CrosshairMode, PaneRect, ThemeColors } from "../core/types";
 import type { ViewportState } from "../core/viewport";
@@ -118,6 +123,7 @@ export function renderCrosshair(
         fontSize,
         fontFamily,
         timeScale.timeZone,
+        estimateBarIntervalMs(candles),
       );
     }
   }
@@ -201,8 +207,9 @@ function drawTimeLabel(
   fontSize: number,
   fontFamily: string = DEFAULT_FONT_FAMILY,
   timeZone?: string,
+  intervalMs?: number,
 ): void {
-  const label = formatCrosshairTime(time, timeZone);
+  const label = formatCrosshairTime(time, timeZone, intervalMs);
   ctx.font = canvasFont(fontSize, fontFamily);
   const padX = 6;
   const padY = 3;

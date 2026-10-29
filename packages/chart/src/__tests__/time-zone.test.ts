@@ -70,6 +70,19 @@ describe("format helpers in a time zone", () => {
     expect(formatCrosshairTime(t, "America/New_York")).toBe("2025-11-26 15:55");
   });
 
+  it("leaves the hour off the crosshair for daily and coarser bars", () => {
+    const day = 86_400_000;
+    // A daily bar stamped at 00:00 UTC reads 09:00 in Tokyo: an artifact
+    expect(formatCrosshairTime(Date.UTC(2023, 5, 26), "Asia/Tokyo", day)).toBe("2023-06-26");
+    expect(formatCrosshairTime(Date.UTC(2024, 2, 1), "America/New_York", day)).toBe("2024-02-29");
+    expect(formatCrosshairTime(Date.UTC(2024, 2, 1), "America/New_York", 7 * day)).toBe(
+      "2024-02-29",
+    );
+    // Intraday bars keep it; without a hint the label is as before
+    expect(formatCrosshairTime(t, "Asia/Tokyo", 60_000)).toBe("2025-11-27 05:55");
+    expect(formatCrosshairTime(Date.UTC(2023, 5, 26), "Asia/Tokyo")).toBe("2023-06-26 09:00");
+  });
+
   it("labels the axis in the given zone", () => {
     expect(formatShortTime(t, "America/New_York")).toBe("15:55");
     expect(formatShortDate(t, null, "Asia/Tokyo")).toBe("Nov 27");
