@@ -197,6 +197,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — bundle size limits
+
+Since 0.5.0 the `size-limit` budgets (brotli) were raised as fixes landed:
+
+| Entry | 0.5.0 | Now |
+|---|---|---|
+| Main (`createChart` + all exports) | 42.5 kB | 44.5 kB |
+| Headless API | 11.75 kB | 12.5 kB |
+| React wrapper | 34 kB | 36.5 kB |
+| Vue wrapper | 34 kB | 36.5 kB |
+| Features (all), new | — | 6.25 kB |
+
+Moving the optional features out of the core bundle (see below) brought the
+measured sizes back down: main is 41.05 kB, the wrappers 32.37 and
+32.79 kB, so the raised limits leave room for the fixes still to come.
+
 ### Breaking — drawing tools, backtest display, markers and scores are optional features
 
 Four features moved out of the core bundle into `@trendcraft/chart/features`.
