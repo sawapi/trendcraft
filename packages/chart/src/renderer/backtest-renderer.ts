@@ -8,6 +8,7 @@ import { canvasFont, DEFAULT_FONT_FAMILY } from "../core/font";
 import { measureTextWidth } from "../core/format";
 import type { PriceScale, TimeScale } from "../core/scale";
 import type { BacktestResultData, PaneRect, ThemeColors } from "../core/types";
+import { tradeSpan } from "./trade-span";
 
 /** Simplified backtest result shape (compatible with trendcraft BacktestResult) */
 export type { BacktestResultData } from "../core/types";
@@ -46,13 +47,16 @@ export function renderBacktestTrades(
   ctx.clip();
 
   for (const trade of result.trades) {
-    const entryIdx = dataLayer.indexAtTime(trade.entryTime);
-    const exitIdx = dataLayer.indexAtTime(trade.exitTime);
+    // Trades outside the loaded candles (a replay that has not reached them)
+    // are skipped; one crossing an edge is clipped there, without the marker
+    // on the far side.
+    const span = tradeSpan(dataLayer, trade.entryTime, trade.exitTime);
+    if (!span) continue;
     const isWin = trade.returnPercent >= 0;
     const exitColor = EXIT_REASON_COLORS[trade.exitReason ?? "signal"] ?? "#787b86";
 
-    const x1 = timeScale.indexToX(entryIdx);
-    const x2 = timeScale.indexToX(exitIdx);
+    const x1 = timeScale.indexToX(span.entryIdx);
+    const x2 = timeScale.indexToX(span.exitIdx);
 
     // Holding period shading
     ctx.fillStyle = isWin ? "rgba(38,166,154,0.06)" : "rgba(239,83,80,0.06)";
@@ -60,17 +64,22 @@ export function renderBacktestTrades(
 
     // Entry marker (blue circle)
     const entryY = ps.priceToY(trade.entryPrice) + mainPane.y;
-    ctx.fillStyle = "#2196F3";
-    ctx.beginPath();
-    ctx.arc(x1, entryY, 4, 0, Math.PI * 2);
-    ctx.fill();
+    if (span.entryInRange) {
+      ctx.fillStyle = "#2196F3";
+      ctx.beginPath();
+      ctx.arc(x1, entryY, 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
     // Exit marker (colored by exit reason)
     const exitY = ps.priceToY(trade.exitPrice) + mainPane.y;
-    ctx.fillStyle = exitColor;
-    ctx.beginPath();
-    ctx.arc(x2, exitY, 4, 0, Math.PI * 2);
-    ctx.fill();
+    if (span.exitInRange) {
+      ctx.fillStyle = exitColor;
+      ctx.beginPath();
+      ctx.arc(x2, exitY, 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    if (!span.entryInRange || !span.exitInRange) continue;
 
     // Connection line
     ctx.strokeStyle = `${exitColor}66`;
@@ -101,20 +110,29 @@ export function renderEquityCurve(
   // Build equity curve: one point per trade exit + initial point
   const equityPoints: { idx: number; equity: number }[] = [];
   let equity = result.initialCapital;
+  const firstTime = dataLayer.timeAt(0);
 
-  // Start at first candle
-  equityPoints.push({ idx: 0, equity });
-
-  // Add entry points (equity stays flat until exit)
+  // Add entry points (equity stays flat until exit). Only exits up to the
+  // last loaded candle count; a later exit has not happened yet on this chart.
   for (const trade of result.trades) {
-    const entryIdx = dataLayer.indexAtTime(trade.entryTime);
-    equityPoints.push({ idx: entryIdx, equity }); // Flat until entry
-    const exitIdx = dataLayer.indexAtTime(trade.exitTime);
+    const span = tradeSpan(dataLayer, trade.entryTime, trade.exitTime);
+    if (!span) {
+      // Closed before the first loaded candle: it still sets the starting level
+      if (firstTime !== undefined && trade.exitTime < firstTime) {
+        equity *= 1 + trade.returnPercent / 100;
+      }
+      continue;
+    }
+    // Start at the first candle, at the equity reached before the data
+    if (equityPoints.length === 0) equityPoints.push({ idx: 0, equity });
+    equityPoints.push({ idx: span.entryIdx, equity }); // Flat until entry
+    if (!span.exitInRange) continue;
     equity *= 1 + trade.returnPercent / 100;
-    equityPoints.push({ idx: exitIdx, equity }); // Jump at exit
+    equityPoints.push({ idx: span.exitIdx, equity }); // Jump at exit
   }
 
-  // Extend to last candle
+  // Extend from the first to the last candle
+  if (equityPoints.length === 0) equityPoints.push({ idx: 0, equity });
   equityPoints.push({ idx: dataLayer.candleCount - 1, equity });
 
   if (equityPoints.length < 2) return;
@@ -124,19 +142,33 @@ export function renderEquityCurve(
   ctx.rect(paneRect.x, paneRect.y, paneRect.width, paneRect.height);
   ctx.clip();
 
-  // Drawdown periods (red shading)
-  for (const dd of result.drawdownPeriods) {
-    const startIdx = dataLayer.indexAtTime(dd.startTime);
-    const endIdx = dd.recoveryTime
-      ? dataLayer.indexAtTime(dd.recoveryTime)
-      : dataLayer.candleCount - 1;
-
-    const x1 = timeScale.indexToX(startIdx);
-    const x2 = timeScale.indexToX(endIdx);
-
-    ctx.fillStyle = "rgba(239,83,80,0.15)";
-    ctx.fillRect(x1, paneRect.y, x2 - x1, paneRect.height);
+  // Drawdown periods (red shading), from the curve drawn below: from the bar
+  // that set a peak until the line is back at it. `result.drawdownPeriods`
+  // covers the whole run, so on partly loaded candles it would shade a loss
+  // that has not happened yet.
+  ctx.fillStyle = "rgba(239,83,80,0.15)";
+  const shade = (fromIdx: number, toIdx: number) => {
+    const x1 = timeScale.indexToX(fromIdx);
+    ctx.fillRect(x1, paneRect.y, timeScale.indexToX(toIdx) - x1, paneRect.height);
+  };
+  let peak = equityPoints[0].equity;
+  let peakIdx = equityPoints[0].idx;
+  let drawdownFrom: number | null = null;
+  for (const point of equityPoints) {
+    if (point.equity < peak) {
+      drawdownFrom ??= peakIdx;
+      continue;
+    }
+    if (drawdownFrom !== null) {
+      shade(drawdownFrom, point.idx);
+      drawdownFrom = null;
+    }
+    if (point.equity > peak) {
+      peak = point.equity;
+      peakIdx = point.idx;
+    }
   }
+  if (drawdownFrom !== null) shade(drawdownFrom, equityPoints[equityPoints.length - 1].idx);
 
   // Equity line (use absolute y = paneRect.y + priceScale.priceToY)
   ctx.strokeStyle = theme.upColor;

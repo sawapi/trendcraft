@@ -197,6 +197,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — trades beyond the loaded candles no longer pile up at the right edge
+
+`addBacktest()` and `addTrades()` drew every trade after the last loaded
+candle one bar past it, stacked in a column, and the equity curve dropped
+vertically there. This happened whenever candles were loaded only part way,
+as in a replay. Trades are now placed like `addSignals()` markers:
+
+- A trade entirely before or after the loaded candles is not drawn.
+- A trade that crosses the edge is shaded up to it. Only the marker inside
+  the data is drawn, with no line to the other end, so a replay does not show
+  an exit that has not happened yet.
+- The equity curve uses only exits up to the last candle, and starts at the
+  equity reached by trades that closed before the first one.
+- Drawdown shading follows the equity curve the chart draws: from the bar that
+  set a peak until the curve is back at it. It no longer reads
+  `result.drawdownPeriods`, which covers the whole run and so shaded losses a
+  replay had not reached. Those periods come from the mark-to-market equity,
+  so a dip inside a trade that closed in profit is no longer shaded.
+
 ### Changed — bundle size limits
 
 Since 0.5.0 the `size-limit` budgets (brotli) were raised as fixes landed:
