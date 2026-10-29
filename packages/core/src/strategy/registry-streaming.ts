@@ -39,9 +39,9 @@ import {
   macdHistogramRising,
 } from "../streaming/conditions/macd";
 import {
-  perfectOrderBearish,
-  perfectOrderBullish,
-  perfectOrderCollapsed,
+  emaRibbonBearish,
+  emaRibbonBullish,
+  emaRibbonContracting,
   perfectOrderForming,
 } from "../streaming/conditions/perfect-order";
 // Import streaming condition factories
@@ -73,18 +73,18 @@ import {
   supertrendFlip,
 } from "../streaming/conditions/trend";
 import {
+  atrFalling,
   atrPercentAbove,
   atrPercentBelow,
-  volatilityContracting,
-  volatilityExpanding,
+  atrRising,
 } from "../streaming/conditions/volatility";
 import {
   cmfAbove,
   cmfBelow,
-  obvCrossDown,
-  obvCrossUp,
-  obvFalling,
-  obvRising,
+  obvDownTick,
+  obvSignalCrossDown,
+  obvSignalCrossUp,
+  obvUpTick,
   volumeAboveAvg,
 } from "../streaming/conditions/volume";
 import type { StreamingCondition } from "../streaming/types";
@@ -456,38 +456,40 @@ function createStreamingRegistry(): ConditionRegistry<StreamingCondition> {
     create: (p) => cmfBelow((p.threshold as number) ?? 0, (p.key as string) ?? "cmf"),
   });
   registry.register({
-    name: "obvRising",
-    displayName: "OBV Rising",
+    name: "obvUpTick",
+    displayName: "OBV Up Tick",
     category: "volume",
     params: { key: { type: "string", default: "obv" } },
-    create: (p) => obvRising((p.key as string) ?? "obv"),
+    create: (p) => obvUpTick((p.key as string) ?? "obv"),
   });
   registry.register({
-    name: "obvFalling",
-    displayName: "OBV Falling",
+    name: "obvDownTick",
+    displayName: "OBV Down Tick",
     category: "volume",
     params: { key: { type: "string", default: "obv" } },
-    create: (p) => obvFalling((p.key as string) ?? "obv"),
+    create: (p) => obvDownTick((p.key as string) ?? "obv"),
   });
   registry.register({
-    name: "obvCrossUp",
-    displayName: "OBV Cross Up",
+    name: "obvSignalCrossUp",
+    displayName: "OBV Signal Cross Up",
     category: "volume",
     params: {
       signalKey: { type: "string", default: "obvSignal" },
       key: { type: "string", default: "obv" },
     },
-    create: (p) => obvCrossUp((p.signalKey as string) ?? "obvSignal", (p.key as string) ?? "obv"),
+    create: (p) =>
+      obvSignalCrossUp((p.signalKey as string) ?? "obvSignal", (p.key as string) ?? "obv"),
   });
   registry.register({
-    name: "obvCrossDown",
-    displayName: "OBV Cross Down",
+    name: "obvSignalCrossDown",
+    displayName: "OBV Signal Cross Down",
     category: "volume",
     params: {
       signalKey: { type: "string", default: "obvSignal" },
       key: { type: "string", default: "obv" },
     },
-    create: (p) => obvCrossDown((p.signalKey as string) ?? "obvSignal", (p.key as string) ?? "obv"),
+    create: (p) =>
+      obvSignalCrossDown((p.signalKey as string) ?? "obvSignal", (p.key as string) ?? "obv"),
   });
 
   // ============================================
@@ -522,20 +524,20 @@ function createStreamingRegistry(): ConditionRegistry<StreamingCondition> {
   });
 
   registry.register({
-    name: "volatilityExpanding",
-    displayName: "Volatility Expanding",
+    name: "atrRising",
+    displayName: "ATR Rising",
     category: "volatility",
     params: { key: { type: "string", default: "atr" } },
     isFilter: true,
-    create: (p) => volatilityExpanding((p.key as string) ?? "atr"),
+    create: (p) => atrRising((p.key as string) ?? "atr"),
   });
   registry.register({
-    name: "volatilityContracting",
-    displayName: "Volatility Contracting",
+    name: "atrFalling",
+    displayName: "ATR Falling",
     category: "volatility",
     params: { key: { type: "string", default: "atr" } },
     isFilter: true,
-    create: (p) => volatilityContracting((p.key as string) ?? "atr"),
+    create: (p) => atrFalling((p.key as string) ?? "atr"),
   });
 
   // ============================================
@@ -633,18 +635,18 @@ function createStreamingRegistry(): ConditionRegistry<StreamingCondition> {
   // ============================================
 
   registry.register({
-    name: "perfectOrderBullish",
-    displayName: "PO Bullish",
+    name: "emaRibbonBullish",
+    displayName: "EMA Ribbon Bullish",
     category: "trend",
     params: { key: { type: "string", default: "emaRibbon" } },
-    create: (p) => perfectOrderBullish((p.key as string) ?? "emaRibbon"),
+    create: (p) => emaRibbonBullish((p.key as string) ?? "emaRibbon"),
   });
   registry.register({
-    name: "perfectOrderBearish",
-    displayName: "PO Bearish",
+    name: "emaRibbonBearish",
+    displayName: "EMA Ribbon Bearish",
     category: "trend",
     params: { key: { type: "string", default: "emaRibbon" } },
-    create: (p) => perfectOrderBearish((p.key as string) ?? "emaRibbon"),
+    create: (p) => emaRibbonBearish((p.key as string) ?? "emaRibbon"),
   });
   registry.register({
     name: "perfectOrderForming",
@@ -654,11 +656,11 @@ function createStreamingRegistry(): ConditionRegistry<StreamingCondition> {
     create: (p) => perfectOrderForming((p.key as string) ?? "emaRibbon"),
   });
   registry.register({
-    name: "perfectOrderCollapsed",
-    displayName: "PO Collapsed",
+    name: "emaRibbonContracting",
+    displayName: "EMA Ribbon Contracting",
     category: "trend",
     params: { key: { type: "string", default: "emaRibbon" } },
-    create: (p) => perfectOrderCollapsed((p.key as string) ?? "emaRibbon"),
+    create: (p) => emaRibbonContracting((p.key as string) ?? "emaRibbon"),
   });
 
   // ============================================
@@ -737,6 +739,18 @@ function createStreamingRegistry(): ConditionRegistry<StreamingCondition> {
     params: { key: { type: "string", default: "donchian" } },
     create: (p) => donchianMiddleCrossDown((p.key as string) ?? "donchian"),
   });
+
+  // Renamed entries (the backtest conditions with these names follow a
+  // different rule). The old names keep loading, with a deprecation warning.
+  registry.alias("perfectOrderBullish", "emaRibbonBullish");
+  registry.alias("perfectOrderBearish", "emaRibbonBearish");
+  registry.alias("perfectOrderCollapsed", "emaRibbonContracting");
+  registry.alias("obvRising", "obvUpTick");
+  registry.alias("obvFalling", "obvDownTick");
+  registry.alias("obvCrossUp", "obvSignalCrossUp");
+  registry.alias("obvCrossDown", "obvSignalCrossDown");
+  registry.alias("volatilityExpanding", "atrRising");
+  registry.alias("volatilityContracting", "atrFalling");
 
   return registry;
 }

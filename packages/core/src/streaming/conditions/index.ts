@@ -30,6 +30,9 @@ export { keltnerBreakout, keltnerSqueeze, keltnerTouch } from "./keltner";
 export { macdCrossDown, macdCrossUp, macdHistogramFalling, macdHistogramRising } from "./macd";
 // Perfect Order conditions
 export {
+  emaRibbonBearish,
+  emaRibbonBullish,
+  emaRibbonContracting,
   perfectOrderBearish,
   perfectOrderBullish,
   perfectOrderCollapsed,
@@ -75,8 +78,10 @@ export type {
 } from "./types";
 // Volatility conditions
 export {
+  atrFalling,
   atrPercentAbove,
   atrPercentBelow,
+  atrRising,
   volatilityContracting,
   volatilityExpanding,
 } from "./volatility";
@@ -86,7 +91,11 @@ export {
   cmfBelow,
   obvCrossDown,
   obvCrossUp,
+  obvDownTick,
   obvFalling,
   obvRising,
+  obvSignalCrossDown,
+  obvSignalCrossUp,
+  obvUpTick,
   volumeAboveAvg,
 } from "./volume";

@@ -21,9 +21,11 @@ export {
   // DMI/ADX
   adxStrong,
   and,
+  atrFalling,
   // Volatility
   atrPercentAbove,
   atrPercentBelow,
+  atrRising,
   // Bollinger
   bollingerBreakout,
   bollingerExpansion,
@@ -42,6 +44,9 @@ export {
   donchianBreakoutLow,
   donchianMiddleCrossDown,
   donchianMiddleCrossUp,
+  emaRibbonBearish,
+  emaRibbonBullish,
+  emaRibbonContracting,
   evaluateStreamingCondition,
   getField,
   getNumber,
@@ -66,8 +71,12 @@ export {
   not,
   obvCrossDown,
   obvCrossUp,
+  obvDownTick,
   obvFalling,
   obvRising,
+  obvSignalCrossDown,
+  obvSignalCrossUp,
+  obvUpTick,
   or,
   perfectOrderBearish,
   // Perfect Order

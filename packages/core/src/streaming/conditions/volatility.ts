@@ -51,12 +51,12 @@ export function atrPercentBelow(threshold = 1.0, key = "atr"): StreamingPresetCo
  *
  * @param key - Snapshot key for ATR (default: "atr")
  */
-export function volatilityExpanding(key = "atr"): StreamingPresetCondition {
+export function atrRising(key = "atr"): StreamingPresetCondition {
   let prevAtr: number | null = null;
 
   return {
     type: "preset",
-    name: `volatilityExpanding(${key})`,
+    name: `atrRising(${key})`,
     evaluate: (snapshot, _candle, context) => {
       const atr = getNumber(snapshot, key);
       const expanding = prevAtr !== null && atr !== null && atr > prevAtr;
@@ -73,12 +73,12 @@ export function volatilityExpanding(key = "atr"): StreamingPresetCondition {
  *
  * @param key - Snapshot key for ATR (default: "atr")
  */
-export function volatilityContracting(key = "atr"): StreamingPresetCondition {
+export function atrFalling(key = "atr"): StreamingPresetCondition {
   let prevAtr: number | null = null;
 
   return {
     type: "preset",
-    name: `volatilityContracting(${key})`,
+    name: `atrFalling(${key})`,
     evaluate: (snapshot, _candle, context) => {
       const atr = getNumber(snapshot, key);
       const contracting = prevAtr !== null && atr !== null && atr < prevAtr;
@@ -89,3 +89,17 @@ export function volatilityContracting(key = "atr"): StreamingPresetCondition {
     },
   };
 }
+
+/**
+ * @deprecated Renamed to {@link atrRising}, which says what it tests: ATR is above the previous bar.
+ * The backtest condition named `volatilityExpanding` is a different rule. This alias will
+ * be removed in a future release.
+ */
+export const volatilityExpanding = atrRising;
+
+/**
+ * @deprecated Renamed to {@link atrFalling}, which says what it tests: ATR is below the previous bar.
+ * The backtest condition named `volatilityContracting` is a different rule. This alias will
+ * be removed in a future release.
+ */
+export const volatilityContracting = atrFalling;
