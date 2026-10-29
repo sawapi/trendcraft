@@ -3545,6 +3545,8 @@ const config = ScoreBuilder.create()
 | | `addSignal` | SignalDefinition | Custom signal |
 | | `addSignals` | SignalDefinition[] | Multiple signals |
 
+Weights must be finite and at least 0; a weight of 0 switches a signal off. Thresholds must lie in [0, 100] with strong ≥ moderate ≥ weak. The builder checks both as you call it, and `calculateScore` checks a configuration built by hand.
+
 ---
 
 ### Calculating Scores
