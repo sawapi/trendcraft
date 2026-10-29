@@ -6081,12 +6081,14 @@ console.log('Info:', result.info);
 | Category | Severity | Description |
 |----------|----------|-------------|
 | `duplicate` | error | Duplicate timestamps |
-| `ohlc` | error | OHLC inconsistency (e.g., high < low) |
+| `ohlc` | error | A non-finite `time`, price or `volume`, or an OHLC inconsistency (e.g., high < low) |
 | `gap` | warning | Time gaps exceeding threshold |
 | `spike` | warning | Single-bar price change exceeding threshold |
 | `volume` | warning | Volume z-score exceeding threshold |
 | `stale` | warning | Consecutive identical close prices |
 | `split` | info | Price ratio matches common split ratios (1:2, 1:3, etc.) |
+
+A finding's `index` is the row's position in the input when the times are already epoch milliseconds (judged from the first row with a finite numeric time). When the times need parsing (seconds, ISO strings), the rows are sorted by time first, with rows whose time is bad last, and `index` is the position in that sorted order.
 
 **Auto-clean example:**
 

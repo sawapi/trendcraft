@@ -6024,12 +6024,14 @@ console.log('情報:', result.info);
 | カテゴリ | 重要度 | 説明 |
 |----------|--------|------|
 | `duplicate` | error | 重複タイムスタンプ |
-| `ohlc` | error | OHLC不整合（例: high < low） |
+| `ohlc` | error | `time`・価格・`volume` が有限の数でない、またはOHLC不整合（例: high < low） |
 | `gap` | warning | 閾値を超える時間ギャップ |
 | `spike` | warning | 閾値を超える1バー価格変動 |
 | `volume` | warning | 閾値を超えるZスコア |
 | `stale` | warning | 同一終値の連続 |
 | `split` | info | 一般的な分割比率に一致（1:2, 1:3等） |
+
+検出結果の `index` は、時刻がすでにエポックミリ秒のとき（最初の有限な数値の時刻で判定）は入力上の位置です。時刻の変換が要るとき（秒、ISO 文字列）は時刻順に並べ替えてから検査し（時刻が不正な行は末尾）、`index` はその並び順での位置です。
 
 **autoCleanの例:**
 

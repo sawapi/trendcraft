@@ -33,11 +33,14 @@ export function detectGaps(
   const maxGapMultiplier = options?.maxGapMultiplier ?? 3;
   const skipWeekends = options?.skipWeekends ?? true;
 
-  // Calculate all time differences
+  // Calculate all time differences. A pair with a non-finite time has no
+  // gap to measure: the OHLC check reports that row instead.
   const diffs: number[] = [];
   for (let i = 1; i < candles.length; i++) {
-    diffs.push(candles[i].time - candles[i - 1].time);
+    const diff = candles[i].time - candles[i - 1].time;
+    if (Number.isFinite(diff)) diffs.push(diff);
   }
+  if (diffs.length === 0) return [];
 
   // Estimate expected interval from median
   const sorted = [...diffs].sort((a, b) => a - b);
@@ -51,7 +54,7 @@ export function detectGaps(
   for (let i = 1; i < candles.length; i++) {
     const diff = candles[i].time - candles[i - 1].time;
 
-    if (diff <= threshold) continue;
+    if (!Number.isFinite(diff) || diff <= threshold) continue;
 
     // Skip weekend gaps if enabled
     if (skipWeekends && isWeekendGap(candles[i - 1].time, candles[i].time)) {

@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+### Fixed — `validateCandles` reports a bad `time` instead of missing or throwing on it
+
+`validateCandles` is the tool for finding the rows the new non-finite check
+rejects, but it handled `time` unlike the other fields. A `NaN` or `Infinity`
+time was not reported; it only produced "Time gap of NaNd" warnings, and its
+row was sorted to an arbitrary place. A time that could not be parsed, such
+as a missing field or a malformed date string, made `validateCandles` throw.
+Each is now an `"ohlc"` error, `time (NaN) is not a finite number at index N`,
+like a bad price or volume. The gap and duplicate checks skip such rows (two
+`NaN` times are not duplicates of each other, and `autoClean` keeps both).
+For input already in epoch milliseconds, judged from the first row with a
+finite time, a finding's `index` is the input position; when times are
+parsed, rows are sorted with bad times last. `normalizeAndValidate` with
+validation options reports the same rows instead of throwing; the `candles`
+it returns still contain them, so check `validation.valid` before using them.
+
 ### Fixed — a snapshot's params could replace an object's prototype on resume
 
 Resuming an incremental indicator merges the snapshot's params into the

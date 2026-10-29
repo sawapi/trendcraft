@@ -6,6 +6,7 @@ import type { Candle, NormalizedCandle, PriceSource } from "../types";
 import { priceSourceError } from "../utils/validate-price-source";
 import type { ValidationOptions, ValidationResult } from "../validation/types";
 import { validateCandles } from "../validation/validate";
+import { compareTimeNonFiniteLast } from "./compare-time";
 
 /**
  * Convert time value to epoch milliseconds
@@ -164,10 +165,21 @@ export function checkedPrefix(
 
 /**
  * Normalize times and sort, without checking that values are finite. For the
- * data validator, which must report bad rows rather than throw on them.
+ * data validator, which must report bad rows rather than throw on them. Rows
+ * whose time is not finite go last ({@link compareTimeNonFiniteLast}).
  */
 export function normalizeCandlesUnchecked(candles: Candle[]): NormalizedCandle[] {
-  return candles.map(normalizeCandle).sort((a, b) => a.time - b.time);
+  return candles
+    .map((c) => {
+      // A time that cannot be parsed (a bad string, a missing field) becomes
+      // NaN, which the validator reports, rather than throwing here.
+      try {
+        return normalizeCandle(c);
+      } catch {
+        return { ...normalizeCandle({ ...c, time: 0 }), time: Number.NaN };
+      }
+    })
+    .sort(compareTimeNonFiniteLast);
 }
 
 /**
