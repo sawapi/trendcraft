@@ -14,6 +14,7 @@
  * periods themselves.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle, PriceSource } from "../../../types";
 import { assertPriceSource } from "../../../utils/validate-price-source";
 import { CircularBuffer } from "../circular-buffer";
@@ -99,6 +100,7 @@ export function createKama(
 
   const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<KamaState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const price = getSourcePrice(candle, source);
       count++;
       priceBuffer.push(price);
@@ -133,6 +135,7 @@ export function createKama(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const price = getSourcePrice(candle, source);
       const peekCount = count + 1;
 

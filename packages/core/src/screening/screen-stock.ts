@@ -4,10 +4,11 @@
  * This module contains only browser-safe code without Node.js fs dependencies.
  */
 
-// Import all conditions for CLI name resolution
 import * as conditions from "../backtest/conditions";
 import { evaluateCondition } from "../backtest/conditions/core";
 import { buildMtfSetup, updateMtfIndices } from "../core/mtf-context";
+// Import all conditions for CLI name resolution
+import { assertFiniteCandles } from "../core/normalize";
 import { rsi } from "../indicators/momentum/rsi";
 import { calculateAtrPercentDetail } from "../indicators/volatility/atr-filter";
 import { volumeMa } from "../indicators/volume/volume-ma";
@@ -112,6 +113,7 @@ export function screenStock(
   criteria: ScreeningCriteria,
   options: ScreenStockOptions = {},
 ): ScreeningResult {
+  assertFiniteCandles(candles);
   const { includeCandles = false, mtfTimeframes } = options;
 
   if (candles.length === 0) {
@@ -223,6 +225,7 @@ export function screenStockSeries(
   criteria: ScreeningCriteria,
   options: ScreenStockSeriesOptions = {},
 ): ScreeningSeriesResult {
+  assertFiniteCandles(candles);
   const { mtfTimeframes } = options;
 
   // One shared indicator cache across all bars, matching the backtest engine:
@@ -472,6 +475,7 @@ export function screenStockSafe(
   criteria: ScreeningCriteria,
   options: ScreenStockOptions = {},
 ): Result<ScreeningResult> {
+  assertFiniteCandles(candles);
   try {
     return ok(screenStock(ticker, candles, criteria, options));
   } catch (error) {

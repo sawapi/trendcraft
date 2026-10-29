@@ -2,6 +2,61 @@
 
 ## [Unreleased]
 
+### Breaking — a candle with a non-finite time, price or volume throws
+
+**Most likely to affect you: candles without a volume now throw.** `volume`
+was always typed as required, but OHLC-only data (common for forex and
+indices) used to work. It now fails with
+`candle 0 has a non-finite volume (undefined)`. Pass `volume: 0`.
+Fractional volume is fine.
+
+More generally, `NaN` and `±Infinity` in a candle used to pass through
+silently:
+
+- SMA, EMA, ATR and every other running-sum or recursive indicator turned
+  `NaN` from that bar on.
+- RSI counted the bar as unchanged and kept printing plausible values.
+- A `NaN` time left the series unsorted.
+
+Every candle must now have a finite `time`, `open`, `high`, `low`, `close`
+and `volume`, or the call throws an error naming the bar and the field, for
+example `candle 12 has a non-finite close (NaN)`. Input padded with `NaN`
+(a filler some wrappers use around a buffer) throws as well.
+
+**Where it is checked.**
+
+- Every public function that takes candles: indicators, signals,
+  backtests (`runBacktest`, `runBacktestScaled`, portfolio and walk-forward
+  runs), scoring, screening, `resample` and `normalizeCandles`.
+- The streaming inputs: pipeline and MTF `next()` / `peek()`, each
+  incremental indicator, `createCandleResampler().addCandle()`,
+  `createLiveCandle().addCandle()`, and the trades given to
+  `createCandleAggregator().addTrade()` and `createLiveCandle().addTick()`.
+- An array is scanned once. When the same array reaches another function,
+  only bars appended since are checked, so nested and per-bar calls pay
+  nothing extra. If its first or last checked candle was replaced (a rolling
+  window, or a forming bar updated with a new object), the whole array is
+  scanned again. A candle modified in place, or replaced anywhere but the
+  first or last position, is not re-checked. A scan costs a few
+  milliseconds per million candles.
+
+**Not checked: the data validator.** `validateCandles`, and
+`normalizeAndValidate` when given validation options, report non-finite
+values as findings instead of throwing. Use them to find and drop bad
+rows.
+
+**How the other packages compare.** The MCP server already rejects these
+candles. The chart's `setCandles` already drops bars with non-finite prices
+or volume.
+
+**Why throw.** TA-Lib leaves its input unchecked. Its maintainers' reason is
+that silently replacing a `NaN` would hide a problem: a `NaN` should prompt
+the question of why it is there. Throwing asks that question at the
+boundary.
+
+`runScreening` still skips a symbol whose data has such a row, as before; the
+reason now names the bar. `screenStock` itself throws.
+
 ### Fixed — margin interest counts against equity while the position is open
 
 Margin interest is charged in cash when a position closes. Until then it was

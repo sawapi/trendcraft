@@ -9,6 +9,7 @@
  */
 
 import { runBacktest } from "../backtest";
+import { assertFiniteCandles } from "../core/normalize";
 import type { BacktestOptions, Condition, NormalizedCandle } from "../types";
 import type {
   AnchoredWalkForwardOptions,
@@ -69,6 +70,7 @@ export function generateAWFBoundaries(
   candles: NormalizedCandle[],
   options: AnchoredWalkForwardOptions,
 ): PeriodBoundary[] {
+  assertFiniteCandles(candles);
   const initialTrainSize = options.initialTrainSize ?? DEFAULT_OPTIONS.initialTrainSize;
   const expansionStep = options.expansionStep ?? DEFAULT_OPTIONS.expansionStep;
   const testSize = options.testSize ?? DEFAULT_OPTIONS.testSize;
@@ -162,6 +164,7 @@ export function anchoredWalkForwardAnalysis(
   options: AnchoredWalkForwardOptions,
   combinationOptions: Omit<CombinationSearchOptions, "progressCallback"> = {},
 ): AWFResult {
+  assertFiniteCandles(candles);
   const metric = options.metric ?? DEFAULT_OPTIONS.metric;
   const constraints = options.constraints ?? ([] as OptimizationConstraint[]);
   const warmupBars = options.warmupBars ?? Number.POSITIVE_INFINITY;
@@ -336,6 +339,7 @@ export function anchoredWalkForwardAnalysisSafe(
   options: AnchoredWalkForwardOptions,
   combinationOptions: Omit<CombinationSearchOptions, "progressCallback"> = {},
 ): Result<AWFResult> {
+  assertFiniteCandles(candles);
   try {
     return ok(
       anchoredWalkForwardAnalysis(

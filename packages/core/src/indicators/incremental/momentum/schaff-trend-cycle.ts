@@ -17,6 +17,7 @@
  * derived from the periods in the factory closure and not persisted.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle, PriceSource } from "../../../types";
 import { assertPriceSource } from "../../../utils/validate-price-source";
 import { CircularBuffer } from "../circular-buffer";
@@ -201,6 +202,7 @@ export function createStc(
 
   const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<StcState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const price = getSourcePrice(candle, source);
       count++;
 
@@ -245,6 +247,7 @@ export function createStc(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const price = getSourcePrice(candle, source);
       const peekCount = count + 1;
 

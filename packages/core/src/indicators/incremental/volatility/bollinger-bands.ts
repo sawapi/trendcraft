@@ -12,6 +12,7 @@
  * Migrated to the 0.4.0 State Contract.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import { centeredMoments } from "../../../core/statistics";
 import type { BollingerBandsValue, NormalizedCandle, PriceSource } from "../../../types";
 import { assertPositive } from "../../../utils/validate-number";
@@ -141,6 +142,7 @@ export function createBollingerBands(
     IndicatorSnapshot<BollingerBandsState>
   > = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const price = getSourcePrice(candle, source);
       count++;
 
@@ -154,6 +156,7 @@ export function createBollingerBands(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const price = getSourcePrice(candle, source);
 
       if (buffer.length < period - 1) {

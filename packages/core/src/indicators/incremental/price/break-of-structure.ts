@@ -20,6 +20,7 @@
  * Migrated to the 0.4.0 State Contract.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle } from "../../../types";
 import { assertPeriod } from "../../../utils/validate-period";
 import { CircularBuffer } from "../circular-buffer";
@@ -135,6 +136,7 @@ export function createBreakOfStructure(
 
   const indicator: IncrementalIndicator<BosValue, IndicatorSnapshot<BosState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       buffer.push({ high: candle.high, low: candle.low });
       count++;
 
@@ -181,6 +183,7 @@ export function createBreakOfStructure(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const saved = indicator.getState().state;
       const result = indicator.next(candle);
       buffer = CircularBuffer.fromSnapshot(saved.buffer);
@@ -278,6 +281,7 @@ export function createChangeOfCharacter(
 
   const indicator: IncrementalIndicator<BosValue, IndicatorSnapshot<ChochState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const { time, value } = bos.next(candle);
       const isBullishChoch = value.bullishBos && prevTrend === "bearish";
       const isBearishChoch = value.bearishBos && prevTrend === "bullish";
@@ -295,6 +299,7 @@ export function createChangeOfCharacter(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const savedPrev = prevTrend;
       const { time, value } = bos.peek(candle);
       const isBullishChoch = value.bullishBos && savedPrev === "bearish";

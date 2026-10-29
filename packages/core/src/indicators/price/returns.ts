@@ -2,7 +2,7 @@
  * Returns calculation indicator
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, ReturnsOptions, Series } from "../../types";
 import { assertOneOf, keywords } from "../../utils/validate-keyword";
@@ -43,7 +43,7 @@ export function returns(
   assertOneOf("Returns type", type, RETURN_TYPES);
 
   // Normalize if needed
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   const result: Series<number | null> = [];
 
@@ -84,7 +84,7 @@ export function cumulativeReturns(
   type: "simple" | "log" = "simple",
 ): Series<number | null> {
   assertOneOf("cumulativeReturns type", type, CUMULATIVE_RETURN_TYPES);
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   if (normalized.length === 0) {
     return [];

@@ -23,6 +23,7 @@
  * drop the history.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle } from "../../../types";
 import {
   type IndicatorSnapshot,
@@ -177,6 +178,7 @@ export function createAnchoredVwap(
 
   const indicator: IncrementalIndicator<AnchoredVwapValue, IndicatorSnapshot<AnchoredVwapState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       count++;
 
       if (candle.time >= anchorTime) {
@@ -193,6 +195,7 @@ export function createAnchoredVwap(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       if (candle.time < anchorTime && !isAnchored) {
         const result: AnchoredVwapValue = { vwap: null };
         if (bands >= 1) {

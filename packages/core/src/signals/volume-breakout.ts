@@ -5,7 +5,7 @@
  * indicating potential institutional activity or significant market events.
  */
 
-import { isNormalized, normalizeCandles } from "../core/normalize";
+import { ensureNormalized } from "../core/normalize";
 import type { Candle, NormalizedCandle } from "../types";
 
 /**
@@ -67,7 +67,7 @@ export function volumeBreakout(
     throw new Error("Volume breakout period must be at least 1");
   }
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   if (normalized.length <= period) {
     return [];

@@ -11,6 +11,7 @@
  * Migrated to the 0.4.0 State Contract.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle } from "../../../types";
 import {
   type IndicatorSnapshot,
@@ -115,6 +116,7 @@ export function createSupertrend(
 
   const indicator: IncrementalIndicator<SupertrendValue, IndicatorSnapshot<SupertrendState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       count++;
       const atrResult = atrIndicator.next(candle);
       const atrVal = atrResult.value;
@@ -173,6 +175,7 @@ export function createSupertrend(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const atrPeek = atrIndicator.peek(candle);
       if (atrPeek.value === null) {
         return { time: candle.time, value: nullValue };

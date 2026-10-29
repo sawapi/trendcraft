@@ -4,7 +4,7 @@
  * These are basic price transform indicators used as inputs for other indicators.
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 
 /**
@@ -21,7 +21,7 @@ import type { Candle, NormalizedCandle, Series } from "../../types";
  * ```
  */
 export function medianPrice(candles: Candle[] | NormalizedCandle[]): Series<number> {
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
   return normalized.map((c) => ({
     time: c.time,
     value: (c.high + c.low) / 2,
@@ -42,7 +42,7 @@ export function medianPrice(candles: Candle[] | NormalizedCandle[]): Series<numb
  * ```
  */
 export function typicalPrice(candles: Candle[] | NormalizedCandle[]): Series<number> {
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
   return normalized.map((c) => ({
     time: c.time,
     value: (c.high + c.low + c.close) / 3,
@@ -63,7 +63,7 @@ export function typicalPrice(candles: Candle[] | NormalizedCandle[]): Series<num
  * ```
  */
 export function weightedClose(candles: Candle[] | NormalizedCandle[]): Series<number> {
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
   return normalized.map((c) => ({
     time: c.time,
     value: (c.high + c.low + c.close * 2) / 4,

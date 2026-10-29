@@ -13,6 +13,7 @@
  * Migrated to the 0.4.0 State Contract.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { ChandelierExitValue, NormalizedCandle } from "../../../types";
 import { isPeriod } from "../../../utils/validate-period";
 import { CircularBuffer } from "../circular-buffer";
@@ -135,6 +136,7 @@ export function createChandelierExit(
     IndicatorSnapshot<ChandelierExitState>
   > = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       count++;
       const atrResult = atrIndicator.next(candle);
       highBuffer.push(candle.high);
@@ -189,6 +191,7 @@ export function createChandelierExit(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const atrVal = atrIndicator.peek(candle).value;
 
       // Simulate adding to buffers

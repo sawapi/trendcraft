@@ -17,6 +17,7 @@
  * When volume increases or stays same: NVI unchanged
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle } from "../../../types";
 import { assertPositive } from "../../../utils/validate-number";
 import { type IndicatorSnapshot, makeSnapshot, resolveResume } from "../state-contract";
@@ -93,6 +94,7 @@ export function createNvi(
 
   const indicator: IncrementalIndicator<number, IndicatorSnapshot<NviState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       count++;
 
       if (prevClose === null || prevVolume === null) {
@@ -111,6 +113,7 @@ export function createNvi(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       if (prevClose === null || prevVolume === null) {
         return { time: candle.time, value: nviValue };
       }

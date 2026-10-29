@@ -5,7 +5,7 @@
  * indicating how easily price moves.
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { assertPositive } from "../../utils/validate-number";
@@ -74,7 +74,7 @@ export function easeOfMovement(
   assertPeriod("EMV period", period);
   assertPositive("EMV volumeDivisor", volumeDivisor);
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   if (normalized.length === 0) {
     return [];

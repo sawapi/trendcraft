@@ -17,6 +17,7 @@
  * Migrated to the 0.4.0 State Contract.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle } from "../../../types";
 import type { EmaState } from "../moving-average/ema";
 import { createEma } from "../moving-average/ema";
@@ -159,6 +160,7 @@ export function createTrix(
 
   const indicator: IncrementalIndicator<TrixValue, IndicatorSnapshot<TrixState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       count++;
 
       const e1Val = ema1.next(candle).value;
@@ -180,6 +182,7 @@ export function createTrix(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const e1Val = ema1.peek(candle).value;
       const e2Val = ema2.peek(e1Val);
       const e3Val = ema3.peek(e2Val);

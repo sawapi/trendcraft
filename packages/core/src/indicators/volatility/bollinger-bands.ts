@@ -2,7 +2,7 @@
  * Bollinger Bands indicator
  */
 
-import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized, getPrice } from "../../core/normalize";
 import { centeredMoments } from "../../core/statistics";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type {
@@ -48,7 +48,7 @@ export function bollingerBands(
   assertPositive("Standard deviation multiplier", stdDev);
 
   // Normalize if needed
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   const result: Series<BollingerBandsValue> = [];
 

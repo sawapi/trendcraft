@@ -13,6 +13,7 @@
  * Migrated to the 0.4.0 State Contract.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle, PriceSource } from "../../../types";
 import { assertPriceSource } from "../../../utils/validate-price-source";
 import type { WmaState } from "../moving-average/wma";
@@ -103,6 +104,7 @@ export function createCoppockCurve(
 
   const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<CoppockCurveState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       count++;
 
       const longRocResult = longRoc.next(candle);
@@ -118,6 +120,7 @@ export function createCoppockCurve(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const longRocVal = longRoc.peek(candle).value;
       const shortRocVal = shortRoc.peek(candle).value;
 

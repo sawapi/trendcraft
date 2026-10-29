@@ -13,6 +13,7 @@
  * Migrated to the 0.4.0 State Contract.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle } from "../../../types";
 import { assertPositive } from "../../../utils/validate-number";
 import { assertResetPeriod } from "../../../utils/validate-period";
@@ -177,6 +178,7 @@ export function createOpeningRange(
 
   const indicator: IncrementalIndicator<OpeningRangeValue, IndicatorSnapshot<OpeningRangeState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       count++;
 
       const newSession = isNewSession(
@@ -214,6 +216,7 @@ export function createOpeningRange(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const newSession = isNewSession(
         candle.time,
         sessionStartTime,

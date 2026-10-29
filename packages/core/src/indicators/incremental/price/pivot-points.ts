@@ -12,6 +12,7 @@
  * Migrated to the 0.4.0 State Contract.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle } from "../../../types";
 import { assertOneOf, keywordError, keywords } from "../../../utils/validate-keyword";
 import { type IndicatorSnapshot, makeSnapshot, resolveResume } from "../state-contract";
@@ -198,6 +199,7 @@ export function createPivotPoints(
 
   const indicator: IncrementalIndicator<PivotPointsValue, IndicatorSnapshot<PivotPointsState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       count++;
 
       let value: PivotPointsValue;
@@ -218,6 +220,7 @@ export function createPivotPoints(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       if (prevCandle === null) {
         return { time: candle.time, value: nullValue };
       }

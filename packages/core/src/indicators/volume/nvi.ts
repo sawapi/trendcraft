@@ -5,7 +5,7 @@
  * The theory is that "smart money" is active on quiet volume days.
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { assertPositive } from "../../utils/validate-number";
@@ -48,7 +48,7 @@ export function nvi(
   const { initialValue = 1000 } = options;
   assertPositive("NVI initialValue", initialValue);
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
   const result: Series<number | null> = [];
 
   if (normalized.length === 0) return result;

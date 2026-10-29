@@ -6,7 +6,7 @@
  * and updates weights.
  */
 
-import { isNormalized, normalizeCandles } from "../core/normalize";
+import { ensureNormalized } from "../core/normalize";
 import type { Candle, NormalizedCandle } from "../types";
 import {
   accumulateGradients,
@@ -353,7 +353,7 @@ export function trainCandleFormer(
   // Prepare training data from each dataset independently (no cross-contamination)
   const allSamples: TrainSample[] = [];
   for (const dataset of candleArrays) {
-    const normalized = isNormalized(dataset) ? dataset : normalizeCandles(dataset);
+    const normalized = ensureNormalized(dataset);
     if (normalized.length < seqLen + 2) {
       throw new Error(`Need at least ${seqLen + 2} candles for training, got ${normalized.length}`);
     }

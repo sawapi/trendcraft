@@ -7,7 +7,7 @@
  * @module
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, Series } from "../../types";
 import { HMM_REGIME_META } from "../indicator-meta";
@@ -156,7 +156,7 @@ function toBaumWelchOptions(options?: HmmRegimeOptions): HmmOptions {
  * ```
  */
 export function hmmRegimes(candles: Candle[], options?: HmmRegimeOptions): Series<HmmRegimeValue> {
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
   // Library convention: an empty input yields an empty series, never a throw.
   assertHmmOptions(toBaumWelchOptions(options));
   assertFeatureOptions(options?.featureOptions);
@@ -203,7 +203,7 @@ export function hmmRegimes(candles: Candle[], options?: HmmRegimeOptions): Serie
  * ```
  */
 export function fitHmm(candles: Candle[], options?: HmmRegimeOptions): HmmModel {
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
   // A model cannot be fitted to nothing; there is no empty-model value to return.
   assertHmmOptions(toBaumWelchOptions(options));
   assertFeatureOptions(options?.featureOptions);

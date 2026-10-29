@@ -6,7 +6,7 @@
  * major price swings and wave structures.
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { assertPositive } from "../../utils/validate-number";
@@ -74,7 +74,7 @@ export function zigzag(
 
   assertPositive("Zigzag deviation", deviation);
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   // Initialize result with null values
   const result: Series<ZigzagValue> = normalized.map((c) => ({

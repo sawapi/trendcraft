@@ -5,6 +5,7 @@
  * future returns with statistical confidence bounds.
  */
 
+import { assertFiniteCandles } from "../core/normalize";
 import type { PatternSignal } from "../signals/patterns/types";
 import { resolvePatternDirection } from "../signals/patterns/types";
 import type { NormalizedCandle, Series } from "../types";
@@ -80,6 +81,7 @@ export function projectPatternOutcome<T>(
   extractor: EventExtractor<T>,
   options?: PatternProjectionOptions,
 ): PatternProjection {
+  assertFiniteCandles(candles);
   const horizon = options?.horizon ?? DEFAULT_HORIZON;
   const confidenceLevel = options?.confidenceLevel ?? DEFAULT_CONFIDENCE;
   const thresholds = options?.thresholds ?? DEFAULT_THRESHOLDS;
@@ -216,6 +218,7 @@ export function projectFromSeries<V>(
   series: Series<V>,
   options?: PatternProjectionOptions,
 ): PatternProjection {
+  assertFiniteCandles(candles);
   const events = series.filter((s) => {
     if (typeof s.value === "boolean") return s.value;
     if (typeof s.value === "number") return s.value !== 0;
@@ -256,6 +259,7 @@ export function projectFromPatterns(
   signals: PatternSignal[],
   options?: PatternProjectionOptions,
 ): PatternProjection {
+  assertFiniteCandles(candles);
   const directional = signals.filter((s) => resolvePatternDirection(s) !== null);
   return projectPatternOutcome(
     candles,

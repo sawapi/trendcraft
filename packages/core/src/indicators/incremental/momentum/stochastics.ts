@@ -12,6 +12,7 @@
  * Migrated to the 0.4.0 State Contract.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
 import {
@@ -136,6 +137,7 @@ export function createStochastics(
 
   const indicator: IncrementalIndicator<StochasticsValue, IndicatorSnapshot<StochasticsState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       count++;
 
       highBuffer.push(candle.high);
@@ -184,6 +186,7 @@ export function createStochastics(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       if (count + 1 < kPeriod) {
         return { time: candle.time, value: nullValue };
       }

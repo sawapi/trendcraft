@@ -32,7 +32,7 @@ import type {
   VolumeProfileValue,
 } from "../types";
 import type { IndicatorPlugin } from "../types/plugin";
-import { isNormalized, normalizeCandles } from "./normalize";
+import { ensureNormalized } from "./normalize";
 import { resample } from "./resample";
 import { MtfStrategyBuilder, StrategyBuilder } from "./strategy-builder";
 
@@ -97,7 +97,7 @@ export class TrendCraft<TIndicators extends Record<string, unknown> = {}> {
    * Create TrendCraft instance from candle data
    */
   static from(candles: Candle[] | NormalizedCandle[]): TrendCraft {
-    const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+    const normalized = ensureNormalized(candles);
     return new TrendCraft(normalized);
   }
 

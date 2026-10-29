@@ -5,7 +5,7 @@
  * the dispersion of price from its mean.
  */
 
-import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized, getPrice } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 import { assertPeriod } from "../../utils/validate-period";
@@ -54,7 +54,7 @@ export function standardDeviation(
 
   assertPeriod("Standard Deviation period", period);
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
   const result: Series<number | null> = [];
   const prices = normalized.map((c) => getPrice(c, source));
 

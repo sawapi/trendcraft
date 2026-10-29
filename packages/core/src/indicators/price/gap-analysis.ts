@@ -5,7 +5,7 @@
  * Tracks whether gaps are filled during subsequent price action.
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { assertNonNegative } from "../../utils/validate-number";
@@ -64,7 +64,7 @@ export function gapAnalysis(
   const { minGapPercent = 0.5 } = options;
   assertNonNegative("Gap Analysis minGapPercent", minGapPercent);
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   if (normalized.length === 0) {
     return [];

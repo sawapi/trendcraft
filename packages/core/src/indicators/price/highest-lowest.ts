@@ -2,7 +2,7 @@
  * Highest/Lowest price indicators
  */
 
-import { getPriceSeries, isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized, getPriceSeries } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, HighestLowestOptions, NormalizedCandle, Series } from "../../types";
 import { assertPeriod } from "../../utils/validate-period";
@@ -49,7 +49,7 @@ export function highestLowest(
   if (source !== undefined) assertPriceSource("highestLowest source", source);
 
   // Normalize if needed
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   // Default: highest from highs, lowest from lows. With `source`, both
   // extremes come from that single price series.
@@ -124,7 +124,7 @@ export function highest(
 ): Series<number | null> {
   assertPeriod("Period", period);
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
   const result: Series<number | null> = [];
 
   // Optimized O(n) using monotonic decreasing deque
@@ -167,7 +167,7 @@ export function lowest(
 ): Series<number | null> {
   assertPeriod("Period", period);
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
   const result: Series<number | null> = [];
 
   // Optimized O(n) using monotonic increasing deque

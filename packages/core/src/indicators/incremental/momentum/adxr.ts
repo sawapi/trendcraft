@@ -11,6 +11,7 @@
  * Migrated to the 0.4.0 State Contract.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
 import {
@@ -107,6 +108,7 @@ export function createAdxr(
 
   const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<AdxrState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       count++;
       const dmiResult = dmiInd.next(candle);
       const currentAdx = dmiResult.value.adx;
@@ -116,6 +118,7 @@ export function createAdxr(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       // Same value computation as next() (which reads the buffer before
       // pushing), through the one shared computeAdxr — a restated copy
       // here is where the two paths drift apart.

@@ -15,6 +15,7 @@
  * Migrated to the 0.4.0 State Contract.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
 import {
@@ -139,6 +140,7 @@ export function createEmv(
 
   const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<EmvState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       count++;
       const raw = computeRawEmv(candle);
       prevHigh = candle.high;
@@ -155,6 +157,7 @@ export function createEmv(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const raw = computeRawEmv(candle);
 
       if (buffer.length + 1 < period && !buffer.isFull) {

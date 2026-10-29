@@ -14,7 +14,7 @@
  * ```
  */
 
-import { isNormalized, normalizeCandles } from "../core/normalize";
+import { ensureNormalized } from "../core/normalize";
 import { dmi } from "../indicators/momentum/dmi";
 import { macd } from "../indicators/momentum/macd";
 import { rsi } from "../indicators/momentum/rsi";
@@ -116,7 +116,7 @@ export function analyzeMarketContext(
   index?: number,
   options?: MarketContextOptions,
 ): MarketContext {
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
   const idx = index ?? normalized.length - 1;
 
   if (normalized.length === 0 || idx < 0 || idx >= normalized.length) {

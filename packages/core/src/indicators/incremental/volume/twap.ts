@@ -17,6 +17,7 @@
  * setting, so silent carry-forward would mislead consumers.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle } from "../../../types";
 import { assertResetPeriod } from "../../../utils/validate-period";
 import {
@@ -197,12 +198,14 @@ export function createTwap(
 
   const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<TwapState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       count++;
       const value = processCandle(candle, true);
       return { time: candle.time, value };
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const value = processCandle(candle, false);
       return { time: candle.time, value };
     },

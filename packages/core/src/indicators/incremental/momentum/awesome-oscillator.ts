@@ -10,6 +10,7 @@
  * Migrated to the 0.4.0 State Contract.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle } from "../../../types";
 import { createSma, type SmaState } from "../moving-average/sma";
 import {
@@ -107,11 +108,13 @@ export function createAwesomeOscillator(
     IndicatorSnapshot<AwesomeOscillatorState>
   > = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       count++;
       return computeAo(candle, false);
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       return computeAo(candle, true);
     },
 

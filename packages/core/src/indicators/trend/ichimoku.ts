@@ -5,7 +5,7 @@
  * support/resistance, trend direction, momentum, and trading signals.
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { assertPeriod } from "../../utils/validate-period";
@@ -90,7 +90,7 @@ export function ichimoku(
   assertPeriod("Ichimoku displacement", displacement);
 
   // Normalize if needed
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   const length = normalized.length;
   const result: Series<IchimokuValue> = [];

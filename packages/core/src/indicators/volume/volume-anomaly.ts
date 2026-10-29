@@ -5,7 +5,7 @@
  * or significant market events.
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import { centeredMoments } from "../../core/statistics";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series, VolumeAnomalyValue } from "../../types";
@@ -76,7 +76,7 @@ export function volumeAnomaly(
 
   assertPeriod("Volume anomaly period", period);
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   if (normalized.length === 0) {
     return [];

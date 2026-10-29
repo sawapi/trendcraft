@@ -3,7 +3,7 @@
  * Detects divergence between price and indicators (OBV, RSI, MACD, etc.)
  */
 
-import { isNormalized, normalizeCandles } from "../core/normalize";
+import { assertFiniteCandles, ensureNormalized } from "../core/normalize";
 import { macd } from "../indicators/momentum/macd";
 import { rsi } from "../indicators/momentum/rsi";
 import { obv } from "../indicators/volume/obv";
@@ -100,7 +100,7 @@ export function obvDivergence(
   candles: Candle[] | NormalizedCandle[],
   options: DivergenceOptions = {},
 ): DivergenceSignal[] {
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   if (normalized.length < 10) return [];
 
@@ -135,7 +135,7 @@ export function rsiDivergence(
   candles: Candle[] | NormalizedCandle[],
   options: DivergenceOptions = {},
 ): DivergenceSignal[] {
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   if (normalized.length < 14) return [];
 
@@ -170,7 +170,7 @@ export function macdDivergence(
   candles: Candle[] | NormalizedCandle[],
   options: DivergenceOptions = {},
 ): DivergenceSignal[] {
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   if (normalized.length < 26) return [];
 
@@ -228,6 +228,7 @@ export function detectDivergence(
   indicator: number[],
   options: DivergenceOptions = {},
 ): DivergenceSignal[] {
+  assertFiniteCandles(candles);
   const {
     swingLookback = 5,
     minSwingDistance = 5,

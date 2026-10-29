@@ -5,7 +5,7 @@
  * easier to compare across different price levels.
  */
 
-import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized, getPrice } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 import { assertPeriod } from "../../utils/validate-period";
@@ -66,7 +66,7 @@ export function ppo(
   assertPeriod("PPO slowPeriod", slowPeriod);
   assertPeriod("PPO signalPeriod", signalPeriod);
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
   const prices = normalized.map((c) => getPrice(c, source));
 
   function computeEma(values: (number | null)[], period: number): (number | null)[] {

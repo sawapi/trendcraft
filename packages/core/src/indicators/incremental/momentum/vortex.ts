@@ -13,6 +13,7 @@
  * Migrated to the 0.4.0 State Contract.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
 import {
@@ -130,6 +131,7 @@ export function createVortex(
 
   const indicator: IncrementalIndicator<VortexValue, IndicatorSnapshot<VortexState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       count++;
 
       if (prevHigh === null || prevLow === null || prevClose === null) {
@@ -162,6 +164,7 @@ export function createVortex(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       if (prevHigh === null || prevLow === null || prevClose === null) {
         return { time: candle.time, value: { viPlus: null, viMinus: null } };
       }

@@ -5,7 +5,7 @@
  * opportunities in the S&P 500 and Dow Industrials.
  */
 
-import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized, getPrice } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 import { assertPeriod } from "../../utils/validate-period";
@@ -56,7 +56,7 @@ export function coppockCurve(
   assertPeriod("Coppock Curve longRocPeriod", longRocPeriod);
   assertPeriod("Coppock Curve shortRocPeriod", shortRocPeriod);
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
   const result: Series<number | null> = [];
   const prices = normalized.map((c) => getPrice(c, source));
   const maxRocPeriod = Math.max(longRocPeriod, shortRocPeriod);

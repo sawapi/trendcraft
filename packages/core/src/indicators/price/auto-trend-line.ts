@@ -6,7 +6,7 @@
  * Lines are interpolated across all bars as a standard line series.
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { assertPeriod } from "../../utils/validate-period";
@@ -59,7 +59,7 @@ export function autoTrendLine(
   assertPeriod("leftBars", leftBars);
   assertPeriod("rightBars", rightBars);
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   if (normalized.length === 0) {
     return [];

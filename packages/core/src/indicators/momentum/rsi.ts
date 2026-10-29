@@ -3,7 +3,7 @@
  * Uses Wilder's smoothing method
  */
 
-import { getPriceSeries, isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized, getPriceSeries } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, RsiOptions, Series } from "../../types";
 import { assertPeriod } from "../../utils/validate-period";
@@ -40,7 +40,7 @@ export function rsi(
   assertPeriod("RSI period", period);
 
   // Normalize if needed
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
   const prices = getPriceSeries(normalized, source);
 
   const result: Series<number | null> = [];

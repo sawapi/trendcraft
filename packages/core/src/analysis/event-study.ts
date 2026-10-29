@@ -31,6 +31,7 @@
  *   Benjamini-Hochberg-adjusted bootstrap p-value when scanning horizons.
  */
 
+import { assertFiniteCandles } from "../core/normalize";
 import { mulberry32 } from "../core/random";
 import { kurtosis, normalCdf, skewness } from "../core/statistics";
 import type { NormalizedCandle, Series } from "../types";
@@ -212,6 +213,7 @@ export function eventStudy(
   events: number[] | Series<boolean>,
   options: EventStudyOptions = {},
 ): EventStudyResult {
+  assertFiniteCandles(candles);
   const {
     horizons = [1, 5, 10, 20],
     baseline = "mean-adjusted",

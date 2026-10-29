@@ -5,7 +5,7 @@
  * a smooth moving average with minimal lag.
  */
 
-import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized, getPrice } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 import { assertInRange, assertPositive } from "../../utils/validate-number";
@@ -65,7 +65,7 @@ export function alma(
     throw new Error("ALMA period must be an integer");
   }
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
   const result: Series<number | null> = [];
 
   // Pre-compute Gaussian weights

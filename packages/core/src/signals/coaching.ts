@@ -16,7 +16,7 @@
  * ```
  */
 
-import { isNormalized, normalizeCandles } from "../core/normalize";
+import { ensureNormalized } from "../core/normalize";
 import { dmi } from "../indicators/momentum/dmi";
 import { macd } from "../indicators/momentum/macd";
 import { rsi } from "../indicators/momentum/rsi";
@@ -94,7 +94,7 @@ export function detectCoachingSignals(
   index?: number,
   options?: CoachingOptions,
 ): CoachingSignal[] {
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
   const idx = index ?? normalized.length - 1;
 
   if (idx < 2 || normalized.length < 3) return [];

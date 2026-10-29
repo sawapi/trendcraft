@@ -6,7 +6,7 @@
  * Only tracks the most recent completed session.
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import {
@@ -69,7 +69,7 @@ export function sessionBreakout(
 ): Series<SessionBreakoutValue> {
   if (candles.length === 0) return [];
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   const sessionDefs = options?.sessions ?? getIctSessions();
   const result: Series<SessionBreakoutValue> = [];

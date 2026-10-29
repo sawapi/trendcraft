@@ -4,6 +4,7 @@
  * Signal evaluators for momentum-based indicators (RSI, MACD, Stochastics, etc.)
  */
 
+import { checkedPrefix } from "../../core/normalize";
 import { macd, rsi, stochastics } from "../../indicators";
 import type { NormalizedCandle, PrecomputedIndicators, SignalDefinition } from "../../types";
 import { assertInRange } from "../../utils/validate-number";
@@ -64,7 +65,7 @@ export function createRsiOversoldEvaluator(
     if (precomputed?.rsi14 && period === 14) {
       current = precomputed.rsi14[index];
     } else {
-      const rsiSeries = rsi(candles.slice(0, index + 1), { period });
+      const rsiSeries = rsi(checkedPrefix(candles, index + 1), { period });
       current = rsiSeries[rsiSeries.length - 1]?.value;
     }
 
@@ -108,7 +109,7 @@ export function createRsiOverboughtEvaluator(
     if (precomputed?.rsi14 && period === 14) {
       current = precomputed.rsi14[index];
     } else {
-      const rsiSeries = rsi(candles.slice(0, index + 1), { period });
+      const rsiSeries = rsi(checkedPrefix(candles, index + 1), { period });
       current = rsiSeries[rsiSeries.length - 1]?.value;
     }
 
@@ -156,7 +157,7 @@ export function createRsiNeutralEvaluator(
     if (precomputed?.rsi14 && period === 14) {
       current = precomputed.rsi14[index];
     } else {
-      const rsiSeries = rsi(candles.slice(0, index + 1), { period });
+      const rsiSeries = rsi(checkedPrefix(candles, index + 1), { period });
       current = rsiSeries[rsiSeries.length - 1]?.value;
     }
 
@@ -205,7 +206,7 @@ export function createMacdBullishEvaluator(
       current = precomputed.macd[index];
       prev = precomputed.macd[index - 1];
     } else {
-      const macdSeries = macd(candles.slice(0, index + 1), {
+      const macdSeries = macd(checkedPrefix(candles, index + 1), {
         fastPeriod,
         slowPeriod,
         signalPeriod,
@@ -262,7 +263,7 @@ export function createMacdBearishEvaluator(
       current = precomputed.macd[index];
       prev = precomputed.macd[index - 1];
     } else {
-      const macdSeries = macd(candles.slice(0, index + 1), {
+      const macdSeries = macd(checkedPrefix(candles, index + 1), {
         fastPeriod,
         slowPeriod,
         signalPeriod,
@@ -327,7 +328,7 @@ export function createStochOversoldEvaluator(
     if (precomputed?.stoch && kPeriod === 14 && dPeriod === 3) {
       current = precomputed.stoch[index];
     } else {
-      const stochSeries = stochastics(candles.slice(0, index + 1), {
+      const stochSeries = stochastics(checkedPrefix(candles, index + 1), {
         kPeriod,
         dPeriod,
       });
@@ -382,7 +383,7 @@ export function createStochOverboughtEvaluator(
     if (precomputed?.stoch && kPeriod === 14 && dPeriod === 3) {
       current = precomputed.stoch[index];
     } else {
-      const stochSeries = stochastics(candles.slice(0, index + 1), {
+      const stochSeries = stochastics(checkedPrefix(candles, index + 1), {
         kPeriod,
         dPeriod,
       });
@@ -441,7 +442,7 @@ export function createStochBullishCrossEvaluator(
       current = precomputed.stoch[index];
       prev = precomputed.stoch[index - 1];
     } else {
-      const stochSeries = stochastics(candles.slice(0, index + 1), {
+      const stochSeries = stochastics(checkedPrefix(candles, index + 1), {
         kPeriod,
         dPeriod,
       });

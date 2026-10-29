@@ -5,6 +5,7 @@
  * Combines weighted signals into a normalized 0-100 score.
  */
 
+import { assertFiniteCandles } from "../core/normalize";
 import {
   cmf,
   ema,
@@ -178,6 +179,7 @@ export function calculateScore(
   precomputed?: PrecomputedIndicators,
 ): ScoreResult {
   assertScoringConfig("calculateScore", config);
+  assertFiniteCandles(candles);
   const { signals } = config;
   const strongThreshold = config.strongThreshold ?? 70;
   const moderateThreshold = config.moderateThreshold ?? 50;
@@ -242,6 +244,7 @@ export function calculateScoreBreakdown(
   precomputed?: PrecomputedIndicators,
 ): ScoreBreakdown {
   assertScoringConfig("calculateScoreBreakdown", config);
+  assertFiniteCandles(candles);
   const { signals } = config;
   const strongThreshold = config.strongThreshold ?? 70;
   const moderateThreshold = config.moderateThreshold ?? 50;
@@ -341,6 +344,7 @@ export function calculateScoreSeries(
   startIndex = 0,
   context?: MtfContext,
 ): Array<{ time: number; score: ScoreResult }> {
+  assertFiniteCandles(candles);
   const results: Array<{ time: number; score: ScoreResult }> = [];
 
   // Pre-compute all required indicators once (O(n))
@@ -376,6 +380,7 @@ export function isScoreAbove(
   context?: MtfContext,
 ): boolean {
   assertInRange("isScoreAbove threshold", threshold, 0, 100);
+  assertFiniteCandles(candles);
   const result = calculateScore(candles, index, config, context);
   return result.normalizedScore >= threshold;
 }
@@ -398,6 +403,7 @@ export function isScoreBelow(
   context?: MtfContext,
 ): boolean {
   assertInRange("isScoreBelow threshold", threshold, 0, 100);
+  assertFiniteCandles(candles);
   const result = calculateScore(candles, index, config, context);
   return result.normalizedScore <= threshold;
 }

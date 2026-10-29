@@ -5,7 +5,7 @@
  * and using a correction formula.
  */
 
-import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized, getPrice } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 import { assertPriceSource } from "../../utils/validate-price-source";
@@ -54,7 +54,7 @@ export function tema(
     throw new Error("TEMA period must be an integer");
   }
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
   const multiplier = 2 / (period + 1);
 
   // Helper to compute EMA series from an array of values

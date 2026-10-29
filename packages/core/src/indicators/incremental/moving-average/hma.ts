@@ -13,6 +13,7 @@
  * Migrated to the 0.4.0 State Contract.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle, PriceSource } from "../../../types";
 import { assertPriceSource } from "../../../utils/validate-price-source";
 import {
@@ -94,6 +95,7 @@ export function createHma(
 
   const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<HmaState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       count++;
 
       const hv = halfWma.next(candle).value;
@@ -109,6 +111,7 @@ export function createHma(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const hv = halfWma.peek(candle).value;
       const fv = fullWma.peek(candle).value;
 

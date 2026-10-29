@@ -10,7 +10,7 @@
  * - ADL = cumulative sum of Money Flow Volume
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { ADL_META } from "../indicator-meta";
@@ -40,7 +40,7 @@ import { ADL_META } from "../indicator-meta";
  * ```
  */
 export function adl(candles: Candle[] | NormalizedCandle[]): Series<number> {
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
   const result: Series<number> = [];
   let cumulativeAdl = 0;
 

@@ -13,6 +13,7 @@
  * may be omitted to inherit from the snapshot.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle, PriceSource } from "../../../types";
 import { assertPriceSource } from "../../../utils/validate-price-source";
 import { CircularBuffer } from "../circular-buffer";
@@ -129,6 +130,7 @@ export function createVwma(
 
   const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<VwmaState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const price = getSourcePrice(candle, source);
       const vol = candle.volume;
       const pv = price * vol;
@@ -155,6 +157,7 @@ export function createVwma(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const price = getSourcePrice(candle, source);
       const vol = candle.volume;
       const pv = price * vol;

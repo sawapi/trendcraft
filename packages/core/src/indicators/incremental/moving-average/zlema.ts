@@ -21,6 +21,7 @@
  * than persisted, since both are uniquely determined by `period`.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle, PriceSource } from "../../../types";
 import { assertPriceSource } from "../../../utils/validate-price-source";
 import { CircularBuffer } from "../circular-buffer";
@@ -114,6 +115,7 @@ export function createZlema(
 
   const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<ZlemaState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const price = getSourcePrice(candle, source);
       count++;
       buffer.push(price);
@@ -146,6 +148,7 @@ export function createZlema(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const price = getSourcePrice(candle, source);
       const nextCount = count + 1;
 

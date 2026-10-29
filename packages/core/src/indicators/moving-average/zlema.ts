@@ -5,7 +5,7 @@
  * the input data before applying the EMA calculation.
  */
 
-import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized, getPrice } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 import { assertPriceSource } from "../../utils/validate-price-source";
@@ -52,7 +52,7 @@ export function zlema(
     throw new Error("ZLEMA period must be an integer");
   }
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
   const result: Series<number | null> = [];
   const lag = Math.floor((period - 1) / 2);
   const multiplier = 2 / (period + 1);

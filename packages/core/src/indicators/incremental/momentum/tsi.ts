@@ -14,6 +14,7 @@
  * Migrated to the 0.4.0 State Contract.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle, PriceSource } from "../../../types";
 import { assertPriceSource } from "../../../utils/validate-price-source";
 import type { EmaState } from "../moving-average/ema";
@@ -176,10 +177,12 @@ export function createTsi(
 
   const indicator: IncrementalIndicator<TsiValue | null, IndicatorSnapshot<TsiState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       return compute(candle, true);
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       return compute(candle, false);
     },
 

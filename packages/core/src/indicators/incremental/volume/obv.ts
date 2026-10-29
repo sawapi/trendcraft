@@ -18,6 +18,7 @@
  * branch in `resolveResume` is unreachable but kept for uniformity.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle } from "../../../types";
 import { type IndicatorSnapshot, makeSnapshot, resolveResume } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -81,6 +82,7 @@ export function createObv(
 
   const indicator: IncrementalIndicator<number, IndicatorSnapshot<ObvState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       count++;
 
       if (prevClose === null) {
@@ -101,6 +103,7 @@ export function createObv(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       if (prevClose === null) {
         return { time: candle.time, value: 0 };
       }

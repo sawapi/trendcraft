@@ -10,6 +10,7 @@
  * Migrated to the 0.4.0 State Contract.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle } from "../../../types";
 import { type IndicatorSnapshot, makeSnapshot, resolveResume } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -107,6 +108,7 @@ export function createHeikinAshi(
 
   const indicator: IncrementalIndicator<HeikinAshiValue, IndicatorSnapshot<HeikinAshiState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const value = compute(candle, prevHaOpen, prevHaClose);
       prevHaOpen = value.open;
       prevHaClose = value.close;
@@ -115,6 +117,7 @@ export function createHeikinAshi(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       return { time: candle.time, value: compute(candle, prevHaOpen, prevHaClose) };
     },
 

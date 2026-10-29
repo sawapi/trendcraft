@@ -5,7 +5,7 @@
  * the smoothed rate-of-change for four different timeframes.
  */
 
-import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized, getPrice } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 import { assertPeriod } from "../../utils/validate-period";
@@ -71,7 +71,7 @@ export function kst(
   for (const p of smaPeriods) assertPeriod("KST smaPeriods entry", p);
   assertPeriod("KST signalPeriod", signalPeriod);
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
   const result: Series<KstValue | null> = [];
 
   // Calculate ROC for each period

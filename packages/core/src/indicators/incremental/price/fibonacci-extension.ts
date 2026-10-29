@@ -15,6 +15,7 @@
  * `batch[t - rightBars].value`).
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle } from "../../../types";
 import { type IndicatorSnapshot, makeSnapshot, resolveResume } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -197,6 +198,7 @@ export function createFibonacciExtension(
     IndicatorSnapshot<FibonacciExtensionState>
   > = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       count++;
       const swingResult = swings.next(candle);
       const sv = swingResult.value;
@@ -223,6 +225,7 @@ export function createFibonacciExtension(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const saved = indicator.getState().state;
       const result = indicator.next(candle);
       swings = createSwingPoints({ leftBars, rightBars }, { fromState: saved.swings });

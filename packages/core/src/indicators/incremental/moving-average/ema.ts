@@ -19,6 +19,7 @@
  * `getState()` (and accepted by `fromState`) changes.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle, PriceSource } from "../../../types";
 import { assertPriceSource } from "../../../utils/validate-price-source";
 import {
@@ -112,6 +113,7 @@ export function createEma(
 
   const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<EmaState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const price = getSourcePrice(candle, source);
       count++;
 
@@ -133,6 +135,7 @@ export function createEma(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const price = getSourcePrice(candle, source);
       const value = computeValue(price, count + 1);
       return { time: candle.time, value };

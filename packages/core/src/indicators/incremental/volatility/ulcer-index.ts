@@ -23,6 +23,7 @@
  * buffer is full again).
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle, PriceSource } from "../../../types";
 import { assertPriceSource } from "../../../utils/validate-price-source";
 import { CircularBuffer } from "../circular-buffer";
@@ -133,6 +134,7 @@ export function createUlcerIndex(
 
   const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<UlcerIndexState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       count++;
       const price = getSourcePrice(candle, source);
       prices.push(price);
@@ -154,6 +156,7 @@ export function createUlcerIndex(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const price = getSourcePrice(candle, source);
 
       // Simulate prices.push(price) without mutating

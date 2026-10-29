@@ -18,6 +18,7 @@
  * Migrated to the 0.4.0 State Contract.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
 import type { EmaState } from "../moving-average/ema";
@@ -99,6 +100,7 @@ export function createMassIndex(
 
   const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<MassIndexState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       count++;
 
       const range = candle.high - candle.low;
@@ -131,6 +133,7 @@ export function createMassIndex(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const range = candle.high - candle.low;
       const e1Val = ema1.peek(makeCandle(candle.time, range)).value;
       if (e1Val === null) return { time: candle.time, value: null };

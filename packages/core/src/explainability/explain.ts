@@ -6,6 +6,7 @@
  */
 
 import type { ExtendedCondition } from "../backtest/conditions/core";
+import { assertFiniteCandles } from "../core/normalize";
 import type { MtfContext, NormalizedCandle } from "../types";
 import type { ConditionTrace, ExplainOptions, SignalExplanation } from "../types/explainability";
 import { generateNarrative } from "./narrative";
@@ -48,6 +49,7 @@ export function explainSignal(
   options: ExplainOptions = {},
   mtfContext?: MtfContext,
 ): SignalExplanation {
+  assertFiniteCandles(candles);
   const candle = candles[index];
   const indicators: Record<string, unknown> = {};
   const candleSnapshot = {
@@ -135,6 +137,7 @@ export function explainCondition(
   options: ExplainOptions = {},
   mtfContext?: MtfContext,
 ): ConditionTrace {
+  assertFiniteCandles(candles);
   const indicators: Record<string, unknown> = {};
   return traceCondition(condition, indicators, candles[index], index, candles, mtfContext, options);
 }

@@ -56,6 +56,7 @@
  */
 
 import { type AnnualizationOptions, annualizationFactor } from "../../../calendar";
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle, PriceSource } from "../../../types";
 import { logReturnOrZero } from "../../../utils/statistics";
 import { assertDecayFactor } from "../../../utils/validate-number";
@@ -310,6 +311,7 @@ export function createEwmaVolatility(
 
   const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<EwmaVolatilityState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       count++;
       const price = storablePrice(getSourcePrice(candle, source));
 
@@ -352,6 +354,7 @@ export function createEwmaVolatility(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const price = storablePrice(getSourcePrice(candle, source));
 
       if (prevPrice === null) {

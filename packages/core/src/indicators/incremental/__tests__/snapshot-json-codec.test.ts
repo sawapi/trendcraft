@@ -145,11 +145,18 @@ describe("snapshot value codec", () => {
 });
 
 describe("snapshot persistence paths", () => {
-  /** An EMA whose recursive value has been pushed to NaN by a bad tick. */
+  /** EMA of the typical price, so one bar can overflow the input sum. */
+  const POISONED = { period: 5, source: "hlc3" } as const;
+
+  /**
+   * An EMA whose recursive value has overflowed to Infinity. A non-finite
+   * candle is rejected outright, but a finite one near the limit is not:
+   * `(high + low + close) / 3` overflows, and the EMA carries it.
+   */
   function poisonedEma() {
-    const ema = createEma({ period: 5 });
+    const ema = createEma(POISONED);
     for (let i = 0; i < 10; i++) ema.next(candle(i, 100 + i));
-    ema.next({ ...candle(10, 100), close: Number.NaN });
+    ema.next({ ...candle(10, 1.7e308), open: 1.7e308, high: 1.7e308, low: 1.7e308 });
     return ema;
   }
 
@@ -158,11 +165,11 @@ describe("snapshot persistence paths", () => {
     const text = JSON.stringify(ema.getState());
     expect(text).toContain("$trendcraft");
 
-    const resumed = createEma({ period: 5 }, { fromState: JSON.parse(text) });
+    const resumed = createEma(POISONED, { fromState: JSON.parse(text) });
     const uninterrupted = ema.next(candle(11, 110)).value;
     const afterResume = resumed.next(candle(11, 110)).value;
     expect(Object.is(afterResume, uninterrupted)).toBe(true);
-    expect(Number.isNaN(afterResume as number)).toBe(true);
+    expect(Number.isFinite(afterResume as number)).toBe(false);
   });
 
   it("survives spreading the snapshot, which keeps the same state object", () => {
@@ -175,19 +182,18 @@ describe("snapshot persistence paths", () => {
     const ema = poisonedEma();
     const snapshot = ema.getState();
 
-    // structuredClone keeps NaN natively, so resuming from the clone is fine.
+    // structuredClone keeps Infinity natively, so resuming from the clone is fine.
     const cloned = structuredClone(snapshot);
-    const fromClone = createEma({ period: 5 }, { fromState: cloned });
+    const fromClone = createEma(POISONED, { fromState: cloned });
 
     // Serializing the clone needs the explicit codec: the hook is a function
     // and functions are not cloned.
     expect(JSON.stringify(cloned)).not.toContain("$trendcraft");
     const text = serializeIndicatorSnapshot(cloned);
     expect(text).toContain("$trendcraft");
-    const fromText = createEma(
-      { period: 5 },
-      { fromState: deserializeIndicatorSnapshot<EmaState>(text) },
-    );
+    const fromText = createEma(POISONED, {
+      fromState: deserializeIndicatorSnapshot<EmaState>(text),
+    });
 
     const uninterrupted = ema.next(candle(11, 110)).value;
     expect(Object.is(fromClone.next(candle(11, 110)).value, uninterrupted)).toBe(true);
@@ -201,13 +207,13 @@ describe("snapshot persistence paths", () => {
     const ema = poisonedEma();
     const first = serializeIndicatorSnapshot(ema.getState());
     const restored = deserializeIndicatorSnapshot<EmaState>(first);
-    expect(Number.isNaN(restored.state.prevEma as number)).toBe(true);
+    expect(Number.isFinite(restored.state.prevEma as number)).toBe(false);
 
     const second = JSON.stringify(restored);
     expect(second).toContain("$trendcraft");
     expect(second).toBe(first);
 
-    const resumed = createEma({ period: 5 }, { fromState: JSON.parse(second) });
+    const resumed = createEma(POISONED, { fromState: JSON.parse(second) });
     const uninterrupted = ema.next(candle(11, 110)).value;
     expect(Object.is(resumed.next(candle(11, 110)).value, uninterrupted)).toBe(true);
 
@@ -219,7 +225,7 @@ describe("snapshot persistence paths", () => {
   it("leaves the runtime state a plain object of numbers", () => {
     const snapshot = poisonedEma().getState();
     expect(typeof snapshot.state.prevEma).toBe("number");
-    expect(Number.isNaN(snapshot.state.prevEma as number)).toBe(true);
+    expect(Number.isFinite(snapshot.state.prevEma as number)).toBe(false);
     expect(Object.keys(snapshot.state)).not.toContain("toJSON");
     expect(Object.prototype.propertyIsEnumerable.call(snapshot.state, "toJSON")).toBe(false);
   });
@@ -248,11 +254,10 @@ describe("snapshot persistence paths", () => {
     const ema = poisonedEma();
     const snapshot: IndicatorSnapshot<unknown> = ema.getState();
 
-    const direct = createEma({ period: 5 }, { fromState: snapshot as never });
-    const viaJson = createEma(
-      { period: 5 },
-      { fromState: JSON.parse(JSON.stringify(snapshot)) as never },
-    );
+    const direct = createEma(POISONED, { fromState: snapshot as never });
+    const viaJson = createEma(POISONED, {
+      fromState: JSON.parse(JSON.stringify(snapshot)) as never,
+    });
 
     for (let i = 11; i < 16; i++) {
       const a = direct.next(candle(i, 100 + i)).value;

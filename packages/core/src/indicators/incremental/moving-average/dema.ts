@@ -15,6 +15,7 @@
  * holds only the two inner EMA snapshots plus `count`.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle, PriceSource } from "../../../types";
 import { assertPriceSource } from "../../../utils/validate-price-source";
 import {
@@ -100,11 +101,13 @@ export function createDema(
 
   const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<DemaState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       count++;
       return { time: candle.time, value: cascade(candle, false) };
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       return { time: candle.time, value: cascade(candle, true) };
     },
 

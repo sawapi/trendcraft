@@ -15,6 +15,7 @@
  * Params (`period`, `source`) now live in `meta.params`.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle, PriceSource } from "../../../types";
 import { assertPriceSource } from "../../../utils/validate-price-source";
 import {
@@ -111,6 +112,7 @@ export function createRsi(
 
   const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<RsiState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       count++;
       const price = getSourcePrice(candle, source);
 
@@ -160,6 +162,7 @@ export function createRsi(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       if (prevClose === null || count < period) {
         return { time: candle.time, value: null };
       }

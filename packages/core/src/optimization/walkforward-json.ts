@@ -33,6 +33,7 @@
  * ```
  */
 
+import { assertFiniteCandles } from "../core/normalize";
 import type { ConditionRegistry } from "../strategy/registry";
 import type { StrategyJSON } from "../strategy/types";
 import type { Condition, NormalizedCandle } from "../types";
@@ -76,6 +77,7 @@ export function walkForwardAnalysisFromJSON(
   registry: ConditionRegistry<Condition>,
   options?: WalkForwardOptions,
 ): WalkForwardResult {
+  assertFiniteCandles(candles);
   validateRangePaths(strategy, ranges, registry);
   return walkForwardAnalysis(
     candles,
@@ -112,6 +114,7 @@ export function walkForwardAnalysisFromJSONSafe(
   registry: ConditionRegistry<Condition>,
   options?: WalkForwardOptions,
 ): Result<WalkForwardResult> {
+  assertFiniteCandles(candles);
   try {
     return ok(walkForwardAnalysisFromJSON(candles, strategy, ranges, registry, options));
   } catch (error) {

@@ -27,6 +27,7 @@
  * ```
  */
 
+import { assertFiniteCandle } from "../core/normalize";
 import type { NormalizedCandle } from "../types";
 import { createCandleAggregator } from "./candle-aggregator";
 import type {
@@ -254,6 +255,7 @@ export function createLiveCandle(
     },
 
     addCandle(candle: NormalizedCandle, opts?: { partial?: boolean }): void {
+      assertFiniteCandle(candle);
       processAddCandle(candle, opts);
     },
 

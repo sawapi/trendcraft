@@ -5,7 +5,7 @@
  * It is commonly used by institutional investors as a benchmark.
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { assertPeriod, assertResetPeriod } from "../../utils/validate-period";
@@ -182,7 +182,7 @@ export function vwap(
     assertSessionResetCompatible("vwap", "resetPeriod", resetPeriod, "session");
   }
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   const result: Series<VwapValue> = [];
 

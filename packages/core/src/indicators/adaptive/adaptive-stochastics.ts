@@ -6,7 +6,7 @@
  * - Weak trend (low ADX) -> shorter period (responsive to range-bound moves)
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { assertInRange } from "../../utils/validate-number";
 import { assertPeriod } from "../../utils/validate-period";
@@ -107,7 +107,7 @@ export function adaptiveStochastics(
     throw new Error("Adaptive Stochastics maxPeriod must be >= minPeriod");
   }
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
   if (normalized.length === 0) return [];
 
   // Calculate DMI/ADX

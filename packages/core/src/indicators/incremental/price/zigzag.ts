@@ -19,6 +19,7 @@
  * Migrated to the 0.4.0 State Contract.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle } from "../../../types";
 import { assertPositive } from "../../../utils/validate-number";
 import {
@@ -159,6 +160,7 @@ export function createZigzag(
 
   const indicator: IncrementalIndicator<ZigzagValue, IndicatorSnapshot<ZigzagState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const atrVal = atr ? atr.next(candle).value : null;
       const isFirst = count === 0;
       count++;
@@ -274,6 +276,7 @@ export function createZigzag(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const saved = indicator.getState().state;
       const result = indicator.next(candle);
       // restore

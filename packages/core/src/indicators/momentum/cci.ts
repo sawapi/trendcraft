@@ -5,7 +5,7 @@
  * over a given period. Used to identify overbought/oversold conditions.
  */
 
-import { getPriceSeries, isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized, getPriceSeries } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 import { assertPositive } from "../../utils/validate-number";
@@ -61,7 +61,7 @@ export function cci(
   assertPeriod("CCI period", period);
 
   // Normalize if needed
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   const result: Series<number | null> = [];
 

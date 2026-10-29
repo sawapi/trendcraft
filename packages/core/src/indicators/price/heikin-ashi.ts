@@ -5,7 +5,7 @@
  * They use modified OHLC values based on averages of current and previous bars.
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 
 const EPSILON = 1e-10;
@@ -51,7 +51,7 @@ export type HeikinAshiValue = {
  * ```
  */
 export function heikinAshi(candles: Candle[] | NormalizedCandle[]): Series<HeikinAshiValue> {
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   const result: Series<HeikinAshiValue> = [];
 

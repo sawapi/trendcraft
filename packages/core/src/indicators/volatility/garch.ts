@@ -9,7 +9,7 @@
  */
 
 import { type AnnualizationOptions, annualizationFactor } from "../../calendar";
-import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized, getPrice } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 import { logReturnOrZero } from "../../utils/statistics";
@@ -470,7 +470,7 @@ export function ewmaVolatilityFromCandles(
   resolveEwmaOptions(options);
   const source = options?.source ?? "close";
   assertPriceSource("EWMA source", source);
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
   if (normalized.length < 2) return [];
 
   const returns: number[] = new Array(normalized.length - 1);

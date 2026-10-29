@@ -12,6 +12,7 @@
  * Migrated to the 0.4.0 State Contract.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import { centeredMoments } from "../../../core/statistics";
 import type { NormalizedCandle, VolumeAnomalyValue } from "../../../types";
 import { assertPositive } from "../../../utils/validate-number";
@@ -167,6 +168,7 @@ export function createVolumeAnomaly(
     IndicatorSnapshot<VolumeAnomalyState>
   > = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       count++;
       buffer.push(candle.volume);
       const value = computeFromBuffer(candle.volume, buffer);
@@ -174,6 +176,7 @@ export function createVolumeAnomaly(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       // Simulate buffer with current volume added
       const peekBuf = CircularBuffer.fromSnapshot<number>(buffer.snapshot());
       peekBuf.push(candle.volume);

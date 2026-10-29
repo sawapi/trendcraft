@@ -14,6 +14,7 @@
  * Migrated to the 0.4.0 State Contract.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle } from "../../../types";
 import { assertNonNegative } from "../../../utils/validate-number";
 import { type IndicatorSnapshot, makeSnapshot, resolveResume } from "../state-contract";
@@ -177,6 +178,7 @@ export function createFairValueGap(
 
   const indicator: IncrementalIndicator<FvgValue, IndicatorSnapshot<FairValueGapState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       count++;
       const barIndex = count - 1;
 
@@ -259,6 +261,7 @@ export function createFairValueGap(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       // Run the real `next()` against a deep copy of the state, then put
       // the original state back. A hand-maintained mirror of `next` is
       // where peek/next drift comes from (the previous mirror missed the

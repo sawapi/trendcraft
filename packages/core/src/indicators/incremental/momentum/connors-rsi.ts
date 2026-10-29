@@ -14,6 +14,7 @@
  * behavior is now uniform with the rest of the library (§4.1).
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle, PriceSource } from "../../../types";
 import { assertPriceSource } from "../../../utils/validate-price-source";
 import { CircularBuffer } from "../circular-buffer";
@@ -117,6 +118,7 @@ export function createConnorsRsi(
 
   const indicator: IncrementalIndicator<ConnorsRsiValue, IndicatorSnapshot<ConnorsRsiState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       count++;
       const price = getSourcePrice(candle, source);
 
@@ -172,6 +174,7 @@ export function createConnorsRsi(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const price = getSourcePrice(candle, source);
       const rsiVal = priceRsi.peek(candle).value;
 

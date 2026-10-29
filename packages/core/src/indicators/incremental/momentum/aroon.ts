@@ -11,6 +11,7 @@
  * Migrated to the 0.4.0 State Contract.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
 import {
@@ -131,6 +132,7 @@ export function createAroon(
 
   const indicator: IncrementalIndicator<AroonValue, IndicatorSnapshot<AroonState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       count++;
       highBuffer.push(candle.high);
       lowBuffer.push(candle.low);
@@ -138,6 +140,7 @@ export function createAroon(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const peekH = CircularBuffer.fromSnapshot<number>(highBuffer.snapshot());
       const peekL = CircularBuffer.fromSnapshot<number>(lowBuffer.snapshot());
       peekH.push(candle.high);

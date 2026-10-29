@@ -5,7 +5,7 @@
  * based on the fractal dimension of the price series.
  */
 
-import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized, getPrice } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 import { assertPriceSource } from "../../utils/validate-price-source";
@@ -69,7 +69,7 @@ export function frama(
   const effectivePeriod = period % 2 === 0 ? period : period + 1;
   const halfPeriod = effectivePeriod / 2;
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
   const result: Series<number | null> = [];
 
   let prevFrama: number | null = null;

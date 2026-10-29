@@ -19,6 +19,7 @@
  * ADL = cumulative sum of CLV * Volume
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle } from "../../../types";
 import { type IndicatorSnapshot, makeSnapshot, resolveResume } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -85,12 +86,14 @@ export function createAdl(
 
   const indicator: IncrementalIndicator<number, IndicatorSnapshot<AdlState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       count++;
       adlValue += computeMoneyFlow(candle);
       return { time: candle.time, value: adlValue };
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       return { time: candle.time, value: adlValue + computeMoneyFlow(candle) };
     },
 

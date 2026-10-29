@@ -8,6 +8,7 @@
 import { runBacktest } from "../backtest";
 import { and, or } from "../backtest/conditions";
 import { IndicatorCache } from "../core/indicator-cache";
+import { assertFiniteCandles } from "../core/normalize";
 import type { BacktestOptions, Condition, NormalizedCandle } from "../types";
 import type { OptimizationConstraint, OptimizationMetric } from "../types/optimization";
 import { DEFAULT_BACKTEST_CAPITAL } from "./constants";
@@ -238,6 +239,7 @@ export function combinationSearch(
   exitConditions: ConditionDefinition[],
   options: CombinationSearchOptions = {},
 ): CombinationSearchResult {
+  assertFiniteCandles(candles);
   const {
     metric = "sharpe",
     constraints = [],

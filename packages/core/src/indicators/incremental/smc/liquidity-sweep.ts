@@ -35,6 +35,7 @@
  * Migrated to the 0.4.0 State Contract.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle } from "../../../types";
 import { assertNonNegative } from "../../../utils/validate-number";
 import { assertPeriod } from "../../../utils/validate-period";
@@ -229,6 +230,7 @@ export function createLiquiditySweep(
     IndicatorSnapshot<LiquiditySweepState>
   > = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const idx = count;
       buffer.push({
         time: candle.time,
@@ -342,6 +344,7 @@ export function createLiquiditySweep(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const saved = indicator.getState().state;
       const result = indicator.next(candle);
       swings = createSwingPoints(

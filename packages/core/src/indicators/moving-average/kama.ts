@@ -7,7 +7,7 @@
  * it becomes more smoothed.
  */
 
-import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized, getPrice } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 import { assertPriceSource } from "../../utils/validate-price-source";
@@ -82,7 +82,7 @@ export function kama(
     throw new Error("KAMA slowPeriod must be an integer");
   }
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
   const result: Series<number | null> = [];
 
   const fastSC = 2 / (fastPeriod + 1);

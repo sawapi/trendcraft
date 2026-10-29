@@ -5,7 +5,7 @@
  * When the price direction reverses, a new wave begins.
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { assertOneOf, keywords } from "../../utils/validate-keyword";
@@ -56,7 +56,7 @@ export function weisWave(
   assertOneOf("Weis Wave method", method, METHODS);
   assertNonNegative("Weis Wave threshold", threshold);
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   if (normalized.length === 0) {
     return [];

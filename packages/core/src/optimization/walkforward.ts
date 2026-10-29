@@ -6,6 +6,7 @@
  */
 
 import { runBacktest } from "../backtest";
+import { assertFiniteCandles } from "../core/normalize";
 import type { BacktestOptions, NormalizedCandle } from "../types";
 import type {
   OptimizationConstraint,
@@ -83,6 +84,7 @@ export function generatePeriodBoundaries(
   testStart: number;
   testEnd: number;
 }> {
+  assertFiniteCandles(candles);
   const { windowSize, stepSize, testSize, purgeBars } = { ...DEFAULT_OPTIONS, ...options };
   validatePurgeBars(purgeBars);
 
@@ -146,6 +148,7 @@ export function walkForwardAnalysis(
   parameterRanges: ParameterRange[],
   options: WalkForwardOptions = {},
 ): WalkForwardResult {
+  assertFiniteCandles(candles);
   const {
     windowSize,
     stepSize,
@@ -603,6 +606,7 @@ export function walkForwardAnalysisSafe(
   parameterRanges: ParameterRange[],
   options: WalkForwardOptions = {},
 ): Result<WalkForwardResult> {
+  assertFiniteCandles(candles);
   try {
     return ok(walkForwardAnalysis(candles, createStrategy, parameterRanges, options));
   } catch (error) {

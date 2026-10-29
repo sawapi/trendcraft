@@ -12,7 +12,7 @@
  * Default parameters use the classic settings: period=22, multiplier=3.0
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type {
   Candle,
@@ -78,7 +78,7 @@ export function chandelierExit(
   assertPositive("Chandelier Exit multiplier", multiplier);
 
   // Normalize if needed
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   if (normalized.length === 0) {
     return [];

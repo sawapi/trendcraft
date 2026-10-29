@@ -6,6 +6,7 @@
  */
 
 import type { ExtendedCondition } from "../backtest/conditions/core";
+import { assertFiniteCandles } from "../core/normalize";
 import type { CombinedCondition, MtfContext, NormalizedCandle } from "../types";
 import type { ConditionTrace, ExplainOptions } from "../types/explainability";
 
@@ -51,6 +52,7 @@ export function traceCondition(
   options: ExplainOptions = {},
   depth = 0,
 ): ConditionTrace {
+  assertFiniteCandles(candles);
   const maxDepth = options.maxDepth ?? 10;
   const includeValues = options.includeValues !== false;
 

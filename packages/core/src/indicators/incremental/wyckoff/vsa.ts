@@ -21,6 +21,7 @@
  * Migrated to the 0.4.0 State Contract.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle } from "../../../types";
 import { assertPositive } from "../../../utils/validate-number";
 import { CircularBuffer } from "../circular-buffer";
@@ -312,6 +313,7 @@ export function createVsa(
 
   const indicator: IncrementalIndicator<VsaValue, IndicatorSnapshot<VsaState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       count++;
 
       const atrResult = atrIndicator.next(candle);
@@ -365,6 +367,7 @@ export function createVsa(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const atrVal = atrIndicator.peek(candle).value;
       const volMaVal = volumeSma.peek(candle).value;
 

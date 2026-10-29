@@ -5,7 +5,7 @@
  * of the range between high and low prices.
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { assertPeriod } from "../../utils/validate-period";
@@ -52,7 +52,7 @@ export function massIndex(
   assertPeriod("Mass Index emaPeriod", emaPeriod);
   assertPeriod("Mass Index sumPeriod", sumPeriod);
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
   const multiplier = 2 / (emaPeriod + 1);
 
   function computeEma(values: (number | null)[]): (number | null)[] {

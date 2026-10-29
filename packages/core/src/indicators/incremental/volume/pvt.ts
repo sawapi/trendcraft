@@ -19,6 +19,7 @@
  * Similar to OBV but weights volume by price change percentage.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle } from "../../../types";
 import { type IndicatorSnapshot, makeSnapshot, resolveResume } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -82,6 +83,7 @@ export function createPvt(
 
   const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<PvtState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       count++;
 
       if (prevClose === null) {
@@ -98,6 +100,7 @@ export function createPvt(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       if (prevClose === null) {
         return { time: candle.time, value: 0 };
       }

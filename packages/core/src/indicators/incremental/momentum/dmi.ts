@@ -16,6 +16,7 @@
  * Migrated to the 0.4.0 State Contract.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle } from "../../../types";
 import {
   type IndicatorSnapshot,
@@ -242,12 +243,14 @@ export function createDmi(
 
   const indicator: IncrementalIndicator<DmiValue, IndicatorSnapshot<DmiState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       count++;
       const value = processCandle(candle);
       return { time: candle.time, value };
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       // Compute without modifying state
       const peekCount = count + 1;
 

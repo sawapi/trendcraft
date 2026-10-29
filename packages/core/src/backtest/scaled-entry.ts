@@ -7,6 +7,7 @@
  */
 
 import { buildMtfSetup, updateMtfIndices } from "../core/mtf-context";
+import { assertFiniteCandles } from "../core/normalize";
 import { atr } from "../indicators/volatility/atr";
 import type {
   BacktestResult,
@@ -234,6 +235,7 @@ export function runBacktestScaled(
   exitCondition: Condition | ExtendedCondition,
   options: ScaledBacktestOptions,
 ): BacktestResult {
+  assertFiniteCandles(candles);
   const {
     capital,
     commission = 0,

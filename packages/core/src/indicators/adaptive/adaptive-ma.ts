@@ -9,7 +9,7 @@
  * - Choppy market (ER close to 0) -> slow smoothing (filters noise)
  */
 
-import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized, getPrice } from "../../core/normalize";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { assertInRange, assertPositive } from "../../utils/validate-number";
 import { assertPeriod } from "../../utils/validate-period";
@@ -77,7 +77,7 @@ export function adaptiveMa(
   assertPositive("Adaptive MA slowConstant", slowConstant);
   assertInRange("Adaptive MA slowConstant", slowConstant, 0, 1);
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
   if (normalized.length === 0) return [];
 
   const result: Series<AdaptiveMaValue> = [];

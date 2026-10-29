@@ -11,6 +11,7 @@
  * Migrated to the 0.4.0 State Contract.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle } from "../../../types";
 import { createSma, type SmaState } from "../moving-average/sma";
 import {
@@ -80,12 +81,14 @@ export function createQStick(
 
   const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<QStickState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       count++;
       const diff = candle.close - candle.open;
       return sma.next(makeCandle(candle.time, diff));
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const diff = candle.close - candle.open;
       return sma.peek(makeCandle(candle.time, diff));
     },

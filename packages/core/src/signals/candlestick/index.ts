@@ -7,7 +7,7 @@
  * - 6 triple-candle patterns
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { detectDoublePatterns } from "./double";
 import { detectSinglePatterns } from "./single";
@@ -55,7 +55,7 @@ export function candlestickPatterns(
     patterns: patternFilter,
   } = options;
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   const result: Series<CandlestickPatternValue> = [];
   const allowedPatterns = patternFilter ? new Set<string>(patternFilter) : null;

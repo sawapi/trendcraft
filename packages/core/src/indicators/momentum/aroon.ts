@@ -9,7 +9,7 @@
  * Aroon Oscillator = Aroon Up - Aroon Down
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { assertPeriod } from "../../utils/validate-period";
@@ -66,7 +66,7 @@ export function aroon(
 
   assertPeriod("Aroon period", period);
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
   const result: Series<AroonValue> = [];
 
   for (let i = 0; i < normalized.length; i++) {

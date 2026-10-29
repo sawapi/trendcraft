@@ -70,7 +70,7 @@ describe("a symbol whose ATR% cannot be computed", () => {
     // `NaN < 2.3` is false, so the negated test kept it.
     expect(result.results).toEqual([]);
     const zzzz = result.skipped.find((s) => s.ticker === "ZZZZ");
-    expect(zzzz?.reason).toMatch(/not computable/);
+    expect(zzzz?.reason).toMatch(/candle 50 has a non-finite open/);
     for (const ticker of ["AAAA", "BBBB", "CCCC", "DDDD"]) {
       expect(result.skipped.find((s) => s.ticker === ticker)?.reason).toMatch(/ATR% too low/);
     }
@@ -83,7 +83,7 @@ describe("a symbol whose ATR% cannot be computed", () => {
     // undefined as well as reporting an unusable number.
     expect(result.results.map((r) => r.ticker).sort()).toEqual(["AAAA", "BBBB", "CCCC", "DDDD"]);
     expect(result.results.every((r) => Number.isFinite(r.atrPercent))).toBe(true);
-    expect(result.skipped.find((s) => s.ticker === "ZZZZ")?.reason).toMatch(/not computable/);
+    expect(result.skipped.find((s) => s.ticker === "ZZZZ")?.reason).toMatch(/non-finite open/);
   });
 
   it("is skipped when the malformed row is the LAST one", () => {
@@ -98,7 +98,7 @@ describe("a symbol whose ATR% cannot be computed", () => {
 
     expect(result.results.find((r) => r.ticker === "TAIL")).toBeUndefined();
     expect(result.skipped.find((s) => s.ticker === "TAIL")?.reason).toMatch(
-      /currentPrice not computable/,
+      /candle 149 has a non-finite open/,
     );
   });
 
@@ -276,12 +276,12 @@ describe("volumeRatio when there is no average to compare against", () => {
     expect(screenStock("OVER", bars, CRITERIA).metrics.volumeRatio).toBeUndefined();
   });
 
-  it("reports an absent volume rather than a NaN one", () => {
+  it("rejects a NaN volume rather than reporting it", () => {
     const bars = candles(60, 1_000_000);
     bars[bars.length - 1].volume = Number.NaN;
-    const metrics = screenStock("BADVOL", bars, CRITERIA).metrics;
-    expect(metrics.volume).toBeUndefined();
-    expect(metrics.volumeRatio).toBeUndefined();
+    expect(() => screenStock("BADVOL", bars, CRITERIA)).toThrow(
+      /candle 59 has a non-finite volume/,
+    );
   });
 
   it("is still a real ratio for a symbol with volume history", () => {

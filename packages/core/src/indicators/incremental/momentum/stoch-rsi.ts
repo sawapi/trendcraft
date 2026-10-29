@@ -18,6 +18,7 @@
  * accumulators directly.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle, PriceSource } from "../../../types";
 import { assertPriceSource } from "../../../utils/validate-price-source";
 import { CircularBuffer } from "../circular-buffer";
@@ -276,6 +277,7 @@ export function createStochRsi(
 
   const indicator: IncrementalIndicator<StochRsiValue, IndicatorSnapshot<StochRsiState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       count++;
       const rsiVal = computeRsi(getSourcePrice(candle, source));
       const value = processRsi(rsiVal);
@@ -283,6 +285,7 @@ export function createStochRsi(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       // Save state, compute, restore
       const saved = indicator.getState().state;
       const result = indicator.next(candle);

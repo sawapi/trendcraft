@@ -8,7 +8,7 @@
  * Bearish Order Block: The last bullish candle before a bearish BOS
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { assertNonNegative } from "../../utils/validate-number";
@@ -133,7 +133,7 @@ export function orderBlock(
   assertNonNegative("displacementAtr", displacementAtr);
   assertPeriod("maxBarsActive", maxBarsActive, 0);
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   if (normalized.length === 0) {
     return [];
@@ -365,7 +365,7 @@ export function getNearestOrderBlock(
   candles: Candle[] | NormalizedCandle[],
   options: OrderBlockOptions = {},
 ): OrderBlock | null {
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   if (normalized.length === 0) {
     return null;

@@ -5,7 +5,7 @@
  * and using the difference to compensate for lag.
  */
 
-import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized, getPrice } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 import { assertPriceSource } from "../../utils/validate-price-source";
@@ -52,7 +52,7 @@ export function dema(
     throw new Error("DEMA period must be an integer");
   }
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
   const multiplier = 2 / (period + 1);
 
   function computeEma(values: (number | null)[]): (number | null)[] {

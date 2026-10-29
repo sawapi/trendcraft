@@ -5,7 +5,7 @@
  * Double Bottom: Bullish reversal pattern with two troughs at similar levels
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import { getSwingHighs, getSwingLows } from "../../indicators/price/swing-points";
 import type { Candle, NormalizedCandle } from "../../types";
 import {
@@ -70,7 +70,7 @@ export function doubleTop(
     strictMode = false,
   } = options;
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   if (normalized.length < minDistance * 2) {
     return [];
@@ -418,7 +418,7 @@ export function doubleBottom(
     strictMode = false,
   } = options;
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   if (normalized.length < minDistance * 2) {
     return [];

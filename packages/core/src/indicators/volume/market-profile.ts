@@ -5,7 +5,7 @@
  * identifying POC, Value Area High/Low per session.
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { assertInRange, assertNonNegative, assertPositive } from "../../utils/validate-number";
@@ -76,7 +76,7 @@ export function marketProfile(
   assertInRange("Market Profile valueAreaPercent", valueAreaPercent, 0, 1);
   assertResetPeriod("Market Profile sessionResetPeriod", sessionResetPeriod, ["session"]);
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   if (normalized.length === 0) {
     return [];

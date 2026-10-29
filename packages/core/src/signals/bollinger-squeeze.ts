@@ -3,7 +3,7 @@
  * Detects periods of low volatility (squeeze) that often precede large price movements
  */
 
-import { isNormalized, normalizeCandles } from "../core/normalize";
+import { ensureNormalized } from "../core/normalize";
 import { bollingerBands } from "../indicators/volatility/bollinger-bands";
 import type { Candle, NormalizedCandle } from "../types";
 
@@ -58,7 +58,7 @@ export function bollingerSqueeze(
 ): SqueezeSignal[] {
   const { period = 20, stdDev = 2, lookback = 120, threshold = 5 } = options;
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   // Need enough data for Bollinger Bands + lookback
   if (normalized.length < period + lookback) return [];

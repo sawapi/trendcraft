@@ -5,7 +5,7 @@
  * Originally developed by Chester Keltner, modernized by Linda Bradford Raschke.
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { assertPositive } from "../../utils/validate-number";
@@ -77,7 +77,7 @@ export function keltnerChannel(
   assertPeriod("Keltner Channel ATR period", atrPeriod);
   assertPositive("Keltner Channel multiplier", multiplier);
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   if (normalized.length === 0) {
     return [];

@@ -13,6 +13,7 @@
  * the snapshot.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { NormalizedCandle } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
 import {
@@ -143,6 +144,7 @@ export function createDonchianChannel(
 
   const indicator: IncrementalIndicator<DonchianValue, IndicatorSnapshot<DonchianState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       highBuffer.push(candle.high);
       lowBuffer.push(candle.low);
       count++;
@@ -151,6 +153,7 @@ export function createDonchianChannel(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const tempHigh = CircularBuffer.fromSnapshot(highBuffer.snapshot());
       const tempLow = CircularBuffer.fromSnapshot(lowBuffer.snapshot());
       tempHigh.push(candle.high);

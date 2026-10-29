@@ -5,7 +5,7 @@
  * Bullish when shorter EMAs are above longer ones (properly ordered).
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 import { assertPeriod } from "../../utils/validate-period";
@@ -65,7 +65,7 @@ export function emaRibbon(
   }
   for (const p of periods) assertPeriod("EMA Ribbon period", p);
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   if (normalized.length === 0) {
     return [];

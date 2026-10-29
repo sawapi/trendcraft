@@ -8,7 +8,7 @@
  * DST is ignored for simplicity — sessions use fixed UTC offsets.
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { getTzDateTime, type TzDateTime } from "./tz-utils";
 
@@ -497,7 +497,7 @@ export function detectSessions(
 ): Series<SessionInfo> {
   if (candles.length === 0) return [];
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   const sessionDefs = sessions ?? getIctSessions();
   const result: Series<SessionInfo> = [];

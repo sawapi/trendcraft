@@ -12,6 +12,7 @@
  * Migrated to the 0.4.0 State Contract.
  */
 
+import { assertFiniteCandle } from "../../../core/normalize";
 import type { AtrStopsValue, NormalizedCandle } from "../../../types";
 import {
   type IndicatorSnapshot,
@@ -125,6 +126,7 @@ export function createAtrStops(
 
   const indicator: IncrementalIndicator<AtrStopsValue, IndicatorSnapshot<AtrStopsState>> = {
     next(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       count++;
       const atrResult = atr.next(candle);
 
@@ -136,6 +138,7 @@ export function createAtrStops(
     },
 
     peek(candle: NormalizedCandle) {
+      assertFiniteCandle(candle);
       const atrResult = atr.peek(candle);
 
       if (atrResult.value === null) {

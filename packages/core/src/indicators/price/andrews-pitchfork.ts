@@ -6,7 +6,7 @@
  * Uses the last 3 alternating swing points (P0, P1, P2).
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { ensureNormalized } from "../../core/normalize";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { assertPeriod } from "../../utils/validate-period";
 import { swingPoints } from "./swing-points";
@@ -60,7 +60,7 @@ export function andrewsPitchfork(
   assertPeriod("leftBars", leftBars);
   assertPeriod("rightBars", rightBars);
 
-  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const normalized = ensureNormalized(candles);
 
   if (normalized.length === 0) {
     return [];
