@@ -26,9 +26,10 @@ pnpm dev
 - **`useTrendChart` hook** — returns `{ containerRef, chart }`. `chart` is reactive state (null → instance), so it composes cleanly with `useEffect` for drawing tools, live feeds, and custom plugins.
 
 ```tsx
+import { registerDrawingTools } from '@trendcraft/chart/features';
 import { useTrendChart } from '@trendcraft/chart/react';
 
-const { containerRef, chart } = useTrendChart({ candles });
+const { containerRef, chart } = useTrendChart({ candles, features: [registerDrawingTools] });
 
 useEffect(() => {
   if (!chart) return;

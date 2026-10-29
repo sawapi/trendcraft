@@ -45,7 +45,9 @@ export function attachKeyboardHandlers(
       return;
     }
     if (action !== undefined) {
-      dispatch?.(action);
+      // A host that cannot act on the hotkey (drawing tools not registered)
+      // leaves the key to the page.
+      if (dispatch?.(action) === false) return;
       e.preventDefault();
       ctx.onUpdate();
       return;

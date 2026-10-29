@@ -12,6 +12,7 @@
     "lib": ["ES2022", "DOM"],
     "paths": {
       "@trendcraft/chart": ["../../src/index.ts"],
+      "@trendcraft/chart/features": ["../../src/features/index.ts"],
       "@trendcraft/chart/presets": ["../../src/presets.ts"],
       "@trendcraft/chart/replay": ["../../src/replay.ts"],
       "@trendcraft/chart/react": ["../../react/TrendChart.tsx"],

@@ -47,6 +47,7 @@ function makeRenderContext(overrides?: Partial<RenderContext>): RenderContext {
     drawHelper: null,
     emit: vi.fn(),
     locale: DEFAULT_LOCALE,
+    features: {},
     ...overrides,
   };
 }

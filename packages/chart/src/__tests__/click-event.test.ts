@@ -6,7 +6,15 @@
  */
 
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { createChart } from "../index";
+import { registerDrawingTools } from "../features";
+import { createChart as createBareChart } from "../index";
+
+/** Charts here exercise drawing tools, which live in the drawing feature. */
+const createChart: typeof createBareChart = (container, options) => {
+  const chart = createBareChart(container, options);
+  registerDrawingTools(chart);
+  return chart;
+};
 
 beforeAll(() => {
   const noop = () => {};

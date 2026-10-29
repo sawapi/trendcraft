@@ -1,4 +1,5 @@
 import { connectIndicators, type IndicatorConnection, type SignalMarker } from "@trendcraft/chart";
+import { registerAll } from "@trendcraft/chart/features";
 import { registerTrendCraftPresets } from "@trendcraft/chart/presets";
 import { useTrendChart } from "@trendcraft/chart/react";
 import {
@@ -230,6 +231,8 @@ export function App() {
     candles,
     theme: "dark",
     options: { watermark: "STRATEGY STUDIO" },
+    // Signals, drawing tools and backtest display are optional features
+    features: [registerAll],
   });
 
   // Manage the indicator connection imperatively so each preset gets its full

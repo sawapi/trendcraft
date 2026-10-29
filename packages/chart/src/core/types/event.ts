@@ -126,7 +126,8 @@ export type ChartErrorCode =
   | "INVALID_OPTION" // an unsupported option was passed to applyOptions/createChart
   | "UNKNOWN_INDICATOR_TYPE" // type/preset not registered with the chart
   | "BAD_CANDLE" // a candle object was rejected during setCandles/updateCandle
-  | "RENDER_ERROR"; // a series renderer or primitive plugin threw while drawing
+  | "RENDER_ERROR" // a series renderer or primitive plugin threw while drawing
+  | "FEATURE_NOT_REGISTERED"; // a method needs a feature from @trendcraft/chart/features
 
 export type ChartErrorPayload = {
   message: string;

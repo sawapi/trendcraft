@@ -55,6 +55,7 @@ const SOURCE_TO_ENTRY: Record<string, string> = {
   "@trendcraft/chart/headless": "../headless",
   "@trendcraft/chart/presets": "../presets",
   "@trendcraft/chart/replay": "../replay",
+  "@trendcraft/chart/features": "../features",
   "@trendcraft/chart/sparkline": "../sparkline",
   "@trendcraft/chart/react": "../../react/index",
   "@trendcraft/chart/react/sparkline": "../../react/sparkline",

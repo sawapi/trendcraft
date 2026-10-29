@@ -79,6 +79,10 @@ const IMPORT_REWRITES: Array<[RegExp, string]> = [
   [/(["'])@trendcraft\/chart\/presets\1/g, JSON.stringify(path.join(srcRoot, "presets.ts"))],
   [/(["'])@trendcraft\/chart\/replay\1/g, JSON.stringify(path.join(srcRoot, "replay.ts"))],
   [
+    /(["'])@trendcraft\/chart\/features\1/g,
+    JSON.stringify(path.join(srcRoot, "features/index.ts")),
+  ],
+  [
     /(["'])@trendcraft\/chart\/sparkline\1/g,
     JSON.stringify(path.join(srcRoot, "sparkline/index.ts")),
   ],
@@ -103,6 +107,7 @@ const FIXTURE_TYPES: Record<string, string> = {
   candles: `${T("CandleData")}[]`,
   chart: `ReturnType<typeof import(${JSON.stringify(INDEX)}).createChart>`,
   container: "HTMLElement",
+  result: T("BacktestResultData"),
   el: "HTMLElement",
   listEl: "HTMLElement",
   cv: "HTMLCanvasElement",

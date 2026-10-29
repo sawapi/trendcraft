@@ -20,6 +20,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite
 import { TimeScale } from "../core/scale";
 import type { CandleData, ChartInstance, ChartOptions } from "../core/types";
 import { Viewport } from "../core/viewport";
+import { registerDrawingTools } from "../features";
 import { createChart } from "../index";
 
 beforeAll(() => {
@@ -110,6 +111,7 @@ describe("applyOptions — interaction options reach the live handlers", () => {
   it("hotkeys: false stops hotkeys and built-in keys; a new map rebinds them", () => {
     const container = makeContainer();
     chart = createChart(container, SIZE);
+    registerDrawingTools(chart); // the hotkeys drive drawing tools
     chart.setCandles(makeCandles(300));
     const canvas = canvasOf(container);
     const setDrawingTool = vi.spyOn(chart, "setDrawingTool");
@@ -364,6 +366,7 @@ describe("applyOptions — untyped and non-finite values", () => {
   it("null for an interaction field leaves it alone instead of throwing or flipping it", () => {
     const container = makeContainer();
     chart = createChart(container, SIZE);
+    registerDrawingTools(chart); // the hotkeys drive drawing tools
     chart.setCandles(makeCandles(50));
     const canvas = canvasOf(container);
     const setDrawingTool = vi.spyOn(chart, "setDrawingTool");

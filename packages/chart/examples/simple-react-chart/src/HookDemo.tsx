@@ -9,6 +9,7 @@
  * to see it running, or copy into your own app.
  */
 
+import { registerDrawingTools } from "@trendcraft/chart/features";
 import { useTrendChart } from "@trendcraft/chart/react";
 import { useEffect, useState } from "react";
 import { sma } from "trendcraft";
@@ -23,6 +24,7 @@ export function HookDemo() {
     indicators,
     theme: "dark",
     options: { watermark: "HOOK" },
+    features: [registerDrawingTools],
   });
 
   const [lastEvent, setLastEvent] = useState<string>("—");

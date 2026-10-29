@@ -7,6 +7,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Breaking — drawing tools, backtest display, markers and scores are optional features
+
+Four features moved out of the core bundle into `@trendcraft/chart/features`.
+A chart that never uses them no longer ships their code. The main bundle,
+`createChart` with all exports, went from 44.31 to 41.1 kB (brotli, as
+size-limit measures it), and the React and Vue wrappers each lost about
+3.3 kB. Registering features adds their code back: `registerAll` costs
+3.8 kB, so an app that migrates with it ends up about 0.6 kB larger than
+before, which is the cost of the registration step.
+
+| Register function | Enables |
+|---|---|
+| `registerDrawingTools(chart)` | `addDrawing`, `setDrawingTool`, the `Alt+H` / `Alt+T` / `Alt+F` hotkeys, and the drawing auto-injection helpers (`addAutoFibRetracement` and the rest) |
+| `registerBacktest(chart)` | `addBacktest`, `addPatterns` |
+| `registerMarkers(chart)` | `addSignals`, `addTrades` |
+| `registerScores(chart)` | `addScores` |
+| `registerAll(chart)` | all of the above |
+
+The methods stay on `ChartInstance` with the same types. Called without their
+feature, they warn once per feature, emit an `error` event with the new code
+`FEATURE_NOT_REGISTERED`, and do nothing. They do not throw, so an app that
+passes these props through the React or Vue wrapper keeps running. The
+drawing auto-injection helpers return `null` when the drawing was not
+attached. A drawing hotkey (`Alt+H` / `Alt+T` / `Alt+F`) pressed on a chart
+without drawing tools is ignored silently and left to the page.
+
+The design follows the industry: lightweight-charts v5 moved series types and
+markers into separately imported functions, Chart.js has `Chart.register` and
+`chart.js/auto`, and ECharts has `echarts.use`. For a missing registration,
+ECharts logs an error (in development builds) and skips the component, while
+Chart.js throws. Reporting and skipping is the model here, so that a missing
+registration does not crash a page.
+
+**Migrating:**
+
+- Vanilla: call the register functions after `createChart`, or call
+  `registerAll(chart)` to keep everything as before.
+
+  ```ts
+  import { createChart } from "@trendcraft/chart";
+  import { registerAll } from "@trendcraft/chart/features";
+
+  const chart = createChart(container);
+  registerAll(chart);
+  ```
+
+- React / Vue: pass the functions as the new `features` prop (or
+  `useTrendChart` option), e.g. `features={[registerBacktest]}`. It is read
+  when the chart is created.
+- If drawings or the drawing hotkeys stopped working, register the drawing
+  feature: it is the one most often used implicitly.
+
 ### Fixed — `createChart` warns about a non-finite `scrollSensitivity`
 
 `applyOptions({ scrollSensitivity: NaN })` warned and kept the current

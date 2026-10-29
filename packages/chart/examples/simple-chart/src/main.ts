@@ -11,6 +11,7 @@ import {
   definePrimitive,
   defineSeriesRenderer,
 } from "@trendcraft/chart";
+import { registerAll } from "@trendcraft/chart/features";
 import { registerTrendCraftPresets } from "@trendcraft/chart/presets";
 import {
   bollingerBands,
@@ -45,6 +46,8 @@ if (!container || !statusEl) throw new Error("Missing DOM elements");
 // Create chart
 const chart = createChart(container, { theme: "dark", watermark: "SAMPLE" });
 registerTrendCraftPresets(chart);
+// Drawing tools, backtest display and the score heatmap are optional features
+registerAll(chart);
 chart.setCandles(candles);
 chart.fitContent();
 

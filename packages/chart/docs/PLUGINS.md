@@ -41,7 +41,7 @@ PrimitivePlugin:                            Plugin owns: state, render
 - Pick a **series renderer** when you want per-bar data flowing through the standard `addIndicator` API and the chart to auto-scale around it.
 - Pick a **primitive** when you have a logically flat overlay (zones, bands, markers) that doesn't map cleanly onto a series.
 
-Several of TrendCraft's built-in visualizations (the regime heatmap, the SMC layer, and the other modules in `packages/chart/src/plugins/`) are primitives. `addBacktest`, `addPatterns`, and `addScores` are not — they use dedicated internal renderers, not the primitive system.
+Several of TrendCraft's built-in visualizations (the regime heatmap, the SMC layer, and the other modules in `packages/chart/src/plugins/`) are primitives. `addBacktest`, `addPatterns`, and `addScores` are not — they use dedicated renderers, registered as optional features from `@trendcraft/chart/features`, not the primitive system.
 
 ## Series renderer plugin
 

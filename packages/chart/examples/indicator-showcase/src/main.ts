@@ -12,6 +12,7 @@
  */
 
 import { connectIndicators, createChart, type IndicatorConnection } from "@trendcraft/chart";
+import { registerDrawingTools } from "@trendcraft/chart/features";
 import { registerTrendCraftPresets } from "@trendcraft/chart/presets";
 import type { NormalizedCandle } from "trendcraft";
 import { indicatorPresets } from "trendcraft";
@@ -55,6 +56,8 @@ const chartEl = document.getElementById("chart") as HTMLElement;
 const sidebarEl = document.getElementById("sidebar") as HTMLElement;
 const chart = createChart(chartEl, { theme: "dark" });
 registerTrendCraftPresets(chart);
+// The Plugins panel's fib / trend / channel toggles add drawings
+registerDrawingTools(chart);
 
 // ============================================
 // Timeframe-scoped state (re-created on switch)

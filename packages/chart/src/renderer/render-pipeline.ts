@@ -25,26 +25,16 @@ import { renderMountainChart } from "../series/mountain";
 import { renderOhlcBars } from "../series/ohlc-bar";
 import { renderPriceLineChart } from "../series/price-line";
 import { renderGrid, renderPriceAxis, renderReferenceLines, renderTimeAxis } from "./axis-renderer";
-import {
-  renderBacktestSummary,
-  renderBacktestTrades,
-  renderEquityCurve,
-} from "./backtest-renderer";
 import { renderCrosshair } from "./crosshair-renderer";
-import { renderDrawings } from "./drawing-renderer";
 import type { ChartEventEmitter } from "./event-emitter";
 import {
   type ComputedBadge,
   computeSeriesBadges,
   drawSeriesBadges,
   renderPriceLine,
-  renderSignals,
   renderTimeframeOverlays,
-  renderTrades,
 } from "./overlay-renderer";
-import { renderPatterns } from "./pattern-renderer";
 import { computePaneRange } from "./range-calculator";
-import { renderScoreHeatmap } from "./score-renderer";
 import { renderScrollbar } from "./scrollbar-renderer";
 import { dispatchSeries } from "./series-dispatcher";
 
@@ -110,6 +100,8 @@ export type RenderContext = {
   locale: import("../core/i18n").ChartLocale;
   /** Crosshair snap behavior */
   crosshair?: import("../core/types").CrosshairOptions;
+  /** Optional features registered on the chart; absent ones are skipped */
+  features: import("../core/features").ChartFeatures;
 };
 
 /** Result returned to canvas-chart for DOM overlay updates */
@@ -153,6 +145,7 @@ function describeRenderError(source: string, error: unknown): string {
  */
 export function renderFrame(rc: RenderContext): RenderResult {
   const { ctx, pixelRatio: pr, theme, data, layout, timeScale } = rc;
+  const { backtest, drawing, markers, scores } = rc.features;
   const width = rc.canvasWidth / pr;
   const height = rc.canvasHeight / pr;
 
@@ -207,17 +200,9 @@ export function renderFrame(rc: RenderContext): RenderResult {
     if (pane.config.leftScale?.range) scales.left.setFixedRange(pane.config.leftScale.range);
 
     // Equity pane: backtest range
-    if (pane.id === "equity" && data.backtestResult) {
-      const bt = data.backtestResult;
-      let eqMin = bt.initialCapital;
-      let eqMax = bt.initialCapital;
-      let equity = bt.initialCapital;
-      for (const trade of bt.trades) {
-        equity *= 1 + trade.returnPercent / 100;
-        if (equity < eqMin) eqMin = equity;
-        if (equity > eqMax) eqMax = equity;
-      }
-      scales.right.setDataRange(eqMin * 0.99, eqMax * 1.01);
+    if (pane.id === "equity" && data.backtestResult && backtest) {
+      const [eqMin, eqMax] = backtest.equityRange(data.backtestResult);
+      scales.right.setDataRange(eqMin, eqMax);
     } else {
       // Right scale range
       const rightSeries = data.getSeriesForScale(pane.id, "right");
@@ -343,8 +328,8 @@ export function renderFrame(rc: RenderContext): RenderResult {
       ctx.translate(0, pane.y);
 
       // Score heatmap
-      if (pane.id === "main" && data.scores.length > 0) {
-        renderScoreHeatmap(ctx, data.scores, timeScale, { ...pane, y: 0 });
+      if (pane.id === "main" && scores && data.scores.length > 0) {
+        scores.renderHeatmap(ctx, data.scores, timeScale, { ...pane, y: 0 });
       }
 
       // Price data
@@ -606,13 +591,21 @@ export function renderFrame(rc: RenderContext): RenderResult {
 
   // Backtest
   const btResult = data.backtestResult;
-  if (btResult) {
-    renderBacktestTrades(ctx, btResult, paneRects, _rightScaleMap, timeScale, data);
+  if (btResult && backtest) {
+    backtest.renderTrades(ctx, btResult, paneRects, _rightScaleMap, timeScale, data);
     const equityPane = paneRects.find((p) => p.id === "equity");
     const equityScale = rc.priceScales.get("equity");
     if (equityPane && equityScale) {
-      renderEquityCurve(ctx, btResult, equityPane, equityScale.right, timeScale, data, theme);
-      renderBacktestSummary(
+      backtest.renderEquityCurve(
+        ctx,
+        btResult,
+        equityPane,
+        equityScale.right,
+        timeScale,
+        data,
+        theme,
+      );
+      backtest.renderSummary(
         ctx,
         btResult,
         equityPane.x,
@@ -626,8 +619,8 @@ export function renderFrame(rc: RenderContext): RenderResult {
   }
 
   // Patterns
-  if (data.patterns.length > 0) {
-    renderPatterns(
+  if (backtest && data.patterns.length > 0) {
+    backtest.renderPatterns(
       ctx,
       data.patterns,
       paneRects,
@@ -642,7 +635,7 @@ export function renderFrame(rc: RenderContext): RenderResult {
 
   // Drawings (include interactive preview if present)
   const allDrawings = rc.drawingPreview ? [...data.drawings, rc.drawingPreview] : data.drawings;
-  renderDrawings(
+  drawing?.render(
     ctx,
     allDrawings,
     paneRects,
@@ -671,8 +664,8 @@ export function renderFrame(rc: RenderContext): RenderResult {
   for (const { badges } of pendingBadges) {
     drawSeriesBadges(ctx, badges, rc.fontSize, rc.fontFamily);
   }
-  renderSignals(ctx, data.signals, candles, data, paneRects, _rightScaleMap, timeScale);
-  renderTrades(ctx, data.trades, data, paneRects, _rightScaleMap, timeScale);
+  markers?.renderSignals(ctx, data.signals, candles, data, paneRects, _rightScaleMap, timeScale);
+  markers?.renderTrades(ctx, data.trades, data, paneRects, _rightScaleMap, timeScale);
 
   // Crosshair
   renderCrosshair(

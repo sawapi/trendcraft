@@ -1,12 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { DataLayer } from "../core/data-layer";
 import { DARK_THEME } from "../core/types";
-import {
-  renderPaneTitles,
-  renderPriceLine,
-  renderSignals,
-  renderTrades,
-} from "../renderer/overlay-renderer";
+import { renderSignals, renderTrades } from "../renderer/marker-renderer";
+import { renderPaneTitles, renderPriceLine } from "../renderer/overlay-renderer";
 import { makeCandle, makePane, makePriceScale, makeTimeScale, mockCtx } from "./helpers/mock-ctx";
 
 const theme = DARK_THEME;

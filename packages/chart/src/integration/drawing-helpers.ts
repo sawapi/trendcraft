@@ -7,6 +7,10 @@
  * of reinventing primitive plugins for each, these helpers convert raw swing
  * anchors into `Drawing` objects and attach them to the chart.
  *
+ * The chart must have the drawing feature (`registerDrawingTools` from
+ * `@trendcraft/chart/features`); without it a helper attaches nothing and
+ * returns `null`.
+ *
  * Design: all helpers take **pre-computed swing anchors**, so the chart package
  * keeps zero runtime dependency on `trendcraft`. Compose with
  * `getAlternatingSwingPoints` (or any equivalent detector) on the caller side:
@@ -15,7 +19,9 @@
  * ```ts
  * import { getAlternatingSwingPoints } from "trendcraft";
  * import { addAutoFibRetracement } from "@trendcraft/chart";
+ * import { registerDrawingTools } from "@trendcraft/chart/features";
  *
+ * registerDrawingTools(chart);
  * // getAlternatingSwingPoints already returns { time, price, type, index }[]
  * const anchors = getAlternatingSwingPoints(candles, 6, { leftBars: 10, rightBars: 10 });
  * const drawingId = addAutoFibRetracement(chart, anchors);
@@ -29,6 +35,18 @@ import type {
   FibRetracementDrawing,
   TrendLineDrawing,
 } from "../core/types";
+
+/**
+ * Add a drawing and return its id, or null when the chart did not take it
+ * (the drawing feature is not registered).
+ */
+function attach(
+  chart: ChartInstance,
+  drawing: { id: string } & Parameters<ChartInstance["addDrawing"]>[0],
+): string | null {
+  chart.addDrawing(drawing);
+  return chart.getDrawings().some((d) => d.id === drawing.id) ? drawing.id : null;
+}
 
 /** Normalized swing anchor consumed by the drawing helpers. */
 export type SwingAnchor = {
@@ -88,7 +106,8 @@ export type AddFibOptions = {
  * Attach a Fibonacci retracement drawing between the two most recent swing
  * anchors. The high/low order is inferred from the anchors' timestamps.
  *
- * Returns the drawing id, or `null` if fewer than two swings were supplied.
+ * Returns the drawing id, or `null` if fewer than two swings were supplied
+ * or the drawing feature is not registered.
  */
 export function addAutoFibRetracement(
   chart: ChartInstance,
@@ -119,8 +138,7 @@ export function addAutoFibRetracement(
     levels: options.levels ?? DEFAULT_FIB_RETRACEMENT_LEVELS,
     ...(options.color ? { color: options.color } : {}),
   };
-  chart.addDrawing(drawing);
-  return drawing.id;
+  return attach(chart, drawing);
 }
 
 /**
@@ -150,8 +168,7 @@ export function addAutoFibExtension(
     levels: options.levels ?? DEFAULT_FIB_EXTENSION_LEVELS,
     ...(options.color ? { color: options.color } : {}),
   };
-  chart.addDrawing(drawing);
-  return drawing.id;
+  return attach(chart, drawing);
 }
 
 // ============================================
@@ -174,7 +191,8 @@ export type AddTrendLineOptions = {
 /**
  * Attach a trend line connecting the two most recent swing highs (resistance)
  * or swing lows (support). Returns the drawing id, or `null` if fewer than
- * two same-type swings were supplied.
+ * two same-type swings were supplied or the drawing feature is not
+ * registered.
  */
 export function addAutoTrendLine(
   chart: ChartInstance,
@@ -205,8 +223,7 @@ export function addAutoTrendLine(
     endPrice,
     ...(options.color ? { color: options.color } : {}),
   };
-  chart.addDrawing(drawing);
-  return drawing.id;
+  return attach(chart, drawing);
 }
 
 // ============================================
@@ -233,7 +250,8 @@ export type AddChannelLineOptions = {
  * primary anchor pair; `channelWidth` is the perpendicular price distance
  * to the opposing swing.
  *
- * Returns the drawing id, or `null` if insufficient anchors were supplied.
+ * Returns the drawing id, or `null` if insufficient anchors were supplied
+ * or the drawing feature is not registered.
  */
 export function addAutoChannelLine(
   chart: ChartInstance,
@@ -291,6 +309,5 @@ export function addAutoChannelLine(
     ...(options.color ? { color: options.color } : {}),
     ...(options.fillColor ? { fillColor: options.fillColor } : {}),
   };
-  chart.addDrawing(drawing);
-  return drawing.id;
+  return attach(chart, drawing);
 }

@@ -63,7 +63,8 @@ export const DEFAULT_INTERACTION_SETTINGS: Readonly<InteractionSettings> = {
 
 export type ViewportAttachOptions = Omit<InteractionOptionsUpdate, "scrollSensitivity"> & {
   /** Called when a hotkey fires (drawing tool, 'cancel', 'toggleOverlays'). */
-  onAction?: (action: HotkeyAction) => void;
+  /** Returning `false` leaves the key to the page (no `preventDefault`). */
+  onAction?: (action: HotkeyAction) => unknown;
   /**
    * Returns whether a drawing tool is currently armed. When `true`, touch
    * handlers suppress gesture defaults (double-tap fitContent, long-press

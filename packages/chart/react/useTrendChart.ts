@@ -82,6 +82,13 @@ export type UseTrendChartOptions = {
   backtest?: BacktestResultData;
   patterns?: ChartPatternSignal[];
   scores?: DataPoint<number | null>[];
+  /**
+   * Optional features from `@trendcraft/chart/features` (e.g.
+   * `[registerBacktest, registerMarkers]`). `signals`, `trades`, `drawings`,
+   * `backtest`, `patterns` and `scores` need theirs. Attached when the chart
+   * is created; changing the array later has no effect.
+   */
+  features?: ((chart: ChartInstance) => void)[];
   plugins?: {
     renderers?: AnySeriesRendererPlugin[];
     primitives?: AnyPrimitivePlugin[];
@@ -111,6 +118,7 @@ export function useTrendChart(opts: UseTrendChartOptions): UseTrendChartResult {
     backtest,
     patterns,
     scores,
+    features,
     plugins,
     chartType,
     layout,
@@ -129,6 +137,7 @@ export function useTrendChart(opts: UseTrendChartOptions): UseTrendChartResult {
   useEffect(() => {
     if (!containerRef.current) return;
     const instance = createChart(containerRef.current, { ...options, theme });
+    for (const register of features ?? []) register(instance);
     optionsTracker.current = createChartOptionsTracker(options);
     setChart(instance);
     return () => {

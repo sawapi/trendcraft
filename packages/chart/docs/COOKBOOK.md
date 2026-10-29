@@ -133,6 +133,9 @@ For a one-shot custom theme at construction, pass it as `createChart(el, { theme
 **Goal:** Pre-place drawings, or let the user draw the next one with the keyboard.
 
 ```typescript
+import { registerDrawingTools } from "@trendcraft/chart/features";
+
+registerDrawingTools(chart);
 chart.addDrawing({
   id: "support-1",
   type: "hline",
@@ -154,8 +157,10 @@ Default hotkeys: `Alt+H` (h-line), `Alt+T` (trendline), `Alt+F` (fib retracement
 
 ```typescript
 import { addAutoFibRetracement } from "@trendcraft/chart";
+import { registerDrawingTools } from "@trendcraft/chart/features";
 import { getAlternatingSwingPoints } from "trendcraft";
 
+registerDrawingTools(chart);
 // getAlternatingSwingPoints returns the SwingAnchor shape directly.
 const anchors = getAlternatingSwingPoints(candles, 10, { leftBars: 5, rightBars: 5 });
 addAutoFibRetracement(chart, anchors);
@@ -170,6 +175,7 @@ Companions: `addAutoFibExtension`, `addAutoTrendLine`, `addAutoChannelLine`.
 **Goal:** Drop a `trendcraft` backtest result onto the chart in one call.
 
 ```typescript
+import { registerBacktest } from "@trendcraft/chart/features";
 import { runBacktest, goldenCrossCondition, deadCrossCondition } from "trendcraft";
 
 const result = runBacktest(
@@ -179,10 +185,11 @@ const result = runBacktest(
   { capital: 1_000_000, stopLoss: 5, takeProfit: 15 },
 );
 
+registerBacktest(chart);
 chart.addBacktest(result);
 ```
 
-`addBacktest` adds entry/exit markers, an equity curve sub-pane, and a summary bar. For just markers, use `addTrades(result.trades)`.
+`addBacktest` adds entry/exit markers, an equity curve sub-pane, and a summary bar. For just markers, use `addTrades(result.trades)` with `registerMarkers`.
 
 ---
 

@@ -1,4 +1,5 @@
 import { definePrimitive, defineSeriesRenderer } from "@trendcraft/chart";
+import { registerBacktest } from "@trendcraft/chart/features";
 import { TrendChart } from "@trendcraft/chart/react";
 import { useMemo, useState } from "react";
 import {
@@ -221,6 +222,7 @@ export function App() {
           candles={candles}
           indicators={indicators}
           backtest={backtestResult}
+          features={[registerBacktest]}
           plugins={plugins}
           theme={theme}
           options={{ watermark: "REACT", volume: !showVolOverlay }}
