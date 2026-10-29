@@ -201,7 +201,11 @@ Draw entry/exit markers with holding-period shading. `TradeMarker = { entryTime,
 ```typescript
 addBacktest(result: BacktestResultData): void
 ```
-Visualize a `trendcraft` `BacktestResult` — trade markers + equity curve sub-pane + summary bar.
+Visualize a `trendcraft` `BacktestResult` — trade markers + equity curve sub-pane + summary bar. Pass the `runBacktest` result as it is.
+
+- **Equity curve:** the result's own `equityCurve` (mark-to-market equity per candle), placed on the candles from `firstBarTime`. The chart never rebuilds a curve from trade returns, which is wrong once positions are sized or partly closed. If the result has no `equityCurve` with a `firstBarTime`, or the curve does not line up with the loaded candles, no curve is drawn, and the chart warns once per result (`NO_EQUITY_CURVE`). The trades and summary are still drawn.
+- **Drawdown shading** follows the drawn curve: from the bar that set a peak until the curve is back at it. `drawdownPeriods` is not read.
+- **Loaded part way** (a replay, or candles that end before the run): trades, the curve and the shading stop at the last loaded candle. The summary shows figures as of that candle: return and max drawdown from the curve so far, trades and win rate from the trades closed by then. Sharpe and profit factor describe the whole run, so they are left out until the run is loaded.
 
 ```typescript
 addPatterns(patterns: ChartPatternSignal[]): void

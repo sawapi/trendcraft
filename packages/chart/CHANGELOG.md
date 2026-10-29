@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Breaking — `addBacktest` draws the engine's equity curve, or none
+
+The equity pane drew a curve rebuilt from the trades, compounding each
+trade's `returnPercent` over the whole account. That only holds when every
+trade uses all the capital once. With partial take-profits it overstated the
+result (one run ended at 162,093 against the engine's 115,939), and with
+position sizing it showed the full-capital curve; the summary in the same
+pane showed the engine's figures, so the two disagreed.
+
+`addBacktest` now draws `result.equityCurve`, the mark-to-market equity
+`runBacktest` computes for each candle, placed on the candles from
+`result.firstBarTime`:
+
+- **Without a usable curve, no curve is drawn.** A result with no
+  `equityCurve` or no `firstBarTime`, or a curve that does not line up with
+  the loaded candles, gets trades and the summary only, and a one-time
+  warning with the new error code `NO_EQUITY_CURVE`.
+- **Drawdown shading follows the drawn curve**, so dips inside a trade are
+  shaded again. `drawdownPeriods` is no longer read and is optional in
+  `BacktestResultData`.
+- **Loaded part way** (a replay): the curve, the equity pane's range and the
+  summary stop at the last loaded candle. The summary shows return and max
+  drawdown from the curve so far, and trades and win rate from the trades
+  closed by then; Sharpe and profit factor are left out until the run is
+  loaded.
+
+`BacktestResultData` gains optional `equityCurve`, `firstBarTime` and
+`lastBarTime`, the fields of the same name in `BacktestResult`.
+
+Migration: pass the `runBacktest` (or `runBacktestScaled`) result as it is;
+it carries all three. A hand-built result must add `equityCurve` and
+`firstBarTime` to keep its curve. A trimmed or filtered result without a
+per-bar curve, such as `applyEquityCurveFilter(...).filtered`, shows no
+curve.
+
 ### Fixed — trades beyond the loaded candles no longer pile up at the right edge
 
 `addBacktest()` and `addTrades()` drew every trade after the last loaded
@@ -18,13 +53,9 @@ as in a replay. Trades are now placed like `addSignals()` markers:
 - A trade that crosses the edge is shaded up to it. Only the marker inside
   the data is drawn, with no line to the other end, so a replay does not show
   an exit that has not happened yet.
-- The equity curve uses only exits up to the last candle, and starts at the
-  equity reached by trades that closed before the first one.
-- Drawdown shading follows the equity curve the chart draws: from the bar that
-  set a peak until the curve is back at it. It no longer reads
-  `result.drawdownPeriods`, which covers the whole run and so shaded losses a
-  replay had not reached. Those periods come from the mark-to-market equity,
-  so a dip inside a trade that closed in profit is no longer shaded.
+
+The equity pane's curve, drawdown shading and summary stop at the last loaded
+candle too; see the Breaking entry on the equity curve above.
 
 ### Changed — bundle size limits
 

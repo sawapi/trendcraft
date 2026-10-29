@@ -247,6 +247,9 @@ describe("render pipeline", () => {
       backtest: {
         check: vi.fn(),
         equityRange: vi.fn(() => [900, 1200] as [number, number]),
+        equityView: vi.fn(() => ({ ok: true, points: [], reached: [] })),
+        equityWarning: vi.fn(() => ""),
+        isPartialRun: vi.fn(() => false),
         renderTrades: vi.fn(),
         renderEquityCurve: vi.fn(),
         renderSummary: vi.fn(),

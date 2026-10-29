@@ -97,8 +97,8 @@ export function checkBacktest(input: unknown): { ok: true } | { ok: false; reaso
   if (!Array.isArray(input.trades)) {
     return { ok: false, reason: "trades must be an array" };
   }
-  if (!Array.isArray(input.drawdownPeriods)) {
-    return { ok: false, reason: "drawdownPeriods must be an array" };
+  if (input.equityCurve !== undefined && !Array.isArray(input.equityCurve)) {
+    return { ok: false, reason: "equityCurve must be an array when given" };
   }
   return { ok: true };
 }

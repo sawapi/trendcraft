@@ -127,7 +127,8 @@ export type ChartErrorCode =
   | "UNKNOWN_INDICATOR_TYPE" // type/preset not registered with the chart
   | "BAD_CANDLE" // a candle object was rejected during setCandles/updateCandle
   | "RENDER_ERROR" // a series renderer or primitive plugin threw while drawing
-  | "FEATURE_NOT_REGISTERED"; // a method needs a feature from @trendcraft/chart/features
+  | "FEATURE_NOT_REGISTERED" // a method needs a feature from @trendcraft/chart/features
+  | "NO_EQUITY_CURVE"; // addBacktest got no usable equityCurve, so the equity line is not drawn
 
 export type ChartErrorPayload = {
   message: string;

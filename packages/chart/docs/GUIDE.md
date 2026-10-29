@@ -234,7 +234,7 @@ chart.on('error', (data) => {
 });
 ```
 
-Top-level rejections (`INVALID_INPUT`) cause the call to be a no-op. So does calling an overlay or drawing method whose feature is not registered (`FEATURE_NOT_REGISTERED`, warned once per feature). Per-element rejections (`INVALID_SHAPE`) drop the offending entries and accept the rest, so a single bad row does not blank a whole signal overlay.
+Top-level rejections (`INVALID_INPUT`) cause the call to be a no-op. So does calling an overlay or drawing method whose feature is not registered (`FEATURE_NOT_REGISTERED`, warned once per feature). A backtest result whose `equityCurve` is missing or does not line up with the candles is drawn without its equity curve (`NO_EQUITY_CURVE`, warned once per result). Per-element rejections (`INVALID_SHAPE`) drop the offending entries and accept the rest, so a single bad row does not blank a whole signal overlay.
 
 ## Extra visualization layers
 

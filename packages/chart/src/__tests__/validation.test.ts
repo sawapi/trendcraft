@@ -108,10 +108,14 @@ describe("checkBacktest", () => {
     if (!res.ok) expect(res.reason).toMatch(/trades/);
   });
 
-  it("rejects when drawdownPeriods is not an array", () => {
-    const res = checkBacktest({ ...validResult, drawdownPeriods: undefined });
+  it("accepts a result without drawdownPeriods, which the chart does not read", () => {
+    expect(checkBacktest({ ...validResult, drawdownPeriods: undefined }).ok).toBe(true);
+  });
+
+  it("rejects an equityCurve that is not an array", () => {
+    const res = checkBacktest({ ...validResult, equityCurve: 1000 });
     expect(res.ok).toBe(false);
-    if (!res.ok) expect(res.reason).toMatch(/drawdownPeriods/);
+    if (!res.ok) expect(res.reason).toMatch(/equityCurve/);
   });
 });
 
