@@ -2,6 +2,25 @@
 
 ## [Unreleased]
 
+### Fixed — a snapshot's params could replace an object's prototype on resume
+
+Resuming an incremental indicator merges the snapshot's params into the
+options. The merge copied every key, so a snapshot parsed from untrusted JSON
+with a `__proto__` key replaced the merged object's prototype. The keys
+`__proto__`, `constructor` and `prototype` are now skipped. This affected
+0.5.0.
+
+### Added — `firstUncomputableField`, `TwapOptions` and `VwapOptions`
+
+- `firstUncomputableField(result)` (from `trendcraft` and
+  `trendcraft/screening`) checks a `screenStock` result. It returns the first
+  of `currentPrice`, `timestamp` and `atrPercent` that is not a finite number,
+  `"atrPercent"` also when `atrSampleCount` is not a positive whole number
+  (the ATR was not measured), or `null`. `runScreening` uses it to skip such
+  symbols (see the screener entry under Breaking).
+- `trendcraft/incremental` now exports the option types `TwapOptions` and
+  `VwapOptions` of `createTwap` and `createVwap`.
+
 ### Deprecated — nine streaming conditions renamed to say what they test
 
 Nine names were shared by a backtest condition and a streaming condition
