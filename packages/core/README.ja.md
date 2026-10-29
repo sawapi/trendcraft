@@ -89,6 +89,7 @@ import { ... } from 'trendcraft/manifest';     // インジケーターメタデ
 - [ガイド](https://github.com/sawapi/trendcraft/blob/main/packages/core/docs/GUIDE.ja.md) — 使い方と概念の解説（[English](https://github.com/sawapi/trendcraft/blob/main/packages/core/docs/GUIDE.md)）
 - [APIリファレンス](https://github.com/sawapi/trendcraft/blob/main/packages/core/docs/API.ja.md) — 全API（[English](https://github.com/sawapi/trendcraft/blob/main/packages/core/docs/API.md)）
 - [クックブック](https://github.com/sawapi/trendcraft/blob/main/packages/core/docs/COOKBOOK.md) — 実践的なレシピ
+- [マイグレーション: 0.5 → 0.6](https://github.com/sawapi/trendcraft/blob/main/packages/core/docs/migration-0.5-to-0.6.md)（英語）
 - [マイグレーション: 0.3 → 0.4](https://github.com/sawapi/trendcraft/blob/main/packages/core/docs/migration-0.3-to-0.4.md)
 - [CHANGELOG](https://github.com/sawapi/trendcraft/blob/main/packages/core/CHANGELOG.md)
 - [llms.txt](https://github.com/sawapi/trendcraft/blob/main/packages/core/llms.txt) / [llms-full.txt](https://github.com/sawapi/trendcraft/blob/main/packages/core/llms-full.txt) — LLM向けサマリー

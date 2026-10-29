@@ -812,13 +812,17 @@ order at that multiple of the bar's volume.
 
 ### Breaking — combination search and anchored walk-forward default to 100,000 capital
 
-`combinationSearch`, `anchoredWalkForwardAnalysis` and `getAWFEquityCurve`
-defaulted to 1,000,000 while `gridSearch`, `walkForwardAnalysis` and
-`paretoOptimization` used `DEFAULT_BACKTEST_CAPITAL` (100,000). With a fixed
-commission, a sizing callback that returns share counts, or a volume
-constraint, their scores were not comparable. All now default to
-`DEFAULT_BACKTEST_CAPITAL`; pass `backtestOptions.capital` (or
-`getAWFEquityCurve`'s `initialCapital`) to keep 1,000,000.
+Called without `backtestOptions`, `combinationSearch` and
+`anchoredWalkForwardAnalysis` backtested with 1,000,000 of capital, and
+`getAWFEquityCurve`'s `initialCapital` defaulted to 1,000,000, while
+`gridSearch`, `walkForwardAnalysis` and `paretoOptimization` used
+`DEFAULT_BACKTEST_CAPITAL` (100,000). All now default to
+`DEFAULT_BACKTEST_CAPITAL`. Percentage results do not change; results in
+currency scale with the capital: `recoveryFactor`, a search ranked by
+`metric: "recoveryFactor"`, and the `getAWFEquityCurve` curve. Code that
+passes its own `backtestOptions` is unaffected. Pass
+`backtestOptions: { capital: 1_000_000 }` (or `getAWFEquityCurve`'s
+`initialCapital`) to keep the old figures.
 
 ### Fixed — risk-based sizing put a wide-stop short at full capital
 

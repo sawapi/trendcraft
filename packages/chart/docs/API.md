@@ -250,7 +250,7 @@ setDrawingTool(tool: DrawingType | null): void
 
 `setDrawingTool(tool)` puts the chart into interactive-drawing mode — the next user click places a drawing of that type. `setDrawingTool(null)` exits.
 
-Drawings and the drawing tools (including the `Alt+H` / `Alt+T` / `Alt+F` hotkeys) need `registerDrawingTools` from `@trendcraft/chart/features`. Without it, `addDrawing` and `setDrawingTool` warn once (`FEATURE_NOT_REGISTERED`) and do nothing; `getDrawings` returns `[]`. A drawing hotkey pressed on such a chart is ignored silently and left to the page: the keystroke is the user's, not a mistake in the app.
+Drawings and the drawing tools (including the drawing hotkeys, `Alt+H` / `Alt+V` / `Alt+T` / `Alt+F` / `Alt+C` by default) need `registerDrawingTools` from `@trendcraft/chart/features`. Without it, `addDrawing` and `setDrawingTool` warn once (`FEATURE_NOT_REGISTERED`) and do nothing; `getDrawings` returns `[]`. A drawing hotkey pressed on such a chart is ignored silently and left to the page: the keystroke is the user's, not a mistake in the app.
 
 ### Optional features
 

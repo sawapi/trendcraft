@@ -49,6 +49,7 @@ const DOC_FILES = [
   "docs/API.md",
   "docs/GUIDE.ja.md",
   "docs/API.ja.md",
+  "docs/migration-0.5-to-0.6.md",
   "README.md",
   "README.ja.md",
   "llms.txt",

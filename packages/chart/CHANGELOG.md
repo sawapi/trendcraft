@@ -138,15 +138,15 @@ measured sizes back down: main is 41.05 kB, the wrappers 32.37 and
 
 Four features moved out of the core bundle into `@trendcraft/chart/features`.
 A chart that never uses them no longer ships their code. The main bundle,
-`createChart` with all exports, went from 44.31 to 41.1 kB (brotli, as
-size-limit measures it), and the React and Vue wrappers each lost about
-3.3 kB. Registering features adds their code back: `registerAll` costs
-3.8 kB, so an app that migrates with it ends up about 0.6 kB larger than
-before, which is the cost of the registration step.
+`createChart` with all exports, went from about 44.3 kB to about 41 kB
+(brotli, as size-limit measures it), and the React and Vue wrappers each
+lost about 3.3 kB. Registering features adds their code back: `registerAll`
+costs about 4.5 kB, so an app that migrates with it ends up slightly larger
+than before, which is the cost of the registration step.
 
 | Register function | Enables |
 |---|---|
-| `registerDrawingTools(chart)` | `addDrawing`, `setDrawingTool`, the `Alt+H` / `Alt+T` / `Alt+F` hotkeys, and the drawing auto-injection helpers (`addAutoFibRetracement` and the rest) |
+| `registerDrawingTools(chart)` | `addDrawing`, `setDrawingTool`, the drawing hotkeys (`Alt+H` / `Alt+V` / `Alt+T` / `Alt+F` / `Alt+C` by default), and the drawing auto-injection helpers (`addAutoFibRetracement` and the rest) |
 | `registerBacktest(chart)` | `addBacktest`, `addPatterns` |
 | `registerMarkers(chart)` | `addSignals`, `addTrades` |
 | `registerScores(chart)` | `addScores` |
@@ -157,8 +157,9 @@ feature, they warn once per feature, emit an `error` event with the new code
 `FEATURE_NOT_REGISTERED`, and do nothing. They do not throw, so an app that
 passes these props through the React or Vue wrapper keeps running. The
 drawing auto-injection helpers return `null` when the drawing was not
-attached. A drawing hotkey (`Alt+H` / `Alt+T` / `Alt+F`) pressed on a chart
-without drawing tools is ignored silently and left to the page.
+attached. A drawing hotkey (`Alt+H` / `Alt+V` / `Alt+T` / `Alt+F` / `Alt+C` by
+default, or a custom `hotkeys` entry mapped to a drawing type) pressed on a
+chart without drawing tools is ignored silently and left to the page.
 
 The design follows the industry: lightweight-charts v5 moved series types and
 markers into separately imported functions, Chart.js has `Chart.register` and

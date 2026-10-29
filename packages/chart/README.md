@@ -160,6 +160,7 @@ Runnable example apps live in the repo. Clone it, `pnpm install`, then start any
 | [COOKBOOK](https://github.com/sawapi/trendcraft/blob/main/packages/chart/docs/COOKBOOK.md) | You want copy-paste recipes — minimal chart, theming, live data, React/Vue, sparklines, PNG export, headless |
 | [PLUGINS](https://github.com/sawapi/trendcraft/blob/main/packages/chart/docs/PLUGINS.md) | You're writing a custom series renderer or pane primitive |
 | [LIVE](https://github.com/sawapi/trendcraft/blob/main/packages/chart/docs/LIVE.md) | You're wiring a real-time feed — WebSocket → `createLiveCandle` → chart |
+| [Migration: 0.5 → 0.6](https://github.com/sawapi/trendcraft/blob/main/packages/chart/docs/migration-0.5-to-0.6.md) | You're upgrading from 0.5 — feature registration, the backtest equity curve, wrapper events |
 
 Also published: [`CHANGELOG.md`](https://github.com/sawapi/trendcraft/blob/main/packages/chart/CHANGELOG.md), and machine-readable [`llms.txt`](./llms.txt) / [`llms-full.txt`](./llms-full.txt).
 

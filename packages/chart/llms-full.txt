@@ -169,6 +169,7 @@ Runnable example apps live in the repo. Clone it, `pnpm install`, then start any
 | [COOKBOOK](https://github.com/sawapi/trendcraft/blob/main/packages/chart/docs/COOKBOOK.md) | You want copy-paste recipes — minimal chart, theming, live data, React/Vue, sparklines, PNG export, headless |
 | [PLUGINS](https://github.com/sawapi/trendcraft/blob/main/packages/chart/docs/PLUGINS.md) | You're writing a custom series renderer or pane primitive |
 | [LIVE](https://github.com/sawapi/trendcraft/blob/main/packages/chart/docs/LIVE.md) | You're wiring a real-time feed — WebSocket → `createLiveCandle` → chart |
+| [Migration: 0.5 → 0.6](https://github.com/sawapi/trendcraft/blob/main/packages/chart/docs/migration-0.5-to-0.6.md) | You're upgrading from 0.5 — feature registration, the backtest equity curve, wrapper events |
 
 Also published: [`CHANGELOG.md`](https://github.com/sawapi/trendcraft/blob/main/packages/chart/CHANGELOG.md), and machine-readable [`llms.txt`](./llms.txt) / [`llms-full.txt`](./llms-full.txt).
 
@@ -328,15 +329,15 @@ measured sizes back down: main is 41.05 kB, the wrappers 32.37 and
 
 Four features moved out of the core bundle into `@trendcraft/chart/features`.
 A chart that never uses them no longer ships their code. The main bundle,
-`createChart` with all exports, went from 44.31 to 41.1 kB (brotli, as
-size-limit measures it), and the React and Vue wrappers each lost about
-3.3 kB. Registering features adds their code back: `registerAll` costs
-3.8 kB, so an app that migrates with it ends up about 0.6 kB larger than
-before, which is the cost of the registration step.
+`createChart` with all exports, went from about 44.3 kB to about 41 kB
+(brotli, as size-limit measures it), and the React and Vue wrappers each
+lost about 3.3 kB. Registering features adds their code back: `registerAll`
+costs about 4.5 kB, so an app that migrates with it ends up slightly larger
+than before, which is the cost of the registration step.
 
 | Register function | Enables |
 |---|---|
-| `registerDrawingTools(chart)` | `addDrawing`, `setDrawingTool`, the `Alt+H` / `Alt+T` / `Alt+F` hotkeys, and the drawing auto-injection helpers (`addAutoFibRetracement` and the rest) |
+| `registerDrawingTools(chart)` | `addDrawing`, `setDrawingTool`, the drawing hotkeys (`Alt+H` / `Alt+V` / `Alt+T` / `Alt+F` / `Alt+C` by default), and the drawing auto-injection helpers (`addAutoFibRetracement` and the rest) |
 | `registerBacktest(chart)` | `addBacktest`, `addPatterns` |
 | `registerMarkers(chart)` | `addSignals`, `addTrades` |
 | `registerScores(chart)` | `addScores` |
@@ -347,8 +348,9 @@ feature, they warn once per feature, emit an `error` event with the new code
 `FEATURE_NOT_REGISTERED`, and do nothing. They do not throw, so an app that
 passes these props through the React or Vue wrapper keeps running. The
 drawing auto-injection helpers return `null` when the drawing was not
-attached. A drawing hotkey (`Alt+H` / `Alt+T` / `Alt+F`) pressed on a chart
-without drawing tools is ignored silently and left to the page.
+attached. A drawing hotkey (`Alt+H` / `Alt+V` / `Alt+T` / `Alt+F` / `Alt+C` by
+default, or a custom `hotkeys` entry mapped to a drawing type) pressed on a
+chart without drawing tools is ignored silently and left to the page.
 
 The design follows the industry: lightweight-charts v5 moved series types and
 markers into separately imported functions, Chart.js has `Chart.register` and
@@ -2479,7 +2481,7 @@ setDrawingTool(tool: DrawingType | null): void
 
 `setDrawingTool(tool)` puts the chart into interactive-drawing mode — the next user click places a drawing of that type. `setDrawingTool(null)` exits.
 
-Drawings and the drawing tools (including the `Alt+H` / `Alt+T` / `Alt+F` hotkeys) need `registerDrawingTools` from `@trendcraft/chart/features`. Without it, `addDrawing` and `setDrawingTool` warn once (`FEATURE_NOT_REGISTERED`) and do nothing; `getDrawings` returns `[]`. A drawing hotkey pressed on such a chart is ignored silently and left to the page: the keystroke is the user's, not a mistake in the app.
+Drawings and the drawing tools (including the drawing hotkeys, `Alt+H` / `Alt+V` / `Alt+T` / `Alt+F` / `Alt+C` by default) need `registerDrawingTools` from `@trendcraft/chart/features`. Without it, `addDrawing` and `setDrawingTool` warn once (`FEATURE_NOT_REGISTERED`) and do nothing; `getDrawings` returns `[]`. A drawing hotkey pressed on such a chart is ignored silently and left to the page: the keystroke is the user's, not a mistake in the app.
 
 ### Optional features
 
@@ -4025,7 +4027,7 @@ chart.addDrawing({
 chart.setDrawingTool("trendline");
 ```
 
-Default hotkeys: `Alt+H` (h-line), `Alt+T` (trendline), `Alt+F` (fib retracement), `Esc` (cancel). Override or disable via `ChartOptions.hotkeys`.
+Default hotkeys: `Alt+H` (h-line), `Alt+V` (v-line), `Alt+T` (trendline), `Alt+F` (fib retracement), `Alt+C` (channel), `Esc` (cancel), `Ctrl+Alt+H` (toggle overlays). Override or disable via `ChartOptions.hotkeys`.
 
 ---
 

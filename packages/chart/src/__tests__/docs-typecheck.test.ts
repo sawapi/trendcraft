@@ -40,6 +40,7 @@ const DOC_FILES = [
   "docs/GUIDE.md",
   "docs/LIVE.md",
   "docs/PLUGINS.md",
+  "docs/migration-0.5-to-0.6.md",
   "README.md",
 ];
 

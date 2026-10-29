@@ -147,7 +147,7 @@ chart.addDrawing({
 chart.setDrawingTool("trendline");
 ```
 
-Default hotkeys: `Alt+H` (h-line), `Alt+T` (trendline), `Alt+F` (fib retracement), `Esc` (cancel). Override or disable via `ChartOptions.hotkeys`.
+Default hotkeys: `Alt+H` (h-line), `Alt+V` (v-line), `Alt+T` (trendline), `Alt+F` (fib retracement), `Alt+C` (channel), `Esc` (cancel), `Ctrl+Alt+H` (toggle overlays). Override or disable via `ChartOptions.hotkeys`.
 
 ---
 
