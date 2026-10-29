@@ -1,4 +1,5 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { version } from "../package.json";
 import { calcIndicatorHandler, calcIndicatorInputShape } from "./tools/calc";
 import { detectSignalHandler, detectSignalInputShape } from "./tools/detect-signal";
 import { listSignalsHandler, listSignalsInputShape } from "./tools/list-signals";
@@ -15,7 +16,8 @@ import {
 } from "./tools/manifest";
 
 export const SERVER_NAME = "trendcraft-mcp";
-export const SERVER_VERSION = "0.2.0";
+/** The package version, read from package.json at build time. */
+export const SERVER_VERSION: string = version;
 
 function jsonResult(data: unknown) {
   return {

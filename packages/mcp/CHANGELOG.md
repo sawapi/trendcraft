@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Fixed — the server reports its real version
+
+`SERVER_VERSION`, which the server sends to clients on connect, was a
+hand-written `"0.2.0"` that the 0.3.0 release still reported. It is now read
+from `package.json` at build time.
+
 ### Security — a large `candles` array could exhaust the server's memory
 
 An array schema in `zod` records one issue per invalid element
