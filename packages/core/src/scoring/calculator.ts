@@ -27,6 +27,8 @@ import type {
   SignalContribution,
   SignalDefinition,
 } from "../types";
+import { assertInRange } from "../utils/validate-number";
+import { assertScoringConfig } from "./validate";
 
 /**
  * Pre-compute all required indicators for the scoring configuration
@@ -175,6 +177,7 @@ export function calculateScore(
   context?: MtfContext,
   precomputed?: PrecomputedIndicators,
 ): ScoreResult {
+  assertScoringConfig("calculateScore", config);
   const { signals } = config;
   const strongThreshold = config.strongThreshold ?? 70;
   const moderateThreshold = config.moderateThreshold ?? 50;
@@ -238,6 +241,7 @@ export function calculateScoreBreakdown(
   context?: MtfContext,
   precomputed?: PrecomputedIndicators,
 ): ScoreBreakdown {
+  assertScoringConfig("calculateScoreBreakdown", config);
   const { signals } = config;
   const strongThreshold = config.strongThreshold ?? 70;
   const moderateThreshold = config.moderateThreshold ?? 50;
@@ -371,6 +375,7 @@ export function isScoreAbove(
   config: ScoringConfig,
   context?: MtfContext,
 ): boolean {
+  assertInRange("isScoreAbove threshold", threshold, 0, 100);
   const result = calculateScore(candles, index, config, context);
   return result.normalizedScore >= threshold;
 }
@@ -392,6 +397,7 @@ export function isScoreBelow(
   config: ScoringConfig,
   context?: MtfContext,
 ): boolean {
+  assertInRange("isScoreBelow threshold", threshold, 0, 100);
   const result = calculateScore(candles, index, config, context);
   return result.normalizedScore <= threshold;
 }

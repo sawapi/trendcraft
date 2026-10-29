@@ -22,6 +22,7 @@ import {
   createVolumeAnomalyEvaluator,
   createVolumeSpikeEvaluator,
 } from "./signals";
+import { assertScoreThresholds, assertSignalWeight } from "./validate";
 
 /**
  * Fluent builder for creating scoring configurations
@@ -46,6 +47,12 @@ export class ScoreBuilder {
 
   private constructor() {}
 
+  /** Append a signal after checking its weight. */
+  private add(signal: SignalDefinition): void {
+    assertSignalWeight(`ScoreBuilder signal "${signal.name}" weight`, signal.weight);
+    this.signals.push(signal);
+  }
+
   /**
    * Create a new ScoreBuilder instance
    */
@@ -57,6 +64,7 @@ export class ScoreBuilder {
    * Set custom thresholds for strength classification
    */
   setThresholds(strong: number, moderate: number, weak: number): this {
+    assertScoreThresholds("ScoreBuilder.setThresholds", strong, moderate, weak);
     this.strongThreshold = strong;
     this.moderateThreshold = moderate;
     this.weakThreshold = weak;
@@ -67,7 +75,7 @@ export class ScoreBuilder {
    * Add a custom signal definition
    */
   addSignal(signal: SignalDefinition): this {
-    this.signals.push(signal);
+    this.add(signal);
     return this;
   }
 
@@ -75,7 +83,7 @@ export class ScoreBuilder {
    * Add multiple signals at once
    */
   addSignals(signals: SignalDefinition[]): this {
-    this.signals.push(...signals);
+    for (const signal of signals) this.add(signal);
     return this;
   }
 
@@ -90,7 +98,7 @@ export class ScoreBuilder {
    * @param period - RSI period (default: 14)
    */
   addRsiOversold(threshold = 30, weight = 2.0, period = 14): this {
-    this.signals.push({
+    this.add({
       name: `rsiOversold${threshold}`,
       displayName: `RSI < ${threshold}`,
       weight,
@@ -108,7 +116,7 @@ export class ScoreBuilder {
    * @param period - RSI period (default: 14)
    */
   addRsiOverbought(threshold = 70, weight = 2.0, period = 14): this {
-    this.signals.push({
+    this.add({
       name: `rsiOverbought${threshold}`,
       displayName: `RSI > ${threshold}`,
       weight,
@@ -123,7 +131,7 @@ export class ScoreBuilder {
    * Add MACD bullish crossover signal
    */
   addMacdBullish(weight = 1.5): this {
-    this.signals.push({
+    this.add({
       name: "macdBullish",
       displayName: "MACD Bullish",
       weight,
@@ -138,7 +146,7 @@ export class ScoreBuilder {
    * Add MACD bearish crossover signal
    */
   addMacdBearish(weight = 1.5): this {
-    this.signals.push({
+    this.add({
       name: "macdBearish",
       displayName: "MACD Bearish",
       weight,
@@ -153,7 +161,7 @@ export class ScoreBuilder {
    * Add Stochastics oversold signal
    */
   addStochOversold(threshold = 20, weight = 1.5): this {
-    this.signals.push({
+    this.add({
       name: `stochOversold${threshold}`,
       displayName: `Stoch < ${threshold}`,
       weight,
@@ -168,7 +176,7 @@ export class ScoreBuilder {
    * Add Stochastics bullish crossover signal
    */
   addStochBullishCross(oversoldThreshold = 20, weight = 2.0): this {
-    this.signals.push({
+    this.add({
       name: "stochBullishCross",
       displayName: "Stoch Bull Cross",
       weight,
@@ -187,7 +195,7 @@ export class ScoreBuilder {
    * Add Perfect Order bullish signal
    */
   addPerfectOrderBullish(weight = 3.0): this {
-    this.signals.push({
+    this.add({
       name: "poBullish",
       displayName: "Perfect Order (Bull)",
       weight,
@@ -202,7 +210,7 @@ export class ScoreBuilder {
    * Add PO+ Confirmation signal
    */
   addPOConfirmation(weight = 3.0): this {
-    this.signals.push({
+    this.add({
       name: "poConfirmation",
       displayName: "PO+ Confirmation",
       weight,
@@ -219,7 +227,7 @@ export class ScoreBuilder {
    * @param weight - Signal weight (default: 2.0)
    */
   addPullbackEntry(maPeriod = 20, weight = 2.0): this {
-    this.signals.push({
+    this.add({
       name: `pullback${maPeriod}`,
       displayName: `Pullback to ${maPeriod}MA`,
       weight,
@@ -234,7 +242,7 @@ export class ScoreBuilder {
    * Add golden cross signal
    */
   addGoldenCross(shortPeriod = 50, longPeriod = 200, weight = 2.5): this {
-    this.signals.push({
+    this.add({
       name: "goldenCross",
       displayName: `Golden Cross (${shortPeriod}/${longPeriod})`,
       weight,
@@ -249,7 +257,7 @@ export class ScoreBuilder {
    * Add price above EMA signal
    */
   addPriceAboveEma(period = 20, weight = 1.0): this {
-    this.signals.push({
+    this.add({
       name: `priceAboveEma${period}`,
       displayName: `Price > EMA${period}`,
       weight,
@@ -268,7 +276,7 @@ export class ScoreBuilder {
    * Add volume spike signal
    */
   addVolumeSpike(threshold = 1.5, weight = 1.5): this {
-    this.signals.push({
+    this.add({
       name: "volumeSpike",
       displayName: "Volume Spike",
       weight,
@@ -283,7 +291,7 @@ export class ScoreBuilder {
    * Add volume anomaly signal
    */
   addVolumeAnomaly(zThreshold = 2, weight = 2.0): this {
-    this.signals.push({
+    this.add({
       name: "volumeAnomaly",
       displayName: `Volume Anomaly (${zThreshold}σ)`,
       weight,
@@ -298,7 +306,7 @@ export class ScoreBuilder {
    * Add bullish volume trend signal
    */
   addBullishVolumeTrend(weight = 1.5): this {
-    this.signals.push({
+    this.add({
       name: "bullishVolumeTrend",
       displayName: "Bullish Volume",
       weight,
@@ -313,7 +321,7 @@ export class ScoreBuilder {
    * Add CMF positive signal
    */
   addCmfPositive(threshold = 0.1, weight = 1.5): this {
-    this.signals.push({
+    this.add({
       name: "cmfPositive",
       displayName: `CMF > ${threshold}`,
       weight,

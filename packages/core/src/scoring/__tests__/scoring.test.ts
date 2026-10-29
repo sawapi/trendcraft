@@ -760,7 +760,9 @@ describe("Backtest Conditions", () => {
       // Score = 100, active = 2
       expect(evalAt(scoreWithMinSignals(70, 2, config), testCandles, 99)).toBe(true);
       expect(evalAt(scoreWithMinSignals(70, 3, config), testCandles, 99)).toBe(false); // not enough signals
-      expect(evalAt(scoreWithMinSignals(101, 2, config), testCandles, 99)).toBe(false); // score too low
+      // A threshold above 100 can never be reached; it is rejected rather than
+      // silently never firing.
+      expect(() => scoreWithMinSignals(101, 2, config)).toThrow(/between 0 and 100/);
     });
   });
 

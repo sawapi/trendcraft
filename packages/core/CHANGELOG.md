@@ -2,6 +2,33 @@
 
 ## [Unreleased]
 
+### Breaking — scoring rejects invalid weights, thresholds and condition arguments
+
+The score is `Σ value × weight / Σ weight`, and nothing checked its inputs:
+
+- A negative signal weight flipped that signal's direction.
+- A `NaN` weight turned every score into `NaN`.
+- Strength thresholds out of order made a band unreachable; for example, a
+  weak threshold above the moderate one meant "moderate" never appeared.
+- `scoreAbove(150)` and the like could never fire.
+
+Now:
+
+- Weights must be finite and at least 0. Zero still switches a signal off.
+- `strongThreshold`, `moderateThreshold` and `weakThreshold` must lie in
+  [0, 100] with strong ≥ moderate ≥ weak.
+- Score thresholds in `scoreAbove`, `scoreBelow`, `scoreWithMinSignals`,
+  `isScoreAbove` and `isScoreBelow` must lie in [0, 100].
+- `minActive` must be a non-negative integer, and `scoreIncreasing`'s
+  `minIncrease` must be finite.
+
+Where each check runs:
+
+- `calculateScore` and `calculateScoreBreakdown` check the configuration.
+- `ScoreBuilder` checks each weight and `setThresholds` as they are called.
+- The score conditions check their arguments and configuration when they
+  are created.
+
 ### Breaking — batch and incremental indicators agree on whether `period` has a default
 
 Seven indicators defaulted `period` on one side and required it on the

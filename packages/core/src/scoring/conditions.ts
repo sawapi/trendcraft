@@ -11,8 +11,11 @@
 
 import type { PresetCondition, ScoringConfig, ScoringPreset } from "../types";
 import { assertOneOf, keywords } from "../utils/validate-keyword";
+import { assertFinite, assertInRange } from "../utils/validate-number";
+import { assertPeriod } from "../utils/validate-period";
 import { calculateScore } from "./calculator";
 import { getPreset } from "./presets";
+import { assertScoringConfig } from "./validate";
 
 const STRENGTHS = keywords<Parameters<typeof scoreStrength>[0]>()(["strong", "moderate", "weak"]);
 
@@ -44,6 +47,8 @@ export function scoreAbove(
   config: ScoringConfig | ScoringPreset,
 ): PresetCondition {
   const resolvedConfig = typeof config === "string" ? getPreset(config) : config;
+  assertInRange("scoreAbove threshold", threshold, 0, 100);
+  assertScoringConfig("scoreAbove", resolvedConfig);
 
   return {
     type: "preset",
@@ -67,6 +72,8 @@ export function scoreBelow(
   config: ScoringConfig | ScoringPreset,
 ): PresetCondition {
   const resolvedConfig = typeof config === "string" ? getPreset(config) : config;
+  assertInRange("scoreBelow threshold", threshold, 0, 100);
+  assertScoringConfig("scoreBelow", resolvedConfig);
 
   return {
     type: "preset",
@@ -91,6 +98,7 @@ export function scoreStrength(
 ): PresetCondition {
   assertOneOf("scoreStrength strength", strength, STRENGTHS);
   const resolvedConfig = typeof config === "string" ? getPreset(config) : config;
+  assertScoringConfig("scoreStrength", resolvedConfig);
 
   return {
     type: "preset",
@@ -122,6 +130,8 @@ export function minActiveSignals(
   config: ScoringConfig | ScoringPreset,
 ): PresetCondition {
   const resolvedConfig = typeof config === "string" ? getPreset(config) : config;
+  assertPeriod("minActiveSignals minActive", minActive, 0);
+  assertScoringConfig("minActiveSignals", resolvedConfig);
 
   return {
     type: "preset",
@@ -147,6 +157,9 @@ export function scoreWithMinSignals(
   config: ScoringConfig | ScoringPreset,
 ): PresetCondition {
   const resolvedConfig = typeof config === "string" ? getPreset(config) : config;
+  assertInRange("scoreWithMinSignals threshold", threshold, 0, 100);
+  assertPeriod("scoreWithMinSignals minActive", minActive, 0);
+  assertScoringConfig("scoreWithMinSignals", resolvedConfig);
 
   return {
     type: "preset",
@@ -170,6 +183,8 @@ export function scoreIncreasing(
   config: ScoringConfig | ScoringPreset,
 ): PresetCondition {
   const resolvedConfig = typeof config === "string" ? getPreset(config) : config;
+  assertFinite("scoreIncreasing minIncrease", minIncrease);
+  assertScoringConfig("scoreIncreasing", resolvedConfig);
 
   return {
     type: "preset",

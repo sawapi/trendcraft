@@ -3526,6 +3526,8 @@ const config = ScoreBuilder.create()
 | | `addSignal` | SignalDefinition | カスタムシグナル |
 | | `addSignals` | SignalDefinition[] | 複数シグナル |
 
+ウェイトは有限で 0 以上（0 はそのシグナルを無効にします）。閾値は [0, 100] の範囲で、strong ≥ moderate ≥ weak の順である必要があります。ビルダーは呼んだ時点で、`calculateScore` は手で組んだ設定をそれぞれ検査します。
+
 ---
 
 ### スコア計算
