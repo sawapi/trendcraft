@@ -1,0 +1,8 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": ["examples/quick-start/**/*.ts", "examples/sp500-showcase/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

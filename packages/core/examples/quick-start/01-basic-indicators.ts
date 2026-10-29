@@ -39,7 +39,7 @@ const candles = generateCandles(60);
 const sma20 = sma(candles, { period: 20 });
 const ema12 = ema(candles, { period: 12 });
 const rsi14 = rsi(candles, { period: 14 });
-const macdData = macd(candles, { fast: 12, slow: 26, signal: 9 });
+const macdData = macd(candles, { fastPeriod: 12, slowPeriod: 26, signalPeriod: 9 });
 const bb = bollingerBands(candles, { period: 20, stdDev: 2 });
 
 // Show last 5 values

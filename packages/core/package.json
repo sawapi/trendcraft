@@ -56,7 +56,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "typecheck": "tsc --noEmit && tsc -p tsconfig.node.json",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.node.json && tsc -p tsconfig.examples.json",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "biome check .",
