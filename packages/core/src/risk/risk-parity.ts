@@ -17,8 +17,6 @@ export type RiskParityOptions = {
   maxIterations?: number;
   /** Convergence tolerance (default: 1e-8) */
   tolerance?: number;
-  /** Unused — reserved for future use; riskParityAllocation does not read this option */
-  riskFreeRate?: number;
 };
 
 /** Result of risk parity allocation */

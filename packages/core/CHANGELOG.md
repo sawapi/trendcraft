@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Breaking — `RiskParityOptions.riskFreeRate` is removed
+
+`riskParityAllocation` never read `riskFreeRate`: passing it changed nothing.
+Equal risk contribution on variance does not depend on a risk-free rate;
+Riskfolio-Lib and skfolio take one only for lower-partial-moment risk
+measures and reported ratios. Passing it in an object literal is now a
+compile error. Remove it; results are unchanged.
+
 ### Breaking — scoring rejects invalid weights, thresholds and condition arguments
 
 The score is `Σ value × weight / Σ weight`, and nothing checked its inputs:
