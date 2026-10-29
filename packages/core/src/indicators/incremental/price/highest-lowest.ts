@@ -63,6 +63,20 @@ type HighestLowestParams = {
  * ```
  */
 export function createHighestLowest(
+  options: { period?: number },
+  warmUpOptions: {
+    fromState: IndicatorSnapshot<HighestLowestState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<HighestLowestValue, IndicatorSnapshot<HighestLowestState>>;
+export function createHighestLowest(
+  options: { period: number },
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<HighestLowestState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<HighestLowestValue, IndicatorSnapshot<HighestLowestState>>;
+export function createHighestLowest(
   options: { period?: number } = {},
   warmUpOptions?: {
     fromState?: IndicatorSnapshot<HighestLowestState>;

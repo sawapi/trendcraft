@@ -555,7 +555,8 @@ describeContract<number | null, ReturnsState>({
 // `period` carries forward as raw high/low values.
 describeContract<HighestLowestValueShape, HighestLowestState>({
   name: "highestLowest",
-  create: (opts, warmUp) => createHighestLowest(opts as { period?: number }, warmUp),
+  // The harness passes period on a fresh start; on a resume it may come from the snapshot
+  create: (opts, warmUp) => createHighestLowest(opts as { period: number }, warmUp),
   category: "windowed",
   version: 1,
   defaultParams: { period: 20 },

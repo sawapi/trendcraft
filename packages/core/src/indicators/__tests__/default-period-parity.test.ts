@@ -73,7 +73,13 @@ describe("default period parity between batch and incremental", () => {
   it("highestLowest requires period on both sides", () => {
     // @ts-expect-error period is required in the batch options
     expect(() => highestLowest(candles, {})).toThrow();
+    // @ts-expect-error period is required for a new indicator (JavaScript callers get the runtime error)
     expect(() => createHighestLowest()).toThrow(/required option "period"/);
+    // @ts-expect-error likewise with an options object that leaves it out
+    expect(() => createHighestLowest({})).toThrow(/required option "period"/);
     expect(() => createHighestLowest({ period: 20 })).not.toThrow();
+    // A resume takes period from the snapshot, so it may be left out
+    const saved = createHighestLowest({ period: 20 }).getState();
+    expect(() => createHighestLowest({}, { fromState: saved })).not.toThrow();
   });
 });
