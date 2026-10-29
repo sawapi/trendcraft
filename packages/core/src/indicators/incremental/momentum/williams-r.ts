@@ -86,7 +86,7 @@ export function createWilliamsR(
     category: "windowed",
     options,
     fromState: warmUpOptions?.fromState ?? null,
-    defaults: {},
+    defaults: { period: 14 }, // same as the batch williamsR()
   });
 
   const period = requirePeriod("williamsR", params, "period");

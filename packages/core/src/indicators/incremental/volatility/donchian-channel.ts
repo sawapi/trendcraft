@@ -8,10 +8,9 @@
  * Shows highest high and lowest low over N periods.
  * Uses CircularBuffer with linear scan for min/max.
  *
- * Defaults: `period` has no canonical default (Pine `ta.donchian`
- * requires it from the caller); aligned with the SMA / WMA / VWMA / SD
- * migration pattern. On resume, `period` may be omitted to inherit
- * from the snapshot.
+ * Defaults: `period` defaults to 20, the same as the batch
+ * `donchianChannel()`. On resume, `period` may be omitted to inherit from
+ * the snapshot.
  */
 
 import type { NormalizedCandle } from "../../../types";
@@ -80,7 +79,7 @@ export function createDonchianChannel(
     category: "windowed",
     options,
     fromState: warmUpOptions?.fromState ?? null,
-    defaults: {}, // `period` is intentionally absent — no canonical default.
+    defaults: { period: 20 }, // same as the batch donchianChannel()
   });
 
   const period = requirePeriod("donchianChannel", params, "period");

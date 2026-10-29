@@ -10,9 +10,8 @@
  * Rolling population standard deviation (divides by N, matching the
  * batch `standardDeviation()` and TA-Lib convention).
  *
- * Defaults: `source` defaults to `"close"`. `period` has no canonical
- * default — TA-Lib's `STDDEV` requires it from the caller; aligned
- * with the SMA / WMA / VWMA migration pattern.
+ * Defaults: `period` defaults to 20 and `source` to `"close"`, the same as
+ * the batch `standardDeviation()`.
  */
 
 import { centeredMoments } from "../../../core/statistics";
@@ -83,7 +82,7 @@ export function createStandardDeviation(
     category: "windowed",
     options,
     fromState: warmUpOptions?.fromState ?? null,
-    defaults: { source: "close" }, // `period` is intentionally absent — no canonical default.
+    defaults: { period: 20, source: "close" }, // same as the batch standardDeviation()
   });
 
   const period = requirePeriod("standardDeviation", params, "period");

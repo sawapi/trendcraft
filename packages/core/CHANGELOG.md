@@ -2,6 +2,25 @@
 
 ## [Unreleased]
 
+### Breaking — batch and incremental indicators agree on whether `period` has a default
+
+Seven indicators defaulted `period` on one side and required it on the
+other. Each pair now behaves the same.
+
+**Default added (not breaking).** The new default is the one the other side
+already used:
+- `createDonchianChannel`, `createCci`, `createRoc`,
+  `createStandardDeviation` and `createWilliamsR` now default `period` to
+  20, 20, 12, 20 and 14, matching their batch functions.
+- The batch `superSmoother` now defaults `period` to 10, matching
+  `createSuperSmoother`, and its options argument may be omitted.
+
+**Default removed (breaking).** `createHighestLowest` now requires `period`,
+as `highestLowest` always has. It used to default to 20. Libraries
+disagree on this window: TA-Lib's MAX/MIN default to 30, and Tulip has no
+default. Pass `{ period: 20 }` to keep the old behaviour. The streaming
+presets already pass it.
+
 ### Fixed — `pipeline.peek()` moved stateful streaming conditions to the forming bar
 
 Streaming conditions that compare with the previous bar (crosses, `*Rising` /

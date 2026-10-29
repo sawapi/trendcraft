@@ -8,14 +8,19 @@
  * Rolling maximum of highs and minimum of lows over a configurable period.
  * Uses CircularBuffer with O(n) scan per update (period is typically small).
  *
- * Defaults: `period` defaults to `20` (matching the live-presets
- * convention and TradingView's `ta.highest` / `ta.lowest` typical usage).
+ * Defaults: `period` has no default and must be supplied, as for the batch
+ * `highestLowest()`. Libraries disagree on one (TA-Lib's MAX/MIN use 30,
+ * Tulip none). On resume, it may be omitted to inherit from the snapshot.
  */
 
 import type { NormalizedCandle } from "../../../types";
-import { isPeriod } from "../../../utils/validate-period";
 import { CircularBuffer } from "../circular-buffer";
-import { type IndicatorSnapshot, makeSnapshot, resolveResume } from "../state-contract";
+import {
+  type IndicatorSnapshot,
+  makeSnapshot,
+  requirePeriod,
+  resolveResume,
+} from "../state-contract";
 import type { IncrementalIndicator } from "../types";
 
 export type HighestLowestValue = {
@@ -69,13 +74,10 @@ export function createHighestLowest(
     category: "windowed",
     options,
     fromState: warmUpOptions?.fromState ?? null,
-    defaults: { period: 20 },
+    defaults: {}, // `period` is required, as in the batch highestLowest()
   });
 
-  const period = params.period;
-  if (!isPeriod(period)) {
-    throw new Error('highestLowest: option "period" must be a positive integer');
-  }
+  const period = requirePeriod("highestLowest", params, "period");
 
   let highBuffer: CircularBuffer<number>;
   let lowBuffer: CircularBuffer<number>;
