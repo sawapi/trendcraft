@@ -569,8 +569,13 @@ export function connectIndicators(
     const historyData =
       _runningHistory.length > 0 ? computeData(preset, params, _runningHistory) : [];
 
-    // Build series config
+    // Build series config. A computed series tagged with a label (e.g.
+    // "SMA(20)") names itself; an untagged one falls back to the preset's
+    // label rather than the generic "Indicator".
     const series = buildSeriesConfig(preset.meta, snapshotName, params, seriesOverrides, presetId);
+    if (series.label === undefined && !hasOwnLabel(historyData) && preset.meta.label) {
+      series.label = preset.meta.label;
+    }
 
     // Mount on chart
     const seriesHandle = chart.addIndicator(historyData, series);
@@ -740,4 +745,10 @@ function appendOrReplaceByTime(arr: SourceCandle[], candle: SourceCandle): void 
   } else {
     arr.push(candle);
   }
+}
+
+/** Whether a computed series carries its own `__meta.label` */
+function hasOwnLabel(data: unknown): boolean {
+  const label = (data as { __meta?: { label?: unknown } } | null)?.__meta?.label;
+  return typeof label === "string" && label.length > 0;
 }
