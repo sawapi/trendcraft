@@ -324,6 +324,113 @@ describe("validateCandles", () => {
   });
 });
 
+describe("validateCandles: non-finite time", () => {
+  const T0 = Date.UTC(2024, 0, 1);
+  const good = (day: number) => ({
+    time: T0 + day * DAY,
+    open: 100,
+    high: 105,
+    low: 95,
+    close: 100,
+    volume: 1,
+  });
+
+  it.each([
+    ["NaN", Number.NaN],
+    ["Infinity", Number.POSITIVE_INFINITY],
+    ["missing", undefined],
+    ["unparseable", "not a date"],
+  ])("reports a %s time as an ohlc error, without NaN gap warnings", (_name, bad) => {
+    const candles = [good(1), { ...good(2), time: bad as number }, good(3), good(4)];
+    const result = validateCandles(candles);
+    expect(result.valid).toBe(false);
+    const timeErrors = result.errors.filter((f) => f.message.startsWith("time ("));
+    expect(timeErrors).toHaveLength(1);
+    expect(timeErrors[0].category).toBe("ohlc");
+    expect(result.warnings.filter((f) => f.message.includes("NaN"))).toEqual([]);
+  });
+
+  it("still checks the prices of a row whose time is bad", () => {
+    const candles = [
+      good(1),
+      { time: Number.NaN, open: 100, high: 90, low: 95, close: 92, volume: 1 },
+    ];
+    const messages = validateCandles(candles).errors.map((f) => f.message);
+    expect(messages.some((m) => m.startsWith("time ("))).toBe(true);
+    expect(messages.some((m) => m.includes("< Low"))).toBe(true);
+  });
+
+  it("reports the bad row's position in the input when times are already epoch ms", () => {
+    const candles = [good(1), { ...good(2), time: Number.NaN }, good(3)];
+    const timeError = validateCandles(candles).errors.find((f) => f.message.startsWith("time ("));
+    expect(timeError?.index).toBe(1);
+  });
+
+  it("puts a row with a bad time last when it parses times, so the others keep their order", () => {
+    const iso = (day: number) => new Date(T0 + day * DAY).toISOString();
+    const candles = [
+      { ...good(0), time: iso(3) },
+      { ...good(0), time: "not a date" },
+      { ...good(0), time: iso(1) },
+    ];
+    const timeError = validateCandles(candles).errors.find((f) => f.message.startsWith("time ("));
+    expect(timeError?.index).toBe(2);
+  });
+
+  it.each([
+    ["NaN", Number.NaN],
+    ["missing", undefined],
+  ])("keeps the input position when the first row's time is %s", (_name, bad) => {
+    const candles = [{ ...good(0), time: bad as number }, good(1), good(2), good(3)];
+    const timeError = validateCandles(candles).errors.find((f) => f.message.startsWith("time ("));
+    expect(timeError?.index).toBe(0);
+  });
+
+  it("does not treat two rows with a bad time as duplicates, and keeps both", () => {
+    const candles = [
+      good(1),
+      { ...good(2), time: Number.NaN },
+      good(3),
+      { ...good(4), time: Number.NaN },
+    ];
+    const result = validateCandles(candles, { autoClean: true });
+    expect(result.errors.filter((f) => f.category === "duplicate")).toEqual([]);
+    expect(result.errors.filter((f) => f.message.startsWith("time ("))).toHaveLength(2);
+    expect(result.cleanedCandles).toHaveLength(4);
+    expect(removeDuplicates(candles).map((c) => c.time)).toEqual([
+      T0 + DAY,
+      T0 + 3 * DAY,
+      Number.NaN,
+      Number.NaN,
+    ]);
+  });
+
+  it("normalizeAndValidate reports an unparseable time instead of throwing", () => {
+    const iso = (day: number) => new Date(T0 + day * DAY).toISOString();
+    const raw = [
+      { ...good(0), time: iso(1) },
+      { ...good(0), time: "not a date" },
+      { ...good(0), time: iso(2) },
+    ];
+    const { candles, validation } = normalizeAndValidate(raw, {});
+    expect(validation?.valid).toBe(false);
+    expect(candles).toHaveLength(3);
+    expect(Number.isNaN(candles[2].time)).toBe(true);
+    // Without options it is plain normalization, which still throws
+    expect(() => normalizeAndValidate(raw)).toThrow();
+  });
+
+  it("keeps finite rows in time order when a bad row is present", () => {
+    const candles = [good(3), { ...good(0), time: Number.NaN }, good(1), good(2)];
+    const result = validateCandles(candles, { autoClean: true });
+    expect(result.cleanedCandles?.slice(0, 3).map((c) => c.time)).toEqual([
+      T0 + DAY,
+      T0 + 2 * DAY,
+      T0 + 3 * DAY,
+    ]);
+  });
+});
+
 describe("normalizeAndValidate", () => {
   it("normalizes and validates", () => {
     const candles = [

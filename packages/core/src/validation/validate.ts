@@ -4,6 +4,7 @@
  * Runs all enabled validation checks and returns a unified result.
  */
 
+import { compareTimeNonFiniteLast } from "../core/compare-time";
 import { isNormalized, normalizeCandlesUnchecked } from "../core/normalize";
 import type { Candle, NormalizedCandle } from "../types";
 import { detectDuplicates, removeDuplicates } from "./duplicate-detection";
@@ -20,6 +21,31 @@ import type {
   ValidationResult,
   VolumeAnomalyOptions,
 } from "./types";
+
+/**
+ * The candles to check, with times in epoch milliseconds. Unchecked: a
+ * non-finite value is one of the findings this reports, so it must reach the
+ * checks instead of throwing here.
+ *
+ * Whether times are already epoch ms is decided from the first row with a
+ * finite numeric time, so a bad first row does not send valid input through
+ * normalization. Such input keeps its order, and a finding's `index` is the
+ * input position; a time that is not a number becomes `NaN`. Otherwise times
+ * are parsed and the rows sorted, rows with a bad time last.
+ */
+function prepareCandles(candles: Candle[] | NormalizedCandle[]): NormalizedCandle[] {
+  const first = (candles as Candle[]).find(
+    (c) => typeof c.time === "number" && Number.isFinite(c.time),
+  );
+  if (candles.length > 0 && (first === undefined || !isNormalized([first]))) {
+    return normalizeCandlesUnchecked(candles as Candle[]);
+  }
+  return (candles as Candle[]).some((c) => typeof c.time !== "number")
+    ? (candles as Candle[]).map((c) =>
+        typeof c.time === "number" ? (c as NormalizedCandle) : { ...c, time: Number.NaN },
+      )
+    : (candles as NormalizedCandle[]);
+}
 
 /**
  * Validate candle data quality
@@ -44,9 +70,7 @@ export function validateCandles(
   candles: Candle[] | NormalizedCandle[],
   options?: ValidationOptions,
 ): ValidationResult {
-  // Unchecked: a non-finite value is one of the findings this reports, so
-  // it must reach the checks below instead of throwing here.
-  const normalized = isNormalized(candles) ? candles : normalizeCandlesUnchecked(candles);
+  const normalized = prepareCandles(candles);
 
   const opts: ValidationOptions = options ?? {};
   const findings: ValidationFinding[] = [];
@@ -110,7 +134,7 @@ export function validateCandles(
   // Auto-clean: remove duplicates and sort by time
   if (opts.autoClean) {
     const cleaned = removeDuplicates(normalized);
-    cleaned.sort((a, b) => a.time - b.time);
+    cleaned.sort(compareTimeNonFiniteLast);
     result.cleanedCandles = cleaned;
   }
 

@@ -37,7 +37,8 @@ export function detectOhlcErrors(candles: NormalizedCandle[]): ValidationFinding
     const c = candles[i];
 
     let priceNonFinite = false;
-    const fields: Array<["open" | "high" | "low" | "close" | "volume", number]> = [
+    const fields: Array<["time" | "open" | "high" | "low" | "close" | "volume", number]> = [
+      ["time", c.time],
       ["open", c.open],
       ["high", c.high],
       ["low", c.low],
@@ -55,10 +56,10 @@ export function detectOhlcErrors(candles: NormalizedCandle[]): ValidationFinding
         });
         // Only OHLC fields gate the relational checks below — every
         // `NaN < x` is `false` so re-running them on price NaN would
-        // emit confusingly-passing findings. A non-finite `volume`
-        // doesn't poison the OHLC inequalities, so let those checks
-        // still surface real price-structure errors on the same bar.
-        if (name !== "volume") priceNonFinite = true;
+        // emit confusingly-passing findings. A non-finite `time` or
+        // `volume` doesn't poison the OHLC inequalities, so let those
+        // checks still surface real price-structure errors on the bar.
+        if (name !== "volume" && name !== "time") priceNonFinite = true;
       }
     }
     if (priceNonFinite) continue;

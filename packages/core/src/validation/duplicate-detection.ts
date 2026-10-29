@@ -5,6 +5,7 @@
  * a utility to deduplicate by keeping the last occurrence.
  */
 
+import { compareTimeNonFiniteLast } from "../core/compare-time";
 import type { NormalizedCandle } from "../types";
 import type { ValidationFinding } from "./types";
 
@@ -26,6 +27,9 @@ export function detectDuplicates(candles: NormalizedCandle[]): ValidationFinding
 
   for (let i = 0; i < candles.length; i++) {
     const t = candles[i].time;
+    // A non-finite time is reported by the OHLC check, not as a duplicate:
+    // every NaN would otherwise share one Map key.
+    if (!Number.isFinite(t)) continue;
     const firstIndex = seen.get(t);
 
     if (firstIndex !== undefined) {
@@ -45,7 +49,9 @@ export function detectDuplicates(candles: NormalizedCandle[]): ValidationFinding
 }
 
 /**
- * Remove duplicate timestamps, keeping the last occurrence
+ * Remove duplicate timestamps, keeping the last occurrence. Rows whose time is
+ * not finite are never treated as duplicates of one another; they are kept,
+ * after the others.
  *
  * @param candles - Array of normalized candles (may contain duplicates)
  * @returns Deduplicated array sorted by time
@@ -58,10 +64,12 @@ export function detectDuplicates(candles: NormalizedCandle[]): ValidationFinding
  */
 export function removeDuplicates(candles: NormalizedCandle[]): NormalizedCandle[] {
   const map = new Map<number, NormalizedCandle>();
+  const badTime: NormalizedCandle[] = [];
 
   for (const candle of candles) {
-    map.set(candle.time, candle);
+    if (Number.isFinite(candle.time)) map.set(candle.time, candle);
+    else badTime.push(candle);
   }
 
-  return [...map.values()].sort((a, b) => a.time - b.time);
+  return [...map.values(), ...badTime].sort(compareTimeNonFiniteLast);
 }
