@@ -2,6 +2,42 @@
 
 ## [Unreleased]
 
+### Fixed — `pipeline.peek()` moved stateful streaming conditions to the forming bar
+
+Streaming conditions that compare with the previous bar (crosses, `*Rising` /
+`*Falling`, `*Flip`, `newHigh` / `newLow`, `priceDroppedAtr` /
+`priceGainedAtr`, `volatilityExpanding` / `volatilityContracting`) keep that
+bar internally. `pipeline.peek()` evaluated them as if the forming bar were
+confirmed, so the next confirmed bar was compared with the forming one.
+`createTradingSession` peeks on every trade when `emitPartial` is set.
+
+Conditions now take an optional third argument, `context: { mode: "next" |
+"peek" }`, which is the Pine Script model: a realtime bar is rolled back
+before each update and committed only on close. Stateful conditions record
+the bar only on `"next"`, the default, and `pipeline.peek()` passes
+`"peek"`. Unified conditions (`defineUnifiedCondition`) receive the same
+argument through `toStreamingCondition()`. A custom condition that keeps
+state should update it only when `context?.mode !== "peek"`.
+
+### Breaking — streaming `and` / `or` / `not` and the unified combinators evaluate every child
+
+`and`, `or`, `unifiedAnd` and `unifiedOr` stopped at the first decisive
+child. A stateful child behind a false `and` sibling skipped those bars,
+and later compared with values from bars ago, reporting crosses that never
+happened. They now evaluate every child on every bar, then combine the
+results. `not` and `unifiedNot` pass the context through.
+
+This changes working code that relied on the short-circuit as a guard. In
+`and(isReady, readsAFieldOnlyPresentWhenReady)`, the second child now runs
+even when the first is false, and it may throw or record state. A child
+that relied on a sibling to guard it must now check for itself.
+
+Pine Script made the opposite change in v6, to lazy `and` / `or`. Its
+migration guide then asks scripts to call history-dependent functions on
+every bar, by moving them to the global scope. TrendCraft's preset
+conditions are closures that a caller cannot move, so evaluating every
+child is how they get that guarantee.
+
 ### Breaking — scoring evaluator factories and `rotateStrategies` reject out-of-range numbers
 
 The `create*Evaluator` factories in scoring check their arguments when they

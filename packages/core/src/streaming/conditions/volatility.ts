@@ -4,6 +4,7 @@
 
 import { DEFAULT_ATR_THRESHOLD } from "../../indicators/volatility/atr-filter";
 import { getNumber } from "../snapshot-utils";
+import { commitsState } from "./core";
 import type { StreamingPresetCondition } from "./types";
 
 /**
@@ -56,10 +57,12 @@ export function volatilityExpanding(key = "atr"): StreamingPresetCondition {
   return {
     type: "preset",
     name: `volatilityExpanding(${key})`,
-    evaluate: (snapshot) => {
+    evaluate: (snapshot, _candle, context) => {
       const atr = getNumber(snapshot, key);
       const expanding = prevAtr !== null && atr !== null && atr > prevAtr;
-      prevAtr = atr;
+      if (commitsState(context)) {
+        prevAtr = atr;
+      }
       return expanding;
     },
   };
@@ -76,10 +79,12 @@ export function volatilityContracting(key = "atr"): StreamingPresetCondition {
   return {
     type: "preset",
     name: `volatilityContracting(${key})`,
-    evaluate: (snapshot) => {
+    evaluate: (snapshot, _candle, context) => {
       const atr = getNumber(snapshot, key);
       const contracting = prevAtr !== null && atr !== null && atr < prevAtr;
-      prevAtr = atr;
+      if (commitsState(context)) {
+        prevAtr = atr;
+      }
       return contracting;
     },
   };

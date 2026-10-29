@@ -210,6 +210,7 @@ export type {
   SqueezeDetectorState,
   StreamingCombinedCondition,
   StreamingCondition,
+  StreamingConditionContext,
   StreamingConditionFn,
   StreamingMtf,
   StreamingMtfState,

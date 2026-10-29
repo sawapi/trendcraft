@@ -4915,7 +4915,7 @@ const notOverbought = not(rsiAbove(70));
 
 ---
 
-#### `evaluateStreamingCondition(condition, snapshot, candle)`
+#### `evaluateStreamingCondition(condition, snapshot, candle, context?)`
 
 Evaluate a streaming condition against a snapshot and candle.
 
@@ -4924,7 +4924,16 @@ import { streaming } from "trendcraft";
 const { evaluateStreamingCondition } = streaming;
 
 const isEntry = evaluateStreamingCondition(entryCondition, snapshot, candle);
+// A forming bar: stateful conditions answer without recording it
+const preview = evaluateStreamingCondition(entryCondition, snapshot, candle, { mode: "peek" });
 ```
+
+Conditions that compare with the previous bar (crosses, `*Rising` / `*Falling`, `*Flip`, `newHigh` / `newLow`, `priceDroppedAtr` / `priceGainedAtr`, `volatilityExpanding` / `volatilityContracting`) keep that bar internally. `context.mode` decides whether this call may move it:
+
+- `"next"` (the default): a confirmed bar. The condition records it as its new previous bar.
+- `"peek"`: a forming bar that may still change. The condition answers but records nothing, so the next confirmed bar is still compared with the last confirmed one. `pipeline.peek()` passes this. Pine Script works the same way: it rolls a realtime bar's state back before each update and commits it only when the bar closes.
+
+`and`, `or` and `not` evaluate every child on every bar, so a stateful child behind a false `and` sibling still sees each bar.
 
 ---
 
@@ -4955,6 +4964,48 @@ const customCondition: streaming.StreamingConditionFn = (snapshot, candle) => {
   return candle.close > 100 && rsi !== null && rsi < 50;
 };
 ```
+
+A function condition that keeps state between bars should update it only when `context?.mode !== "peek"`:
+
+```typescript
+import { streaming } from "trendcraft";
+
+let prevClose: number | null = null;
+const closeRising: streaming.StreamingConditionFn = (_snapshot, candle, context) => {
+  const rising = prevClose !== null && candle.close > prevClose;
+  if (context?.mode !== "peek") prevClose = candle.close;
+  return rising;
+};
+```
+
+#### Unified conditions: `defineUnifiedCondition`, `unifiedAnd`, `unifiedOr`, `unifiedNot`
+
+Define a condition once and convert it to a backtest condition (`toBacktestCondition()`) or a streaming one (`toStreamingCondition()`).
+
+```typescript
+import { defineUnifiedCondition, unifiedAnd } from "trendcraft";
+
+const rsiOversold = defineUnifiedCondition({
+  name: "rsiOversold",
+  requires: ["rsi"],
+  evaluate: (ind) => typeof ind.rsi === "number" && ind.rsi < 30,
+});
+const belowBand = defineUnifiedCondition({
+  name: "belowBand",
+  requires: ["bb"],
+  evaluate: (ind, candle) => {
+    const bb = ind.bb as { lower?: number } | undefined;
+    return bb?.lower != null && candle.close < bb.lower;
+  },
+});
+const entry = unifiedAnd(rsiOversold, belowBand);
+const backtestEntry = entry.toBacktestCondition();
+const streamingEntry = entry.toStreamingCondition();
+```
+
+- `evaluate(indicators, candle, context?)` receives the same `context` as a streaming condition. Update state kept between bars only when `context?.mode !== "peek"`.
+- `unifiedAnd`, `unifiedOr` and `unifiedNot` evaluate every condition on every call, like the streaming combinators.
+- State kept in a closure is reliable only in streaming. A backtest evaluates the entry condition only while flat and the exit condition only while a position is open, so a closure skips bars there.
 
 ---
 

@@ -26,7 +26,7 @@
  * ```
  */
 
-import type { StreamingPresetCondition } from "../streaming/types";
+import type { StreamingConditionContext, StreamingPresetCondition } from "../streaming/types";
 import type { NormalizedCandle, PresetCondition } from "../types";
 
 /**
@@ -55,8 +55,16 @@ export type UnifiedConditionDef = {
    *
    * Receives the indicator values (from either backtest or streaming)
    * and the current candle. Must return `true` when the condition is met.
+   *
+   * `context` is set in streaming: `{ mode: "peek" }` for a forming bar. A
+   * condition that keeps state between bars should update it only when
+   * `context?.mode !== "peek"`. In a backtest it is absent.
    */
-  evaluate: (indicators: IndicatorAccessor, candle: NormalizedCandle) => boolean;
+  evaluate: (
+    indicators: IndicatorAccessor,
+    candle: NormalizedCandle,
+    context?: StreamingConditionContext,
+  ) => boolean;
 };
 
 /**
@@ -103,22 +111,29 @@ export type UnifiedCondition = {
  *   },
  * });
  *
- * // Cross detection (stateful)
+ * // Cross detection (stateful, streaming). A peek at a forming bar must not
+ * // move the previous value.
  * const macdCrossUp = defineUnifiedCondition({
  *   name: "macdCrossUp",
  *   requires: ["macd"],
  *   evaluate: (() => {
  *     let prevHist: number | null = null;
- *     return (ind) => {
+ *     return (ind, _candle, context) => {
  *       const macd = ind.macd as { histogram?: number } | undefined;
  *       const hist = macd?.histogram ?? null;
  *       const crossed = prevHist !== null && hist !== null && prevHist <= 0 && hist > 0;
- *       prevHist = hist;
+ *       if (context?.mode !== "peek") prevHist = hist;
  *       return crossed;
  *     };
  *   })(),
  * });
  * ```
+ *
+ * State kept in a closure, as in the cross example, is reliable in streaming,
+ * where every confirmed bar is evaluated. In a backtest it is not: the engine
+ * evaluates the entry condition only while flat and the exit condition only
+ * while a position is open, so the closure skips bars. For a backtest, read
+ * the previous value from the indicators instead.
  */
 export function defineUnifiedCondition(def: UnifiedConditionDef): UnifiedCondition {
   return {
@@ -136,8 +151,8 @@ export function defineUnifiedCondition(def: UnifiedConditionDef): UnifiedConditi
       return {
         type: "preset",
         name: def.name,
-        evaluate: (snapshot, candle) => {
-          return def.evaluate(snapshot, candle);
+        evaluate: (snapshot, candle, context) => {
+          return def.evaluate(snapshot, candle, context);
         },
       };
     },
@@ -146,6 +161,9 @@ export function defineUnifiedCondition(def: UnifiedConditionDef): UnifiedConditi
 
 /**
  * Combine multiple unified conditions with AND logic.
+ *
+ * Every condition is evaluated on every call, as streaming `and` does, so a
+ * stateful condition is not skipped when an earlier one is false.
  *
  * @param conditions - Unified conditions to combine
  * @returns A new UnifiedCondition that requires all conditions to be true
@@ -162,14 +180,18 @@ export function unifiedAnd(...conditions: UnifiedCondition[]): UnifiedCondition 
   return defineUnifiedCondition({
     name: `and(${conditions.map((c) => c.def.name).join(", ")})`,
     requires: [...new Set(conditions.flatMap((c) => c.def.requires))],
-    evaluate: (indicators, candle) => {
-      return conditions.every((c) => c.def.evaluate(indicators, candle));
+    evaluate: (indicators, candle, context) => {
+      const results = conditions.map((c) => c.def.evaluate(indicators, candle, context));
+      return results.every(Boolean);
     },
   });
 }
 
 /**
  * Combine multiple unified conditions with OR logic.
+ *
+ * Every condition is evaluated on every call, as streaming `or` does, so a
+ * stateful condition is not skipped when an earlier one is true.
  *
  * @param conditions - Unified conditions to combine
  * @returns A new UnifiedCondition that requires any condition to be true
@@ -183,8 +205,9 @@ export function unifiedOr(...conditions: UnifiedCondition[]): UnifiedCondition {
   return defineUnifiedCondition({
     name: `or(${conditions.map((c) => c.def.name).join(", ")})`,
     requires: [...new Set(conditions.flatMap((c) => c.def.requires))],
-    evaluate: (indicators, candle) => {
-      return conditions.some((c) => c.def.evaluate(indicators, candle));
+    evaluate: (indicators, candle, context) => {
+      const results = conditions.map((c) => c.def.evaluate(indicators, candle, context));
+      return results.some(Boolean);
     },
   });
 }
@@ -204,8 +227,8 @@ export function unifiedNot(condition: UnifiedCondition): UnifiedCondition {
   return defineUnifiedCondition({
     name: `not(${condition.def.name})`,
     requires: condition.def.requires,
-    evaluate: (indicators, candle) => {
-      return !condition.def.evaluate(indicators, candle);
+    evaluate: (indicators, candle, context) => {
+      return !condition.def.evaluate(indicators, candle, context);
     },
   });
 }

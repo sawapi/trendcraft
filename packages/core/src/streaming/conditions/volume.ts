@@ -3,6 +3,7 @@
  */
 
 import { getField, getNumber } from "../snapshot-utils";
+import { commitsState } from "./core";
 import { crossOver, crossUnder } from "./cross";
 import type { StreamingPresetCondition } from "./types";
 
@@ -68,10 +69,12 @@ export function obvRising(key = "obv"): StreamingPresetCondition {
   return {
     type: "preset",
     name: `obvRising(${key})`,
-    evaluate: (snapshot) => {
+    evaluate: (snapshot, _candle, context) => {
       const val = getNumber(snapshot, key);
       const rising = prevObv !== null && val !== null && val > prevObv;
-      prevObv = val;
+      if (commitsState(context)) {
+        prevObv = val;
+      }
       return rising;
     },
   };
@@ -88,10 +91,12 @@ export function obvFalling(key = "obv"): StreamingPresetCondition {
   return {
     type: "preset",
     name: `obvFalling(${key})`,
-    evaluate: (snapshot) => {
+    evaluate: (snapshot, _candle, context) => {
       const val = getNumber(snapshot, key);
       const falling = prevObv !== null && val !== null && val < prevObv;
-      prevObv = val;
+      if (commitsState(context)) {
+        prevObv = val;
+      }
       return falling;
     },
   };

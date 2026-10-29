@@ -4869,7 +4869,7 @@ const notOverbought = not(rsiAbove(70));
 
 ---
 
-#### `evaluateStreamingCondition(condition, snapshot, candle)`
+#### `evaluateStreamingCondition(condition, snapshot, candle, context?)`
 
 ストリーミング条件をスナップショットとキャンドルに対して評価します。
 
@@ -4878,7 +4878,16 @@ import { streaming } from "trendcraft";
 const { evaluateStreamingCondition } = streaming;
 
 const isEntry = evaluateStreamingCondition(entryCondition, snapshot, candle);
+// 確定前の足: 状態を持つ条件は答えるが、その足を記録しない
+const preview = evaluateStreamingCondition(entryCondition, snapshot, candle, { mode: "peek" });
 ```
+
+前の足と比べる条件（クロス、`*Rising` / `*Falling`、`*Flip`、`newHigh` / `newLow`、`priceDroppedAtr` / `priceGainedAtr`、`volatilityExpanding` / `volatilityContracting`）は、前の足の値を内部に持っています。その値を更新してよいかは `context.mode` で決まります。
+
+- `"next"`（既定）: 確定した足。条件はこの足を新しい「前の足」として記録します。
+- `"peek"`: まだ変わりうる確定前の足。条件は答えますが何も記録しないので、次の確定足は最後の確定足と比べられます。`pipeline.peek()` はこれを渡します。Pine Script も同じで、リアルタイムの足は更新のたびに状態を巻き戻し、足が閉じたときだけ確定させます。
+
+`and`、`or`、`not` は毎回すべての子を評価します。そのため、`and` の前の条件が false でも、状態を持つ子はすべての足を見ます。
 
 ---
 
@@ -4909,6 +4918,48 @@ const customCondition: streaming.StreamingConditionFn = (snapshot, candle) => {
   return candle.close > 100 && rsi !== null && rsi < 50;
 };
 ```
+
+足をまたいで状態を持つ関数条件は、`context?.mode !== "peek"` のときだけ状態を更新してください:
+
+```typescript
+import { streaming } from "trendcraft";
+
+let prevClose: number | null = null;
+const closeRising: streaming.StreamingConditionFn = (_snapshot, candle, context) => {
+  const rising = prevClose !== null && candle.close > prevClose;
+  if (context?.mode !== "peek") prevClose = candle.close;
+  return rising;
+};
+```
+
+#### 統一条件: `defineUnifiedCondition`、`unifiedAnd`、`unifiedOr`、`unifiedNot`
+
+条件を一度定義し、バックテスト用（`toBacktestCondition()`）とストリーミング用（`toStreamingCondition()`）に変換して使います。
+
+```typescript
+import { defineUnifiedCondition, unifiedAnd } from "trendcraft";
+
+const rsiOversold = defineUnifiedCondition({
+  name: "rsiOversold",
+  requires: ["rsi"],
+  evaluate: (ind) => typeof ind.rsi === "number" && ind.rsi < 30,
+});
+const belowBand = defineUnifiedCondition({
+  name: "belowBand",
+  requires: ["bb"],
+  evaluate: (ind, candle) => {
+    const bb = ind.bb as { lower?: number } | undefined;
+    return bb?.lower != null && candle.close < bb.lower;
+  },
+});
+const entry = unifiedAnd(rsiOversold, belowBand);
+const backtestEntry = entry.toBacktestCondition();
+const streamingEntry = entry.toStreamingCondition();
+```
+
+- `evaluate(indicators, candle, context?)` は、ストリーミング条件と同じ `context` を受け取ります。足をまたいで持つ状態は、`context?.mode !== "peek"` のときだけ更新してください。
+- `unifiedAnd`、`unifiedOr`、`unifiedNot` は、ストリーミングの組み合わせ関数と同じく、毎回すべての条件を評価します。
+- クロージャに持つ状態が信頼できるのはストリーミングだけです。バックテストはエントリー条件をノーポジションの間だけ、決済条件を建玉がある間だけ評価するので、クロージャは足を飛ばします。
 
 ---
 

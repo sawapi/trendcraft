@@ -226,11 +226,32 @@ export type DivergenceDetector = {
 export type IndicatorSnapshot = { [key: string]: unknown };
 
 /**
- * A function-based streaming condition
+ * How a streaming condition is being evaluated.
+ *
+ * `"next"` is a confirmed bar: a condition that compares with the previous
+ * bar (a cross, a rising check) records this bar as its new previous value.
+ * `"peek"` is a forming bar that may still change: the condition must answer
+ * without recording anything, so the next confirmed bar is still compared
+ * with the last confirmed one. This is the same model as Pine Script, which
+ * rolls a realtime bar's state back before every update and commits only
+ * when the bar closes.
+ */
+export type StreamingConditionContext = {
+  mode: "next" | "peek";
+};
+
+/**
+ * A function-based streaming condition.
+ *
+ * A condition that keeps state between bars should update it only when
+ * `context.mode` is `"next"` (see {@link StreamingConditionContext}). The
+ * context is absent when the condition is called directly, which counts as
+ * `"next"`.
  */
 export type StreamingConditionFn = (
   snapshot: IndicatorSnapshot,
   candle: NormalizedCandle,
+  context?: StreamingConditionContext,
 ) => boolean;
 
 /**
@@ -317,7 +338,7 @@ export type PipelineState = {
 export type StreamingPipeline = {
   /** Advance all indicators and evaluate conditions */
   next(candle: NormalizedCandle): PipelineResult;
-  /** Preview without advancing state */
+  /** Preview without advancing state: indicators and stateful conditions stay as they were */
   peek(candle: NormalizedCandle): PipelineResult;
   /** Serialize internal state */
   getState(): PipelineState;

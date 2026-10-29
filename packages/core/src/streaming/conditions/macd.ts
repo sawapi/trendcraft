@@ -3,6 +3,7 @@
  */
 
 import { getField } from "../snapshot-utils";
+import { commitsState } from "./core";
 import { crossOver, crossUnder } from "./cross";
 import type { StreamingPresetCondition } from "./types";
 
@@ -51,10 +52,12 @@ export function macdHistogramRising(key = "macd"): StreamingPresetCondition {
   return {
     type: "preset",
     name: `macdHistogramRising(${key})`,
-    evaluate: (snapshot) => {
+    evaluate: (snapshot, _candle, context) => {
       const hist = getField(snapshot, key, "histogram");
       const rising = prevHist !== null && hist !== null && hist > prevHist;
-      prevHist = hist;
+      if (commitsState(context)) {
+        prevHist = hist;
+      }
       return rising;
     },
   };
@@ -71,10 +74,12 @@ export function macdHistogramFalling(key = "macd"): StreamingPresetCondition {
   return {
     type: "preset",
     name: `macdHistogramFalling(${key})`,
-    evaluate: (snapshot) => {
+    evaluate: (snapshot, _candle, context) => {
       const hist = getField(snapshot, key, "histogram");
       const falling = prevHist !== null && hist !== null && hist < prevHist;
-      prevHist = hist;
+      if (commitsState(context)) {
+        prevHist = hist;
+      }
       return falling;
     },
   };

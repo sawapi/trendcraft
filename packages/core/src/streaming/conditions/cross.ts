@@ -26,6 +26,7 @@
 
 import type { NormalizedCandle } from "../../types";
 import { resolveNumber } from "../snapshot-utils";
+import { commitsState } from "./core";
 import type { IndicatorSnapshot, StreamingPresetCondition } from "./types";
 
 /**
@@ -82,7 +83,7 @@ export function crossOver(a: ValueExtractor, b: ValueExtractor | number): Stream
   return {
     type: "preset",
     name: `crossOver(${formatName(a)}, ${formatName(b)})`,
-    evaluate: (snapshot, candle) => {
+    evaluate: (snapshot, candle, context) => {
       const curA = extractA(snapshot, candle);
       const curB = extractB(snapshot, candle);
 
@@ -94,8 +95,10 @@ export function crossOver(a: ValueExtractor, b: ValueExtractor | number): Stream
         prevA <= prevB &&
         curA > curB;
 
-      prevA = curA;
-      prevB = curB;
+      if (commitsState(context)) {
+        prevA = curA;
+        prevB = curB;
+      }
       return crossed;
     },
   };
@@ -128,7 +131,7 @@ export function crossUnder(
   return {
     type: "preset",
     name: `crossUnder(${formatName(a)}, ${formatName(b)})`,
-    evaluate: (snapshot, candle) => {
+    evaluate: (snapshot, candle, context) => {
       const curA = extractA(snapshot, candle);
       const curB = extractB(snapshot, candle);
 
@@ -140,8 +143,10 @@ export function crossUnder(
         prevA >= prevB &&
         curA < curB;
 
-      prevA = curA;
-      prevB = curB;
+      if (commitsState(context)) {
+        prevA = curA;
+        prevB = curB;
+      }
       return crossed;
     },
   };

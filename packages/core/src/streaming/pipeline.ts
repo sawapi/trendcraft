@@ -92,19 +92,23 @@ function evaluate(
   options: PipelineOptions,
   snapshot: IndicatorSnapshot,
   candle: NormalizedCandle,
+  mode: "next" | "peek",
 ): PipelineResult {
+  // A peek must leave stateful conditions as they were, as it leaves the
+  // indicators: the next confirmed bar is compared with the last confirmed one.
+  const context = { mode };
   const entrySignal = options.entry
-    ? evaluateStreamingCondition(options.entry, snapshot, candle)
+    ? evaluateStreamingCondition(options.entry, snapshot, candle, context)
     : false;
 
   const exitSignal = options.exit
-    ? evaluateStreamingCondition(options.exit, snapshot, candle)
+    ? evaluateStreamingCondition(options.exit, snapshot, candle, context)
     : false;
 
   const signals: string[] = [];
   if (options.signals) {
     for (const sig of options.signals) {
-      if (evaluateStreamingCondition(sig.condition, snapshot, candle)) {
+      if (evaluateStreamingCondition(sig.condition, snapshot, candle, context)) {
         signals.push(sig.name);
       }
     }
@@ -141,12 +145,12 @@ export function createPipeline(
   return {
     next(candle: NormalizedCandle): PipelineResult {
       const snapshot = buildSnapshot(instances, candle, "next");
-      return evaluate(options, snapshot, candle);
+      return evaluate(options, snapshot, candle, "next");
     },
 
     peek(candle: NormalizedCandle): PipelineResult {
       const snapshot = buildSnapshot(instances, candle, "peek");
-      return evaluate(options, snapshot, candle);
+      return evaluate(options, snapshot, candle, "peek");
     },
 
     getState(): PipelineState {
