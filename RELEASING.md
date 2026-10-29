@@ -14,21 +14,25 @@ Use prefix-dash form so each package's tags are filterable (`git tag -l 'chart-*
 
 The legacy tag `v0.1.0` (no prefix) points to the first `trendcraft` release and is kept as-is. Do not reuse the unprefixed `v*` form for new releases.
 
-## Release order (always serial)
+## Release order (always serial: core, then chart, then mcp)
 
-When a change spans both packages (chart relies on core's new API), release must be serial to avoid peer dep drift:
+1. Merge all changes to `main`.
+2. For each package being released, finalize its `CHANGELOG.md` (promote `Unreleased` to the new version with a concrete date) and bump its `package.json` version.
+   - If chart calls a newly added core API, raise its `trendcraft` peer minimum to the new core version.
+   - mcp depends on core through `"trendcraft": "workspace:^"`. Publishing rewrites that to `^<core version in this commit>`, so bump core first: mcp published against an older core range keeps the older core behaviour.
+3. Commit, push and merge the release commit.
+4. Publish with the **Publish** workflow (Actions → Publish → Run workflow) on that commit:
+   - tick the packages to release, run it once with **Dry run** on, and read the packed files and dependencies in the log;
+   - run it again with **Dry run** off.
+   For each package it runs `prepublishOnly` (build, test, verify), packs with `pnpm pack`, which rewrites `workspace:` ranges to the versions in the commit, and publishes the tarball with `npm publish`. It publishes core, then chart, then mcp, and waits for core to resolve on npm before the others start. A dry run stops after packing and never contacts the registry, so it also works before the version bump.
 
-1. Merge all changes to `main`
-2. Finalize `packages/core/CHANGELOG.md` — promote `Unreleased` to the new version with a concrete date
-3. Bump `packages/core/package.json` version
-4. Tag `core-v<x.y.z>` on that commit, push tag, run `pnpm publish` for core
-5. Wait for `npm view trendcraft@<x.y.z> version` to resolve
-6. Update `packages/chart/package.json` peer dep minimum to the just-published core version if chart uses new core APIs
-7. Finalize `packages/chart/CHANGELOG.md` — fill in the date
-8. Bump `packages/chart/package.json` version
-9. Tag `chart-v<x.y.z>`, push tag, run `pnpm publish` for chart
+   Publishing uses npm [trusted publishing](https://docs.npmjs.com/trusted-publishers) (OIDC); no npm token is stored. Each of the three packages must list this workflow as its trusted publisher on npmjs.com (package → Settings → Trusted Publisher → GitHub Actions: organization or user `sawapi`, repository `trendcraft`, workflow filename `publish.yml`, no environment). npm attaches provenance automatically.
+5. Check `npm view <package>@<x.y.z> version` for each package.
+6. Tag the published commit — `core-v<x.y.z>`, `chart-v<x.y.z>`, `mcp-v<x.y.z>` — and push the tags. Tag after publishing, so a tag always names a version that is on npm.
 
-Do not publish chart first when it depends on unreleased core APIs; the `workspace:*` link hides the missing peer until users actually install from npm.
+Publishing by hand follows the same order: run `pnpm publish` (never `npm publish` in a package directory, which leaves `workspace:` ranges in the published `package.json`) in `packages/core`, wait for `npm view trendcraft@<x.y.z>` to resolve, then publish chart and mcp, then tag.
+
+Do not publish chart or mcp first when they depend on unreleased core APIs or behaviour; the workspace link hides the gap until users install from npm.
 
 ## Peer dep hygiene
 

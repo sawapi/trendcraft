@@ -1,5 +1,15 @@
 name: Publish
 
+# Publishes the selected packages in dependency order: trendcraft first,
+# then @trendcraft/chart, then @trendcraft/mcp. Each publish waits for the
+# one before it, and trendcraft must resolve on npm before the others start,
+# because they are published with their `workspace:` ranges rewritten to the
+# versions in this commit (`pnpm pack` does that; `npm pack` does not).
+#
+# Publishing uses npm trusted publishing (OIDC): each package lists this
+# workflow as its trusted publisher on npmjs.com, so no npm token is stored.
+# A dry run builds, tests and packs each package and prints what would be
+# published, without contacting the registry.
 on:
   workflow_dispatch:
     inputs:
@@ -7,6 +17,18 @@ on:
         description: "Dry run (no actual publish)"
         type: boolean
         default: true
+      core:
+        description: "Publish trendcraft"
+        type: boolean
+        default: false
+      chart:
+        description: "Publish @trendcraft/chart"
+        type: boolean
+        default: false
+      mcp:
+        description: "Publish @trendcraft/mcp"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -19,8 +41,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-        with:
-          version: 10
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -42,14 +62,13 @@ jobs:
         run: cd packages/chart && pnpm size-check
 
   publish-core:
-    needs: build-and-test
+    needs: [build-and-test]
+    if: ${{ inputs.core }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-        with:
-          version: 10
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -60,26 +79,53 @@ jobs:
 
       - run: pnpm build
 
-      - name: Publish trendcraft
+      # Publishing a tarball skips prepublishOnly (build, test, verify), so run it here
+      - name: Check trendcraft
+        working-directory: packages/core
+        run: pnpm run prepublishOnly
+
+      # pnpm pack rewrites workspace: ranges to the versions in this commit.
+      # The log lists the files and the dependencies as published.
+      - name: Pack trendcraft
+        working-directory: packages/core
         run: |
-          cd packages/core
-          if [ "${{ inputs.dry-run }}" = "true" ]; then
-            npm publish --provenance --dry-run
-          else
-            npm publish --provenance --access public
-          fi
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          pnpm pack --pack-destination "$RUNNER_TEMP/pack"
+          tarball=$(ls "$RUNNER_TEMP"/pack/*.tgz)
+          tar -tzf "$tarball" | sort
+          tar -xzOf "$tarball" package/package.json | node -e "const p = JSON.parse(require('fs').readFileSync(0, 'utf8')); console.log(JSON.stringify({ name: p.name, version: p.version, dependencies: p.dependencies, peerDependencies: p.peerDependencies }, null, 2))"
+          echo "TARBALL=$tarball" >> "$GITHUB_ENV"
+
+      # Trusted publishing: npm authenticates with this workflow's OIDC token
+      # (no npm token) and attaches provenance on its own.
+      - name: Publish trendcraft
+        if: ${{ !inputs.dry-run }}
+        run: |
+          npm --version
+          npm publish "$TARBALL" --access public
+
+      - name: Wait until trendcraft resolves on npm
+        if: ${{ !inputs.dry-run }}
+        working-directory: packages/core
+        run: |
+          version=$(node -p "require('./package.json').version")
+          for attempt in $(seq 1 30); do
+            if [ "$(npm view "trendcraft@$version" version 2>/dev/null)" = "$version" ]; then
+              echo "trendcraft@$version is on npm"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "trendcraft@$version did not resolve within 5 minutes" >&2
+          exit 1
 
   publish-chart:
-    needs: build-and-test
+    needs: [build-and-test, publish-core]
+    if: ${{ !cancelled() && inputs.chart && needs.build-and-test.result == 'success' && (needs.publish-core.result == 'success' || needs.publish-core.result == 'skipped') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-        with:
-          version: 10
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -90,13 +136,80 @@ jobs:
 
       - run: pnpm build
 
-      - name: Publish @trendcraft/chart
+      # Publishing a tarball skips prepublishOnly (build, test, verify), so run it here
+      - name: Check @trendcraft/chart
+        working-directory: packages/chart
+        run: pnpm run prepublishOnly
+
+      # pnpm pack rewrites workspace: ranges to the versions in this commit.
+      # The log lists the files and the dependencies as published.
+      - name: Pack @trendcraft/chart
+        working-directory: packages/chart
         run: |
-          cd packages/chart
-          if [ "${{ inputs.dry-run }}" = "true" ]; then
-            npm publish --provenance --dry-run
-          else
-            npm publish --provenance --access public
+          pnpm pack --pack-destination "$RUNNER_TEMP/pack"
+          tarball=$(ls "$RUNNER_TEMP"/pack/*.tgz)
+          tar -tzf "$tarball" | sort
+          tar -xzOf "$tarball" package/package.json | node -e "const p = JSON.parse(require('fs').readFileSync(0, 'utf8')); console.log(JSON.stringify({ name: p.name, version: p.version, dependencies: p.dependencies, peerDependencies: p.peerDependencies }, null, 2))"
+          echo "TARBALL=$tarball" >> "$GITHUB_ENV"
+
+      # Trusted publishing: npm authenticates with this workflow's OIDC token
+      # (no npm token) and attaches provenance on its own.
+      - name: Publish @trendcraft/chart
+        if: ${{ !inputs.dry-run }}
+        run: |
+          npm --version
+          npm publish "$TARBALL" --access public
+
+  publish-mcp:
+    needs: [build-and-test, publish-core, publish-chart]
+    if: ${{ !cancelled() && inputs.mcp && needs.build-and-test.result == 'success' && (needs.publish-core.result == 'success' || needs.publish-core.result == 'skipped') && (needs.publish-chart.result == 'success' || needs.publish-chart.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          registry-url: "https://registry.npmjs.org"
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm build
+
+      # mcp's workspace:^ range becomes ^<core version in this commit>, so that
+      # core version must already be on npm, even when core is not ticked.
+      - name: Check that the trendcraft version mcp will depend on is on npm
+        if: ${{ !inputs.dry-run }}
+        working-directory: packages/core
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if [ "$(npm view "trendcraft@$version" version 2>/dev/null)" != "$version" ]; then
+            echo "trendcraft@$version is not on npm. Publish core first (tick it too)." >&2
+            exit 1
           fi
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      # Publishing a tarball skips prepublishOnly (build, test, verify), so run it here
+      - name: Check @trendcraft/mcp
+        working-directory: packages/mcp
+        run: pnpm run prepublishOnly
+
+      # pnpm pack rewrites workspace: ranges to the versions in this commit.
+      # The log lists the files and the dependencies as published.
+      - name: Pack @trendcraft/mcp
+        working-directory: packages/mcp
+        run: |
+          pnpm pack --pack-destination "$RUNNER_TEMP/pack"
+          tarball=$(ls "$RUNNER_TEMP"/pack/*.tgz)
+          tar -tzf "$tarball" | sort
+          tar -xzOf "$tarball" package/package.json | node -e "const p = JSON.parse(require('fs').readFileSync(0, 'utf8')); console.log(JSON.stringify({ name: p.name, version: p.version, dependencies: p.dependencies, peerDependencies: p.peerDependencies }, null, 2))"
+          echo "TARBALL=$tarball" >> "$GITHUB_ENV"
+
+      # Trusted publishing: npm authenticates with this workflow's OIDC token
+      # (no npm token) and attaches provenance on its own.
+      - name: Publish @trendcraft/mcp
+        if: ${{ !inputs.dry-run }}
+        run: |
+          npm --version
+          npm publish "$TARBALL" --access public
