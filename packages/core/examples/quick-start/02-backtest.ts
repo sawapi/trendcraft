@@ -66,5 +66,5 @@ console.log(`Total Trades:   ${result.tradeCount}`);
 const avgRet = result.tradeCount > 0 ? result.totalReturnPercent / result.tradeCount : 0;
 console.log(`Avg Return:     ${avgRet.toFixed(2)}%`);
 console.log(
-  `\nEquity: ¥${(1_000_000).toLocaleString()} → ¥${(1_000_000 * (1 + result.totalReturnPercent / 100)).toFixed(0)}`,
+  `\nEquity: ¥${(1_000_000).toLocaleString()} → ¥${Math.round(1_000_000 * (1 + result.totalReturnPercent / 100)).toLocaleString()}`,
 );
