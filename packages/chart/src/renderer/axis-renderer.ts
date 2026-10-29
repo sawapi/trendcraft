@@ -6,6 +6,7 @@ import { canvasFont, DEFAULT_FONT_FAMILY } from "../core/font";
 import {
   autoFormatPrice,
   autoFormatTime,
+  estimateBarIntervalMs,
   formatShortDate,
   formatShortTime,
   measureTextWidth,
@@ -253,16 +254,6 @@ function drawClampedAxisLabel(
  * introduced by weekends and holidays. Returns 0 when it cannot be determined
  * (no time data or <2 candles).
  */
-function estimateBarIntervalMs(candles: readonly CandleData[]): number {
-  const n = candles.length;
-  if (n < 2) return 0;
-  let min = Number.POSITIVE_INFINITY;
-  for (let i = 1; i < n && i <= 32; i++) {
-    const dt = candles[i].time - candles[i - 1].time;
-    if (dt > 0 && dt < min) min = dt;
-  }
-  return Number.isFinite(min) ? min : 0;
-}
 
 /**
  * Render a two-row time axis: upper = wall-clock HH:MM ticks at regular

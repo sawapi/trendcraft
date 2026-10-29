@@ -77,7 +77,7 @@ All fields optional.
 | `fontSize` | `number` | `11` | Font size (px). Runtime-updatable via `applyOptions` |
 | `priceFormatter` | `(price: number) => string` | auto-precision | Custom price formatter |
 | `timeFormatter` | `(time: number) => string` | smart date/time | Custom time-axis label formatter (receives epoch ms; does its own zone handling) |
-| `timeZone` | `string` | browser local | IANA zone (`"America/New_York"`, `"UTC"`) the time axis, its day boundaries and the crosshair time label read the clock in. `""` returns to the browser's zone via `applyOptions` (also from the React/Vue wrappers: pass `""`, not `undefined`); an unknown name is ignored with an `INVALID_OPTION` warning. Runtime-updatable |
+| `timeZone` | `string` | browser local | IANA zone (`"America/New_York"`, `"UTC"`) the time axis, its day boundaries and the crosshair time label read the clock in. `""` returns to the browser's zone via `applyOptions` (also from the React/Vue wrappers: pass `""`, not `undefined`); an unknown name is ignored with an `INVALID_OPTION` warning. Runtime-updatable. Daily and coarser bars show dates only; a daily bar stamped at 00:00 UTC falls on the previous day west of UTC, so for such data set `timeZone: "UTC"` ([Time zones](#time-zones)) |
 | `watermark` | `string` | — | Background watermark text |
 | `legend` | `boolean` | `true` | Show series legend |
 | `volume` | `boolean` | `true` | Show volume pane |
@@ -119,6 +119,28 @@ live edge and honored by `scrollToEnd`-style navigation (keyboard End
 included), `fitContent()`, and duration presets. Values that would leave
 fewer than 2 bars visible are capped; negative or non-finite values are
 rejected with a warning.
+
+### Time zones
+
+The time axis and the crosshair label read each bar's wall clock in
+`timeZone`, the browser's own zone by default. For intraday bars that is the
+local session time. Daily and coarser bars show the date alone: their hour is
+only the zone's offset from the timestamp, not a time of day.
+
+The date can still move. A daily bar stamped at 00:00 UTC is 09:00 the same
+day in Tokyo but 19:00 the previous day in New York, so west of UTC it is
+labelled one day early. Which date is right depends on how the data was
+recorded, and a Unix timestamp cannot tell the chart. Check how your data
+provider stamps its daily bars, then:
+
+- **Daily bars stamped at 00:00 UTC**: set `timeZone: "UTC"` so every viewer
+  sees the bar's own date.
+- **Bars stamped at local midnight of the exchange**: set `timeZone` to the
+  exchange's zone (e.g. `"Asia/Tokyo"`), or leave the default if viewers are
+  in that zone.
+
+lightweight-charts takes the same position: its time values are UTC, and it
+advises not to shift date-only data into a time zone.
 
 ### Crosshair
 
@@ -757,7 +779,8 @@ getDecimationTarget(dataCount: number, pixelWidth: number, minPixelsPerPoint?: n
 ```typescript
 autoFormatPrice(price: number): string
 autoFormatTime(time: number, prevTime: number | null, intervalMs?: number, timeZone?: string): string
-formatCrosshairTime(time: number, timeZone?: string): string
+formatCrosshairTime(time: number, timeZone?: string, intervalMs?: number): string
+// intervalMs: bar interval; at one day or more the label is the date alone.
 // timeZone: IANA name the wall clock is read in; the browser's local zone when omitted.
 formatVolume(vol: number): string
 detectPrecision(values: number[]): number

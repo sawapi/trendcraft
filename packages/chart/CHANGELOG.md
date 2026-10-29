@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — the crosshair showed a time on daily bars
+
+The time axis leaves the hour off daily and coarser bars, where it is only the
+time zone's offset (a 00:00 UTC bar reads 09:00 in Tokyo). The crosshair label
+did not, so outside UTC every daily bar showed a time, e.g. `2023-06-26 09:00`.
+It now follows the axis and shows the date alone. `formatCrosshairTime` takes
+an optional `intervalMs` for the same rule.
+
+The default zone is unchanged (the browser's). West of UTC a daily bar stamped
+at 00:00 UTC is still labelled with the previous day, on the axis and the
+crosshair alike; set `timeZone: "UTC"` for such data. The API reference has a
+new [Time zones](docs/API.md#time-zones) section on choosing the zone.
+
 ### Fixed — twelve presets were labelled "Indicator"
 
 `connectIndicators` left a series' label to the computed data's own
