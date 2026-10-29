@@ -177,7 +177,9 @@ already used:
 as `highestLowest` always has. It used to default to 20. Libraries
 disagree on this window: TA-Lib's MAX/MIN default to 30, and Tulip has no
 default. Pass `{ period: 20 }` to keep the old behaviour. The streaming
-presets already pass it.
+presets already pass it. Its type says so too: `period` is required for a new
+indicator and may be left out only when resuming with `fromState`, where it
+comes from the snapshot.
 
 ### Fixed — `pipeline.peek()` moved stateful streaming conditions to the forming bar
 
