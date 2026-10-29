@@ -4623,11 +4623,27 @@ deducted in cash at exit, and a partial exit bills each tranche for the balance
 outstanding while that tranche was open. It is part of that exit's
 `Trade.return`.
 
-This is not the convention brokers bill on. They charge on the overnight
-settled balance, so a real intraday round trip accrues nothing at all.
-Modelling that needs a day boundary — a timezone and a settlement cutoff, since
-margin interest accrues on calendar days including weekends and holidays — and
-`BacktestOptions` takes neither.
+This is not how brokers bill. Fidelity, for example, charges daily on settled
+debit balances ([margin rates](https://www.fidelity.com/trading/margin-loans/margin-rates)),
+so a real intraday round trip pays nothing. With daily bars the two agree: a
+position held from one bar to the next is charged the same number of days
+either way. The
+difference shows only for leveraged intraday trades, which pay a few hours of
+interest here and none at a broker.
+
+The elapsed-time model is kept on purpose. An overnight model needs a timezone
+and a settlement cutoff, and set wrong they give plausible but wrong numbers.
+Real billing also depends on settlement dates, the day-count basis and tiered
+rates, so an overnight model would still be an approximation. Backtesters
+differ here as well:
+[backtrader](https://github.com/mementum/backtrader/blob/master/backtrader/comminfo.py)
+charges per calendar-date change on a 365-day basis, on short positions by
+default and on position value rather than a loan,
+[LEAN's short-fee model](https://github.com/QuantConnect/Lean/blob/master/Common/Securities/Equity/ShortMarginInterestRateModel.cs)
+per date change on a 360-day basis, and zipline and LEAN's default charge
+nothing.
+
+For a 360-day basis, pass `interestRate × 365 / 360`.
 
 ---
 

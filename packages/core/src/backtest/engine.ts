@@ -465,12 +465,9 @@ export function runBacktest(
    * for exactly the time it was outstanding.
    *
    * This is simple interest over elapsed time, not the overnight-balance
-   * convention brokers actually bill on — a real intraday round trip accrues
-   * nothing. Modelling that needs a day boundary: a timezone and a settlement
-   * cutoff, since margin interest accrues on calendar days, weekends and
-   * holidays included. `BacktestOptions` takes neither today, though the
-   * package does ship the timezone primitive (`SessionDefinition`), so the
-   * gap is wiring rather than capability.
+   * convention brokers bill on. The difference shows only for leveraged
+   * intraday trades, and the elapsed-time model is kept on purpose; see
+   * `MarginConfig.interestRate`.
    *
    * The charge is settled in cash immediately, so it is deliberately NOT
    * added to `accumulatedInterest` — the equity check subtracts that field

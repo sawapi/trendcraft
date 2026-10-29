@@ -15,11 +15,12 @@ export type MarginConfig = {
    * is divided by 365 and multiplied by the **fractional** days a position was
    * open. A one-hour trade pays one hour of interest.
    *
-   * This is not the convention brokers bill on — they charge on the overnight
-   * settled balance, so an intraday round trip accrues nothing at all.
-   * Modelling that needs a day boundary: a timezone and a settlement cutoff,
-   * since margin interest accrues on calendar days including weekends and
-   * holidays. `BacktestOptions` takes neither today.
+   * This is not how brokers bill: they charge on the settled balance, so an
+   * intraday round trip accrues nothing. With daily bars the two agree; only
+   * leveraged intraday trades differ. The elapsed-time model is kept on
+   * purpose, because an overnight model needs a timezone and cutoff that give
+   * plausible but wrong numbers when set wrong, and would still approximate
+   * real billing. For a 360-day basis, pass `interestRate * 365 / 360`.
    */
   interestRate?: number;
 };
