@@ -139,8 +139,22 @@ export type ChartInstance = {
   applyOptions(options: Partial<ChartOptions>): void;
 
   // Plugins
-  /** Register a custom series renderer plugin */
+  /**
+   * Register a custom series renderer plugin. Registering the same plugin
+   * object again does nothing; another plugin for a registered `type`
+   * replaces it, with a warning, after running the old one's `destroy`.
+   */
   registerRenderer<TConfig>(plugin: import("../plugin-types").SeriesRendererPlugin<TConfig>): void;
+  /**
+   * Remove a series renderer plugin by its `type`, running its `destroy`
+   * hook. Series of that type are then drawn as if it had never been
+   * registered. Unknown types are ignored. With `plugin`, only that plugin is
+   * removed: nothing happens when another one now holds the type.
+   */
+  unregisterRenderer<TConfig>(
+    type: string,
+    plugin?: import("../plugin-types").SeriesRendererPlugin<TConfig>,
+  ): void;
   /** Register a pane primitive plugin */
   registerPrimitive<TState>(plugin: import("../plugin-types").PrimitivePlugin<TState>): void;
   /** Remove a primitive by name */

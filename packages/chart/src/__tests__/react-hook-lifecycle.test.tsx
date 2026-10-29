@@ -100,6 +100,91 @@ describe("useTrendChart (React)", () => {
     expect(currentMock.__state.indicators.size).toBe(2);
   });
 
+  it("keeps unchanged renderers registered and unregisters removed ones", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const a = { type: "a", render: vi.fn(), init: vi.fn(), destroy: vi.fn() };
+    const b = { type: "b", render: vi.fn(), init: vi.fn(), destroy: vi.fn() };
+    const { rerender } = render(
+      <Harness opts={{ candles: sampleCandles, plugins: { renderers: [a, b] } }} />,
+    );
+    // A new plugins object with the same renderers, as a useMemo would give
+    rerender(<Harness opts={{ candles: sampleCandles, plugins: { renderers: [a, b] } }} />);
+    expect(a.init).toHaveBeenCalledTimes(1);
+    expect(warn).not.toHaveBeenCalled();
+
+    rerender(<Harness opts={{ candles: sampleCandles, plugins: { renderers: [a] } }} />);
+    expect(currentMock.unregisterRenderer).toHaveBeenCalledWith("b", b);
+    expect(vi.mocked(currentMock.unregisterRenderer).mock.calls.map((c) => c[0])).toEqual(["b"]);
+    expect(b.destroy).toHaveBeenCalledTimes(1);
+    expect(currentMock.__state.rendererRegistry.getRenderer("a")).toBe(a);
+    expect(currentMock.__state.rendererRegistry.getRenderer("b")).toBeUndefined();
+
+    rerender(<Harness opts={{ candles: sampleCandles }} />);
+    expect(currentMock.__state.rendererRegistry.getRenderer("a")).toBeUndefined();
+    warn.mockRestore();
+  });
+
+  it("destroys a renderer replaced by another object of the same type, without a warning", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const a1 = { type: "a", render: vi.fn(), init: vi.fn(), destroy: vi.fn() };
+    const a2 = { type: "a", render: vi.fn(), init: vi.fn(), destroy: vi.fn() };
+    const { rerender } = render(
+      <Harness opts={{ candles: sampleCandles, plugins: { renderers: [a1] } }} />,
+    );
+    rerender(<Harness opts={{ candles: sampleCandles, plugins: { renderers: [a2] } }} />);
+    expect(warn).not.toHaveBeenCalled();
+    expect(a1.destroy).toHaveBeenCalledTimes(1);
+    expect(a2.init).toHaveBeenCalledTimes(1);
+    expect(currentMock.__state.rendererRegistry.getRenderer("a")).toBe(a2);
+    warn.mockRestore();
+  });
+
+  it("leaves alone a renderer registered elsewhere for a type it had applied", () => {
+    const a1 = { type: "a", render: vi.fn(), destroy: vi.fn() };
+    const b = { type: "a", render: vi.fn(), destroy: vi.fn() };
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { rerender } = render(
+      <Harness opts={{ candles: sampleCandles, plugins: { renderers: [a1] } }} />,
+    );
+    // Someone else (registerTrendCraftPresets, user code) takes the type
+    currentMock.registerRenderer(b);
+    rerender(<Harness opts={{ candles: sampleCandles, plugins: { renderers: [] } }} />);
+    expect(b.destroy).not.toHaveBeenCalled();
+    expect(currentMock.__state.rendererRegistry.getRenderer("a")).toBe(b);
+    warn.mockRestore();
+  });
+
+  it("re-applies a listed renderer over one registered elsewhere (the prop wins)", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const a1 = { type: "a", render: vi.fn(), destroy: vi.fn() };
+    const b = { type: "a", render: vi.fn(), destroy: vi.fn() };
+    const { rerender } = render(
+      <Harness opts={{ candles: sampleCandles, plugins: { renderers: [a1] } }} />,
+    );
+    currentMock.registerRenderer(b);
+    rerender(
+      <Harness opts={{ candles: sampleCandles, plugins: { renderers: [a1], primitives: [] } }} />,
+    );
+    expect(currentMock.__state.rendererRegistry.getRenderer("a")).toBe(a1);
+    expect(b.destroy).toHaveBeenCalledTimes(1);
+    warn.mockRestore();
+  });
+
+  it("registers one renderer per type when a type is listed twice", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const x1 = { type: "x", render: vi.fn(), init: vi.fn() };
+    const x2 = { type: "x", render: vi.fn(), init: vi.fn() };
+    const { rerender } = render(
+      <Harness opts={{ candles: sampleCandles, plugins: { renderers: [x1, x2] } }} />,
+    );
+    rerender(<Harness opts={{ candles: sampleCandles, plugins: { renderers: [x1, x2] } }} />);
+    expect(warn).not.toHaveBeenCalled();
+    expect(x1.init).not.toHaveBeenCalled();
+    expect(x2.init).toHaveBeenCalledTimes(1);
+    expect(currentMock.__state.rendererRegistry.getRenderer("x")).toBe(x2);
+    warn.mockRestore();
+  });
+
   it("wires event handlers and tears them down on unmount", () => {
     const onCrosshairMove = vi.fn();
     const { unmount } = render(<Harness opts={{ candles: sampleCandles, onCrosshairMove }} />);

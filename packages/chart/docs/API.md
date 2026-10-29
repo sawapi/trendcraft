@@ -348,11 +348,14 @@ applyOptions(options: Partial<ChartOptions>): void
 
 ```typescript
 registerRenderer<TConfig>(plugin: SeriesRendererPlugin<TConfig>): void
+unregisterRenderer(type: string, plugin?: SeriesRendererPlugin): void
 registerPrimitive<TState>(plugin: PrimitivePlugin<TState>): void
 removePrimitive(name: string): void
 addRule(rule: IntrospectionRule): void
 addPreset(name: string, preset: IndicatorPreset): void
 ```
+
+Registering the same renderer object again does nothing; a different renderer for a registered `type` replaces it with a warning, after running the old one's `destroy`. `unregisterRenderer(type)` runs the renderer's `destroy` and removes it, the counterpart of `removePrimitive`; with `plugin`, it removes the renderer only if that plugin still holds the type. The React and Vue wrappers' `plugins` prop applies changes this way, and the prop wins: while a renderer is listed, the wrapper re-applies it whenever `plugins` changes, replacing one registered for that type elsewhere. A renderer it registered that is dropped from the list, or replaced by another object of its type, is unregistered, unless other code has registered that type since; that renderer is left alone. List one renderer per type; for a type listed twice the last one is used.
 
 See [PLUGINS.md](./PLUGINS.md) for plugin authoring details.
 

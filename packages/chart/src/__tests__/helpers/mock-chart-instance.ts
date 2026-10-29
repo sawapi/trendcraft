@@ -1,4 +1,6 @@
 import { vi } from "vitest";
+import type { SeriesRendererPlugin } from "../../core/plugin-types";
+import { RendererRegistry } from "../../core/renderer-registry";
 import type { ChartEvent, ChartInstance } from "../../core/types";
 
 export type MockChartInstance = ChartInstance & {
@@ -10,6 +12,8 @@ export type MockChartInstance = ChartInstance & {
     timeframeIds: Set<string>;
     registeredPrimitives: Set<string>;
     registeredRenderers: number;
+    /** The real registry, so wrapper tests see its no-op and warning behavior */
+    rendererRegistry: RendererRegistry;
     setCandlesCalls: number;
     fitContentCalls: number;
     setThemeCalls: number;
@@ -26,6 +30,7 @@ export function createMockChartInstance(): MockChartInstance {
     timeframeIds: new Set(),
     registeredPrimitives: new Set(),
     registeredRenderers: 0,
+    rendererRegistry: new RendererRegistry(),
     setCandlesCalls: 0,
     fitContentCalls: 0,
     setThemeCalls: 0,
@@ -72,8 +77,12 @@ export function createMockChartInstance(): MockChartInstance {
     addBacktest: vi.fn(),
     addPatterns: vi.fn(),
     addScores: vi.fn(),
-    registerRenderer: vi.fn(() => {
+    registerRenderer: vi.fn((plugin: SeriesRendererPlugin) => {
       state.registeredRenderers++;
+      state.rendererRegistry.registerRenderer(plugin);
+    }),
+    unregisterRenderer: vi.fn((type: string, plugin?: SeriesRendererPlugin) => {
+      state.rendererRegistry.unregisterRenderer(type, plugin);
     }),
     registerPrimitive: vi.fn((p: { name: string }) => {
       state.registeredPrimitives.add(p.name);

@@ -269,13 +269,33 @@ export function useTrendChart(opts: UseTrendChartOptions): UseTrendChartResult {
     if (scores) chart?.addScores(scores);
   }, [chart, scores]);
 
-  // Plugins
+  // Plugins. The prop wins: every listed renderer is (re-)registered when
+  // `plugins` changes, replacing one registered for its type elsewhere;
+  // re-registering the same object is a no-op. A renderer this hook
+  // registered that is dropped, or replaced by another object of its type,
+  // is unregistered (running its destroy), unless other code has taken the
+  // type since. For a type listed twice the last one wins.
+  const appliedRenderers = useRef<{
+    chart: ChartInstance;
+    byType: Map<string, SeriesRendererPlugin>;
+  } | null>(null);
   useEffect(() => {
-    if (!chart || !plugins) return;
-    for (const r of plugins.renderers ?? []) chart.registerRenderer(r as SeriesRendererPlugin);
-    for (const p of plugins.primitives ?? []) chart.registerPrimitive(p as PrimitivePlugin);
+    if (!chart) return;
+    const byType = new Map<string, SeriesRendererPlugin>(
+      (plugins?.renderers ?? []).map((r) => [r.type, r as SeriesRendererPlugin]),
+    );
+    const applied = appliedRenderers.current;
+    if (applied?.chart === chart) {
+      for (const [type, plugin] of applied.byType) {
+        if (byType.get(type) !== plugin) chart.unregisterRenderer(type, plugin);
+      }
+    }
+    for (const r of byType.values()) chart.registerRenderer(r);
+    appliedRenderers.current = { chart, byType };
+    const primitives = plugins?.primitives ?? [];
+    for (const p of primitives) chart.registerPrimitive(p as PrimitivePlugin);
     return () => {
-      for (const p of plugins.primitives ?? []) chart.removePrimitive(p.name);
+      for (const p of primitives) chart.removePrimitive(p.name);
     };
   }, [chart, plugins]);
 

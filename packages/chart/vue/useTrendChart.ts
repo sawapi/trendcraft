@@ -133,6 +133,7 @@ export function useTrendChart(opts: UseTrendChartOptions): UseTrendChartResult {
   let appliedDrawingIds: string[] = [];
   let appliedTimeframeIds: string[] = [];
   let appliedPrimitiveNames: string[] = [];
+  let appliedRenderers = new Map<string, SeriesRendererPlugin>();
   let optionsTracker: ChartOptionsTracker | null = null;
 
   onMounted(() => {
@@ -189,6 +190,7 @@ export function useTrendChart(opts: UseTrendChartOptions): UseTrendChartResult {
     appliedDrawingIds = [];
     appliedTimeframeIds = [];
     appliedPrimitiveNames = [];
+    appliedRenderers = new Map();
   });
 
   // Reactive bindings — only fire after mount because `chart.value` is null until then.
@@ -356,8 +358,21 @@ export function useTrendChart(opts: UseTrendChartOptions): UseTrendChartResult {
   ) {
     for (const name of appliedPrimitiveNames) c.removePrimitive(name);
     appliedPrimitiveNames = [];
+    // The prop wins: every listed renderer is (re-)registered when `plugins`
+    // changes, replacing one registered for its type elsewhere; re-registering
+    // the same object is a no-op. A renderer registered here that is dropped,
+    // or replaced by another object of its type, is unregistered (running its
+    // destroy), unless other code has taken the type since. For a type listed
+    // twice the last one wins.
+    const byType = new Map<string, SeriesRendererPlugin>(
+      (val?.renderers ?? []).map((r) => [r.type, r as SeriesRendererPlugin]),
+    );
+    for (const [type, plugin] of appliedRenderers) {
+      if (byType.get(type) !== plugin) c.unregisterRenderer(type, plugin);
+    }
+    appliedRenderers = byType;
     if (!val) return;
-    for (const r of val.renderers ?? []) c.registerRenderer(r as SeriesRendererPlugin);
+    for (const r of byType.values()) c.registerRenderer(r);
     for (const p of val.primitives ?? []) {
       c.registerPrimitive(p as PrimitivePlugin);
       appliedPrimitiveNames.push(p.name);

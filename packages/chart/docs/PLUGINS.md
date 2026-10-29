@@ -100,8 +100,8 @@ chart.addIndicator(renkoData, { type: 'renko', pane: 'main' });
 | `render` | `(ctx, config) => void` | Yes | Draw the series. Called once per frame for the visible range. |
 | `priceRange` | `(series, start, end) => [min, max]` | No | Auto-scale hint. If omitted, the chart falls back to reading `value` as a scalar or numeric channels. |
 | `formatValue` | `(series, index) => string \| null` | No | Tooltip formatter. If omitted, the chart uses the default compound formatter. |
-| `init` | `() => void` | No | Called once when `registerRenderer` is invoked. Rarely needed. |
-| `destroy` | `() => void` | No | Called on `chart.destroy()`. Release any external resources here. |
+| `init` | `() => void` | No | Called once when `registerRenderer` registers it (not again for the same object). Rarely needed. |
+| `destroy` | `() => void` | No | Called on `chart.unregisterRenderer(type)`, when another renderer of the same `type` replaces it, or on `chart.destroy()`. Release any external resources here. |
 
 ### Implementation tips
 
@@ -279,10 +279,10 @@ Access `pane.width` / `pane.height` in primitives when you want pane-relative la
 
 ```
 registerRenderer(plugin)
-  → plugin.init?.()                    [once]
+  → plugin.init?.()                    [once; registering the same object again is a no-op]
   → (each frame that pane is painted)
     → plugin.render(context, config)
-  → chart.destroy()
+  → unregisterRenderer(type), a replacement of the same type, or chart.destroy()
     → plugin.destroy?.()               [once]
 ```
 
@@ -294,6 +294,8 @@ registerPrimitive(plugin)
   → removePrimitive(name) or chart.destroy()
     → plugin.destroy?.()               [once]
 ```
+
+Unregistering a type removes it entirely. If your renderer had replaced a built-in one of the same `type` (for example one added by `registerTrendCraftPresets`), the built-in is not restored: register it again, or those series fall back to generic drawing.
 
 `init` and `destroy` are for external resources (event listeners on `window`, audio workers, etc.). Plain object state lives in the closure or `defaultState` — you don't need `init` for that.
 

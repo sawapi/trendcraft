@@ -113,6 +113,79 @@ describe("useTrendChart (Vue)", () => {
     expect(currentMock.__state.indicators.size).toBe(2);
   });
 
+  it("keeps unchanged renderers registered and unregisters removed ones", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const a = { type: "a", render: vi.fn(), init: vi.fn(), destroy: vi.fn() };
+    const b = { type: "b", render: vi.fn(), init: vi.fn(), destroy: vi.fn() };
+    const pluginsRef = shallowRef<{ renderers: (typeof a)[] } | undefined>({ renderers: [a, b] });
+    const Harness = defineComponent({
+      setup() {
+        const { containerRef } = useTrendChart({
+          candles: sampleCandles,
+          plugins: () => pluginsRef.value as never,
+        });
+        return () => h("div", { ref: containerRef });
+      },
+    });
+    mount(Harness);
+    const tick = async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    };
+
+    pluginsRef.value = { renderers: [a, b] };
+    await tick();
+    expect(a.init).toHaveBeenCalledTimes(1);
+    expect(warn).not.toHaveBeenCalled();
+
+    pluginsRef.value = { renderers: [a] };
+    await tick();
+    expect(currentMock.unregisterRenderer).toHaveBeenCalledWith("b", b);
+    expect(vi.mocked(currentMock.unregisterRenderer).mock.calls.map((c) => c[0])).toEqual(["b"]);
+    expect(b.destroy).toHaveBeenCalledTimes(1);
+    expect(currentMock.__state.rendererRegistry.getRenderer("a")).toBe(a);
+
+    pluginsRef.value = undefined;
+    await tick();
+    expect(currentMock.__state.rendererRegistry.getRenderer("a")).toBeUndefined();
+
+    // Another object of the same type replaces the applied one cleanly
+    const a2 = { type: "a", render: vi.fn(), init: vi.fn(), destroy: vi.fn() };
+    pluginsRef.value = { renderers: [a] };
+    await tick();
+    pluginsRef.value = { renderers: [a2] };
+    await tick();
+    expect(warn).not.toHaveBeenCalled();
+    expect(a.destroy).toHaveBeenCalledTimes(2);
+    expect(a2.init).toHaveBeenCalledTimes(1);
+    expect(currentMock.__state.rendererRegistry.getRenderer("a")).toBe(a2);
+    warn.mockRestore();
+  });
+
+  it("leaves alone a renderer registered elsewhere for a type it had applied", async () => {
+    const a1 = { type: "a", render: vi.fn(), destroy: vi.fn() };
+    const b = { type: "a", render: vi.fn(), destroy: vi.fn() };
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const pluginsRef = shallowRef<{ renderers: (typeof a1)[] }>({ renderers: [a1] });
+    const Harness = defineComponent({
+      setup() {
+        const { containerRef } = useTrendChart({
+          candles: sampleCandles,
+          plugins: () => pluginsRef.value as never,
+        });
+        return () => h("div", { ref: containerRef });
+      },
+    });
+    mount(Harness);
+    currentMock.registerRenderer(b);
+    pluginsRef.value = { renderers: [] };
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(b.destroy).not.toHaveBeenCalled();
+    expect(currentMock.__state.rendererRegistry.getRenderer("a")).toBe(b);
+    warn.mockRestore();
+  });
+
   it("forwards chart events to composable callbacks", () => {
     const onCrosshairMove = vi.fn();
     const Harness = defineComponent({
