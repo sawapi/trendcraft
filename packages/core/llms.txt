@@ -2,7 +2,7 @@
 
 > A TypeScript library for technical analysis of financial data. Calculate indicators, detect signals, backtest strategies, and analyze market trends.
 
-TrendCraft provides 130+ technical indicators, signal detection, backtesting with 191 preset conditions, strategy optimization (Grid Search, Walk-Forward, NSGA-II Pareto, Monte Carlo), real-time streaming pipelines, position sizing, adaptive indicators, pairs trading, cross-asset correlation, signal explainability, strategy robustness scoring, risk analytics (VaR/CVaR/Risk Parity), meta-strategy management (Equity Curve Trading, Strategy Rotation), stress testing, and backtest realism — all with a consistent `Series<T>` return type.
+TrendCraft provides 130+ technical indicators, signal detection, backtesting with preset conditions, strategy optimization (Grid Search, Walk-Forward, NSGA-II Pareto, Monte Carlo), real-time streaming pipelines, position sizing, adaptive indicators, pairs trading, cross-asset correlation, signal explainability, strategy robustness scoring, risk analytics (VaR/CVaR/Risk Parity), meta-strategy management (Equity Curve Trading, Strategy Rotation), stress testing, and backtest realism — all with a consistent `Series<T>` return type.
 
 ## Installation
 
@@ -10,7 +10,7 @@ TrendCraft provides 130+ technical indicators, signal detection, backtesting wit
 npm install trendcraft
 ```
 
-All functions accept candle data in the format `{ time: number | string | Date, open, high, low, close, volume }` and return `Series<T>` (`{ time: number, value: T }[]`).
+All functions accept candle data in the format `{ time: number | string, open, high, low, close, volume }` (epoch ms or a date string) and return `Series<T>` (`{ time: number, value: T }[]`).
 
 ## Documentation
 
@@ -29,17 +29,21 @@ const bb = bollingerBands(candles, { period: 20, stdDev: 2 });
 
 // Detect signals
 const crosses = goldenCross(candles, { short: 5, long: 25 });
+```
 
+```typescript
 // Fluent API
 import { TrendCraft } from 'trendcraft';
 const result = TrendCraft.from(candles).sma(20).ema(12).rsi(14).compute();
+```
 
-// Backtesting
-import { TrendCraft, goldenCross, deadCross, and, rsiBelow } from 'trendcraft';
+```typescript
+// Backtesting (Condition factories, not the goldenCross/deadCross signal detectors)
+import { TrendCraft, goldenCrossCondition, deadCrossCondition, and, rsiBelow } from 'trendcraft';
 const bt = TrendCraft.from(candles)
   .strategy()
-    .entry(and(goldenCross(), rsiBelow(30)))
-    .exit(deadCross())
+    .entry(and(goldenCrossCondition(), rsiBelow(30)))
+    .exit(deadCrossCondition())
   .backtest({ capital: 1000000, stopLoss: 5, takeProfit: 15 });
 ```
 
@@ -218,24 +222,26 @@ const bt = TrendCraft.from(candles)
 
 ### Signal Lifecycle
 - `createSignalManager(opts?)` — Manage signal cooldown, debounce, and expiry
-- `processSignalsBatch(signals, manager)` — Batch signal processing
+- `processSignalsBatch(signals, options?)` — Batch signal processing (same `SignalManagerOptions` as `createSignalManager`)
 
 ## Backtesting
 
 ```typescript
-import { TrendCraft, runBacktest } from 'trendcraft';
+import { TrendCraft, goldenCrossCondition, deadCrossCondition } from 'trendcraft';
 
 // Fluent API
 const result = TrendCraft.from(candles)
   .strategy()
-    .entry(goldenCross())
-    .exit(deadCross())
+    .entry(goldenCrossCondition())
+    .exit(deadCrossCondition())
   .backtest({ capital: 1000000, stopLoss: 5, takeProfit: 15 });
+```
 
-// Functional API
-const result = runBacktest(candles, {
-  entry: goldenCross(),
-  exit: deadCross(),
+```typescript
+import { runBacktest, goldenCrossCondition, deadCrossCondition } from 'trendcraft';
+
+// Functional API: runBacktest(candles, entry, exit, options, cache?)
+const result = runBacktest(candles, goldenCrossCondition(), deadCrossCondition(), {
   capital: 1000000,
 });
 ```
@@ -245,7 +251,7 @@ const result = runBacktest(candles, {
 ### Condition Combinators
 - `and(...conditions)` / `or(...conditions)` / `not(condition)` — Combine conditions
 
-### Preset Conditions (191)
+### Preset Conditions
 - **MA**: `goldenCrossCondition()`, `deadCrossCondition()`, `priceAboveSma(period)`, `priceBelowSma(period)`
 - **RSI**: `rsiBelow(threshold)`, `rsiAbove(threshold)`
 - **MACD**: `macdCrossUp()`, `macdCrossDown()`
@@ -312,30 +318,67 @@ Real-time trading pipeline with 6 layers:
 
 ```typescript
 import { streaming } from 'trendcraft';
+import { createSma, createRsi } from 'trendcraft/incremental';
 
-// Layer 1: Candle Aggregation
-const aggregator = streaming.createCandleAggregator({ interval: 60000 });
-aggregator.addTick({ price: 100, volume: 10, timestamp: Date.now() });
+// Layer 1: Candle Aggregation (trade ticks -> OHLCV candles)
+const aggregator = streaming.createCandleAggregator({ intervalMs: 60_000 });
+const completed = aggregator.addTrade({ time: Date.now(), price: 100, volume: 10 });
 
-// Layer 4: Pipeline (combines indicators + conditions)
+// Layer 4: Pipeline (combines incremental indicators + streaming conditions)
 const pipeline = streaming.createPipeline({
-  indicators: { sma20: { type: 'sma', period: 20 }, rsi14: { type: 'rsi', period: 14 } },
-  entry: streaming.and(streaming.smaGoldenCross(20, 50), streaming.rsiBelow(30)),
+  indicators: [
+    { name: 'sma20', create: () => createSma({ period: 20 }) },
+    { name: 'sma50', create: () => createSma({ period: 50 }) },
+    { name: 'rsi', create: () => createRsi({ period: 14 }) },
+  ],
+  entry: streaming.and(streaming.crossOver('sma20', 'sma50'), streaming.rsiBelow(30)),
   exit: streaming.rsiAbove(70),
 });
-const result = pipeline.update(candle);
+if (completed) {
+  const result = pipeline.next(completed);
+  if (result.entrySignal) console.log('BUY', result.snapshot);
+}
 
 // Layer 5: Session with Guards (risk/time management)
-const session = streaming.createGuardedSession({
-  riskGuard: { maxDailyLoss: 50000, maxOpenPositions: 3 },
-  timeGuard: { tradingWindows: [{ start: '09:00', end: '15:00' }] },
-});
+// createGuardedSession(sessionOptions, guardOptions, fromState?)
+const session = streaming.createGuardedSession(
+  {
+    intervalMs: 60_000,
+    pipeline: {
+      indicators: [{ name: 'rsi', create: () => createRsi({ period: 14 }) }],
+      entry: streaming.rsiBelow(30),
+      exit: streaming.rsiAbove(70),
+    },
+  },
+  {
+    riskGuard: { maxDailyLoss: -50000, maxDailyTrades: 20 },
+    timeGuard: {
+      tradingWindows: [{ startMs: 9 * 3600_000, endMs: 15 * 3600_000 }],
+      timezoneOffsetMs: 9 * 3600_000,
+    },
+  },
+);
+const events = session.onTrade({ time: Date.now(), price: 100, volume: 10 });
 
-// Layer 6: Position Management (with Partial TP / Break-Even Stop)
-const managed = streaming.createManagedSession({
-  capital: 1000000,
-  positionSizing: { method: 'riskBased', riskPercent: 1 },
-});
+// Layer 6: Position Management (sizing, SL/TP/trailing, P&L)
+// createManagedSession(sessionOptions, guardOptions, positionOptions, fromState?)
+const managed = streaming.createManagedSession(
+  {
+    intervalMs: 60_000,
+    pipeline: {
+      indicators: [{ name: 'rsi', create: () => createRsi({ period: 14 }) }],
+      entry: streaming.rsiBelow(30),
+      exit: streaming.rsiAbove(70),
+    },
+  },
+  { riskGuard: { maxDailyLoss: -50000 } },
+  {
+    capital: 1_000_000,
+    sizing: { method: 'risk-based', riskPercent: 1 },
+    stopLoss: 2,
+    takeProfit: 6,
+  },
+);
 ```
 
 **Layers**: 1) Candle Aggregation → 2) Signal Detectors (cross, threshold, squeeze, divergence) → 3) Conditions (combinators) → 4) Pipeline & MTF → 5) Session & Guards → 6) Position Management (SL/TP/trailing/partial TP/break-even stop)
@@ -387,11 +430,11 @@ Presets: `"momentum"`, `"meanReversion"`, `"trendFollowing"`, `"balanced"`, `"ag
 
 ### Portfolio / Multi-Asset Backtest
 ```typescript
-import { batchBacktest, portfolioBacktest } from 'trendcraft';
+import { batchBacktest, portfolioBacktest, goldenCrossCondition, deadCrossCondition } from 'trendcraft';
 
 // Phase 1: Independent per-symbol backtests with merged portfolio metrics
 const result = batchBacktest(
-  [{ symbol: 'AAPL', candles }, { symbol: 'MSFT', candles2 }],
+  [{ symbol: 'AAPL', candles: aaplCandles }, { symbol: 'MSFT', candles: msftCandles }],
   goldenCrossCondition(5, 25), deadCrossCondition(5, 25),
   { capital: 2_000_000, stopLoss: 5 }
 );
@@ -408,11 +451,22 @@ const portResult = portfolioBacktest(datasets, entry, exit, {
 
 ### Series Utilities
 ```typescript
-import { zipSeries, mapSeries, filterSeries, alignSeries } from 'trendcraft';
+import { sma, rsi, resample, zipSeries, mapSeries, filterSeries, alignSeries } from 'trendcraft';
 
-const spread = zipSeries(sma5, sma25, (fast, slow) => fast - slow);
-const normalized = mapSeries(rsi14, val => val / 100);
-const oversold = filterSeries(rsi14, val => val < 30);
+const sma5 = sma(candles, { period: 5 });
+const sma25 = sma(candles, { period: 25 });
+const rsi14 = rsi(candles, { period: 14 });
+
+// Indicator values are `number | null` during warm-up
+const spread = zipSeries(sma5, sma25, (fast, slow) =>
+  fast !== null && slow !== null ? fast - slow : null,
+);
+const normalized = mapSeries(rsi14, (val) => (val !== null ? val / 100 : null));
+const oversold = filterSeries(rsi14, (val) => val !== null && val < 30);
+
+// Align a weekly series onto daily timestamps
+const weeklySma = sma(resample(dailyCandles, 'weekly'), { period: 20 });
+const dailySma = sma(dailyCandles, { period: 20 });
 const aligned = alignSeries(weeklySma, dailySma);
 ```
 
@@ -514,15 +568,19 @@ Types: `ConditionSpec`, `StrategyJSON`, `ParamDef`, `ConditionParamSchema`, `Con
 
 ### Plugin System
 ```typescript
-import { defineIndicator, TrendCraft } from 'trendcraft';
-const myIndicator = defineIndicator({ name: 'myInd', compute: (candles, opts) => ... });
-TrendCraft.from(candles).use(myIndicator, opts).compute();
+import { defineIndicator, TrendCraft, sma } from 'trendcraft';
+const myIndicator = defineIndicator({
+  name: 'myInd' as const,
+  compute: (candles, opts) => sma(candles, { period: opts.period }),
+  defaultOptions: { period: 20 },
+});
+TrendCraft.from(candles).use(myIndicator, { period: 50 }).compute();
 ```
 
 ### Incremental Indicators
 ```typescript
 import { incremental } from 'trendcraft';
-// 170+ stateful, update-one-candle-at-a-time indicators for streaming use
+// 90+ stateful, update-one-candle-at-a-time indicators for streaming use
 // Categories: moving-average, momentum, trend, volatility, volume, price, wyckoff
 // All factories support { warmUp, fromState } for resumable sessions
 //   getState() / fromState — snapshot save/restore (same params required)
@@ -540,8 +598,8 @@ import { createLiveCandle, incremental } from 'trendcraft';
 const live = createLiveCandle({
   intervalMs: 60_000,
   indicators: [
-    { name: 'sma20', create: (s) => incremental.createSma({ period: 20 }, { fromState: s }) },
-    { name: 'rsi14', create: (s) => incremental.createRsi({ period: 14 }, { fromState: s }) },
+    { name: 'sma20', create: (s) => incremental.createSma({ period: 20 }, incremental.restoreState(s)) },
+    { name: 'rsi14', create: (s) => incremental.createRsi({ period: 14 }, incremental.restoreState(s)) },
   ],
   history: historicalCandles,
 });
@@ -553,21 +611,31 @@ live.addCandle(bar);                                             // candle mode
 ### Series Metadata & Indicator Registries (SeriesMeta, tagSeries, livePresets, indicatorPresets)
 All built-in indicators tag their output with `__meta` (`SeriesMeta`) describing its `kind` (parameter-independent identifier like `"sma"`, `"rsi"`), parameterized `label`, overlay flag, Y-range, and reference lines. Any consumer may read the metadata; consumers that don't care can ignore it.
 ```typescript
-import { tagSeries, rsi, livePresets, indicatorPresets } from 'trendcraft';
+import { tagSeries, rsi, sma, livePresets, indicatorPresets } from 'trendcraft';
+import type { TaggedSeries } from 'trendcraft';
 
-rsi(candles, { period: 14 }).__meta;
+// Indicator signatures are typed as Series<T>; cast to TaggedSeries<T> to read the metadata
+(rsi(candles, { period: 14 }) as TaggedSeries<number | null>).__meta;
 // { kind: 'rsi', label: 'RSI(14)', overlay: false, yRange: [0, 100], referenceLines: [30, 70] }
 
 // Match by stable identity (kind), not the display label:
-allSeries.filter(s => s.__meta?.kind === 'rsi');
+const allSeries: TaggedSeries<number | null>[] = [
+  sma(candles, { period: 20 }),
+  rsi(candles, { period: 14 }),
+];
+const rsiSeries = allSeries.filter((s) => s.__meta?.kind === 'rsi');
 
-// livePresets: 76 incremental indicator presets (factory + metadata + default params + snapshot-name)
-// indicatorPresets: 95 unified presets with both batch compute and incremental createFactory
-const sma = livePresets.sma;          // { meta, defaultParams, snapshotName, createFactory }
+// Tag your own series so consumers pick up the same conventions
+const custom = tagSeries(myData, { label: 'Custom Score', overlay: false, yRange: [0, 1] });
+
+// livePresets: 84 incremental indicator presets (factory + metadata + default params + snapshot-name)
+// indicatorPresets: 104 unified presets; all have batch compute, 25 batch-only ones lack createFactory
+const smaPreset = livePresets.sma;    // { meta, defaultParams, snapshotName, createFactory }
 const rsiP = indicatorPresets.rsi;    // adds .compute(candles, params) for static mode
+const rsiFactory = rsiP.createFactory?.({ period: 14 }); // optional: absent on batch-only entries
 ```
 
-Types: `SeriesMeta`, `TaggedSeries<T>`, `LivePreset`, `IndicatorPreset`, `IndicatorCategory`, `ParamSchema`, `LiveCandle`, `LiveCandleOptions`, `LiveCandleState`, `IndicatorSnapshot`
+Types: `SeriesMeta`, `TaggedSeries<T>`, `LivePreset`, `IndicatorPreset`, `IndicatorCategory`, `ParamSchema`; on the `streaming` namespace: `streaming.LiveCandle`, `streaming.LiveCandleOptions`, `streaming.LiveCandleState`, `streaming.IndicatorSnapshot`
 
 ### Result Type
 All indicators support `Result<Series<T>, TrendCraftError>` via safe variants for robust error handling.
