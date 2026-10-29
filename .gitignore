@@ -1,5 +1,6 @@
-# Dependencies
-node_modules/
+# Dependencies (no trailing slash: also matches a node_modules symlink, as
+# in a git worktree that links the main checkout's installed dependencies)
+node_modules
 
 # Build output
 dist/
