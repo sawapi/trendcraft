@@ -9,6 +9,7 @@
 import type { DataLayer } from "../core/data-layer";
 import type { PriceScale, TimeScale } from "../core/scale";
 import type { CandleData, PaneRect, SignalMarker, TradeMarker } from "../core/types";
+import { tradeSpan } from "./trade-span";
 
 /**
  * Render signal markers (buy/sell arrows) on the main pane.
@@ -91,26 +92,32 @@ export function renderTrades(
   ctx.clip();
 
   for (const trade of trades) {
-    const entryIdx = dataLayer.indexAtTime(trade.entryTime);
-    const exitIdx = dataLayer.indexAtTime(trade.exitTime);
+    // Skip trades outside the loaded candles; clip one crossing an edge
+    const span = tradeSpan(dataLayer, trade.entryTime, trade.exitTime);
+    if (!span) continue;
 
     const isWin = (trade.returnPercent ?? 0) >= 0;
-    const x1 = timeScale.indexToX(entryIdx);
-    const x2 = timeScale.indexToX(exitIdx);
+    const x1 = timeScale.indexToX(span.entryIdx);
+    const x2 = timeScale.indexToX(span.exitIdx);
     ctx.fillStyle = isWin ? "rgba(38,166,154,0.08)" : "rgba(239,83,80,0.08)";
     ctx.fillRect(x1, mainPane.y, x2 - x1, mainPane.height);
 
     const entryY = ps.priceToY(trade.entryPrice) + mainPane.y;
-    ctx.fillStyle = "#2196F3";
-    ctx.beginPath();
-    ctx.arc(x1, entryY, 4, 0, Math.PI * 2);
-    ctx.fill();
+    if (span.entryInRange) {
+      ctx.fillStyle = "#2196F3";
+      ctx.beginPath();
+      ctx.arc(x1, entryY, 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
     const exitY = ps.priceToY(trade.exitPrice) + mainPane.y;
-    ctx.fillStyle = isWin ? "#26a69a" : "#ef5350";
-    ctx.beginPath();
-    ctx.arc(x2, exitY, 4, 0, Math.PI * 2);
-    ctx.fill();
+    if (span.exitInRange) {
+      ctx.fillStyle = isWin ? "#26a69a" : "#ef5350";
+      ctx.beginPath();
+      ctx.arc(x2, exitY, 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    if (!span.entryInRange || !span.exitInRange) continue;
 
     ctx.strokeStyle = isWin ? "rgba(38,166,154,0.3)" : "rgba(239,83,80,0.3)";
     ctx.lineWidth = 1;

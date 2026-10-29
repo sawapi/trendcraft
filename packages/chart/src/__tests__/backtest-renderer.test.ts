@@ -1,4 +1,4 @@
-import { describe, expect, it, type vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { DataLayer } from "../core/data-layer";
 import { DARK_THEME } from "../core/types";
 import {
@@ -208,39 +208,25 @@ describe("renderEquityCurve", () => {
         return "";
       },
     });
-    const result: BacktestResultData = {
-      ...baseResult(),
-      drawdownPeriods: [
-        {
-          startTime: 0,
-          troughTime: 120_000,
-          recoveryTime: 300_000,
-          maxDepthPercent: 5,
-          peakEquity: 10000,
-          troughEquity: 9500,
-        },
-      ],
-    };
+    // A loss at 2 min, recovered by a win at 5 min
+    const result = baseResult([
+      { entryTime: 60_000, entryPrice: 100, exitTime: 120_000, exitPrice: 95, returnPercent: -5 },
+      { entryTime: 180_000, entryPrice: 95, exitTime: 300_000, exitPrice: 105, returnPercent: 10 },
+    ]);
     renderEquityCurve(ctx, result, pane, ps, ts, dl(), DARK_THEME);
     expect(fills).toContain("rgba(239,83,80,0.15)");
+    const [x, , w] = vi.mocked(ctx.fillRect).mock.calls[0];
+    expect([x, x + w]).toEqual([ts.indexToX(0), ts.indexToX(5)]);
   });
 
-  it("extends drawdown to last candle if recoveryTime missing", () => {
+  it("extends drawdown to last candle if equity has not recovered", () => {
     const ctx = mockCtx();
-    const result: BacktestResultData = {
-      ...baseResult(),
-      drawdownPeriods: [
-        {
-          startTime: 0,
-          troughTime: 120_000,
-          maxDepthPercent: 5,
-          peakEquity: 10000,
-          troughEquity: 9500,
-        },
-      ],
-    };
+    const result = baseResult([
+      { entryTime: 60_000, entryPrice: 100, exitTime: 120_000, exitPrice: 95, returnPercent: -5 },
+    ]);
     expect(() => renderEquityCurve(ctx, result, pane, ps, ts, dl(), DARK_THEME)).not.toThrow();
-    expect(ctx.fillRect).toHaveBeenCalled();
+    const [x, , w] = vi.mocked(ctx.fillRect).mock.calls[0];
+    expect([x, x + w]).toEqual([ts.indexToX(0), ts.indexToX(19)]);
   });
 });
 
