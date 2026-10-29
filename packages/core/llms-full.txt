@@ -12,7 +12,7 @@ All functions accept candle data and return `Series<T>` (`{ time: number, value:
 
 ```typescript
 interface Candle {
-  time: number | string | Date;
+  time: number | string; // epoch ms or a date string
   open: number;
   high: number;
   low: number;
@@ -20,7 +20,7 @@ interface Candle {
   volume: number;
 }
 type Series<T> = { time: number; value: T }[];
-type PriceSource = 'open' | 'high' | 'low' | 'close' | 'hl2' | 'hlc3' | 'ohlc4';
+type PriceSource = 'open' | 'high' | 'low' | 'close' | 'hl2' | 'hlc3' | 'ohlc4' | 'volume';
 ```
 
 ## Quick Start
@@ -32,17 +32,21 @@ const sma20 = sma(candles, { period: 20 });
 const rsi14 = rsi(candles, { period: 14 });
 const bb = bollingerBands(candles, { period: 20, stdDev: 2 });
 const crosses = goldenCross(candles, { short: 5, long: 25 });
+```
 
+```typescript
 // Fluent API
 import { TrendCraft } from 'trendcraft';
 const result = TrendCraft.from(candles).sma(20).ema(12).rsi(14).compute();
+```
 
-// Backtesting
-import { TrendCraft, goldenCross, deadCross, and, rsiBelow } from 'trendcraft';
+```typescript
+// Backtesting (Condition factories, not the goldenCross/deadCross signal detectors)
+import { TrendCraft, goldenCrossCondition, deadCrossCondition, and, rsiBelow } from 'trendcraft';
 const bt = TrendCraft.from(candles)
   .strategy()
-    .entry(and(goldenCross(), rsiBelow(30)))
-    .exit(deadCross())
+    .entry(and(goldenCrossCondition(), rsiBelow(30)))
+    .exit(deadCrossCondition())
   .backtest({ capital: 1000000, stopLoss: 5, takeProfit: 15 });
 ```
 
@@ -307,16 +311,25 @@ Opening Range Breakout (ORB). Detects the first N minutes' high/low of a session
 Gap Analysis. Detects gap ups/downs, classifies as full/partial, and tracks fill status. Default minGapPercent: 0.5. Returns `Series<{ type: 'up' | 'down' | null, gapPercent, classification: 'full' | 'partial' | 'unfilled' | null, filled: boolean }>`.
 
 ### `srZones(candles, options?)`
-S/R Zone Clustering — clusters support/resistance levels from 6 sources (swing points, pivots, VWAP, volume profile, round numbers, custom levels) using K-means++. Returns zones with strength scores.
+S/R Zone Clustering — clusters support/resistance levels from 6 sources (swing points, pivots, VWAP, volume profile, round numbers, custom levels) using K-means++. Returns `{ zones, rawLevels }`; zones carry strength scores.
 
 ```typescript
 import { srZones, srZonesSeries } from 'trendcraft';
 
-const zones = srZones(candles, { numZones: 6, sources: ['swing', 'pivot', 'vwap', 'volumeProfile', 'round'] });
-// zones[]: { center, upper, lower, strength, sources[], touchCount }
+// Sources are toggled with include* flags (all on by default) plus customLevels
+const { zones } = srZones(candles, {
+  numZones: 6,
+  includeSwingPoints: true,
+  includePivotPoints: true,
+  includeVwap: true,
+  includeVolumeProfile: true,
+  includeRoundNumbers: true,
+});
+// zones[]: { price, low, high, strength, sources[], sourceDiversity, touchCount }
 
-const series = srZonesSeries(candles, { numZones: 6, window: 100 });
-// Rolling S/R zones as time series
+// srZonesSeries(candles, options?, lookback = 200)
+const series = srZonesSeries(candles, { numZones: 6 }, 100);
+// Rolling S/R zones as time series: Series<SrZone[]>
 ```
 
 ## Indicators — Drawing Tools
@@ -356,26 +369,28 @@ Fair Value Gap. Helpers: `getUnfilledFvgs()`, `getNearestFvg()`.
 
 ## Indicators — Session / Kill Zones
 
-### `detectSessions(candles, options?)`
-Detect trading sessions (Tokyo, London, New York, custom). Returns `Series<SessionValue>`.
+### `detectSessions(candles, sessions?)`
+Detect trading sessions (Tokyo, London, New York, custom). Takes an optional `SessionDefinition[]`. Returns `Series<SessionInfo>`.
 
-### `killZones(candles, options?)`
-ICT Kill Zone detection — identifies high-probability trading windows within sessions.
+### `killZones(candles, zones?)`
+ICT Kill Zone detection (takes an optional `KillZoneDefinition[]`) — identifies high-probability trading windows within sessions.
 
 ### `sessionBreakout(candles, options?)`
 Session high/low breakout signals.
 
 ### `sessionStats(candles, options?)`
-Session performance analytics — range, volume, directional bias per session.
+Session performance analytics — range, volume, directional bias per session. Returns `SessionStatsValue[]` (one entry per session, not a time series).
 
 ### `getIctSessions()` / `getIctKillZones()`
 Preset ICT session definitions and kill zone windows.
 
 ```typescript
-import { detectSessions, killZones, sessionBreakout, sessionStats } from 'trendcraft';
+import {
+  detectSessions, killZones, sessionBreakout, sessionStats, getIctSessions, getIctKillZones,
+} from 'trendcraft';
 
-const sessions = detectSessions(candles, { sessions: getIctSessions() });
-const kz = killZones(candles, { killZones: getIctKillZones() });
+const sessions = detectSessions(candles, getIctSessions());
+const kz = killZones(candles, getIctKillZones());
 const breakouts = sessionBreakout(candles);
 const stats = sessionStats(candles);
 ```
@@ -389,13 +404,14 @@ Hidden Markov Model regime detection. Pure TypeScript implementation with Baum-W
 import { hmmRegimes, fitHmm, regimeTransitionMatrix } from 'trendcraft';
 
 const regimes = hmmRegimes(candles, { numStates: 3, maxIterations: 100 });
-// regimes[]: { time, value: { state: number, probability: number, stateLabel: 'bull' | 'bear' | 'sideways' } }
+// regimes[]: { time, value: { regime: number, label: 'trending-up' | 'ranging' | 'trending-down' (or 'state-N'), probabilities: number[], logLikelihood } }
 
-const hmm = fitHmm(observations, { numStates: 3 });
-// hmm: { transitionMatrix, emissionMeans, emissionVariances, stateSequence, logLikelihood }
+// Fit the model without decoding (features are extracted from the candles)
+const model = fitHmm(candles, { numStates: 3 });
+// model: { numStates, pi, transitionMatrix, emissionMeans, emissionVariances, logLikelihood, converged }
 
-const matrix = regimeTransitionMatrix(candles);
-// matrix: number[][] — transition probabilities between regimes
+const info = regimeTransitionMatrix(model);
+// info: { matrix: number[][], labels, expectedDurations, stationaryDistribution }
 ```
 
 ## Indicators — Wyckoff / VSA
@@ -552,8 +568,8 @@ type TradeSignal = {
   action: 'BUY' | 'SELL' | 'CLOSE';
   direction: 'LONG' | 'SHORT';
   confidence: number;        // 0-100
-  prices?: { entry?, stopLoss?, takeProfit? };
-  reasons: { source, name, detail? }[];
+  prices?: { entry: number; stopLoss?: number; takeProfit?: number };
+  reasons: { source: string; name: string; detail?: string }[];
   timeframe?: string;
   metadata?: Record<string, unknown>;
 };
@@ -569,7 +585,7 @@ type TradeSignal = {
 
 ### Signal Lifecycle
 ```typescript
-import { createSignalManager, processSignalsBatch } from 'trendcraft';
+import { createSignalManager } from 'trendcraft';
 
 const manager = createSignalManager({
   cooldown: { bars: 5 },    // Suppress duplicates for 5 bars
@@ -577,21 +593,24 @@ const manager = createSignalManager({
   expiry: { bars: 10 },     // Expire after 10 bars
 });
 
-const activated = manager.onBar(signals, barTime);
+// incomingSignals: TradeSignal[] produced on this bar
+const activated = manager.onBar(incomingSignals, barTime);
 manager.fill(signal.id);
 manager.cancel(signal.id);
 ```
+
+Batch post-processing: `processSignalsBatch(signals, options?)` applies the same rules (same `SignalManagerOptions`) to a whole `TradeSignal[]` at once.
 
 Signal states: `PENDING` → `ACTIVE` → `EXPIRED` / `FILLED` / `CANCELLED`.
 
 ## Backtesting
 
-### `runBacktest(candles, entry, exit, options)`
+### `runBacktest(candles, entry, exit, options, cache?)`
 
 ```typescript
-import { runBacktest, goldenCross, deadCross } from 'trendcraft';
+import { runBacktest, goldenCrossCondition, deadCrossCondition } from 'trendcraft';
 
-const result = runBacktest(candles, goldenCross(5, 25), deadCross(5, 25), {
+const result = runBacktest(candles, goldenCrossCondition(5, 25), deadCrossCondition(5, 25), {
   capital: 1000000,
   commission: 0,
   commissionRate: 0.1,      // 0.1%
@@ -617,23 +636,41 @@ interface BacktestResult {
   winRate: number;            // %
   maxDrawdown: number;        // %
   sharpeRatio: number;
+  sortinoRatio: number;
+  calmarRatio: number;
+  cagrPercent: number;
+  expectancyPercent: number;
+  exposurePercent: number;
+  avgWinPercent: number;
+  avgLossPercent: number;
+  largestWinPercent: number;
+  largestLossPercent: number;
+  firstBarTime: number;
+  lastBarTime: number;
   profitFactor: number;
   avgHoldingDays: number;
   trades: Trade[];
   settings: BacktestSettings;
   drawdownPeriods: DrawdownPeriod[];  // Individual peak-trough-recovery periods
+  equityCurve?: number[];
 }
 ```
 
 ### Fluent API Backtesting
 ```typescript
+import { TrendCraft, and, or, goldenCrossCondition, deadCrossCondition, rsiBelow, rsiAbove } from 'trendcraft';
+
 const result = TrendCraft.from(candles)
   .strategy()
-    .entry(and(goldenCross(), rsiBelow(30)))
-    .exit(or(deadCross(), rsiAbove(70)))
+    .entry(and(goldenCrossCondition(), rsiBelow(30)))
+    .exit(or(deadCrossCondition(), rsiAbove(70)))
   .backtest({ capital: 1000000 });
+```
 
+```typescript
 // With MTF
+import { TrendCraft, and, weeklyRsiAbove, goldenCrossCondition, deadCrossCondition } from 'trendcraft';
+
 const result = TrendCraft.from(dailyCandles)
   .withMtf(['weekly'])
   .strategy()
@@ -647,12 +684,17 @@ const result = TrendCraft.from(dailyCandles)
 
 ### Custom Condition Function
 ```typescript
-const custom = (indicators, candle, index, candles) => {
+import { runBacktest, deadCrossCondition } from 'trendcraft';
+import type { ConditionFn } from 'trendcraft';
+
+// ConditionFn: (indicators, candle, index, candles) => boolean
+const custom: ConditionFn = (indicators, candle, index, candles) => {
   return candle.volume > 1000000 && candle.close > candle.open;
 };
+const result = runBacktest(candles, custom, deadCrossCondition(), { capital: 1000000 });
 ```
 
-### Preset Conditions (191)
+### Preset Conditions
 
 **Moving Average:**
 - `goldenCrossCondition(short?, long?)` — Short MA crosses above Long MA
@@ -747,7 +789,9 @@ const custom = (indicators, candle, index, candles) => {
 ### Short Selling
 
 ```typescript
-const result = runBacktest(candles, deadCross(5, 25), goldenCross(5, 25), {
+import { runBacktest, deadCrossCondition, goldenCrossCondition } from 'trendcraft';
+
+const result = runBacktest(candles, deadCrossCondition(5, 25), goldenCrossCondition(5, 25), {
   capital: 1000000,
   direction: 'short',
   stopLoss: 5,       // Triggers at entry * 1.05 (price rises)
@@ -796,19 +840,21 @@ const result = runBacktestScaled(candles, entry, exit, {
 ### `gridSearch(candles, strategyFactory, paramRanges, options?)`
 
 ```typescript
-import { gridSearch, param, constraint } from 'trendcraft';
+import { gridSearch, param, constraint, goldenCrossCondition, deadCrossCondition } from 'trendcraft';
 
 const result = gridSearch(candles, (params) => ({
-  entry: goldenCross(params.short, params.long),
-  exit: deadCross(params.short, params.long),
+  entry: goldenCrossCondition(params.short, params.long),
+  exit: deadCrossCondition(params.short, params.long),
 }), [
-  param('short', [5, 10, 15, 20]),
-  param('long', [25, 50, 75]),
+  param('short', 5, 20, 5),   // param(name, min, max, step): 5, 10, 15, 20
+  param('long', 25, 75, 25),  // 25, 50, 75
 ], {
-  metric: 'sharpeRatio',  // or 'calmarRatio' | 'recoveryFactor' | 'totalReturn' | 'winRate' | 'profitFactor'
+  metric: 'sharpe',  // or 'calmar' | 'mar' | 'profitFactor' | 'recoveryFactor' | 'returns' | 'winRate' | 'tradeCount' | 'maxDrawdown'
   constraints: [constraint('winRate', '>=', 40), constraint('maxDrawdown', '<=', 30)],
-  topN: 10,
 });
+
+// results[] is sorted best-first; take the top 10 with .slice(0, 10)
+const top10 = result.results.slice(0, 10);
 ```
 
 Returns `GridSearchResult` with `results[]`, `totalCombinations`, `validCombinations`, `bestParams: Record<string, number> | null`, `bestScore: number | null`, `metric`. `bestParams`/`bestScore` are `null` when no combination passed constraints — guard with `result.bestScore ?? 0` or `result.validCombinations > 0`.
@@ -823,10 +869,10 @@ JSON-first variant. `strategy: StrategyJSON`, `ranges: PathParameterRange[]` whe
 Pure utilities for walking and rewriting `StrategyJSON`. `flattenStrategyLeaves` returns `LeafInfo[]` (depth-first), `applyParamOverrides` returns a new strategy with the addressed leaves' params updated. Both share the same path syntax as `gridSearchFromJSON`.
 
 ### `walkForwardAnalysis(candles, strategyFactory, paramRanges, options?)`
-Out-of-sample validation. Options: `inSampleRatio` (0.7), `periods` (5), `metric`.
+Out-of-sample validation over rolling windows. Options: `windowSize` (252), `stepSize` (63), `testSize` (63), `purgeBars` (0), `warmupBars` (all history), `metric` (`'sharpe'`), `constraints`, `paramFilter`.
 
-### `anchoredWalkForwardAnalysis(candles, entryPool, exitPool, options?)`
-Expanding training window. Options: `anchorDate`, `initialTrainSize` (504), `expansionStep` (252), `testSize` (252).
+### `anchoredWalkForwardAnalysis(candles, entryPool, exitPool, options, combinationOptions?)`
+Expanding training window. Options: `anchorDate` (required), `initialTrainSize` (504), `expansionStep` (252), `testSize` (252).
 
 Returns `AWFResult` with `periods[]`, `aggregateMetrics`, `stabilityAnalysis` (condition frequency, stable conditions, consistency score), `recommendation`.
 
@@ -843,14 +889,17 @@ Returns `MonteCarloResult` with `pValue`, `assessment.isSignificant`, `confidenc
 NSGA-II multi-objective optimization — find Pareto-optimal parameter sets that balance competing objectives (e.g., maximize return while minimizing drawdown).
 
 ```typescript
-import { paretoOptimization, summarizeParetoResult } from 'trendcraft';
+import {
+  paretoOptimization, summarizeParetoResult, param, constraint,
+  goldenCrossCondition, deadCrossCondition,
+} from 'trendcraft';
 
 const result = paretoOptimization(candles, (params) => ({
-  entry: goldenCross(params.short, params.long),
-  exit: deadCross(params.short, params.long),
+  entry: goldenCrossCondition(params.short, params.long),
+  exit: deadCrossCondition(params.short, params.long),
 }), [
-  param('short', [5, 10, 15, 20]),
-  param('long', [25, 50, 75, 100]),
+  param('short', 5, 20, 5),
+  param('long', 25, 100, 25),
 ], {
   objectives: [
     { metric: 'sharpe', direction: 'maximize' },
@@ -865,7 +914,7 @@ const result = paretoOptimization(candles, (params) => ({
 console.log(summarizeParetoResult(result));
 ```
 
-Available metrics: `sharpe`, `returnPercent`, `maxDrawdown`, `profitFactor`, `winRate`, `calmar`, `recoveryFactor`, `avgHoldingDays`.
+Available metrics (`OptimizationMetric`): `sharpe`, `calmar`, `mar`, `profitFactor`, `recoveryFactor`, `returns`, `winRate`, `tradeCount`, `maxDrawdown`.
 
 ### Metrics
 - `calculateSharpeRatio(returns, riskFreeRate?)`
@@ -975,7 +1024,7 @@ Strategy rotation — dynamically allocate capital across multiple strategies ba
 ```typescript
 import { rotateStrategies } from 'trendcraft';
 
-const rotation = rotateStrategies([result1, result2, result3], {
+const rotation = rotateStrategies([resultA, resultB, resultC], {
   lookbackTrades: 20,
   rankingMetric: 'sharpeRatio',        // 'returnPercent' | 'sharpeRatio' | 'profitFactor' | 'winRate'
   maxActiveStrategies: 2,
@@ -1035,16 +1084,18 @@ Layer 6: createPositionTracker + createManagedSession (SL/TP/trailing/partial TP
 import { streaming } from 'trendcraft';
 
 const agg = streaming.createCandleAggregator({ intervalMs: 60_000 });
-const candle = agg.addTrade({ time: Date.now(), price: 100, volume: 10 }); // null or completed candle
+const candle1m = agg.addTrade({ time: Date.now(), price: 100, volume: 10 }); // null or completed candle
 agg.flush(); // Force-close current candle
 
 const resampler = streaming.createCandleResampler({ targetIntervalMs: 300_000 }); // 1m → 5m
-const candle5m = resampler.addCandle(candle1m);
+const candle5m = candle1m ? resampler.addCandle(candle1m) : null;
 ```
 
 ### Layer 2: Signal Detectors
 
 ```typescript
+import { streaming } from 'trendcraft';
+
 const crossOver = streaming.createCrossOverDetector();
 crossOver.next(21, 20); // true when valueA crosses above valueB
 
@@ -1058,7 +1109,8 @@ const squeeze = streaming.createSqueezeDetector({ bandwidthThreshold: 0.05 });
 squeeze.next(0.04); // { squeezeStart: true, squeezeEnd: false, inSqueeze: true }
 
 const divergence = streaming.createDivergenceDetector({ lookback: 14 });
-divergence.next(price, rsiValue); // { bullish: boolean, bearish: boolean }
+const rsiValue = rsiIndicator.next(candle).value; // an incremental RSI
+divergence.next(candle.close, rsiValue); // { bullish: boolean, bearish: boolean }
 ```
 
 All detectors support `next()`, `peek()` (preview without state change), and `getState()`.
@@ -1068,11 +1120,13 @@ All detectors support `next()`, `peek()` (preview without state change), and `ge
 ```typescript
 import { streaming } from 'trendcraft';
 
-const entry = streaming.and(streaming.rsiBelow(30), streaming.smaGoldenCross());
-const exit = streaming.or(streaming.rsiAbove(70), streaming.smaDeadCross());
+// Conditions read named values from the pipeline snapshot ('rsi', 'sma20', 'sma50', ...)
+const entry = streaming.and(streaming.rsiBelow(30), streaming.crossOver('sma20', 'sma50'));
+const exit = streaming.or(streaming.rsiAbove(70), streaming.crossUnder('sma20', 'sma50'));
 
-// Preset conditions: rsiBelow, rsiAbove, smaGoldenCross, smaDeadCross,
+// Preset conditions: rsiBelow, rsiAbove, crossOver, crossUnder,
 // macdPositive, macdNegative, priceAbove, priceBelow, indicatorAbove, indicatorBelow
+// (smaGoldenCross / smaDeadCross are deprecated in favor of crossOver / crossUnder)
 ```
 
 ### Layer 4: Pipeline & MTF
@@ -1094,25 +1148,32 @@ const pipeline = streaming.createPipeline({
 const result = pipeline.next(candle);
 // { snapshot: {...}, entrySignal: boolean, exitSignal: boolean, signals: string[] }
 
-// Multi-Timeframe
+// Multi-Timeframe: feed base-timeframe (e.g. 1-min) candles
 const mtf = streaming.createStreamingMtf({
   timeframes: [
     { intervalMs: 300_000, indicators: [{ name: 'sma20', create: () => incremental.createSma({ period: 20 }) }] },
   ],
 });
-const snapshot = mtf.next(candle1m); // { "5m": { sma20: ... } }
+const snapshot = mtf.next(candle); // { "5m": { sma20: ... } }
 ```
 
 ### Layer 5: Session & Guards
 
 ```typescript
-const session = streaming.createTradingSession({
-  intervalMs: 60_000,
-  pipeline: { indicators: [...], entry: ..., exit: ... },
-  warmUp: historicalCandles,
-});
+import { streaming, incremental } from 'trendcraft';
 
-const events = session.onTrade({ time, price, volume });
+const sessionOpts = {
+  intervalMs: 60_000,
+  pipeline: {
+    indicators: [{ name: 'rsi', create: () => incremental.createRsi({ period: 14 }) }],
+    entry: streaming.rsiBelow(30),
+    exit: streaming.rsiAbove(70),
+  },
+  warmUp: historicalCandles,
+};
+const session = streaming.createTradingSession(sessionOpts);
+
+const events = session.onTrade({ time: Date.now(), price: 100, volume: 10 });
 // Events: 'candle' | 'signal' | 'entry' | 'exit' | 'partial' | 'blocked' | 'force-close'
 
 // Risk Guard
@@ -1128,13 +1189,17 @@ const timeGuard = streaming.createTimeGuard({
   tradingWindows: [{ startMs: 9 * 3600_000, endMs: 15 * 3600_000 }],
   timezoneOffsetMs: 9 * 3600_000,
   forceCloseBeforeEndMs: 5 * 60_000,
-  blackoutPeriods: [{ startTime, endTime, reason: 'FOMC' }],
+  blackoutPeriods: [{
+    startTime: Date.parse('2024-01-31T19:00:00Z'),
+    endTime: Date.parse('2024-01-31T19:30:00Z'),
+    reason: 'FOMC',
+  }],
 });
 
-// Combined
+// Combined: createGuardedSession(sessionOptions, guardOptions, fromState?)
 const guarded = streaming.createGuardedSession(sessionOpts, {
   riskGuard: { maxDailyLoss: -50000 },
-  timeGuard: { tradingWindows: [...] },
+  timeGuard: { tradingWindows: [{ startMs: 9 * 3600_000, endMs: 15 * 3600_000 }] },
 });
 
 // Portfolio Guard (standalone; not part of createGuardedSession)
@@ -1153,6 +1218,8 @@ portfolioGuard.reportPositionClose('AAPL', 20_000, 500); // notional, P&L
 ### Layer 6: Position Management
 
 ```typescript
+import { streaming, incremental } from 'trendcraft';
+
 const tracker = streaming.createPositionTracker({
   capital: 1_000_000,
   stopLoss: 2,
@@ -1160,24 +1227,31 @@ const tracker = streaming.createPositionTracker({
   trailingStop: 3,
   commissionRate: 0.1,
   slippage: 0.05,
-  // Partial Take Profit
-  partialTp: [
-    { percent: 50, triggerPercent: 3 },  // Close 50% at +3%
-    { percent: 50, triggerPercent: 6 },  // Close remaining at +6%
-  ],
-  // Break-Even Stop
-  breakEvenTrigger: 2,   // Move stop to entry when profit reaches 2%
-  breakEvenOffset: 0.1,  // With 0.1% buffer above entry
+  // Partial Take Profit: sell 50% of the position at +3%
+  partialTakeProfit: { threshold: 3, sellPercent: 50 },
+  // Break-Even Stop: move stop to entry +0.1% once profit reaches +2%
+  breakevenStop: { threshold: 2, buffer: 0.1 },
 });
 
-tracker.openPosition(price, shares, time);
-const { triggered } = tracker.updatePrice(candle); // Check SL/TP/trailing/partial TP/break-even
-tracker.closePosition(price, time, reason);
+tracker.openPosition(100, 50, Date.now()); // price, shares, time
+const { triggered, partialFills } = tracker.updatePrice(candle); // SL/TP/trailing/partial TP/break-even
+if (tracker.getPosition()) tracker.closePosition(105, Date.now(), 'exit-signal');
 
 // Full managed session (tick → signal → position → P&L)
+// createManagedSession(sessionOptions, guardOptions, positionOptions, fromState?)
 const managed = streaming.createManagedSession(
-  sessionOpts,
-  { riskGuard: {...}, timeGuard: {...} },
+  {
+    intervalMs: 60_000,
+    pipeline: {
+      indicators: [{ name: 'rsi', create: () => incremental.createRsi({ period: 14 }) }],
+      entry: streaming.rsiBelow(30),
+      exit: streaming.rsiAbove(70),
+    },
+  },
+  {
+    riskGuard: { maxDailyLoss: -50000 },
+    timeGuard: { tradingWindows: [{ startMs: 9 * 3600_000, endMs: 15 * 3600_000 }] },
+  },
   {
     capital: 1_000_000,
     sizing: { method: 'risk-based', riskPercent: 1 },
@@ -1188,20 +1262,27 @@ const managed = streaming.createManagedSession(
   },
 );
 
-const events = managed.onTrade({ time, price, volume });
+const events = managed.onTrade({ time: Date.now(), price: 100, volume: 10 });
 // Events: all session events + 'position-opened' | 'position-closed' | 'position-update'
 ```
 
 ### Signal Emitter
 
 ```typescript
+import { streaming, incremental } from 'trendcraft';
+import type { TradeSignal } from 'trendcraft';
+
 const emitter = streaming.createSignalEmitter({
   intervalMs: 60000,
-  pipeline: { indicators: [...], entry: ..., exit: ... },
+  pipeline: {
+    indicators: [{ name: 'rsi', create: () => incremental.createRsi({ period: 14 }) }],
+    entry: streaming.rsiBelow(30),
+    exit: streaming.rsiAbove(70),
+  },
   onSignal: (signal: TradeSignal) => { console.log(signal.action); },
 });
 
-emitter.onTrade({ time, price, volume });
+emitter.onTrade({ time: Date.now(), price: 100, volume: 10 });
 emitter.close();
 ```
 
@@ -1317,6 +1398,7 @@ Standalone helpers: `calculateAtrStop(opts)`, `calculateAtrTakeProfit(opts)`, `c
 Backtest integration:
 ```typescript
 runBacktest(candles, entry, exit, {
+  capital: 1_000_000,
   atrRisk: { atrPeriod: 14, atrStopMultiplier: 2.5, atrTakeProfitMultiplier: 4, atrTrailingMultiplier: 2 },
 });
 ```
@@ -1378,12 +1460,12 @@ Individual detectors: `detectGaps()`, `detectDuplicates()`, `removeDuplicates()`
 ## Plugin System
 
 ```typescript
-import { defineIndicator, TrendCraft, plugins } from 'trendcraft';
+import { defineIndicator, TrendCraft, plugins, sma } from 'trendcraft';
 
 // Define custom indicator
 const myIndicator = defineIndicator({
   name: 'myInd' as const,
-  compute: (candles, opts) => { /* return Series<T> */ },
+  compute: (candles, opts) => sma(candles, { period: opts.period }), // must return a Series<T>
   defaultOptions: { period: 20 },
   buildKey: (opts) => `myInd_${opts.period}`,
 });
@@ -1402,7 +1484,7 @@ Built-in plugins: `plugins.sma`, `plugins.ema`, `plugins.rsi`, `plugins.macd`, `
 ```typescript
 import { incremental } from 'trendcraft';
 
-// 160+ stateful indicators for streaming (O(1) per candle)
+// 90+ stateful indicators for streaming (O(1) per candle)
 // Categories: moving-average, momentum, trend, volatility, volume, price, wyckoff
 const rsi = incremental.createRsi({ period: 14 });
 const sma = incremental.createSma({ period: 20 });
@@ -1419,17 +1501,19 @@ const state = rsi.getState(); // Serialize for persistence
 `createLiveCandle` unifies tick aggregation with dynamically registered incremental indicators and an event bus. Supports tick mode (raw trades) and candle mode (pre-formed candles).
 
 ```typescript
-import { createLiveCandle, incremental } from 'trendcraft';
+import { createLiveCandle, incremental, streaming } from 'trendcraft';
 
-const live = createLiveCandle({
+const liveOptions: streaming.LiveCandleOptions = {
   intervalMs: 60_000,
   indicators: [
-    { name: 'sma20', create: (s) => incremental.createSma({ period: 20 }, { fromState: s }) },
-    { name: 'rsi14', create: (s) => incremental.createRsi({ period: 14 }, { fromState: s }) },
+    // restoreState(s) turns the opaque saved state into { fromState } (or undefined)
+    { name: 'sma20', create: (s) => incremental.createSma({ period: 20 }, incremental.restoreState(s)) },
+    { name: 'rsi14', create: (s) => incremental.createRsi({ period: 14 }, incremental.restoreState(s)) },
   ],
   history: historicalCandles,
   maxHistory: 500,
-});
+};
+const live = createLiveCandle(liveOptions);
 
 live.on('tick', ({ candle, snapshot, isNewCandle }) => updateChart(candle, snapshot));
 live.on('candleComplete', ({ candle, snapshot }) => {
@@ -1445,24 +1529,26 @@ live.addCandle(partialCandle, { partial: true });
 
 // Persist / restore
 const state = live.getState();
-const restored = createLiveCandle(options, state);
+const restored = createLiveCandle(liveOptions, state);
 ```
 
-Events: `tick`, `candleComplete`. Types: `LiveCandle`, `LiveCandleOptions`, `LiveCandleState`, `IndicatorSnapshot`, `LiveIndicatorFactory`, `Trade`.
+Events: `tick`, `candleComplete`. Types (on the `streaming` namespace, e.g. `streaming.LiveCandleOptions`): `LiveCandle`, `LiveCandleOptions`, `LiveCandleState`, `IndicatorSnapshot`, `LiveIndicatorFactory`, `Trade`.
 
 ## Series Metadata & Indicator Registries (SeriesMeta / tagSeries / livePresets / indicatorPresets)
 
 Every built-in indicator output carries a non-enumerable `__meta` describing domain characteristics (kind, label, overlay vs sub-pane, Y-range, reference lines). Any consumer may read the metadata; consumers that don't care can ignore it.
 
 ```typescript
-import { tagSeries, rsi, type SeriesMeta } from 'trendcraft';
+import { tagSeries, rsi, sma, type TaggedSeries } from 'trendcraft';
 
-const r = rsi(candles, { period: 14 });
+// Indicator signatures are typed as Series<T>; cast to TaggedSeries<T> to read the metadata
+const r = rsi(candles, { period: 14 }) as TaggedSeries<number | null>;
 r.__meta;
 // { kind: 'rsi', label: 'RSI(14)', overlay: false, yRange: [0, 100], referenceLines: [30, 70] }
 
 // Match by stable identity (params-independent):
-allSeries.filter(s => s.__meta?.kind === 'rsi');
+const allSeries: TaggedSeries<number | null>[] = [sma(candles, { period: 20 }), r];
+const rsiOnly = allSeries.filter((s) => s.__meta?.kind === 'rsi');
 
 // Tag a custom series
 const my = tagSeries(myData, {
@@ -1476,7 +1562,7 @@ const my = tagSeries(myData, {
 
 `SeriesMeta` fields: `kind?` (parameter-independent identifier matching `indicatorPresets` keys — use for identity matching), `overlay` (boolean — shares price scale if true), `label` (parameterized display string), `yRange?` ([min, max]), `referenceLines?` (number[]).
 
-### livePresets (76 entries)
+### livePresets (84 entries)
 
 Registry of incremental indicator presets. Each entry bundles a metadata object, default params, a snapshot-name derivation, and a factory that produces an incremental indicator from those params.
 
@@ -1490,7 +1576,7 @@ const indicator = factory(undefined); // no prior state
 
 Each preset: `{ meta: SeriesMeta, defaultParams, snapshotName: (p) => string, createFactory: (p) => LiveIndicatorFactory }`.
 
-### indicatorPresets (95 entries)
+### indicatorPresets (104 entries)
 
 Extends `livePresets` with a batch `compute` function, giving one registry that works in both static and streaming modes.
 
@@ -1499,14 +1585,16 @@ import { indicatorPresets } from 'trendcraft';
 
 const preset = indicatorPresets.rsi;
 
-// Static — one-shot batch computation
-const series = preset.compute(candles, { period: 14 });
+// Static — one-shot batch computation. `compute` is optional in the entry
+// type; every built-in entry defines it.
+const series = preset.compute!(candles, { period: 14 });
 
-// Streaming — build an incremental indicator from the same registry entry
-const factory = preset.createFactory({ period: 14 });
+// Streaming — `createFactory` is absent on batch-only entries, so use an
+// optional call (or check for its presence first)
+const factory = preset.createFactory?.({ period: 14 });
 ```
 
-Additional per-entry fields: `compute(candles, params) -> Series<T>`, `category` (grouping hint), `paramSchema` (for form/UI generation).
+Additional per-entry fields: `compute?(candles, params) -> Series<T>`, `createFactory?` (absent on the 25 batch-only entries such as `zigzag`, `heikinAshi`, `dpo`), `category?` (grouping hint), `paramSchema?` (for form/UI generation).
 
 ## Result Type
 
@@ -1575,6 +1663,7 @@ const fn = compose(
 
 // Adapters
 const pseudoCandles = seriesToCandles(rsiSeries);
+const macdSeries = macd(candles);
 const histogram = extractField(macdSeries, 'histogram');
 const normalized = mapValues(rsiSeries, v => v !== null ? v / 100 : null);
 const spread = combineSeries(seriesA, seriesB, (a, b) => a !== null && b !== null ? a - b : null);
@@ -1675,11 +1764,15 @@ const result = analyzePair(
 // result.signals: PairsSignal[] (open_long, open_short, close)
 // result.assessment: { isViable, reason, confidenceFactor }
 
-// Individual functions
-const adf = adfTest(residuals); // { adfStatistic, pValue, criticalValues, lag }
-const spread = calculateSpread(pricesA, pricesB, hedgeRatio, intercept, times);
-const mr = analyzeMeanReversion(spreads); // { halfLife, lambda, isMeanReverting, hurstExponent }
-const reg = olsRegression(x, y); // { beta, intercept, rSquared, residuals }
+// Individual functions (on time-aligned close arrays)
+const pricesA = candlesGOOG.map(c => c.close);
+const pricesB = candlesMSFT.map(c => c.close);
+const times = candlesGOOG.map(c => c.time);
+const reg = olsRegression(pricesB, pricesA); // olsRegression(x, y): { beta, intercept, rSquared, residuals }
+const adf = adfTest(reg.residuals); // { adfStatistic, pValue, criticalValues, lag }
+// calculateSpread(seriesY, seriesX, hedgeRatio, intercept, times, options?)
+const spread = calculateSpread(pricesA, pricesB, reg.beta, reg.intercept, times);
+const mr = analyzeMeanReversion(spread.map(p => p.spread)); // { halfLife, lambda, isMeanReverting, hurstExponent }
 ```
 
 Types: `PairsAnalysisResult`, `SpreadPoint`, `PairsSignal`, `MeanReversionResult`.
@@ -1703,13 +1796,18 @@ const analysis = analyzeCorrelation(
 // analysis.divergences: DivergencePoint[] (type: bullish|bearish, returnA, returnB, significance)
 // analysis.summary: { avgCorrelation, stability, currentRegime, dominantRegime }
 
-// Individual functions
+// Individual functions (returnsA/returnsB: aligned daily returns)
+const times = candlesSPY.slice(1).map(c => c.time); // one timestamp per return
 const corr = rollingCorrelation(returnsA, returnsB, times, 60);
-const r = pearsonCorrelation(x, y);   // -1 to 1
-const rs = spearmanRankCorrelation(x, y); // -1 to 1
+const r = pearsonCorrelation(returnsA, returnsB);   // -1 to 1
+const rs = spearmanRankCorrelation(returnsA, returnsB); // -1 to 1
 const regimes = detectCorrelationRegimes(corr, { regimeThresholds: { strongPositive: 0.7 } });
 const leadLag = analyzeLeadLag(returnsA, returnsB, { maxLag: 5 });
-const divs = detectIntermarketDivergence(pricesA, pricesB, times);
+const divs = detectIntermarketDivergence(
+  candlesSPY.map(c => c.close),
+  candlesQQQ.map(c => c.close),
+  candlesSPY.map(c => c.time),
+);
 ```
 
 Types: `CorrelationAnalysisResult`, `CorrelationPoint`, `CorrelationRegimePoint`, `LeadLagResult`, `DivergencePoint`.
@@ -1743,14 +1841,16 @@ const entry = backtestRegistry.get("rsiBelow");
 
 ```typescript
 import { ConditionRegistry } from "trendcraft";
+import type { Condition } from "trendcraft";
 
+// myConditionFactory: your own (period: number) => Condition
 const registry = new ConditionRegistry<Condition>();
 registry.register({
   name: "myCondition",
   displayName: "My Condition",
   category: "trend",
   params: { period: { type: "number", default: 14, min: 1 } },
-  create: (p) => myFactory((p.period as number) ?? 14),
+  create: (p) => myConditionFactory((p.period as number) ?? 14),
 });
 // Methods: register, get, has, list, names, size, hydrate
 ```

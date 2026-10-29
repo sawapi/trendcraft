@@ -51,6 +51,8 @@ const DOC_FILES = [
   "docs/API.ja.md",
   "README.md",
   "README.ja.md",
+  "llms.txt",
+  "llms-full.txt",
 ];
 
 // Published specifier → absolute in-repo source entry (mirrors Tier 1/2 maps).
