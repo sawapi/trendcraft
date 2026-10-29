@@ -1,8 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { mulberry32 } from "../../core/random";
+import type { RiskParityOptions } from "../risk-parity";
 import { correlationAdjustedSize, riskParityAllocation } from "../risk-parity";
 
 describe("riskParityAllocation", () => {
+  it("does not accept riskFreeRate, which it never read", () => {
+    // Equal risk contribution on variance does not depend on a risk-free
+    // rate, and the option was never read. It is now rejected at compile
+    // time instead of being silently ignored.
+    // @ts-expect-error riskFreeRate is not an option
+    const options: RiskParityOptions = { riskFreeRate: 0.02 };
+    expect(options).toEqual({ riskFreeRate: 0.02 });
+  });
+
   it("should assign inverse-vol-like weights to uncorrelated assets", () => {
     // Asset A: low volatility, Asset B: high volatility (2x)
     const n = 200;

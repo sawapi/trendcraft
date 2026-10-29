@@ -54,9 +54,6 @@ const SRC_ROOT = path.resolve(here, ".."); // packages/core/src
 // removed from here, not parked forever.
 // ---------------------------------------------------------------------------
 const ALLOWLIST: Record<string, string[]> = {
-  // Known-dead, documented in source: "Unused — reserved for future use;
-  // riskParityAllocation does not read this option". Kept for API compat.
-  RiskParityOptions: ["riskFreeRate"],
   // Known-dead, documented in source. `positionSizing` is `@deprecated Was
   // never wired into the engine. Use tradeOptions.sizing`.
   PortfolioBacktestOptions: ["positionSizing"],
