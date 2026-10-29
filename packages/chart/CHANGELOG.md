@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — twelve presets were labelled "Indicator"
+
+`connectIndicators` left a series' label to the computed data's own
+parametric label (e.g. "SMA(20)"). Twelve presets compute series without
+one — `ewmaVol`, `volumeMa`, `zigzag`, `superSmoother`, `roofingFilter`,
+`highest`, `lowest`, `cumulativeReturns`, `medianPrice`, `typicalPrice`,
+`weightedClose` and `atrPercent` — so the legend and pane title showed the
+generic "Indicator", several times over when more than one was added. A
+series without its own label now takes the preset's label ("EWMA Vol",
+"Highest", …); one with its own label keeps it.
+
 ### Breaking — `addBacktest` draws the engine's equity curve, or none
 
 The equity pane drew a curve rebuilt from the trades, compounding each
