@@ -554,8 +554,9 @@ export type BacktestResult = {
    * cannot recover the open fraction after a partial exit. Under
    * `runBacktestScaled` the capital a position still holds back for tranches
    * it has not entered counts as equity too. Emitted by `runBacktest` and
-   * `runBacktestScaled`; optional because hand-built results may omit it
-   * (consumers fall back to reconstructing returns from trades).
+   * `runBacktestScaled`; optional because hand-built results may omit it.
+   * Core's return-based consumers then fall back to reconstructing returns
+   * from trades; `@trendcraft/chart` draws no equity curve without it.
    */
   equityCurve?: number[];
 };

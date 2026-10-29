@@ -6,6 +6,7 @@
 import type { DataLayer, InternalSeries } from "../core/data-layer";
 import { decimateCandles, getDecimationTarget } from "../core/decimation";
 import { DrawHelper, withPaneClip } from "../core/draw-helper";
+import type { BacktestFeature } from "../core/features";
 import { canvasFont } from "../core/font";
 import { formatVolume } from "../core/format";
 import type { LayoutEngine } from "../core/layout";
@@ -26,6 +27,7 @@ import { renderOhlcBars } from "../series/ohlc-bar";
 import { renderPriceLineChart } from "../series/price-line";
 import { renderGrid, renderPriceAxis, renderReferenceLines, renderTimeAxis } from "./axis-renderer";
 import { renderCrosshair } from "./crosshair-renderer";
+import type { EquityViewProblem } from "./equity-view";
 import type { ChartEventEmitter } from "./event-emitter";
 import {
   type ComputedBadge,
@@ -111,6 +113,27 @@ export type RenderResult = {
   seriesByPane: Map<string, InternalSeries[]>;
   drawHelper: DrawHelper | null;
 };
+
+/** Backtest results already warned about, so each warns once */
+const _equityWarned = new WeakSet<object>();
+
+/**
+ * Warn once per result that its equity curve is not drawn, and why. The
+ * curve is never rebuilt from trades, which misstates sized or partly
+ * closed positions.
+ */
+function warnNoEquityCurve(
+  rc: RenderContext,
+  backtest: BacktestFeature,
+  result: object,
+  reason: EquityViewProblem,
+): void {
+  if (_equityWarned.has(result)) return;
+  _equityWarned.add(result);
+  const message = backtest.equityWarning(reason);
+  if (typeof console !== "undefined") console.warn(`[@trendcraft/chart] ${message}`);
+  rc.emit("error", { message, code: "NO_EQUITY_CURVE", detail: { reason } });
+}
 
 /**
  * The `error` payload for a renderer or primitive that threw mid-frame:
@@ -201,7 +224,7 @@ export function renderFrame(rc: RenderContext): RenderResult {
 
     // Equity pane: backtest range
     if (pane.id === "equity" && data.backtestResult && backtest) {
-      const [eqMin, eqMax] = backtest.equityRange(data.backtestResult);
+      const [eqMin, eqMax] = backtest.equityRange(data.backtestResult, data);
       scales.right.setDataRange(eqMin, eqMax);
     } else {
       // Right scale range
@@ -596,15 +619,14 @@ export function renderFrame(rc: RenderContext): RenderResult {
     const equityPane = paneRects.find((p) => p.id === "equity");
     const equityScale = rc.priceScales.get("equity");
     if (equityPane && equityScale) {
-      backtest.renderEquityCurve(
-        ctx,
-        btResult,
-        equityPane,
-        equityScale.right,
-        timeScale,
-        data,
-        theme,
-      );
+      const view = backtest.equityView(btResult, data);
+      if (!view.ok) warnNoEquityCurve(rc, backtest, btResult, view.reason);
+      backtest.renderEquityCurve(ctx, view, equityPane, equityScale.right, timeScale, theme);
+      const lastTime = data.timeAt(data.candleCount - 1);
+      const partial =
+        lastTime !== undefined && backtest.isPartialRun(btResult, view, data)
+          ? { view, lastTime }
+          : undefined;
       backtest.renderSummary(
         ctx,
         btResult,
@@ -614,6 +636,7 @@ export function renderFrame(rc: RenderContext): RenderResult {
         rc.fontSize,
         rc.locale,
         rc.fontFamily,
+        partial,
       );
     }
   }

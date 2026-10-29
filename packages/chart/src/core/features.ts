@@ -15,9 +15,11 @@ import type {
 } from "../renderer/backtest-renderer";
 import type { renderDrawings } from "../renderer/drawing-renderer";
 import type { DrawingTool, DrawingToolDeps } from "../renderer/drawing-tool";
+import type { equityView, equityWarning, isPartialRun } from "../renderer/equity-view";
 import type { renderSignals, renderTrades } from "../renderer/marker-renderer";
 import type { renderPatterns } from "../renderer/pattern-renderer";
 import type { renderScoreHeatmap } from "../renderer/score-renderer";
+import type { DataLayer } from "./data-layer";
 import type { checkBacktest, checkSignals, checkTrades } from "./feature-validation";
 import type { BacktestResultData } from "./types";
 
@@ -30,8 +32,11 @@ export type DrawingFeature = {
 /** Backtest results (trades, equity pane, summary) and chart patterns. */
 export type BacktestFeature = {
   check: typeof checkBacktest;
-  /** Value range of the equity pane for a result. */
-  equityRange: (result: BacktestResultData) => [number, number];
+  /** Value range of the equity pane for a result on the loaded candles. */
+  equityRange: (result: BacktestResultData, dataLayer: DataLayer) => [number, number];
+  equityView: typeof equityView;
+  equityWarning: typeof equityWarning;
+  isPartialRun: typeof isPartialRun;
   renderTrades: typeof renderBacktestTrades;
   renderEquityCurve: typeof renderEquityCurve;
   renderSummary: typeof renderBacktestSummary;

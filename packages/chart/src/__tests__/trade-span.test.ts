@@ -1,11 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { DataLayer } from "../core/data-layer";
-import { DARK_THEME, type TradeMarker } from "../core/types";
-import {
-  type BacktestResultData,
-  renderBacktestTrades,
-  renderEquityCurve,
-} from "../renderer/backtest-renderer";
+import type { TradeMarker } from "../core/types";
+import { type BacktestResultData, renderBacktestTrades } from "../renderer/backtest-renderer";
 import { renderTrades } from "../renderer/marker-renderer";
 import { tradeSpan } from "../renderer/trade-span";
 import { makeCandle, makePane, makePriceScale, makeTimeScale, mockCtx } from "./helpers/mock-ctx";
@@ -120,67 +116,5 @@ describe.each([
     render(ctx, [trade(3, 7)]);
     expect(ctx.arc).toHaveBeenCalledTimes(2);
     expect(ctx.lineTo).toHaveBeenCalledWith(ts.indexToX(7), expect.any(Number));
-  });
-});
-
-describe("renderEquityCurve beyond the loaded candles", () => {
-  const pane = makePane("equity", 100);
-  const eps = makePriceScale(100, 9_000, 13_000);
-
-  function points(trades: Trade[]): [number, number][] {
-    const ctx = mockCtx();
-    renderEquityCurve(ctx, result(trades), pane, eps, ts, dl(), DARK_THEME);
-    return [...vi.mocked(ctx.moveTo).mock.calls, ...vi.mocked(ctx.lineTo).mock.calls] as [
-      number,
-      number,
-    ][];
-  }
-
-  it("stays within the data and ignores exits that have not happened", () => {
-    const pts = points([trade(3, 7), trade(17, 25), trade(25, 30)]);
-    for (const [x] of pts) expect(x).toBeLessThanOrEqual(lastX);
-    // Equity after the one closed trade, flat to the last bar
-    const closedY = pane.y + eps.priceToY(11_000);
-    const atLast = pts.filter(([x]) => x === lastX).map(([, y]) => y);
-    expect(atLast).toContain(closedY);
-    expect(atLast.every((y) => y === closedY || y === pane.y + pane.height)).toBe(true);
-  });
-
-  it("shades no drawdown whose loss comes after the last candle", () => {
-    // What core reports when the losing exit lands after the data: a period
-    // starting at the peak (7 min) with its trough and no recovery later on
-    const r = result([trade(3, 7), trade(10, 25, -20)]);
-    r.drawdownPeriods = [
-      {
-        startTime: 7 * MIN,
-        troughTime: 25 * MIN,
-        maxDepthPercent: 20,
-        peakEquity: 11_000,
-        troughEquity: 8_800,
-      },
-    ];
-    const ctx = mockCtx();
-    renderEquityCurve(ctx, r, pane, eps, ts, dl(), DARK_THEME);
-    expect(ctx.fillRect).not.toHaveBeenCalled();
-  });
-
-  it("shades a drawdown from its peak to the last candle while unrecovered", () => {
-    const ctx = mockCtx();
-    renderEquityCurve(
-      ctx,
-      result([trade(3, 7), trade(9, 12, -20)]),
-      pane,
-      eps,
-      ts,
-      dl(),
-      DARK_THEME,
-    );
-    const [x, , w] = vi.mocked(ctx.fillRect).mock.calls[0];
-    expect([x, x + w]).toEqual([ts.indexToX(7), lastX]);
-  });
-
-  it("starts at the equity reached by trades closed before the data", () => {
-    const pts = points([trade(-10, -5)]);
-    expect(pts[0]).toEqual([ts.indexToX(0), pane.y + eps.priceToY(11_000)]);
   });
 });

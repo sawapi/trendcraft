@@ -20,6 +20,10 @@ export type TimeframeOverlay = {
   opacity?: number;
 };
 
+/**
+ * The parts of a `trendcraft` `BacktestResult` that `addBacktest` reads. Pass
+ * the `runBacktest` result as it is.
+ */
 export type BacktestResultData = {
   initialCapital: number;
   finalCapital: number;
@@ -39,7 +43,11 @@ export type BacktestResultData = {
     direction?: string;
     exitReason?: string;
   }[];
-  drawdownPeriods: {
+  /**
+   * Not read by the chart: drawdown shading follows the drawn equity curve.
+   * Accepted so a `BacktestResult` can be passed as it is.
+   */
+  drawdownPeriods?: {
     startTime: number;
     troughTime: number;
     recoveryTime?: number;
@@ -47,6 +55,24 @@ export type BacktestResultData = {
     peakEquity: number;
     troughEquity: number;
   }[];
+  /**
+   * Mark-to-market equity at each evaluated candle's close, as `runBacktest`
+   * returns it. `equityCurve[0]` belongs to the candle at `firstBarTime`, and
+   * each later value to the next candle. The chart draws it as it is; without
+   * it, or without `firstBarTime`, no equity curve is drawn.
+   *
+   * The chart checks the curve against the loaded candles where it can: the
+   * candle at `firstBarTime` (or, when the data starts later, at
+   * `lastBarTime`) must exist, the loaded candles from there must not
+   * outnumber the curve, and when `lastBarTime` is loaded it must fall on the
+   * curve's last value. Candles in between are not checked, so the chart must
+   * hold the candles the backtest ran on.
+   */
+  equityCurve?: readonly number[];
+  /** Time of the candle `equityCurve[0]` belongs to; `0` means unknown */
+  firstBarTime?: number;
+  /** Time of the last candle the backtest evaluated; `0` means unknown */
+  lastBarTime?: number;
 };
 
 export type ChartPatternSignal = {
