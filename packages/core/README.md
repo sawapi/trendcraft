@@ -89,6 +89,7 @@ Three CLI tools ship with the package: `trendcraft-screen`, `trendcraft-backtest
 - [Guide](https://github.com/sawapi/trendcraft/blob/main/packages/core/docs/GUIDE.md) — usage walkthrough and concepts ([日本語](https://github.com/sawapi/trendcraft/blob/main/packages/core/docs/GUIDE.ja.md))
 - [API Reference](https://github.com/sawapi/trendcraft/blob/main/packages/core/docs/API.md) — full API surface ([日本語](https://github.com/sawapi/trendcraft/blob/main/packages/core/docs/API.ja.md))
 - [Cookbook](https://github.com/sawapi/trendcraft/blob/main/packages/core/docs/COOKBOOK.md) — practical recipes
+- [Migration: 0.5 → 0.6](https://github.com/sawapi/trendcraft/blob/main/packages/core/docs/migration-0.5-to-0.6.md)
 - [Migration: 0.3 → 0.4](https://github.com/sawapi/trendcraft/blob/main/packages/core/docs/migration-0.3-to-0.4.md)
 - [CHANGELOG](https://github.com/sawapi/trendcraft/blob/main/packages/core/CHANGELOG.md)
 - [llms.txt](https://github.com/sawapi/trendcraft/blob/main/packages/core/llms.txt) / [llms-full.txt](https://github.com/sawapi/trendcraft/blob/main/packages/core/llms-full.txt) — LLM-friendly summaries

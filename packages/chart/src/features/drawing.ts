@@ -1,6 +1,7 @@
 /**
- * Drawing tools: interactive placement (also the Alt+H / Alt+T / Alt+F
- * hotkeys) and rendering of `chart.addDrawing()` objects.
+ * Drawing tools: interactive placement (also the drawing hotkeys, Alt+H /
+ * Alt+V / Alt+T / Alt+F / Alt+C by default) and rendering of
+ * `chart.addDrawing()` objects.
  *
  * @example
  * ```ts
