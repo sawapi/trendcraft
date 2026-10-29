@@ -53,7 +53,7 @@ type RocParams = {
  * ```
  */
 export function createRoc(
-  options: { period?: number; source?: PriceSource },
+  options: { period?: number; source?: PriceSource } = {},
   warmUpOptions?: {
     fromState?: IndicatorSnapshot<RocState>;
     warmUp?: NormalizedCandle[];
@@ -65,7 +65,7 @@ export function createRoc(
     category: "windowed",
     options,
     fromState: warmUpOptions?.fromState ?? null,
-    defaults: { source: "close" },
+    defaults: { period: 12, source: "close" }, // same as the batch roc()
   });
 
   const period = requirePeriod("roc", params, "period");

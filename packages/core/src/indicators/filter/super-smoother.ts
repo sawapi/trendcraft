@@ -14,8 +14,8 @@ import { assertPriceSource } from "../../utils/validate-price-source";
  * Super Smoother options
  */
 export type SuperSmootherOptions = {
-  /** Cutoff period for the filter */
-  period: number;
+  /** Cutoff period for the filter (default: 10, as the incremental createSuperSmoother) */
+  period?: number;
   /** Price source to use (default: 'close') */
   source?: PriceSource;
 };
@@ -44,9 +44,9 @@ export type SuperSmootherOptions = {
  */
 export function superSmoother(
   candles: Candle[] | NormalizedCandle[],
-  options: SuperSmootherOptions,
+  options: SuperSmootherOptions = {},
 ): Series<number | null> {
-  const { period, source = "close" } = options;
+  const { period = 10, source = "close" } = options;
   assertPriceSource("Super Smoother source", source);
 
   assertPeriod("Super Smoother period", period);

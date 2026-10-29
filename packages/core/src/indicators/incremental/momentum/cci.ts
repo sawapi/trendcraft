@@ -70,7 +70,8 @@ export function createCci(
     category: "windowed",
     options,
     fromState: warmUpOptions?.fromState ?? null,
-    defaults: { constant: 0.015, source: "hlc3" },
+    // Same defaults as the batch cci()
+    defaults: { period: 20, constant: 0.015, source: "hlc3" },
     resumeInvariantParams: ["constant"],
   });
 
