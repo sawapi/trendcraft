@@ -1,10 +1,10 @@
 # Migrating @trendcraft/chart 0.5.x → 0.6.0
 
-0.6.0 has five breaking changes. Two of them change what a chart shows
+0.6.0 has six breaking changes. Two of them change what a chart shows
 without throwing: a method whose optional feature is not registered only
 warns and does nothing, and `addBacktest` draws no equity curve unless the
 result carries the engine's curve. This
-page covers all five:
+page covers all six:
 
 - [Code you must change](#code-you-must-change)
 - [What you will see differently](#what-you-will-see-differently)
@@ -252,15 +252,24 @@ Nothing in the package itself changed.
 
 [CHANGELOG entry](../CHANGELOG.md#breaking--requires-nodejs-22-or-later)
 
+The optional `trendcraft` peer is now `>=0.5.0` (was `>=0.3.0`):
+`addBacktest` draws its equity curve from the `equityCurve` and
+`firstBarTime` that `trendcraft` returns from 0.5.0. If your project has
+`trendcraft` 0.3 or 0.4, upgrade it along with the chart; otherwise npm
+can report a peer dependency conflict (`ERESOLVE`).
+
+[CHANGELOG entry](../CHANGELOG.md#breaking--the-optional-trendcraft-peer-needs-050-or-later)
+
 ## Index
 
-All five breaking changes are covered above:
+All six breaking changes are covered above:
 
 - [Optional features](../CHANGELOG.md#breaking--drawing-tools-backtest-display-markers-and-scores-are-optional-features): [step 1](#1-register-the-optional-features-you-use)
 - [`addBacktest` draws the engine's equity curve, or none](../CHANGELOG.md#breaking--addbacktest-draws-the-engines-equity-curve-or-none): [step 2](#2-addbacktest-pass-the-engines-result-as-it-is)
 - [Vue `@click` payload](../CHANGELOG.md#breaking--vue-trendchart-click-receives-the-charts-click-not-a-dom-event): [step 3](#3-vue-click-receives-chartclickdata)
 - [Wrapper callback typing](../CHANGELOG.md#breaking--reactvue-wrapper-event-callbacks-are-typed-as-the-charts-own-payloads): [step 4](#4-reactvue-wrapper-callbacks-take-the-charts-payloads)
 - [Node.js 22](../CHANGELOG.md#breaking--requires-nodejs-22-or-later): [Requirements](#requirements)
+- [`trendcraft` peer 0.5.0 or later](../CHANGELOG.md#breaking--the-optional-trendcraft-peer-needs-050-or-later): [Requirements](#requirements)
 
 New in 0.6.0 and useful when upgrading:
 

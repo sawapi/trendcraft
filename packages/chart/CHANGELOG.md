@@ -5,7 +5,17 @@ All notable changes to `@trendcraft/chart` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.6.0] - 2026-10-30
+
+### Breaking — the optional `trendcraft` peer needs 0.5.0 or later
+
+`addBacktest` draws the equity curve from the result's `equityCurve` and
+`firstBarTime`, which `trendcraft` returns from 0.5.0. The peer range was
+`>=0.3.0`. A project that installs `trendcraft` 0.3 or 0.4 next to this
+version can get a peer dependency conflict (npm reports `ERESOLVE`);
+upgrade `trendcraft` to 0.5.0 or later. Forced past the conflict, the chart
+still works, but it draws no equity curve and warns
+`NO_EQUITY_CURVE`.
 
 ### Added — `chart.unregisterRenderer(type, plugin?)`
 
@@ -1588,6 +1598,7 @@ Initial public release.
 - `react` (optional, `>=19.0.0`) — required only when using the React wrapper.
 - `vue` (optional, `>=3.3.0`) — required only when using the Vue wrapper.
 
+[0.6.0]: https://github.com/sawapi/trendcraft/releases/tag/chart-v0.6.0
 [0.5.0]: https://github.com/sawapi/trendcraft/releases/tag/chart-v0.5.0
 [0.4.0]: https://github.com/sawapi/trendcraft/releases/tag/chart-v0.4.0
 [0.3.0]: https://github.com/sawapi/trendcraft/releases/tag/chart-v0.3.0
