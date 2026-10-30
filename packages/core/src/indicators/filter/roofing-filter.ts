@@ -7,7 +7,9 @@
  */
 
 import { ensureNormalized, getPrice } from "../../core/normalize";
+import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
+import type { SeriesMeta } from "../../types/candle";
 import { assertPeriod } from "../../utils/validate-period";
 import { assertPriceSource } from "../../utils/validate-price-source";
 
@@ -21,6 +23,13 @@ export type RoofingFilterOptions = {
   lowPassPeriod?: number;
   /** Price source to use (default: 'close') */
   source?: PriceSource;
+};
+
+/** Series metadata for `roofingFilter`; the label gains both periods. */
+export const ROOFING_FILTER_META: SeriesMeta = {
+  kind: "roofingFilter",
+  overlay: false,
+  label: "Roofing",
 };
 
 /**
@@ -63,8 +72,10 @@ export function roofingFilter(
 
   const result: Series<number | null> = [];
 
+  const meta = withLabelParams(ROOFING_FILTER_META, [highPassPeriod, lowPassPeriod]);
+
   if (normalized.length === 0) {
-    return result;
+    return tagSeries(result, meta);
   }
 
   // 2-pole high-pass filter coefficients (Ehlers canonical form, from
@@ -114,5 +125,5 @@ export function roofingFilter(
     }
   }
 
-  return result;
+  return tagSeries(result, meta);
 }

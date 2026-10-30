@@ -18,6 +18,7 @@
  * ```
  */
 
+import { tagSeries } from "../core/tag-series";
 import {
   adaptiveBollinger,
   adaptiveMa,
@@ -126,6 +127,8 @@ import {
   zigzag,
   zlema,
 } from "../indicators";
+import { ROOFING_FILTER_META } from "../indicators/filter/roofing-filter";
+import { SUPER_SMOOTHER_META } from "../indicators/filter/super-smoother";
 import {
   ADAPTIVE_BB_META,
   ADAPTIVE_MA_META,
@@ -133,6 +136,7 @@ import {
   ADAPTIVE_STOCH_META,
   CVD_SIGNAL_META,
   DPO_META,
+  EWMA_VOL_META,
   FAST_STOCH_META,
   HEIKIN_ASHI_META,
   LINEAR_REG_META,
@@ -144,8 +148,16 @@ import {
   VOLUME_MA_META,
   ZIGZAG_META,
 } from "../indicators/indicator-meta";
+import { HIGHEST_META, LOWEST_META } from "../indicators/price/highest-lowest";
+import {
+  MEDIAN_PRICE_META,
+  TYPICAL_PRICE_META,
+  WEIGHTED_CLOSE_META,
+} from "../indicators/price/median-price";
+import { CUMULATIVE_RETURNS_META } from "../indicators/price/returns";
+import { ATR_PERCENT_META } from "../indicators/volatility/atr-filter";
 import type { NormalizedCandle, Series } from "../types";
-import type { PriceSource, SeriesMeta } from "../types/candle";
+import type { PriceSource, SeriesMeta, TaggedSeries } from "../types/candle";
 import { livePresets } from "./live-presets";
 import type { LiveIndicatorFactory } from "./types";
 
@@ -1797,8 +1809,12 @@ function buildIndicatorPresets(): Record<string, IndicatorPreset> {
       (c, p) => {
         const returns = c.slice(1).map((bar, i) => Math.log(bar.close / c[i].close));
         const raw = ewmaVolatility(returns, { lambda: p.lambda ?? 0.94 });
-        // Map index-based time back to candle timestamps (offset by 1 for returns)
-        return raw.map((pt, i) => ({ time: c[i + 1].time, value: pt.value }));
+        // Map index-based time back to candle timestamps (offset by 1 for returns),
+        // keeping the label the new array would otherwise lose
+        return tagSeries(
+          raw.map((pt, i) => ({ time: c[i + 1].time, value: pt.value })),
+          (raw as TaggedSeries<unknown>).__meta ?? EWMA_VOL_META,
+        );
       },
       {
         category: "Volatility",
@@ -2037,7 +2053,8 @@ function buildIndicatorPresets(): Record<string, IndicatorPreset> {
             result[i] = { time: result[i].time, value: sv + (ev - sv) * t };
           }
         }
-        return result;
+        // The rebuilt array would lose zigzag's label; carry it over.
+        return tagSeries(result, (raw as TaggedSeries<unknown>).__meta ?? ZIGZAG_META);
       }),
       category: "Price",
       name: "Zigzag",
@@ -2106,7 +2123,7 @@ function buildIndicatorPresets(): Record<string, IndicatorPreset> {
     // Filter (Ehlers)
     // ============================================
     superSmoother: {
-      meta: { kind: "superSmoother", overlay: true, label: "SuperSmoother" },
+      meta: SUPER_SMOOTHER_META,
       defaultParams: { period: 10 },
       snapshotName: (p: Record<string, unknown>) => `ss${p.period}`,
       compute: typedCompute<{ period?: number }>((c, p) =>
@@ -2118,7 +2135,7 @@ function buildIndicatorPresets(): Record<string, IndicatorPreset> {
       paramSchema: [period(10, 2, 100)],
     },
     roofingFilter: {
-      meta: { kind: "roofingFilter", overlay: false, label: "Roofing" },
+      meta: ROOFING_FILTER_META,
       defaultParams: { highPassPeriod: 48, lowPassPeriod: 10 },
       snapshotName: (p: Record<string, unknown>) => `roof${p.highPassPeriod}-${p.lowPassPeriod}`,
       compute: typedCompute<{ highPassPeriod?: number; lowPassPeriod?: number }>((c, p) =>
@@ -2156,7 +2173,7 @@ function buildIndicatorPresets(): Record<string, IndicatorPreset> {
     // Additional Price utilities
     // ============================================
     highest: {
-      meta: { kind: "highest", overlay: true, label: "Highest" },
+      meta: HIGHEST_META,
       defaultParams: { period: 20 },
       snapshotName: (p: Record<string, unknown>) => `hi${p.period}`,
       compute: typedCompute<{ period?: number }>((c, p) => highest(c, p.period ?? 20)),
@@ -2166,7 +2183,7 @@ function buildIndicatorPresets(): Record<string, IndicatorPreset> {
       paramSchema: [period(20, 2, 500)],
     },
     lowest: {
-      meta: { kind: "lowest", overlay: true, label: "Lowest" },
+      meta: LOWEST_META,
       defaultParams: { period: 20 },
       snapshotName: (p: Record<string, unknown>) => `lo${p.period}`,
       compute: typedCompute<{ period?: number }>((c, p) => lowest(c, p.period ?? 20)),
@@ -2190,7 +2207,7 @@ function buildIndicatorPresets(): Record<string, IndicatorPreset> {
       },
     ),
     cumulativeReturns: {
-      meta: { kind: "cumulativeReturns", overlay: false, label: "Cum. Returns" },
+      meta: CUMULATIVE_RETURNS_META,
       defaultParams: { type: "simple" },
       snapshotName: (p: Record<string, unknown>) => `cumret-${p.type ?? "simple"}`,
       compute: typedCompute<{ type?: "simple" | "log" }>((c, p) =>
@@ -2201,7 +2218,7 @@ function buildIndicatorPresets(): Record<string, IndicatorPreset> {
       description: "Growth of $1 invested at the first bar's close.",
     },
     medianPrice: {
-      meta: { kind: "medianPrice", overlay: true, label: "Median Price" },
+      meta: MEDIAN_PRICE_META,
       defaultParams: {},
       snapshotName: "median",
       compute: (c) => medianPrice(c),
@@ -2210,7 +2227,7 @@ function buildIndicatorPresets(): Record<string, IndicatorPreset> {
       description: "(High + Low) / 2, a common MA source.",
     },
     typicalPrice: {
-      meta: { kind: "typicalPrice", overlay: true, label: "Typical Price" },
+      meta: TYPICAL_PRICE_META,
       defaultParams: {},
       snapshotName: "typical",
       compute: (c) => typicalPrice(c),
@@ -2219,7 +2236,7 @@ function buildIndicatorPresets(): Record<string, IndicatorPreset> {
       description: "(High + Low + Close) / 3, used as input to CCI and volume-weighted studies.",
     },
     weightedClose: {
-      meta: { kind: "weightedClose", overlay: true, label: "Weighted Close" },
+      meta: WEIGHTED_CLOSE_META,
       defaultParams: {},
       snapshotName: "wclose",
       compute: (c) => weightedClose(c),
@@ -2232,7 +2249,7 @@ function buildIndicatorPresets(): Record<string, IndicatorPreset> {
     // Additional Volatility utilities
     // ============================================
     atrPercent: {
-      meta: { kind: "atrPercent", overlay: false, label: "ATR%" },
+      meta: ATR_PERCENT_META,
       defaultParams: { period: 14 },
       snapshotName: (p: Record<string, unknown>) => `atrpct${p.period}`,
       compute: typedCompute<{ period?: number }>((c, p) => atrPercentSeries(c, p.period ?? 14)),

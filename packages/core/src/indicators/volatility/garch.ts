@@ -10,12 +10,13 @@
 
 import { type AnnualizationOptions, annualizationFactor } from "../../calendar";
 import { ensureNormalized, getPrice } from "../../core/normalize";
-import { tagSeries } from "../../core/tag-series";
+import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 import { logReturnOrZero } from "../../utils/statistics";
 import { assertDecayFactor, assertPositive } from "../../utils/validate-number";
 import { assertPeriod } from "../../utils/validate-period";
 import { assertPriceSource } from "../../utils/validate-price-source";
+import { EWMA_VOL_META } from "../indicator-meta";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -398,7 +399,7 @@ export function ewmaVolatility(returns: number[], options?: EwmaVolatilityOption
   const { lambda, sqrtAnnualization } = resolveEwmaOptions(options);
   const T = returns.length;
 
-  if (T === 0) return [];
+  if (T === 0) return tagSeries([], withLabelParams(EWMA_VOL_META, [lambda]));
 
   // Reject non-finite inputs so the recursive update does not
   // permanently latch NaN / Infinity into sigma2 for the rest of
@@ -434,7 +435,7 @@ export function ewmaVolatility(returns: number[], options?: EwmaVolatilityOption
     result.push({ time: t, value: Math.sqrt(sigma2) * sqrtAnnualization * 100 });
   }
 
-  return tagSeries(result, { kind: "garch", overlay: false, label: "GARCH" });
+  return tagSeries(result, withLabelParams(EWMA_VOL_META, [lambda]));
 }
 
 /** Options for `ewmaVolatilityFromCandles` */

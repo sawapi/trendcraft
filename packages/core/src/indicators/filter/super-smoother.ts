@@ -6,7 +6,9 @@
  */
 
 import { ensureNormalized, getPrice } from "../../core/normalize";
+import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
+import type { SeriesMeta } from "../../types/candle";
 import { assertPeriod } from "../../utils/validate-period";
 import { assertPriceSource } from "../../utils/validate-price-source";
 
@@ -18,6 +20,13 @@ export type SuperSmootherOptions = {
   period?: number;
   /** Price source to use (default: 'close') */
   source?: PriceSource;
+};
+
+/** Series metadata for `superSmoother`; the label gains the period. */
+export const SUPER_SMOOTHER_META: SeriesMeta = {
+  kind: "superSmoother",
+  overlay: true,
+  label: "SuperSmoother",
 };
 
 /**
@@ -55,8 +64,10 @@ export function superSmoother(
 
   const result: Series<number | null> = [];
 
+  const meta = withLabelParams(SUPER_SMOOTHER_META, [period]);
+
   if (normalized.length === 0) {
-    return result;
+    return tagSeries(result, meta);
   }
 
   // Calculate coefficients
@@ -85,5 +96,5 @@ export function superSmoother(
     }
   }
 
-  return result;
+  return tagSeries(result, meta);
 }
