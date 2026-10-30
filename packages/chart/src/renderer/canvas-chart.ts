@@ -142,6 +142,8 @@ export class CanvasChart implements ChartInstance {
   private _fontSize: number;
   private _fontFamily: string;
   private _priceFormatter: (price: number) => string;
+  /** The caller's own priceFormatter; undefined while they have given none. */
+  private _customPriceFormatter: ((price: number) => string) | undefined;
   private _timeFormatter: ((time: number) => string) | undefined;
   /** Last applied layout size — tracked so applyOptions() can compose partial size changes. */
   private _sizeState: {
@@ -397,6 +399,7 @@ export class CanvasChart implements ChartInstance {
     this._fontSize = options?.fontSize ?? DEFAULT_OPTIONS.fontSize;
     this._fontFamily = options?.fontFamily ?? DEFAULT_OPTIONS.fontFamily;
     this._priceFormatter = options?.priceFormatter ?? autoFormatPrice;
+    this._customPriceFormatter = options?.priceFormatter;
     this._timeFormatter = options?.timeFormatter;
     if (options?.timeZone !== undefined) this._setTimeZoneOption(options.timeZone);
     this._animationDuration = options?.animationDuration ?? 300;
@@ -1329,6 +1332,7 @@ export class CanvasChart implements ChartInstance {
     }
     if (opts.priceFormatter !== undefined) {
       this._priceFormatter = opts.priceFormatter;
+      this._customPriceFormatter = opts.priceFormatter;
       this._needsRender = true;
     }
     if (opts.timeFormatter !== undefined) {
@@ -1695,6 +1699,7 @@ export class CanvasChart implements ChartInstance {
       showSeriesBadges: this._showSeriesBadges,
       seriesBadgeMode: this._seriesBadgeMode,
       priceFormatter: this._priceFormatter,
+      axisPriceFormatter: this._customPriceFormatter,
       timeFormatter: this._timeFormatter,
       data: this._data,
       layout: this._layout,

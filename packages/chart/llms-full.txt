@@ -198,6 +198,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — price-axis labels mixed their decimals on one axis
+
+The default formatter sized each tick label by its own value (two decimals
+from 100, three below, `0` for zero), so a price axis crossing 100 read
+`80.000` next to `100.00`, and a 0–100 oscillator pane `50.000` next to
+`100.00`. Tick labels now take their decimals from the tick step and share
+them across the axis: an RSI pane reads `0, 20, … 100`, and a step of 0.01
+gives two decimals on every label. Chart.js and d3 derive axis decimals from
+the step the same way. A `priceFormatter` you pass is still used as given,
+and the crosshair and last-value labels are unchanged.
+
+### Fixed — `detectPrecision` sorted the array it was given
+
+`detectPrecision(prices)` (headless) found the median by sorting `prices` in
+place, so the caller's array came back reordered. It now sorts a copy.
+
 ## [0.6.0] - 2026-10-30
 
 ### Breaking — the optional `trendcraft` peer needs 0.5.0 or later
@@ -2319,7 +2335,7 @@ All fields optional.
 | `timeAxisHeight` | `number` | `32` | Bottom axis height (px) |
 | `fontFamily` | `string` | system UI stack | Font family for canvas axis/crosshair/overlay text and DOM legend/info overlays. Runtime-updatable via `applyOptions` |
 | `fontSize` | `number` | `11` | Font size (px). Runtime-updatable via `applyOptions` |
-| `priceFormatter` | `(price: number) => string` | auto-precision | Custom price formatter |
+| `priceFormatter` | `(price: number) => string` | auto-precision | Custom price formatter. When omitted, the price-axis tick labels share one number of decimals taken from the tick step, and other price labels use `autoFormatPrice` |
 | `timeFormatter` | `(time: number) => string` | smart date/time | Custom time-axis label formatter (receives epoch ms; does its own zone handling) |
 | `timeZone` | `string` | browser local | IANA zone (`"America/New_York"`, `"UTC"`) the time axis, its day boundaries and the crosshair time label read the clock in. `""` returns to the browser's zone via `applyOptions` (also from the React/Vue wrappers: pass `""`, not `undefined`); an unknown name is ignored with an `INVALID_OPTION` warning. Runtime-updatable. Daily and coarser bars show dates only; a daily bar stamped at 00:00 UTC falls on the previous day west of UTC, so for such data set `timeZone: "UTC"` ([Time zones](#time-zones)) |
 | `watermark` | `string` | — | Background watermark text |
