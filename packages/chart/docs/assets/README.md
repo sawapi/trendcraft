@@ -6,14 +6,11 @@ Screenshots referenced from `packages/chart/README.md` and the docs under `packa
 
 | File | Scene | Used in |
 |---|---|---|
-| `hero.png` | `hero` | README (top) — mountain base for a clean first impression |
-| `hero-candle.png` | `hero-candle` | GUIDE — candlestick variant with the same indicator stack |
-| `auto-detection.png` | `auto-detection` | README "With TrendCraft — zero-config indicators" section + GUIDE "Auto-detection from `__meta`" section |
-| `chart-types.png` | `chart-types` | llms-full.txt "Chart Types" section |
-| `plugin-regime.png` | `plugin-regime` | llms-full.txt "Plugin System" section |
-| `backtest.png` | `backtest` | llms-full.txt "Backtest Visualization" section |
+| `hero.png` | `hero` | README (top) — recent candlesticks with Bollinger Bands and SMA(50) |
+| `hero-candle.png` | `hero-candle` | GUIDE — SMA 5/20/60 ribbon with RSI and MACD panes |
+| `auto-detection.png` | `auto-detection` | README "With TrendCraft — auto-detected indicators" section + GUIDE "Auto-detection from `__meta`" section |
 
-Each image is 2560×1440 (2x Retina-class), dark theme, pinned font (`"Helvetica Neue", Arial, sans-serif`). File sizes typically land in the 150–500 KB range. Prefer PNG; WebP is fine if you need smaller files for a specific image.
+Each image is laid out at 1200×675 CSS pixels and captured at deviceScaleFactor 2 (2400×1350 PNG), so labels stay readable when GitHub scales it to its content width. Dark theme, pinned font (`"Helvetica Neue", Arial, sans-serif`). File sizes typically land in the 130–250 KB range. Prefer PNG; WebP is fine if you need smaller files for a specific image.
 
 ## How to (re)generate
 

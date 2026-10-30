@@ -53,7 +53,7 @@ Runnable scripts live in [`examples/quick-start/`](https://github.com/sawapi/tre
 - **Streaming** — `createLiveCandle()` aggregates ticks or candles and drives 90+ incremental indicator factories bar-by-bar, with state save/restore for resumable sessions.
 - **Advanced analytics** — pairs trading / cointegration, cross-asset correlation, alpha-decay monitoring, strategy robustness scoring, and signal explainability.
 
-48 indicators are cross-validated against TA-Lib — see [`cross-validation/`](https://github.com/sawapi/trendcraft/tree/main/packages/core/cross-validation).
+48 indicators are cross-validated against TA-Lib or pandas-ta — see [`cross-validation/`](https://github.com/sawapi/trendcraft/tree/main/packages/core/cross-validation).
 
 ## Entry points
 

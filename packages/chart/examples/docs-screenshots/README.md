@@ -29,7 +29,7 @@ pnpm dev
 # → http://localhost:5175/?scene=hero
 ```
 
-Scenes: `hero`, `hero-candle`, `auto-detection`, `chart-types`, `plugin-regime`, `backtest`. Opening `/` (no query) lists all of them.
+Scenes: `hero`, `hero-candle`, `auto-detection`. Opening `/` (no query) lists all of them.
 
 `pnpm dev` and `pnpm capture` need only the setup above: Vite serves the chart and core straight from their sources. `pnpm build` typechecks against the packages' built type declarations (their `dist`), so it needs `pnpm install --frozen-lockfile && pnpm build` at the repo root first.
 
@@ -41,18 +41,15 @@ pnpm capture hero        # one scene
 pnpm capture hero auto-detection   # subset
 ```
 
-Runs the Vite dev server on port 5175 in the background, then drives `agent-browser` through each scene at 2560×1440 viewport. Each scene sets `window.__chartReady = true` when it finishes painting; the capture script waits on that flag before screenshotting.
+Runs the Vite dev server on port 5175 in the background, then drives `agent-browser` through each scene at a 1200×675 viewport with deviceScaleFactor 2 (2400×1350 PNG). Each scene sets `window.__chartReady = true` when it finishes painting; the capture script waits on that flag before screenshotting.
 
 ## Scenes
 
 | id | purpose | indicators |
 |---|---|---|
-| `hero` | README top, clean candlestick beauty shot (~170-bar window) | Bollinger Bands + SMA 50 |
-| `hero-candle` | GUIDE, candlestick variant | SMA 5 / 20 / 60 + RSI + MACD |
-| `auto-detection` | show five distinct shape types | SMA + Bollinger + RSI + Stochastics + MACD |
-| `chart-types` | 2×2 of candle / line / mountain / ohlc | — |
-| `plugin-regime` | plugin showcase | HMM regime heatmap on SMA 20 |
-| `backtest` | backtest visualization | goldenCross 20/50 |
+| `hero` | README top, clean candlestick beauty shot (last six months shown) | Bollinger Bands + SMA 50 |
+| `hero-candle` | GUIDE, candlestick variant (last year shown) | SMA 5 / 20 / 60 + RSI + MACD |
+| `auto-detection` | README + GUIDE, five distinct shape types (last year shown) | SMA + Bollinger + RSI + Stochastics + MACD |
 
 Adding a scene: drop `src/scenes/<id>.ts` exporting `run(stage, candles)`, register it in `SCENES` in both `src/main.ts` and `capture.sh`, and update this table.
 

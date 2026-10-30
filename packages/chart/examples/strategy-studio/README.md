@@ -11,7 +11,7 @@ The studio runs **fully offline with no LLM key**. It uses `detectMarketRegime` 
 | `simple-chart`, `simple-react-chart`, `simple-vue-chart` | Minimal "hello world" for each binding |
 | `indicator-showcase` | All 96+ presets in a catalog (per-preset minimal demo) |
 | `sparkline-showcase` | Sparkline subpath demo |
-| `echarts-viewer` (formerly `chart-viewer`) | **Proof that the `trendcraft` core works with any chart library** (here: ECharts). Comprehensive analysis app, but ECharts-based |
+| `echarts-viewer` (formerly `chart-viewer`) | Shows the `trendcraft` core used with a chart library other than `@trendcraft/chart` (here: ECharts). A full analysis app, ECharts-based |
 | **Strategy Studio** (this) | **Flagship `@trendcraft/chart` dogfooding + cross-feature integration**. The place to verify TrendCraft as a fullstack toolkit |
 
 `echarts-viewer` and `indicator-showcase` are intentionally preserved — they cover different value propositions and overlap in functionality is by design.

@@ -1,8 +1,7 @@
 /**
- * Candlestick-based hero variant, for docs pages that want the trader
- * signal rather than the cleaner mountain base.
- * Uses an SMA 5/20/60 ribbon plus RSI and MACD panes (hero.ts uses
- * Bollinger Bands + SMA 50 instead).
+ * GUIDE hero: an SMA 5/20/60 ribbon plus RSI and MACD panes, for docs pages
+ * that want the full indicator stack (hero.ts keeps the README hero to
+ * Bollinger Bands + SMA 50).
  */
 
 import type { CandleData } from "@trendcraft/chart";
@@ -27,5 +26,9 @@ export function run(stage: HTMLElement, candles: CandleData[]): void {
   conn.add("rsi", { period: 14 });
   conn.add("macd");
 
-  chart.fitContent();
+  // Indicators run on the full history (so warm-up stays off screen), but only
+  // the last year is shown: four years at docs width blur into a band.
+  // setVisibleRangeByDuration ends at the live edge, so the newest bar stays
+  // clear of the price axis.
+  chart.setVisibleRangeByDuration("1Y");
 }

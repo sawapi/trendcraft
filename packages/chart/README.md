@@ -1,6 +1,6 @@
 # @trendcraft/chart
 
-A zero-dependency Canvas charting library for OHLC / financial data. Works standalone on plain `{ time, value }[]` data; pairs with TrendCraft for zero-config indicators.
+A zero-dependency Canvas charting library for OHLC / financial data. Works standalone on plain `{ time, value }[]` data; pairs with TrendCraft to place and style indicators automatically.
 
 [![npm version](https://img.shields.io/npm/v/@trendcraft/chart.svg)](https://www.npmjs.com/package/@trendcraft/chart)
 [![npm downloads](https://img.shields.io/npm/dm/@trendcraft/chart.svg)](https://www.npmjs.com/package/@trendcraft/chart)
@@ -8,11 +8,11 @@ A zero-dependency Canvas charting library for OHLC / financial data. Works stand
 [![TypeScript types included](https://img.shields.io/npm/types/@trendcraft/chart.svg)](https://www.npmjs.com/package/@trendcraft/chart)
 [![license MIT](https://img.shields.io/npm/l/@trendcraft/chart.svg)](https://github.com/sawapi/trendcraft/blob/main/LICENSE)
 
-A standalone Canvas charting library built for OHLC and financial data. Hand it plain candle arrays and `{ time, value }[]` series and it renders candlesticks, lines, bands, and sub-panes with no runtime dependencies — no chart framework, no data adapter, no TrendCraft required. It ships React/Vue wrappers and a DOM-free headless build out of the box.
+A standalone Canvas charting library built for OHLC and financial data. Hand it plain candle arrays and `{ time, value }[]` series and it renders candlesticks, lines, bands, and sub-panes. It also ships React/Vue wrappers and a DOM-free headless build.
 
-As an optional bonus, when you pair it with [TrendCraft](https://github.com/sawapi/trendcraft), the chart auto-detects each indicator's shape and metadata — figuring out pane placement, colors, value ranges, and render style with zero config. That's a convenience layer on top, not a requirement.
+Optionally, when you pair it with [TrendCraft](https://github.com/sawapi/trendcraft), the chart reads each indicator's shape and metadata to choose pane placement, colors, value range, and render style, so most indicators need no configuration.
 
-![NVDA daily with a 5/20/60 SMA ribbon, RSI, and MACD — rendered with one chart.addIndicator call per indicator](https://raw.githubusercontent.com/sawapi/trendcraft/main/packages/chart/docs/assets/hero.png)
+![NVDA daily candlesticks with Bollinger Bands (20, 2), SMA(50), and volume](https://raw.githubusercontent.com/sawapi/trendcraft/main/packages/chart/docs/assets/hero.png)
 
 ## Install
 
@@ -20,11 +20,11 @@ As an optional bonus, when you pair it with [TrendCraft](https://github.com/sawa
 npm install @trendcraft/chart
 ```
 
-That's the only required package — the chart runs standalone on plain data with zero runtime dependencies.
+That's the only required package.
 
 ```bash
 # Optional, only if you need them:
-npm install trendcraft   # zero-config indicator auto-detection + connectIndicators
+npm install trendcraft   # indicator auto-detection + connectIndicators
 npm install react        # for @trendcraft/chart/react   (React 18+)
 npm install vue          # for @trendcraft/chart/vue      (Vue 3.3+)
 ```
@@ -35,7 +35,7 @@ npm install vue          # for @trendcraft/chart/vue      (Vue 3.3+)
 
 ### Standalone — just `@trendcraft/chart`
 
-No TrendCraft, no other library. Feed it OHLC candles and a plain `{ time, value }[]` series. The container **must have an explicit height** (the canvas fills its parent).
+Feed it OHLC candles and a plain `{ time, value }[]` series. The container **must have an explicit height** (the canvas fills its parent).
 
 ```html
 <div id="chart" style="height:480px"></div>
@@ -74,7 +74,7 @@ const ma = candles.map((c, i, a) => ({
 chart.addIndicator(ma, { pane: 'main', color: '#FF9800', label: 'MA(3)' });
 ```
 
-### With TrendCraft — zero-config indicators
+### With TrendCraft — auto-detected indicators
 
 If you also install `trendcraft`, pass indicator output straight to `addIndicator` and the chart reads pane placement, colors, y-range, and render style from each indicator's own metadata — no manual series decomposition.
 
@@ -96,21 +96,21 @@ chart.addIndicator(macd(candles));                // sub-pane, histogram + 2 lin
 
 ## Highlights
 
-- **Works standalone** — renders candlestick / OHLC and plain `{ time, value }[]` series with zero runtime dependencies; no other library required.
+- **Works standalone** — renders candlestick / OHLC and plain `{ time, value }[]` series without any other library.
 - **Core series types** — candlestick, OHLC, line, mountain price rendering, plus band/fill and Ichimoku cloud overlays.
 - **Responsive / auto-resize** — a built-in `ResizeObserver` keeps the chart sharp as its container resizes; no manual `resize()` wiring.
-- **Touch & pinch-zoom** — mobile-friendly pan and pinch-to-zoom gestures out of the box.
+- **Touch & pinch-zoom** — pan and pinch-to-zoom on touch devices.
 - **Dark / Light + custom theming** — ships dark and light themes, plus fully customizable colors, fonts, and grid styling.
 - **Accessibility** — ARIA live region for screen-reader updates and full keyboard navigation of the chart.
 - **Drawings & interaction** — trendlines, h-lines, fib retracement/extension, channels, and configurable crosshair magnet modes.
-- **Auto-detection (with TrendCraft)** — inspects each `Series<T>` shape (number, band, cloud, MACD, stochastic, DMI, SAR…) plus TrendCraft `__meta` to place and style series with zero config.
+- **Auto-detection (with TrendCraft)** — inspects each `Series<T>` shape (number, band, cloud, MACD, stochastic, DMI, SAR…) plus TrendCraft `__meta` to place and style series without per-series options.
 - **Tree-shakeable plugins** — SMC layer, Wyckoff phases, Volume Profile, Market Profile, regime heatmap, price patterns, S/R confluence, squeeze dots, session zones, Andrews pitchfork, trade analysis.
 - **Indicator connection** — `connectIndicators` for handle-based add/remove/recompute with optional live streaming.
 - **Backtest & analysis** — visualize `BacktestResult` trade markers + equity curve, pattern outlines, and per-bar score heatmaps.
 - **React & Vue wrappers** — `<TrendChart>` components plus `useTrendChart` hook/composable for imperative access.
 - **Headless API** — DOM-free data layer, scales, layout, and `introspect` for SSR, testing, and custom renderers.
 - **Sparkline & replay subpaths** — compact ~4 kB sparklines and a live-feed replay simulator.
-- **Bundle-size discipline** — zero runtime dependencies; every major entry point (main, headless, sparkline, replay, React/Vue wrappers) is brotli size-checked in CI.
+- **Bundle size checks** — every major entry point (main, headless, sparkline, replay, React/Vue wrappers) is brotli size-checked in CI.
 
 ## Framework bindings
 
@@ -130,14 +130,14 @@ Both expose a `<TrendChart>` component (props: `candles`, `indicators`, `signals
 
 ## Examples
 
-Runnable example apps live in the repo. Clone it, `pnpm install`, then start any example with `pnpm dev`:
+Runnable example apps live in the repo. Each installs on its own: from the example's directory, run `pnpm install --ignore-workspace`, then `pnpm dev`. (`pnpm build` in an example also type-checks the chart and core sources, so it needs `pnpm install --frozen-lockfile` at the repo root first.)
 
-| Example | What it shows | Run |
-|---|---|---|
-| [simple-chart](https://github.com/sawapi/trendcraft/tree/main/packages/chart/examples/simple-chart) | Vanilla TypeScript chart with indicators, drawings, and plugins | `pnpm -C packages/chart/examples/simple-chart dev` |
-| [indicator-showcase](https://github.com/sawapi/trendcraft/tree/main/packages/chart/examples/indicator-showcase) | Multi-indicator catalog (canonical preset / auto-detection setup) | `pnpm -C packages/chart/examples/indicator-showcase dev` |
-| [simple-react-chart](https://github.com/sawapi/trendcraft/tree/main/packages/chart/examples/simple-react-chart) | React wrapper usage | `pnpm -C packages/chart/examples/simple-react-chart dev` |
-| [simple-vue-chart](https://github.com/sawapi/trendcraft/tree/main/packages/chart/examples/simple-vue-chart) | Vue wrapper usage | `pnpm -C packages/chart/examples/simple-vue-chart dev` |
+| Example | What it shows |
+|---|---|
+| [simple-chart](https://github.com/sawapi/trendcraft/tree/main/packages/chart/examples/simple-chart) | Vanilla TypeScript chart with indicators, drawings, and plugins |
+| [indicator-showcase](https://github.com/sawapi/trendcraft/tree/main/packages/chart/examples/indicator-showcase) | Multi-indicator catalog (canonical preset / auto-detection setup) |
+| [simple-react-chart](https://github.com/sawapi/trendcraft/tree/main/packages/chart/examples/simple-react-chart) | React wrapper usage |
+| [simple-vue-chart](https://github.com/sawapi/trendcraft/tree/main/packages/chart/examples/simple-vue-chart) | Vue wrapper usage |
 
 ## Subpath entry points
 
@@ -166,7 +166,7 @@ Also published: [`CHANGELOG.md`](https://github.com/sawapi/trendcraft/blob/main/
 
 ## Stability
 
-Pre-1.0 (0.x): the API may change between minor versions; see the [CHANGELOG](https://github.com/sawapi/trendcraft/blob/main/packages/chart/CHANGELOG.md). Every breaking change ships with an explicit Breaking / Migration note so upgrades are deliberate, not surprising.
+Pre-1.0 (0.x): the API may change between minor versions; see the [CHANGELOG](https://github.com/sawapi/trendcraft/blob/main/packages/chart/CHANGELOG.md). Breaking changes are listed under **Breaking** in the CHANGELOG, with migration notes.
 
 ## Disclaimer
 
