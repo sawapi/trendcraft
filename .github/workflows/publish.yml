@@ -6,10 +6,16 @@ name: Publish
 # because they are published with their `workspace:` ranges rewritten to the
 # versions in this commit (`pnpm pack` does that; `npm pack` does not).
 #
+# The pack job checks, packs and smoke-tests the tarballs, then hands them
+# to the publish jobs as an artifact. Only the publish jobs can request the
+# OIDC token npm accepts for publishing, and they run no package code: they
+# download the tested tarballs and pass them to `npm publish` as they are.
+#
 # Publishing uses npm trusted publishing (OIDC): each package lists this
 # workflow as its trusted publisher on npmjs.com, so no npm token is stored.
-# A dry run builds, tests and packs each package and prints what would be
-# published, without contacting the registry.
+# A dry run builds, tests, packs and smoke-tests the selected packages, and
+# the publish jobs find the tarball each would publish, but nothing is
+# published.
 on:
   workflow_dispatch:
     inputs:
@@ -32,7 +38,6 @@ on:
 
 permissions:
   contents: read
-  id-token: write
 
 jobs:
   build-and-test:
@@ -61,10 +66,14 @@ jobs:
       - name: Bundle size check (chart)
         run: cd packages/chart && pnpm size-check
 
-  publish-core:
+  pack:
     needs: [build-and-test]
-    if: ${{ inputs.core }}
+    if: ${{ inputs.core || inputs.chart || inputs.mcp }}
     runs-on: ubuntu-latest
+    outputs:
+      core-integrity: ${{ steps.pack.outputs.core-integrity }}
+      chart-integrity: ${{ steps.pack.outputs.chart-integrity }}
+      mcp-integrity: ${{ steps.pack.outputs.mcp-integrity }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -73,7 +82,6 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
-          registry-url: "https://registry.npmjs.org"
 
       - run: pnpm install --frozen-lockfile
 
@@ -81,18 +89,110 @@ jobs:
 
       # Publishing a tarball skips prepublishOnly (build, test, verify), so run it here
       - name: Check trendcraft
+        if: ${{ inputs.core }}
         working-directory: packages/core
         run: pnpm run prepublishOnly
 
+      - name: Check @trendcraft/chart
+        if: ${{ inputs.chart }}
+        working-directory: packages/chart
+        run: pnpm run prepublishOnly
+
+      - name: Check @trendcraft/mcp
+        if: ${{ inputs.mcp }}
+        working-directory: packages/mcp
+        run: pnpm run prepublishOnly
+
       # pnpm pack rewrites workspace: ranges to the versions in this commit.
-      # The log lists the files and the dependencies as published.
-      - name: Pack trendcraft
-        working-directory: packages/core
+      # trendcraft is always packed: chart and mcp are smoke-tested against
+      # it, and mcp's publish job reads the version mcp will depend on.
+      # The log lists the files, the dependencies and the sha512 integrity
+      # (the value `npm view <package>@<version> dist.integrity` reports once
+      # published). The integrity is also a job output: the publish jobs
+      # refuse a tarball that does not match it.
+      - name: Pack
+        id: pack
+        env:
+          PACK_CHART: ${{ inputs.chart }}
+          PACK_MCP: ${{ inputs.mcp }}
         run: |
-          pnpm pack --pack-destination "$RUNNER_TEMP/pack"
-          tarball=$(ls "$RUNNER_TEMP"/pack/*.tgz)
-          tar -tzf "$tarball" | sort
-          tar -xzOf "$tarball" package/package.json | node -e "const p = JSON.parse(require('fs').readFileSync(0, 'utf8')); console.log(JSON.stringify({ name: p.name, version: p.version, dependencies: p.dependencies, peerDependencies: p.peerDependencies }, null, 2))"
+          dirs="packages/core"
+          if [ "$PACK_CHART" = "true" ]; then dirs="$dirs packages/chart"; fi
+          if [ "$PACK_MCP" = "true" ]; then dirs="$dirs packages/mcp"; fi
+          for dir in $dirs; do
+            (cd "$dir" && pnpm pack --pack-destination "$RUNNER_TEMP/pack")
+          done
+          for tarball in "$RUNNER_TEMP"/pack/*.tgz; do
+            echo "::group::$(basename "$tarball")"
+            tar -tzf "$tarball" | sort
+            tar -xzOf "$tarball" package/package.json | node -e "const p = JSON.parse(require('fs').readFileSync(0, 'utf8')); console.log(JSON.stringify({ name: p.name, version: p.version, dependencies: p.dependencies, peerDependencies: p.peerDependencies }, null, 2))"
+            echo "::endgroup::"
+          done
+          for tarball in "$RUNNER_TEMP"/pack/*.tgz; do
+            integrity="sha512-$(openssl dgst -sha512 -binary "$tarball" | base64 -w0)"
+            echo "$(basename "$tarball") $integrity"
+            case "$(basename "$tarball")" in
+              trendcraft-chart-*) key=chart ;;
+              trendcraft-mcp-*) key=mcp ;;
+              trendcraft-[0-9]*) key=core ;;
+              *) echo "unexpected tarball $tarball" >&2; exit 1 ;;
+            esac
+            echo "$key-integrity=$integrity" >> "$GITHUB_OUTPUT"
+          done
+
+      # Upload before the smoke test: an uploaded artifact cannot be changed,
+      # so nothing the smoke test installs can alter what gets published.
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: tarballs
+          path: ${{ runner.temp }}/pack/*.tgz
+          if-no-files-found: error
+          retention-days: 7
+
+      # Install copies of the tarballs into a throwaway project, as a user
+      # would, and load every entry point and bin from there. This job
+      # cannot request the publishing token, and the tarballs to publish are
+      # already uploaded, so the third-party packages the smoke test installs
+      # and runs (react, vue, the MCP SDK) can reach neither. A failure here
+      # still fails the job, and the publish jobs need it to succeed.
+      - name: Smoke-test the tarballs
+        run: |
+          mkdir "$RUNNER_TEMP/smoke"
+          cp "$RUNNER_TEMP"/pack/*.tgz "$RUNNER_TEMP/smoke/"
+          node scripts/smoke-test-tarballs.mjs "$RUNNER_TEMP"/smoke/*.tgz
+
+  publish-core:
+    needs: [pack]
+    if: ${{ inputs.core }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          registry-url: "https://registry.npmjs.org"
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: tarballs
+          path: ${{ runner.temp }}/pack
+
+      # Publish only the tarball the pack job hashed right after packing.
+      - name: Find and verify the trendcraft tarball
+        env:
+          EXPECTED: ${{ needs.pack.outputs.core-integrity }}
+        run: |
+          tarball=$(ls "$RUNNER_TEMP"/pack/trendcraft-[0-9]*.tgz)
+          actual="sha512-$(openssl dgst -sha512 -binary "$tarball" | base64 -w0)"
+          echo "$(basename "$tarball") $actual"
+          if [ -z "$EXPECTED" ] || [ "$actual" != "$EXPECTED" ]; then
+            echo "integrity does not match the pack job's: expected '$EXPECTED'" >&2
+            exit 1
+          fi
           echo "TARBALL=$tarball" >> "$GITHUB_ENV"
 
       # Trusted publishing: npm authenticates with this workflow's OIDC token
@@ -105,9 +205,8 @@ jobs:
 
       - name: Wait until trendcraft resolves on npm
         if: ${{ !inputs.dry-run }}
-        working-directory: packages/core
         run: |
-          version=$(node -p "require('./package.json').version")
+          version=$(tar -xzOf "$TARBALL" package/package.json | node -p "JSON.parse(require('fs').readFileSync(0, 'utf8')).version")
           for attempt in $(seq 1 30); do
             if [ "$(npm view "trendcraft@$version" version 2>/dev/null)" = "$version" ]; then
               echo "trendcraft@$version is on npm"
@@ -119,37 +218,37 @@ jobs:
           exit 1
 
   publish-chart:
-    needs: [build-and-test, publish-core]
-    if: ${{ !cancelled() && inputs.chart && needs.build-and-test.result == 'success' && (needs.publish-core.result == 'success' || needs.publish-core.result == 'skipped') }}
+    needs: [pack, publish-core]
+    if: ${{ !cancelled() && inputs.chart && needs.pack.result == 'success' && (needs.publish-core.result == 'success' || needs.publish-core.result == 'skipped') }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
           registry-url: "https://registry.npmjs.org"
 
-      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: tarballs
+          path: ${{ runner.temp }}/pack
 
-      - run: pnpm build
-
-      # Publishing a tarball skips prepublishOnly (build, test, verify), so run it here
-      - name: Check @trendcraft/chart
-        working-directory: packages/chart
-        run: pnpm run prepublishOnly
-
-      # pnpm pack rewrites workspace: ranges to the versions in this commit.
-      # The log lists the files and the dependencies as published.
-      - name: Pack @trendcraft/chart
-        working-directory: packages/chart
+      # Publish only the tarball the pack job hashed right after packing.
+      - name: Find and verify the @trendcraft/chart tarball
+        env:
+          EXPECTED: ${{ needs.pack.outputs.chart-integrity }}
         run: |
-          pnpm pack --pack-destination "$RUNNER_TEMP/pack"
-          tarball=$(ls "$RUNNER_TEMP"/pack/*.tgz)
-          tar -tzf "$tarball" | sort
-          tar -xzOf "$tarball" package/package.json | node -e "const p = JSON.parse(require('fs').readFileSync(0, 'utf8')); console.log(JSON.stringify({ name: p.name, version: p.version, dependencies: p.dependencies, peerDependencies: p.peerDependencies }, null, 2))"
+          tarball=$(ls "$RUNNER_TEMP"/pack/trendcraft-chart-*.tgz)
+          actual="sha512-$(openssl dgst -sha512 -binary "$tarball" | base64 -w0)"
+          echo "$(basename "$tarball") $actual"
+          if [ -z "$EXPECTED" ] || [ "$actual" != "$EXPECTED" ]; then
+            echo "integrity does not match the pack job's: expected '$EXPECTED'" >&2
+            exit 1
+          fi
           echo "TARBALL=$tarball" >> "$GITHUB_ENV"
 
       # Trusted publishing: npm authenticates with this workflow's OIDC token
@@ -161,49 +260,49 @@ jobs:
           npm publish "$TARBALL" --access public
 
   publish-mcp:
-    needs: [build-and-test, publish-core, publish-chart]
-    if: ${{ !cancelled() && inputs.mcp && needs.build-and-test.result == 'success' && (needs.publish-core.result == 'success' || needs.publish-core.result == 'skipped') && (needs.publish-chart.result == 'success' || needs.publish-chart.result == 'skipped') }}
+    needs: [pack, publish-core, publish-chart]
+    if: ${{ !cancelled() && inputs.mcp && needs.pack.result == 'success' && (needs.publish-core.result == 'success' || needs.publish-core.result == 'skipped') && (needs.publish-chart.result == 'success' || needs.publish-chart.result == 'skipped') }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
           registry-url: "https://registry.npmjs.org"
 
-      - run: pnpm install --frozen-lockfile
-
-      - run: pnpm build
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: tarballs
+          path: ${{ runner.temp }}/pack
 
       # mcp's workspace:^ range becomes ^<core version in this commit>, so that
       # core version must already be on npm, even when core is not ticked.
       - name: Check that the trendcraft version mcp will depend on is on npm
         if: ${{ !inputs.dry-run }}
-        working-directory: packages/core
         run: |
-          version=$(node -p "require('./package.json').version")
+          tarball=$(ls "$RUNNER_TEMP"/pack/trendcraft-[0-9]*.tgz)
+          version=$(tar -xzOf "$tarball" package/package.json | node -p "JSON.parse(require('fs').readFileSync(0, 'utf8')).version")
           if [ "$(npm view "trendcraft@$version" version 2>/dev/null)" != "$version" ]; then
             echo "trendcraft@$version is not on npm. Publish core first (tick it too)." >&2
             exit 1
           fi
 
-      # Publishing a tarball skips prepublishOnly (build, test, verify), so run it here
-      - name: Check @trendcraft/mcp
-        working-directory: packages/mcp
-        run: pnpm run prepublishOnly
-
-      # pnpm pack rewrites workspace: ranges to the versions in this commit.
-      # The log lists the files and the dependencies as published.
-      - name: Pack @trendcraft/mcp
-        working-directory: packages/mcp
+      # Publish only the tarball the pack job hashed right after packing.
+      - name: Find and verify the @trendcraft/mcp tarball
+        env:
+          EXPECTED: ${{ needs.pack.outputs.mcp-integrity }}
         run: |
-          pnpm pack --pack-destination "$RUNNER_TEMP/pack"
-          tarball=$(ls "$RUNNER_TEMP"/pack/*.tgz)
-          tar -tzf "$tarball" | sort
-          tar -xzOf "$tarball" package/package.json | node -e "const p = JSON.parse(require('fs').readFileSync(0, 'utf8')); console.log(JSON.stringify({ name: p.name, version: p.version, dependencies: p.dependencies, peerDependencies: p.peerDependencies }, null, 2))"
+          tarball=$(ls "$RUNNER_TEMP"/pack/trendcraft-mcp-*.tgz)
+          actual="sha512-$(openssl dgst -sha512 -binary "$tarball" | base64 -w0)"
+          echo "$(basename "$tarball") $actual"
+          if [ -z "$EXPECTED" ] || [ "$actual" != "$EXPECTED" ]; then
+            echo "integrity does not match the pack job's: expected '$EXPECTED'" >&2
+            exit 1
+          fi
           echo "TARBALL=$tarball" >> "$GITHUB_ENV"
 
       # Trusted publishing: npm authenticates with this workflow's OIDC token
