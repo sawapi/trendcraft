@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.1 (2026-10-31)
 
 ### Fixed — types for CommonJS and for node16 / nodenext resolution
 
@@ -18,6 +18,12 @@ for `require`, nested under each condition in `exports`, with `.mjs` /
 arethetypeswrong recommend. The top-level `types` field points at the CJS
 declarations to match `main`. The unpacked package is larger, since it
 carries both sets of declarations; the JavaScript is unchanged.
+
+### Changed — requires `trendcraft` 0.6.1 or later
+
+The dependency range moves from `^0.6.0` to `^0.6.1`, so installs pick up
+the core 0.6.1 fixes, including its CommonJS type declarations. Tool inputs
+and outputs do not change.
 
 ## 0.4.0 (2026-10-30)
 
