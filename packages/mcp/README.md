@@ -2,7 +2,7 @@
 
 A Model Context Protocol server exposing [TrendCraft](https://github.com/sawapi/trendcraft)'s technical-analysis indicators and signals to MCP clients like Claude Desktop and Cursor over stdio.
 
-The server's differentiator is its structured per-indicator **manifest** — 96+ entries with `whenToUse`, `pitfalls`, `synergy`, `marketRegime`, `timeframe`, and `paramHints` — that lets an LLM decide *which* indicator to use, paired with token-aware calc and signal dispatchers built for agentic single-symbol analysis and multi-symbol screening. It ships no data connector: candles are supplied by the caller (paste from a file, or pair with a data-source MCP server).
+A structured per-indicator **manifest** (96 entries with `whenToUse`, `pitfalls`, `synergy`, `marketRegime`, `timeframe`, and `paramHints`) helps an LLM decide *which* indicator to use. Calc and signal dispatchers then run the chosen indicators, with options that keep responses small (`lastN`, sparse `firedAt` lists) for single-symbol analysis and multi-symbol screening. It ships no data connector: candles are supplied by the caller (paste from a file, or pair with a data-source MCP server).
 
 ## Install
 

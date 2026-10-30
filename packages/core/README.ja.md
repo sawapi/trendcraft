@@ -53,7 +53,7 @@ console.log(`Return: ${result.totalReturnPercent.toFixed(2)}%  Sharpe: ${result.
 - **ストリーミング** — `createLiveCandle()` がティックやローソク足を集約し、90以上のインクリメンタルなインジケーターファクトリをバーごとに駆動。再開可能なセッションのための状態保存/復元に対応。
 - **高度な分析** — ペアトレード/共和分、クロスアセット相関、アルファ減衰モニタリング、戦略ロバストネススコアリング、シグナル説明可能性。
 
-48個のインジケーターはTA-Libと相互検証済みです — [`cross-validation/`](https://github.com/sawapi/trendcraft/tree/main/packages/core/cross-validation) を参照してください。
+48個のインジケーターはTA-Libまたはpandas-taと相互検証済みです — [`cross-validation/`](https://github.com/sawapi/trendcraft/tree/main/packages/core/cross-validation) を参照してください。
 
 ## エントリーポイント
 

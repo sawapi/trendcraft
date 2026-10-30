@@ -29,5 +29,9 @@ export function run(stage: HTMLElement, candles: CandleData[]): void {
   chart.addIndicator(stochastics(candles));
   chart.addIndicator(macd(candles));
 
-  chart.fitContent();
+  // Indicators run on the full history (so warm-up stays off screen), but only
+  // the last year is shown: four years at README width blur into a band.
+  // setVisibleRangeByDuration ends at the live edge, so the newest bar stays
+  // clear of the price axis.
+  chart.setVisibleRangeByDuration("1Y");
 }

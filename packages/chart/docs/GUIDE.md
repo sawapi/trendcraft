@@ -29,8 +29,8 @@ A conceptual walkthrough of `@trendcraft/chart`. If you just want to get pixels 
 
 `@trendcraft/chart` is a Canvas-based charting library built specifically for financial time series. It optimizes for three things:
 
-1. **Zero-config indicator rendering** — pass a `trendcraft` indicator output and the chart figures out where it belongs, what scale it needs, and what reference lines to draw.
-2. **A small, focused runtime** — no runtime dependencies, ~44 kB main bundle (brotli, size-limit enforced), one canvas per chart, no virtual DOM.
+1. **Indicator auto-detection** — pass a `trendcraft` indicator output and the chart figures out where it belongs, what scale it needs, and what reference lines to draw.
+2. **A small, focused runtime** — no runtime dependencies, ~41 kB main bundle (brotli, size-limit enforced), one canvas per chart, no virtual DOM.
 3. **Extensibility as a plugin system, not a configuration tree** — custom series types and overlays ship as plain functions you register.
 
 What it's **not**:
@@ -366,7 +366,7 @@ The chart's responsibility is only rendering; the candle aggregation and increme
 
 ## Performance
 
-The library targets 60 fps with 10K+ candles out of the box. The mechanisms:
+These mechanisms keep large datasets (10K+ candles) responsive:
 
 - **LTTB decimation.** Above a threshold, line series are downsampled using [Largest-Triangle-Three-Buckets](https://github.com/sveinn-steinarsson/flot-downsample) to roughly one point per pixel column. Candlesticks are decimated by aggregation (OHLC reduction).
 - **Incremental repaints.** Only dirty frames repaint. Crosshair moves repaint a single overlay, not the series layer.

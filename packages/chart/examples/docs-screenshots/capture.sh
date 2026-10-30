@@ -10,9 +10,9 @@ PORT=5175
 mkdir -p "$OUT_DIR"
 
 # Scenes to capture. Keep this list in sync with src/main.ts.
-SCENES=(hero hero-candle auto-detection chart-types plugin-regime backtest)
+SCENES=(hero hero-candle auto-detection)
 
-# Filter if an explicit list was passed: ./capture.sh hero backtest
+# Filter if an explicit list was passed: ./capture.sh hero auto-detection
 if [[ $# -gt 0 ]]; then
   SCENES=("$@")
 fi
@@ -37,14 +37,17 @@ for _ in {1..60}; do
   sleep 0.25
 done
 
-# Capture at 2x logical size for better crispness on Retina displays.
-# agent-browser's own screenshot does not take a deviceScaleFactor flag, so we
-# enlarge the viewport instead and accept the larger output PNG.
-VIEWPORT_W=2560
-VIEWPORT_H=1440
+# Lay the chart out at a README-like width and capture at deviceScaleFactor 2,
+# so the PNG stays crisp on Retina displays while labels keep a readable size
+# when GitHub scales the image down to its content column (about 1000px or
+# narrower). Enlarging the viewport instead lays the chart out at full width
+# and shrinks the text to a few pixels.
+VIEWPORT_W=1200
+VIEWPORT_H=675
+VIEWPORT_SCALE=2
 
-echo "▶ setting viewport ${VIEWPORT_W}x${VIEWPORT_H}"
-agent-browser set viewport "$VIEWPORT_W" "$VIEWPORT_H" > /dev/null
+echo "▶ setting viewport ${VIEWPORT_W}x${VIEWPORT_H} @${VIEWPORT_SCALE}x"
+agent-browser set viewport "$VIEWPORT_W" "$VIEWPORT_H" "$VIEWPORT_SCALE" > /dev/null
 
 echo "▶ capturing ${#SCENES[@]} scene(s)"
 for scene in "${SCENES[@]}"; do
@@ -52,7 +55,7 @@ for scene in "${SCENES[@]}"; do
   agent-browser open "http://localhost:$PORT?scene=$scene" > /dev/null
 
   # Re-apply viewport after navigation (some browsers reset on navigation).
-  agent-browser set viewport "$VIEWPORT_W" "$VIEWPORT_H" > /dev/null
+  agent-browser set viewport "$VIEWPORT_W" "$VIEWPORT_H" "$VIEWPORT_SCALE" > /dev/null
 
   # Wait for scene readiness flag (set at the end of src/main.ts).
   for _ in {1..40}; do

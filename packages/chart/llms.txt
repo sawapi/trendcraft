@@ -1,6 +1,6 @@
 # @trendcraft/chart
 
-> Standalone zero-dependency Canvas charting library for OHLC / financial data in TypeScript. Works on plain `{ time, value }[]` and OHLC data with no peer dependencies; pairs optionally with TrendCraft for zero-config indicator auto-detection. Optional React/Vue wrappers and a DOM-free headless API for SSR and tests.
+> Standalone zero-dependency Canvas charting library for OHLC / financial data in TypeScript. Works on plain `{ time, value }[]` and OHLC data with no peer dependencies; pairs optionally with TrendCraft to place and style indicators automatically. Optional React/Vue wrappers and a DOM-free headless API for SSR and tests.
 
 Key facts for understanding the library:
 

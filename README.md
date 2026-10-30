@@ -39,7 +39,7 @@ Most demos are standalone Vite apps — `cd` into the directory, then `pnpm inst
 
 **Core (`trendcraft`)**
 - [`packages/core/examples/quick-start`](./packages/core/examples/quick-start) — the smallest "import and call an indicator" examples. Plain TS scripts, no dev server: from `packages/core`, run e.g. `pnpm exec tsx examples/quick-start/01-basic-indicators.ts`.
-- [`packages/core/examples/echarts-viewer`](./packages/core/examples/echarts-viewer) — comprehensive React + ECharts viewer (indicators, signals, backtest, optimization, pattern replay). Vite app (`pnpm install --ignore-workspace` + `pnpm dev`). Demonstrates that the `trendcraft` core works with any chart library, not only `@trendcraft/chart`.
+- [`packages/core/examples/echarts-viewer`](./packages/core/examples/echarts-viewer) — React + ECharts viewer (indicators, signals, backtest, optimization, pattern replay). Vite app (`pnpm install --ignore-workspace` + `pnpm dev`). Shows the `trendcraft` core used with a chart library other than `@trendcraft/chart`.
 - [`packages/core/examples/trading-simulator`](./packages/core/examples/trading-simulator) — bar-replay practice tool with order management and end-of-session review. Vite app (`pnpm install --ignore-workspace` + `pnpm dev`).
 - [`packages/core/examples/sp500-showcase`](./packages/core/examples/sp500-showcase) — screening and backtesting across US ETFs. Plain TS scripts, no dev server: set Alpaca API credentials, then run `pnpm exec tsx fetch-data.ts && pnpm exec tsx run-showcase.ts` from that directory.
 

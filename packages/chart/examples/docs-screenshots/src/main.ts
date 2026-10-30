@@ -8,11 +8,8 @@ import type { CandleData } from "@trendcraft/chart";
 import data from "../data/nvda-1day.json";
 
 import { run as runAutoDetection } from "./scenes/auto-detection";
-import { run as runBacktest } from "./scenes/backtest";
-import { run as runChartTypes } from "./scenes/chart-types";
 import { run as runHero } from "./scenes/hero";
 import { run as runHeroCandle } from "./scenes/hero-candle";
-import { run as runPluginRegime } from "./scenes/plugin-regime";
 
 const candles = data as CandleData[];
 
@@ -23,12 +20,9 @@ type Scene = {
 };
 
 const SCENES: Scene[] = [
-  { id: "hero", label: "Hero mountain (SMA 5/20/60 + RSI + MACD)", run: runHero },
+  { id: "hero", label: "Hero (Bollinger Bands + SMA 50)", run: runHero },
   { id: "hero-candle", label: "Hero candlestick variant", run: runHeroCandle },
   { id: "auto-detection", label: "Auto-detection (5 shapes)", run: runAutoDetection },
-  { id: "chart-types", label: "Chart types (candle/line/mountain/ohlc)", run: runChartTypes },
-  { id: "plugin-regime", label: "Plugin showcase: regime heatmap", run: runPluginRegime },
-  { id: "backtest", label: "Backtest visualization", run: runBacktest },
 ];
 
 const stage = document.getElementById("stage");

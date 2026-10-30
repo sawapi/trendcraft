@@ -1,10 +1,10 @@
 /**
  * Hero screenshot — a clean, legible candlestick beauty shot.
  *
- * Deliberately minimal: a recent ~170-bar window so individual candles read
- * as candles (not a blur), one Bollinger Bands envelope, and a single SMA(50)
+ * Deliberately minimal: the last six months so individual candles read as
+ * candles (not a blur), one Bollinger Bands envelope, and a single SMA(50)
  * trend line. Volume sits in its own pane by default. The busy multi-pane
- * indicator story (RSI + MACD + ribbon) lives in the auto-detection scene —
+ * indicator story (RSI + MACD + ribbon) lives in the hero-candle scene —
  * the hero is the first impression, so it stays uncluttered.
  */
 
@@ -14,10 +14,6 @@ import { registerTrendCraftPresets } from "@trendcraft/chart/presets";
 import { indicatorPresets } from "trendcraft";
 
 export function run(stage: HTMLElement, candles: CandleData[]): void {
-  // Show a recent window so candles are readable at hero width instead of
-  // collapsing into a fuzzy band of 1000+ thin wicks.
-  const recent = candles.slice(-170);
-
   const chart = createChart(stage, {
     theme: "dark",
     animationDuration: 0,
@@ -25,13 +21,15 @@ export function run(stage: HTMLElement, candles: CandleData[]): void {
     chartType: "candlestick",
   });
   registerTrendCraftPresets(chart);
-  chart.setCandles(recent);
+  chart.setCandles(candles);
 
-  const conn = connectIndicators(chart, { presets: indicatorPresets, candles: recent });
+  const conn = connectIndicators(chart, { presets: indicatorPresets, candles });
   // One cohesive overlay (band) + one trend line keeps the price pane calm.
   // Keys are the canonical `indicatorPresets` ids (`bb`, not the `bollingerBands` alias).
   conn.add("bb");
   conn.add("sma", { period: 50 });
 
-  chart.fitContent();
+  // Indicators run on the full history (so warm-up stays off screen); only a
+  // recent window is shown so candles stay readable at README width.
+  chart.setVisibleRangeByDuration("6M");
 }
