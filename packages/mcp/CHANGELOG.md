@@ -1,5 +1,7 @@
 # Changelog
 
+## Unreleased
+
 ## 0.4.0 (2026-10-30)
 
 ### Fixed — the server reports its real version
