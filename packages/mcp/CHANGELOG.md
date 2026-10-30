@@ -1,5 +1,7 @@
 # Changelog
 
+## Unreleased
+
 ## 0.4.1 (2026-10-31)
 
 ### Fixed — types for CommonJS and for node16 / nodenext resolution
