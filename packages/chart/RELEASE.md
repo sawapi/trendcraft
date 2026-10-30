@@ -29,14 +29,14 @@ pnpm publish           # runs prepublishOnly: build + test + verify:publish
 Then tag the published commit (tag after publishing, as for every package):
 
 ```sh
-git tag chart-v<x.y.z>
+git tag -a chart-v<x.y.z> -m "@trendcraft/chart <x.y.z>"
 git push origin chart-v<x.y.z>
 ```
 
 ## After publish
 
 - [ ] `npm view @trendcraft/chart@<x.y.z> version` returns the new version
-- [ ] Spot-install into a throwaway project and import each entry point (`.`, `/headless`, `/presets`, `/sparkline`, `/replay`, `/react`, `/react/sparkline`, `/vue`, `/vue/sparkline`) to confirm the published tarball behaves like the local build
+- [ ] The Publish workflow installed the packed tarball into a throwaway project and loaded every `exports` entry before publishing (the "Smoke-test the tarballs" step in its pack job). Optionally, once your package manager's minimum release age allows it, install `@trendcraft/chart@<x.y.z>` from npm into a throwaway project and import each entry point (`.`, `/headless`, `/presets`, `/features`, `/sparkline`, `/replay`, `/react`, `/react/sparkline`, `/vue`, `/vue/sparkline`). `npm view @trendcraft/chart@<x.y.z> dist.integrity` should match the sha512 the pack job logged for the tarball
 - [ ] Open a new `Unreleased` section in `CHANGELOG.md` for the next cycle
 
 ## Rollback
