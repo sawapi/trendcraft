@@ -42,18 +42,23 @@ const fail = (msg) => {
 
 async function verifyEntry(subpath, entry) {
   console.log(`\n[${subpath}]`);
-  const typesPath = resolve(pkgRoot, entry.types);
-  const esmPath = resolve(pkgRoot, entry.import);
-  const cjsPath = resolve(pkgRoot, entry.require);
+  // Each condition carries its own declarations: .d.mts for import, .d.cts
+  // for require.
+  const esm = entry.import ?? {};
+  const cjs = entry.require ?? {};
+  const esmPath = resolve(pkgRoot, esm.default ?? "");
+  const cjsPath = resolve(pkgRoot, cjs.default ?? "");
 
-  if (existsSync(typesPath)) pass(`types file exists (${entry.types})`);
-  else fail(`missing types file: ${entry.types}`);
-
-  if (existsSync(esmPath)) pass(`esm file exists (${entry.import})`);
-  else fail(`missing esm file: ${entry.import}`);
-
-  if (existsSync(cjsPath)) pass(`cjs file exists (${entry.require})`);
-  else fail(`missing cjs file: ${entry.require}`);
+  // File existence
+  for (const [what, file] of [
+    ["esm types file", esm.types],
+    ["esm file", esm.default],
+    ["cjs types file", cjs.types],
+    ["cjs file", cjs.default],
+  ]) {
+    if (file && existsSync(resolve(pkgRoot, file))) pass(`${what} exists (${file})`);
+    else fail(`missing ${what}: ${file}`);
+  }
 
   const expected = EXPECTED_SYMBOLS[subpath] ?? [];
 
