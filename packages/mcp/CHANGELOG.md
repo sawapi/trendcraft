@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+### Fixed — types for CommonJS and for node16 / nodenext resolution
+
+The package shipped one set of `.d.ts` declarations for both its ESM and its
+CJS build. Under `"type": "module"` TypeScript reads a `.d.ts` as ESM, so a
+CommonJS project with `module: node16` got TS1479 on every import, and the
+declarations' relative imports had no file extension, which node16 and
+nodenext resolution reject. With `skipLibCheck` off that surfaced as
+hundreds of TS2834 errors; with it on, most imports silently became `any`.
+Projects using `moduleResolution: bundler` were not affected.
+
+Each build now has its own declarations: `.d.mts` for `import` and `.d.cts`
+for `require`, nested under each condition in `exports`, with `.mjs` /
+`.cjs` on every relative import, as the TypeScript handbook and
+arethetypeswrong recommend. The top-level `types` field points at the CJS
+declarations to match `main`. The unpacked package is larger, since it
+carries both sets of declarations; the JavaScript is unchanged.
+
 ## 0.4.0 (2026-10-30)
 
 ### Fixed — the server reports its real version

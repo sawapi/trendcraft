@@ -5,7 +5,7 @@
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "types": "./dist/index.d.cts",
   "bin": {
     "trendcraft-screen": "./dist/bin/trendcraft-screen.js",
     "trendcraft-backtest": "./dist/bin/trendcraft-backtest.js",
@@ -13,41 +13,65 @@
   },
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
+      "import": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
     },
     "./screening": {
-      "types": "./dist/screening/index.d.ts",
-      "import": "./dist/screening/index.js",
-      "require": "./dist/screening/index.cjs"
+      "import": {
+        "types": "./dist/screening/index.d.mts",
+        "default": "./dist/screening/index.js"
+      },
+      "require": {
+        "types": "./dist/screening/index.d.cts",
+        "default": "./dist/screening/index.cjs"
+      }
     },
     "./incremental": {
-      "types": "./dist/indicators/incremental/index.d.ts",
-      "import": "./dist/indicators/incremental/index.js",
-      "require": "./dist/indicators/incremental/index.cjs"
+      "import": {
+        "types": "./dist/indicators/incremental/index.d.mts",
+        "default": "./dist/indicators/incremental/index.js"
+      },
+      "require": {
+        "types": "./dist/indicators/incremental/index.d.cts",
+        "default": "./dist/indicators/incremental/index.cjs"
+      }
     },
     "./safe": {
-      "types": "./dist/indicators/safe/index.d.ts",
-      "import": "./dist/indicators/safe/index.js",
-      "require": "./dist/indicators/safe/index.cjs"
+      "import": {
+        "types": "./dist/indicators/safe/index.d.mts",
+        "default": "./dist/indicators/safe/index.js"
+      },
+      "require": {
+        "types": "./dist/indicators/safe/index.d.cts",
+        "default": "./dist/indicators/safe/index.cjs"
+      }
     },
     "./manifest": {
-      "types": "./dist/manifest/index.d.ts",
-      "import": "./dist/manifest/index.js",
-      "require": "./dist/manifest/index.cjs"
+      "import": {
+        "types": "./dist/manifest/index.d.mts",
+        "default": "./dist/manifest/index.js"
+      },
+      "require": {
+        "types": "./dist/manifest/index.d.cts",
+        "default": "./dist/manifest/index.cjs"
+      }
     }
   },
   "sideEffects": false,
   "files": [
     "dist",
     "!dist/**/__tests__",
-    "!dist/**/*.test.d.ts",
-    "!dist/**/*.test.d.ts.map",
+    "!dist/**/*.test.d.*ts",
     "!dist/__benchmarks__",
     "!dist/**/*.js.map",
     "!dist/**/*.cjs.map",
-    "!dist/**/*.d.ts.map",
+    "!dist/**/*.d.*ts.map",
     "LICENSE",
     "CHANGELOG.md",
     "llms.txt",

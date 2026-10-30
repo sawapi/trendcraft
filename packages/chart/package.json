@@ -5,57 +5,107 @@
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "types": "./dist/index.d.cts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
+      "import": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
     },
     "./presets": {
-      "types": "./dist/presets.d.ts",
-      "import": "./dist/presets.js",
-      "require": "./dist/presets.cjs"
+      "import": {
+        "types": "./dist/presets.d.mts",
+        "default": "./dist/presets.js"
+      },
+      "require": {
+        "types": "./dist/presets.d.cts",
+        "default": "./dist/presets.cjs"
+      }
     },
     "./headless": {
-      "types": "./dist/headless.d.ts",
-      "import": "./dist/headless.js",
-      "require": "./dist/headless.cjs"
+      "import": {
+        "types": "./dist/headless.d.mts",
+        "default": "./dist/headless.js"
+      },
+      "require": {
+        "types": "./dist/headless.d.cts",
+        "default": "./dist/headless.cjs"
+      }
     },
     "./sparkline": {
-      "types": "./dist/sparkline.d.ts",
-      "import": "./dist/sparkline.js",
-      "require": "./dist/sparkline.cjs"
+      "import": {
+        "types": "./dist/sparkline.d.mts",
+        "default": "./dist/sparkline.js"
+      },
+      "require": {
+        "types": "./dist/sparkline.d.cts",
+        "default": "./dist/sparkline.cjs"
+      }
     },
     "./replay": {
-      "types": "./dist/replay.d.ts",
-      "import": "./dist/replay.js",
-      "require": "./dist/replay.cjs"
+      "import": {
+        "types": "./dist/replay.d.mts",
+        "default": "./dist/replay.js"
+      },
+      "require": {
+        "types": "./dist/replay.d.cts",
+        "default": "./dist/replay.cjs"
+      }
     },
     "./features": {
-      "types": "./dist/features.d.ts",
-      "import": "./dist/features.js",
-      "require": "./dist/features.cjs"
+      "import": {
+        "types": "./dist/features.d.mts",
+        "default": "./dist/features.js"
+      },
+      "require": {
+        "types": "./dist/features.d.cts",
+        "default": "./dist/features.cjs"
+      }
     },
     "./react": {
-      "types": "./dist/react/index.d.ts",
-      "import": "./dist/react/index.js",
-      "require": "./dist/react/index.cjs"
+      "import": {
+        "types": "./dist/react/index.d.mts",
+        "default": "./dist/react/index.js"
+      },
+      "require": {
+        "types": "./dist/react/index.d.cts",
+        "default": "./dist/react/index.cjs"
+      }
     },
     "./react/sparkline": {
-      "types": "./dist/react/sparkline.d.ts",
-      "import": "./dist/react/sparkline.js",
-      "require": "./dist/react/sparkline.cjs"
+      "import": {
+        "types": "./dist/react/sparkline.d.mts",
+        "default": "./dist/react/sparkline.js"
+      },
+      "require": {
+        "types": "./dist/react/sparkline.d.cts",
+        "default": "./dist/react/sparkline.cjs"
+      }
     },
     "./vue": {
-      "types": "./dist/vue/index.d.ts",
-      "import": "./dist/vue/index.js",
-      "require": "./dist/vue/index.cjs"
+      "import": {
+        "types": "./dist/vue/index.d.mts",
+        "default": "./dist/vue/index.js"
+      },
+      "require": {
+        "types": "./dist/vue/index.d.cts",
+        "default": "./dist/vue/index.cjs"
+      }
     },
     "./vue/sparkline": {
-      "types": "./dist/vue/sparkline.d.ts",
-      "import": "./dist/vue/sparkline.js",
-      "require": "./dist/vue/sparkline.cjs"
+      "import": {
+        "types": "./dist/vue/sparkline.d.mts",
+        "default": "./dist/vue/sparkline.js"
+      },
+      "require": {
+        "types": "./dist/vue/sparkline.d.cts",
+        "default": "./dist/vue/sparkline.cjs"
+      }
     }
   },
   "sideEffects": false,
@@ -65,7 +115,7 @@
     "!dist/**/*.test.*",
     "!dist/**/*.js.map",
     "!dist/**/*.cjs.map",
-    "!dist/**/*.d.ts.map",
+    "!dist/**/*.d.*ts.map",
     "LICENSE",
     "CHANGELOG.md",
     "llms.txt",

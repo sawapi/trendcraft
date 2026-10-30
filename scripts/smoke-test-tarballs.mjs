@@ -16,13 +16,17 @@
  * For each package it checks that:
  *  - every `exports` subpath imports as ESM and, if it has a `require`
  *    condition, loads as CJS with the same export names;
- *  - every `types` file in the `exports` map is in the tarball;
+ *  - every `types` file in the `exports` map (top level or per condition)
+ *    is in the tarball;
+ *  - every relative import in a .d.mts / .d.cts declaration names its file
+ *    with the matching extension (.mjs / .cjs), which node16 and nodenext
+ *    resolution need;
  *  - every `bin` runs: `--help` for the CLIs, and the MCP handshake
  *    (initialize, then tools/list) for the MCP server.
  */
 
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -126,9 +130,15 @@ for (const name of names) {
     const spec = subpath === "." ? name : `${name}/${subpath.slice(2)}`;
     const cjs = typeof entry === "object" && entry !== null && "require" in entry;
     specs.push({ spec, cjs });
-    const types = typeof entry === "object" && entry !== null ? entry.types : undefined;
-    if (types && !existsSync(join(pkgDir, types)))
-      fail(`${spec}: types file ${types} is not in the tarball`);
+    // types may sit at the top of the entry or under each condition.
+    const typeFiles =
+      typeof entry === "object" && entry !== null
+        ? [entry.types, entry.import?.types, entry.require?.types].filter(Boolean)
+        : [];
+    for (const types of typeFiles) {
+      if (!existsSync(join(pkgDir, types)))
+        fail(`${spec}: types file ${types} is not in the tarball`);
+    }
   }
 
   const run = spawnSync(process.execPath, ["check.mjs", JSON.stringify(specs)], {
@@ -158,6 +168,8 @@ for (const name of names) {
       );
   }
 
+  checkDeclarationSpecifiers(name, pkgDir);
+
   const bins = typeof pkg.bin === "string" ? { [name]: pkg.bin } : (pkg.bin ?? {});
   for (const bin of Object.keys(bins)) {
     const binPath = join(dir, "node_modules", ".bin", bin);
@@ -171,6 +183,35 @@ for (const name of names) {
       fail(
         `${bin} --help exited ${r.status ?? r.signal}: ${(r.stderr || r.stdout).trim().split("\n")[0]}`,
       );
+  }
+}
+
+/**
+ * node16 / nodenext resolution needs a file extension on every relative
+ * import, and a .d.cts must point at .cjs (a .d.mts at .mjs) or TypeScript
+ * reads the target in the other module format. Comments are skipped, since
+ * JSDoc samples quote imports too.
+ */
+function checkDeclarationSpecifiers(name, pkgDir) {
+  const files = readdirSync(join(pkgDir, "dist"), { recursive: true }).filter((f) =>
+    /\.d\.[mc]ts$/.test(f),
+  );
+  const bad = [];
+  for (const file of files) {
+    const ext = file.endsWith(".d.cts") ? ".cjs" : ".mjs";
+    const code = readFileSync(join(pkgDir, "dist", file), "utf8")
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/^\s*\/\/.*$/gm, "");
+    for (const m of code.matchAll(/(?:\bfrom |\bimport\()(['"])(\.[^'"]*)\1/g)) {
+      if (!m[2].endsWith(ext)) bad.push(`${file}: ${m[2]}`);
+    }
+  }
+  if (bad.length > 0) {
+    fail(
+      `${name}: ${bad.length} declaration import(s) lack the matching extension, e.g. ${bad.slice(0, 3).join("; ")}`,
+    );
+  } else {
+    console.log(`  ✓ ${files.length} declaration files use .mjs / .cjs relative imports`);
   }
 }
 

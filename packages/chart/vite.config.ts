@@ -2,6 +2,7 @@
 import { resolve } from "node:path";
 import { defineConfig } from "vite";
 import dts from "vite-plugin-dts";
+import { dualFormatDts } from "../../scripts/dts-dual-format";
 
 export default defineConfig({
   build: {
@@ -36,6 +37,7 @@ export default defineConfig({
   },
   plugins: [
     dts({
+      ...dualFormatDts,
       insertTypesEntry: true,
     }),
   ],
