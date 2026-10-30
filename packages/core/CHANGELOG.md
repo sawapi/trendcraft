@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.6.1] - 2026-10-31
 
 ### Fixed — types for CommonJS and for node16 / nodenext resolution
 
@@ -19,13 +19,13 @@ arethetypeswrong recommend. The top-level `types` field points at the CJS
 declarations to match `main`. The unpacked package is larger, since it
 carries both sets of declarations; the JavaScript is unchanged.
 
-### Fixed — twelve indicators returned a series with no label
+### Fixed — twelve indicators had no label, or one without their parameters
 
 `highest`, `lowest`, `volumeMa`, `superSmoother`, `roofingFilter`,
-`atrPercentSeries`, `cumulativeReturns`, `medianPrice`, `typicalPrice`,
-`weightedClose` and `ewmaVolatility` returned an untagged series, and
-`zigzag` a fixed "Zigzag" label. A chart fell back to the preset's fixed
-name, so two Highest presets with different periods both read "Highest",
+`atrPercentSeries`, `cumulativeReturns`, `medianPrice`, `typicalPrice` and
+`weightedClose` returned an untagged series, `zigzag` a fixed "Zigzag"
+label, and `ewmaVolatility` the GARCH label. A chart fell back to the
+preset's fixed name, so two Highest presets with different periods both read "Highest",
 and code reading `__meta.label` got nothing. Each now tags its output, with
 the parameters in the label as the other indicators do: `Highest(20)`,
 `Vol MA(20)` (`Vol MA(20, EMA)` for the EMA type), `SuperSmoother(10)`,
