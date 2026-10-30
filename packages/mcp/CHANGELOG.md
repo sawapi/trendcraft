@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.0 (2026-10-30)
 
 ### Fixed — the server reports its real version
 
@@ -37,6 +37,16 @@ It follows `trendcraft`'s `dpo()`: each value is now stamped at the bar
 where it is first known (`Price[i - shift] - SMA[i]`, `shift` bars later
 than before), so it no longer reads future bars. Pass `centered: true` for
 the previous, centered series.
+
+### Changed — requires `trendcraft` 0.6.0 or later
+
+The dependency range moves from `^0.5.0` to `^0.6.0`, so installs pick up
+the correctness fixes in core 0.6.0. No tool signature changes, but the
+**values the tools return change** wherever those fixes apply: besides
+`dpo` above, `calc_indicator("supertrend")` has no direction (`supertrend:
+null`) until the close first breaks a band, where it used to start in a
+downtrend. See the
+`trendcraft` 0.6.0 changelog.
 
 ### Breaking — requires Node.js 22 or later
 
