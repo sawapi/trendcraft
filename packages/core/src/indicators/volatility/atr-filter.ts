@@ -11,7 +11,9 @@
  */
 
 import { ensureNormalized } from "../../core/normalize";
+import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import type { SeriesMeta } from "../../types/candle";
 import { assertPeriod } from "../../utils/validate-period";
 import { atr } from "./atr";
 
@@ -149,6 +151,9 @@ export function calculateAtrPercent(
   return calculateAtrPercentDetail(candles, options).atrPercent;
 }
 
+/** Series metadata for `atrPercentSeries`; the label gains the ATR period. */
+export const ATR_PERCENT_META: SeriesMeta = { kind: "atrPercent", overlay: false, label: "ATR%" };
+
 /**
  * Calculate ATR% series (ATR% for each candle)
  *
@@ -167,14 +172,15 @@ export function atrPercentSeries(
 ): Series<number | null> {
   assertPeriod("ATR filter atrPeriod", atrPeriod);
   const normalized = ensureNormalized(candles);
+  const meta = withLabelParams(ATR_PERCENT_META, [atrPeriod]);
 
   if (normalized.length === 0) {
-    return [];
+    return tagSeries([], meta);
   }
 
   const atrValues = atr(normalized, { period: atrPeriod });
 
-  return atrValues.map((atrVal, i) => {
+  const result: Series<number | null> = atrValues.map((atrVal, i) => {
     const close = normalized[i].close;
     if (atrVal.value === null || close <= 0) {
       return { time: atrVal.time, value: null };
@@ -184,6 +190,7 @@ export function atrPercentSeries(
       value: (atrVal.value / close) * 100,
     };
   });
+  return tagSeries(result, meta);
 }
 
 /**

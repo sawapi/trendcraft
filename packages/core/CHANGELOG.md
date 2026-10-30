@@ -2,6 +2,25 @@
 
 ## [Unreleased]
 
+### Fixed — twelve indicators returned a series with no label
+
+`highest`, `lowest`, `volumeMa`, `superSmoother`, `roofingFilter`,
+`atrPercentSeries`, `cumulativeReturns`, `medianPrice`, `typicalPrice`,
+`weightedClose` and `ewmaVolatility` returned an untagged series, and
+`zigzag` a fixed "Zigzag" label. A chart fell back to the preset's fixed
+name, so two Highest presets with different periods both read "Highest",
+and code reading `__meta.label` got nothing. Each now tags its output, with
+the parameters in the label as the other indicators do: `Highest(20)`,
+`Vol MA(20)` (`Vol MA(20, EMA)` for the EMA type), `SuperSmoother(10)`,
+`Roofing(48, 10)`, `ATR%(14)`, `Zigzag(5%)` or `Zigzag(ATR, 14, 2)`,
+`Cum. Returns` or `Cum. Returns(log)`, `EWMA Vol(0.94)`, and the fixed
+`Median Price`, `Typical Price` and `Weighted Close`.
+
+`ewmaVolatility` was tagged as GARCH (`kind: "garch"`, label "GARCH"); it
+now carries the `ewmaVolatility` metadata its preset already used. The
+`zigzag` and `ewmaVol` presets keep the label when they rebuild the series
+(interpolating between pivots, or moving it onto candle times).
+
 ## [0.6.0] - 2026-10-30
 
 ### Fixed — `validateCandles` reports a bad `time` instead of missing or throwing on it

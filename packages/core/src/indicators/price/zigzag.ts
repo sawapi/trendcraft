@@ -7,10 +7,11 @@
  */
 
 import { ensureNormalized } from "../../core/normalize";
-import { tagSeries } from "../../core/tag-series";
+import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { assertPositive } from "../../utils/validate-number";
 import { assertPeriod } from "../../utils/validate-period";
+import { ZIGZAG_META } from "../indicator-meta";
 import { atr as calculateAtr } from "../volatility/atr";
 
 /**
@@ -69,6 +70,10 @@ export function zigzag(
   options: ZigzagOptions = {},
 ): Series<ZigzagValue> {
   const { deviation = 5, useAtr = false, atrPeriod = 14, atrMultiplier = 2 } = options;
+  const meta = withLabelParams(
+    ZIGZAG_META,
+    useAtr ? ["ATR", atrPeriod, atrMultiplier] : [`${deviation}%`],
+  );
   assertPositive("Zigzag atrMultiplier", atrMultiplier);
   assertPeriod("Zigzag atrPeriod", atrPeriod);
 
@@ -83,7 +88,7 @@ export function zigzag(
   }));
 
   if (normalized.length < 2) {
-    return tagSeries(result, { kind: "zigzag", overlay: true, label: "Zigzag" });
+    return tagSeries(result, meta);
   }
 
   // Calculate ATR if needed using the existing atr() indicator
@@ -235,5 +240,5 @@ export function zigzag(
     }
   }
 
-  return tagSeries(result, { kind: "zigzag", overlay: true, label: "Zigzag" });
+  return tagSeries(result, meta);
 }

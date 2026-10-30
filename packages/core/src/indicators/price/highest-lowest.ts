@@ -3,8 +3,9 @@
  */
 
 import { ensureNormalized, getPriceSeries } from "../../core/normalize";
-import { tagSeries } from "../../core/tag-series";
+import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, HighestLowestOptions, NormalizedCandle, Series } from "../../types";
+import type { SeriesMeta } from "../../types/candle";
 import { assertPeriod } from "../../utils/validate-period";
 import { assertPriceSource } from "../../utils/validate-price-source";
 
@@ -111,6 +112,12 @@ export function highestLowest(
   return tagSeries(result, { kind: "highestLowest", overlay: true, label: "HiLo" });
 }
 
+/** Series metadata for `highest`; the label gains the period. */
+export const HIGHEST_META: SeriesMeta = { kind: "highest", overlay: true, label: "Highest" };
+
+/** Series metadata for `lowest`; the label gains the period. */
+export const LOWEST_META: SeriesMeta = { kind: "lowest", overlay: true, label: "Lowest" };
+
 /**
  * Calculate only highest high over n periods
  *
@@ -151,7 +158,7 @@ export function highest(
     }
   }
 
-  return result;
+  return tagSeries(result, withLabelParams(HIGHEST_META, [period]));
 }
 
 /**
@@ -194,5 +201,5 @@ export function lowest(
     }
   }
 
-  return result;
+  return tagSeries(result, withLabelParams(LOWEST_META, [period]));
 }

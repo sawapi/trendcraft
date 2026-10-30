@@ -3,9 +3,11 @@
  */
 
 import { ensureNormalized } from "../../core/normalize";
+import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { assertOneOf, keywords } from "../../utils/validate-keyword";
 import { assertPeriod } from "../../utils/validate-period";
+import { VOLUME_MA_META } from "../indicator-meta";
 
 const MA_TYPES = keywords<NonNullable<VolumeMaOptions["type"]>>()(["sma", "ema"]);
 
@@ -41,16 +43,17 @@ export function volumeMa(
 
   // Normalize if needed
   const normalized = ensureNormalized(candles);
+  const meta = withLabelParams(VOLUME_MA_META, [period, type === "ema" ? "EMA" : undefined]);
 
   if (normalized.length === 0) {
-    return [];
+    return tagSeries([], meta);
   }
 
   if (type === "ema") {
-    return calculateVolumeEma(normalized, period);
+    return tagSeries(calculateVolumeEma(normalized, period), meta);
   }
 
-  return calculateVolumeSma(normalized, period);
+  return tagSeries(calculateVolumeSma(normalized, period), meta);
 }
 
 /**

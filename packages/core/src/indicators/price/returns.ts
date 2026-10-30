@@ -3,8 +3,9 @@
  */
 
 import { ensureNormalized } from "../../core/normalize";
-import { tagSeries } from "../../core/tag-series";
+import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, ReturnsOptions, Series } from "../../types";
+import type { SeriesMeta } from "../../types/candle";
 import { assertOneOf, keywords } from "../../utils/validate-keyword";
 import { assertPeriod } from "../../utils/validate-period";
 import { RETURNS_META } from "../indicator-meta";
@@ -72,6 +73,13 @@ export function returns(
   return tagSeries(result, RETURNS_META);
 }
 
+/** Series metadata for `cumulativeReturns`; log returns add "log" to the label. */
+export const CUMULATIVE_RETURNS_META: SeriesMeta = {
+  kind: "cumulativeReturns",
+  overlay: false,
+  label: "Cum. Returns",
+};
+
 /**
  * Calculate cumulative returns from a starting point
  *
@@ -85,16 +93,20 @@ export function cumulativeReturns(
 ): Series<number | null> {
   assertOneOf("cumulativeReturns type", type, CUMULATIVE_RETURN_TYPES);
   const normalized = ensureNormalized(candles);
+  const meta = withLabelParams(CUMULATIVE_RETURNS_META, [type === "log" ? "log" : undefined]);
 
   if (normalized.length === 0) {
-    return [];
+    return tagSeries([], meta);
   }
 
   const result: Series<number | null> = [];
   const startPrice = normalized[0].close;
 
   if (startPrice === 0) {
-    return normalized.map((c) => ({ time: c.time, value: null }));
+    return tagSeries(
+      normalized.map((c) => ({ time: c.time, value: null })),
+      meta,
+    );
   }
 
   for (let i = 0; i < normalized.length; i++) {
@@ -109,5 +121,5 @@ export function cumulativeReturns(
     }
   }
 
-  return result;
+  return tagSeries(result, meta);
 }
