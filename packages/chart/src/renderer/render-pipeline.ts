@@ -87,6 +87,11 @@ export type RenderContext = {
   /** Which value to show in series badges: "absolute" (default) or "visible". */
   seriesBadgeMode?: "absolute" | "visible";
   priceFormatter: (price: number) => string;
+  /**
+   * The caller's own priceFormatter for the price-axis ticks; undefined when
+   * they gave none, so the axis formats ticks from their step.
+   */
+  axisPriceFormatter?: (price: number) => string;
   timeFormatter: ((time: number) => string) | undefined;
   data: DataLayer;
   layout: LayoutEngine;
@@ -491,8 +496,11 @@ export function renderFrame(rc: RenderContext): RenderResult {
     });
 
     // Volume axis uses compact K/M/B notation; other panes use the user-
-    // supplied price formatter.
-    const axisFormatter = pane.id === "volume" ? formatVolume : rc.priceFormatter;
+    // supplied price formatter. The tick labels fall back to step-based
+    // decimals when there is none; the last-value badges keep the price
+    // formatter.
+    const badgeFormatter = pane.id === "volume" ? formatVolume : rc.priceFormatter;
+    const axisFormatter = pane.id === "volume" ? formatVolume : rc.axisPriceFormatter;
 
     // Compute last-value badges (if enabled) before the axis so we can tell
     // the axis which Y ranges are occupied. The candle current-price badge
@@ -530,7 +538,7 @@ export function renderFrame(rc: RenderContext): RenderResult {
           seriesOnPane,
           theme,
           rc.fontSize,
-          axisFormatter,
+          badgeFormatter,
           excludeYRanges,
           searchUpTo,
           extras,

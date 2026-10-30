@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — price-axis labels mixed their decimals on one axis
+
+The default formatter sized each tick label by its own value (two decimals
+from 100, three below, `0` for zero), so a price axis crossing 100 read
+`80.000` next to `100.00`, and a 0–100 oscillator pane `50.000` next to
+`100.00`. Tick labels now take their decimals from the tick step and share
+them across the axis: an RSI pane reads `0, 20, … 100`, and a step of 0.01
+gives two decimals on every label. Chart.js and d3 derive axis decimals from
+the step the same way. A `priceFormatter` you pass is still used as given,
+and the crosshair and last-value labels are unchanged.
+
+### Fixed — `detectPrecision` sorted the array it was given
+
+`detectPrecision(prices)` (headless) found the median by sorting `prices` in
+place, so the caller's array came back reordered. It now sorts a copy.
+
 ## [0.6.0] - 2026-10-30
 
 ### Breaking — the optional `trendcraft` peer needs 0.5.0 or later

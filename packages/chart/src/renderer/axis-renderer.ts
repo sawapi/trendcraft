@@ -4,13 +4,13 @@
 
 import { canvasFont, DEFAULT_FONT_FAMILY } from "../core/font";
 import {
-  autoFormatPrice,
   autoFormatTime,
   estimateBarIntervalMs,
   formatShortDate,
   formatShortTime,
   measureTextWidth,
   pickNiceStep,
+  tickPriceFormatter,
 } from "../core/format";
 import type { PriceScale, TimeScale } from "../core/scale";
 import type { CandleData, ThemeColors } from "../core/types";
@@ -55,7 +55,7 @@ export function renderPriceAxis(
   height: number,
   theme: ThemeColors,
   fontSize: number,
-  priceFormatter: (price: number) => string = autoFormatPrice,
+  priceFormatter?: (price: number) => string,
   options: PriceAxisOptions | "left" | "right" = {},
   fontFamily: string = DEFAULT_FONT_FAMILY,
 ): void {
@@ -64,6 +64,9 @@ export function renderPriceAxis(
   const position = opts.position ?? "right";
   const maxTicks = Math.max(2, opts.maxTicks ?? 6);
   const ticks = priceScale.getTicks(maxTicks);
+  // Without a formatter from the caller, every tick label gets the decimals
+  // the tick step needs. A caller's own formatter is used as given.
+  const formatTick = priceFormatter ?? tickPriceFormatter(ticks);
 
   // Suppress labels too close to pane edges (avoids visual collision with the
   // adjacent pane's edge label) or overlapping foreground labels like the
@@ -112,13 +115,13 @@ export function renderPriceAxis(
     // Flip baseline near edges so labels stay within the pane.
     if (tickY < y + EDGE_PAD) {
       ctx.textBaseline = "top";
-      ctx.fillText(priceFormatter(tick), labelX, y + 1);
+      ctx.fillText(formatTick(tick), labelX, y + 1);
     } else if (tickY > y + height - EDGE_PAD) {
       ctx.textBaseline = "bottom";
-      ctx.fillText(priceFormatter(tick), labelX, y + height - 1);
+      ctx.fillText(formatTick(tick), labelX, y + height - 1);
     } else {
       ctx.textBaseline = "middle";
-      ctx.fillText(priceFormatter(tick), labelX, tickY);
+      ctx.fillText(formatTick(tick), labelX, tickY);
     }
   }
 }

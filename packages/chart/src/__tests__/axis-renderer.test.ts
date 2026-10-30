@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { autoFormatPrice } from "../core/format";
 import { DARK_THEME } from "../core/types";
 import {
   renderGrid,
@@ -148,5 +149,54 @@ describe("renderReferenceLines", () => {
     const ps = makePriceScale(400, 0, 100);
     renderReferenceLines(ctx, [], ps, 0, 0, 740, "#787b86");
     expect(ctx.stroke).not.toHaveBeenCalled();
+  });
+});
+
+describe("renderPriceAxis tick label decimals", () => {
+  const labels = (ctx: CanvasRenderingContext2D) =>
+    (ctx.fillText as unknown as { mock: { calls: unknown[][] } }).mock.calls.map(
+      ([text]) => text as string,
+    );
+  const decimals = (label: string) => (label.includes(".") ? label.split(".")[1].length : 0);
+
+  // Each tick used to be formatted by its own magnitude, so one axis read
+  // "20.000, 40.000, 80.000, 100.00, 120.00" and an RSI pane "50.000" next
+  // to "100.00". The decimals now come from the tick step, as in Chart.js and
+  // d3, and every label on the axis shares them.
+  it("gives a price axis that crosses 100 one number of decimals", () => {
+    const ctx = mockCtx();
+    renderPriceAxis(ctx, makePriceScale(400, 15, 145), 740, 0, 60, 400, theme, 11);
+    const texts = labels(ctx);
+    expect(texts.length).toBeGreaterThan(2);
+    expect(new Set(texts.map(decimals)).size).toBe(1);
+  });
+
+  it("labels a 0–100 oscillator pane without decimals", () => {
+    const ctx = mockCtx();
+    renderPriceAxis(ctx, makePriceScale(400, 0, 100), 740, 0, 60, 400, theme, 11);
+    const texts = labels(ctx);
+    expect(texts.length).toBeGreaterThan(2);
+    for (const t of texts) expect(t).toMatch(/^-?\d+$/);
+  });
+
+  it("keeps as many decimals as a small step needs", () => {
+    const ctx = mockCtx();
+    renderPriceAxis(ctx, makePriceScale(400, 1.21, 1.29), 740, 0, 60, 400, theme, 11);
+    const texts = labels(ctx);
+    expect(texts.length).toBeGreaterThan(2);
+    expect(new Set(texts.map(decimals)).size).toBe(1);
+    expect(new Set(texts).size).toBe(texts.length);
+  });
+
+  it("uses autoFormatPrice as given when the caller passes it", () => {
+    const ctx = mockCtx();
+    renderPriceAxis(ctx, makePriceScale(400, 15, 145), 740, 0, 60, 400, theme, 11, autoFormatPrice);
+    expect(labels(ctx)).toContain("20.000");
+  });
+
+  it("still uses a priceFormatter the caller passes", () => {
+    const ctx = mockCtx();
+    renderPriceAxis(ctx, makePriceScale(400, 0, 100), 740, 0, 60, 400, theme, 11, (p) => `$${p}`);
+    for (const t of labels(ctx)) expect(t.startsWith("$")).toBe(true);
   });
 });

@@ -75,7 +75,7 @@ All fields optional.
 | `timeAxisHeight` | `number` | `32` | Bottom axis height (px) |
 | `fontFamily` | `string` | system UI stack | Font family for canvas axis/crosshair/overlay text and DOM legend/info overlays. Runtime-updatable via `applyOptions` |
 | `fontSize` | `number` | `11` | Font size (px). Runtime-updatable via `applyOptions` |
-| `priceFormatter` | `(price: number) => string` | auto-precision | Custom price formatter |
+| `priceFormatter` | `(price: number) => string` | auto-precision | Custom price formatter. When omitted, the price-axis tick labels share one number of decimals taken from the tick step, and other price labels use `autoFormatPrice` |
 | `timeFormatter` | `(time: number) => string` | smart date/time | Custom time-axis label formatter (receives epoch ms; does its own zone handling) |
 | `timeZone` | `string` | browser local | IANA zone (`"America/New_York"`, `"UTC"`) the time axis, its day boundaries and the crosshair time label read the clock in. `""` returns to the browser's zone via `applyOptions` (also from the React/Vue wrappers: pass `""`, not `undefined`); an unknown name is ignored with an `INVALID_OPTION` warning. Runtime-updatable. Daily and coarser bars show dates only; a daily bar stamped at 00:00 UTC falls on the previous day west of UTC, so for such data set `timeZone: "UTC"` ([Time zones](#time-zones)) |
 | `watermark` | `string` | — | Background watermark text |

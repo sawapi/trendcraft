@@ -36,7 +36,8 @@ export function autoFormatPrice(price: number): string {
  */
 export function detectPrecision(prices: number[]): number {
   if (prices.length === 0) return 2;
-  const median = prices.sort((a, b) => a - b)[Math.floor(prices.length / 2)];
+  // Sort a copy: callers pass their own price arrays.
+  const median = [...prices].sort((a, b) => a - b)[Math.floor(prices.length / 2)];
   const abs = Math.abs(median);
   if (abs >= 10000) return 0;
   if (abs >= 100) return 2;
@@ -44,6 +45,23 @@ export function detectPrecision(prices: number[]): number {
   if (abs >= 0.01) return 4;
   if (abs >= 0.0001) return 6;
   return 8;
+}
+
+/**
+ * Tick label formatter for one price axis: every label gets the decimals the
+ * tick step needs, so an axis reads "20, 40, … 140" or "1.21, 1.22, …"
+ * rather than switching precision at 1 or 100 the way `autoFormatPrice`
+ * does for a single value. Chart.js and d3 derive axis decimals from the
+ * step the same way. Falls back to `autoFormatPrice` with fewer than two
+ * ticks, where there is no step.
+ */
+export function tickPriceFormatter(ticks: readonly number[]): (price: number) => string {
+  if (ticks.length < 2) return autoFormatPrice;
+  const step = Math.abs(ticks[1] - ticks[0]);
+  if (!(step > 0) || !Number.isFinite(step)) return autoFormatPrice;
+  // The epsilon keeps steps like 0.1 (log10 = -0.9999…) at one decimal.
+  const decimals = Math.min(10, Math.max(0, -Math.floor(Math.log10(step) + 1e-9)));
+  return fixedPriceFormatter(decimals);
 }
 
 /**

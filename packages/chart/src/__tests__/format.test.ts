@@ -211,6 +211,12 @@ describe("detectPrecision", () => {
     expect(detectPrecision([0.85, 0.86, 0.84])).toBe(4);
   });
 
+  it("leaves the caller's array in its order", () => {
+    const prices = [160, 148, 155, 150];
+    detectPrecision(prices);
+    expect(prices).toEqual([160, 148, 155, 150]);
+  });
+
   it("handles single-element array", () => {
     expect(detectPrecision([250])).toBe(2);
   });
