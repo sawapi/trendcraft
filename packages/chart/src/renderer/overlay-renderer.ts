@@ -222,10 +222,9 @@ export type ComputedBadge = {
  * the caller can pass the occupied Y ranges into {@link renderPriceAxis} as
  * `excludeYRanges` and then call {@link drawSeriesBadges}.
  *
- * Collision strategy: walk badges sorted by descending Y; if a candidate's
- * range overlaps one already placed (including `preoccupied`), shift it
- * upward just enough to clear. If shifting would push it off the pane, the
- * candidate is skipped.
+ * Collision strategy: see {@link layoutBadges} — badges move up or down by
+ * the least total squared distance that clears each other, `preoccupied`
+ * and the pane edges.
  */
 export function computeSeriesBadges(
   ctx: CanvasRenderingContext2D,
@@ -307,50 +306,97 @@ export function computeSeriesBadges(
   }
   const inside = candidates.filter((c) => c.y >= pane.y && c.y <= pane.y + pane.height);
 
-  // Collision-resolve with descending Y so the lowest badge anchors first.
-  inside.sort((a, b) => b.y - a.y);
-
+  const ys = layoutBadges(
+    inside.map((c) => c.y),
+    half,
+    pane.y,
+    pane.y + pane.height,
+    preoccupied,
+  );
   const placed: ComputedBadge[] = [];
-  // Include preoccupied ranges as immovable anchors.
-  const reserved: AxisExcludeRange[] = preoccupied.map((r) => ({ y: r.y, half: r.half }));
+  inside.forEach((c, i) => {
+    const y = ys[i];
+    if (y === null) return;
+    placed.push({ y, half, x: pane.x + pane.width, w: c.w, color: c.color, label: c.label });
+  });
 
-  const paneTop = pane.y;
-  const paneBottom = pane.y + pane.height;
-
-  for (const c of inside) {
-    let y = c.y;
-    // Shift up while overlapping any reserved range. Cap iterations to avoid
-    // pathological loops on degenerate input.
-    for (let iter = 0; iter < reserved.length + placed.length + 4; iter++) {
-      let moved = false;
-      for (const r of reserved) {
-        const minDist = half + r.half;
-        const delta = y - r.y;
-        if (Math.abs(delta) < minDist) {
-          // Move upward (negative Y) to stay above r.
-          y = r.y - minDist;
-          moved = true;
-        }
-      }
-      if (!moved) break;
-    }
-    // Skip if shifted out of the pane.
-    if (y - half < paneTop || y + half > paneBottom) continue;
-
-    placed.push({
-      y,
-      half,
-      x: pane.x + pane.width,
-      w: c.w,
-      color: c.color,
-      label: c.label,
-    });
-    reserved.push({ y, half });
-  }
-
-  // Restore placement order to descending Y (for consistent draw order).
+  // Descending Y, for a consistent draw order.
   placed.sort((a, b) => b.y - a.y);
   return placed;
+}
+
+/**
+ * Centres for badges of half-height `half` aimed at `targets`, inside
+ * [top, bottom] and clear of each other and of `blocked`, with the least
+ * total squared shift Σ(y − t)². Null marks a badge that does not fit.
+ *
+ * The pane minus the blocked ranges leaves free gaps, and each badge goes
+ * to the gap nearest its target (the upper one on a tie). Within a gap the
+ * badges keep their order, so with z_k = y_k − 2·half·k the spacing rule
+ * becomes "z never decreases": an isotonic regression, which
+ * pool-adjacent-violators solves exactly in one pass. Clamping the result
+ * to the gap keeps it optimal, since the bounds bind every z alike. A gap
+ * too short for its badges drops the latest-added ones.
+ *
+ * Shifting each badge upward past its neighbours instead let the offsets
+ * pile up in one direction, and dropped badges pushed off the top even
+ * with room below.
+ */
+export function layoutBadges(
+  targets: readonly number[],
+  half: number,
+  top: number,
+  bottom: number,
+  blocked: readonly AxisExcludeRange[] = [],
+): (number | null)[] {
+  const gaps: [number, number][] = [];
+  let from = top;
+  for (const r of [...blocked].sort((a, b) => a.y - b.y)) {
+    const to = Math.min(bottom, r.y - r.half);
+    if (to > from) gaps.push([from, to]);
+    from = Math.max(from, r.y + r.half);
+  }
+  if (bottom > from) gaps.push([from, bottom]);
+
+  const groups: number[][] = gaps.map(() => []);
+  targets.forEach((t, i) => {
+    let best = -1;
+    let bestDist = Number.POSITIVE_INFINITY;
+    gaps.forEach(([a, b], g) => {
+      const dist = t < a ? a - t : t > b ? t - b : 0;
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = g;
+      }
+    });
+    if (best >= 0) groups[best].push(i);
+  });
+
+  const out: (number | null)[] = targets.map(() => null);
+  const step = 2 * half;
+  groups.forEach((group, g) => {
+    const [a, b] = gaps[g];
+    const fit = group.slice(0, Math.floor((b - a) / step)).sort((i, j) => targets[i] - targets[j]);
+    // Pool adjacent violators over z_k = t_k − step·k; a block is [sum, count].
+    const blocks: [number, number][] = [];
+    fit.forEach((i, k) => {
+      blocks.push([targets[i] - step * k, 1]);
+      while (blocks.length > 1) {
+        const [s2, n2] = blocks[blocks.length - 1];
+        const [s1, n1] = blocks[blocks.length - 2];
+        if (s1 / n1 <= s2 / n2) break;
+        blocks.splice(-2, 2, [s1 + s2, n1 + n2]);
+      }
+    });
+    const lo = a + half;
+    const hi = b - half - step * (fit.length - 1);
+    let k = 0;
+    for (const [sum, n] of blocks) {
+      const z = Math.min(hi, Math.max(lo, sum / n));
+      for (let m = 0; m < n; m++, k++) out[fit[k]] = z + step * k;
+    }
+  });
+  return out;
 }
 
 /** Paint the badges produced by {@link computeSeriesBadges}. */

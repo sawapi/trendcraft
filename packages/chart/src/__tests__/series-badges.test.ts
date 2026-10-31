@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { InternalSeries } from "../core/data-layer";
 import { DARK_THEME } from "../core/types";
-import { computeSeriesBadges, drawSeriesBadges } from "../renderer/overlay-renderer";
+import { computeSeriesBadges, drawSeriesBadges, layoutBadges } from "../renderer/overlay-renderer";
 import { makePane, makePriceScale, mockCtx } from "./helpers/mock-ctx";
 
 const theme = DARK_THEME;
@@ -125,14 +125,73 @@ describe("computeSeriesBadges", () => {
     expect(Math.abs(200 - result[0].y)).toBeGreaterThanOrEqual(15);
   });
 
-  it("skips a badge that cannot be shifted within the pane", () => {
+  it("skips a badge that cannot fit anywhere in the pane", () => {
     const ctx = mockCtx();
-    // Value at top of pane, but preoccupied spans the whole pane → can't fit
     const s = makeNumberSeries("a", "SMA", "#2196F3", [100]); // y = 0 (top)
-    const preoccupied = [{ y: 0, half: 200 }]; // huge range starting at pane top
+    const preoccupied = [{ y: 200, half: 200 }]; // the whole pane
     const result = computeSeriesBadges(ctx, pane, priceScale, [s], theme, 11, format, preoccupied);
     expect(result.length).toBe(0);
   });
+
+  // Badges used to shift only upward, so lines bunched near the top pushed
+  // all but the lowest badge off the pane, with the room below unused.
+  it("keeps every badge when lines bunch at the top of the pane", () => {
+    const ctx = mockCtx();
+    const series = [99.5, 99, 98.5, 98, 97.5].map((v, i) =>
+      makeNumberSeries(`s${i}`, `S${i}`, "#2196F3", [v]),
+    );
+    const result = computeSeriesBadges(ctx, pane, priceScale, series, theme, 11, format);
+    expect(result).toHaveLength(5);
+    const ys = result.map((r) => r.y).sort((a, b) => a - b);
+    expect(ys[0] - result[0].half).toBeGreaterThanOrEqual(0);
+    for (let i = 1; i < ys.length; i++) expect(ys[i] - ys[i - 1]).toBeGreaterThanOrEqual(17 - 1e-9);
+    // Price order is kept: 99.5 on top.
+    const byLabel = Object.fromEntries(result.map((r) => [r.label, r.y]));
+    expect(byLabel["99.50"]).toBeLessThan(byLabel["97.50"]);
+  });
+});
+
+describe("layoutBadges", () => {
+  it("leaves badges that do not touch where they are", () => {
+    expect(layoutBadges([50, 100, 300], 8.5, 0, 400)).toEqual([50, 100, 300]);
+  });
+
+  it("spreads a cluster both ways around its centre", () => {
+    // Three badges aimed at 200: the least-squares answer centres them.
+    expect(layoutBadges([200, 200, 200], 8.5, 0, 400)).toEqual([183, 200, 217]);
+  });
+
+  it("keeps the order of the targets", () => {
+    const ys = layoutBadges([210, 200, 205], 8.5, 0, 400) as number[];
+    expect(ys[1]).toBeLessThan(ys[2]);
+    expect(ys[2]).toBeLessThan(ys[0]);
+  });
+
+  it("moves less in total than shifting upward did", () => {
+    const targets = [100, 102, 104, 106, 108];
+    const ys = layoutBadges(targets, 8.5, 0, 400) as number[];
+    const cost = ys.reduce((acc, y, i) => acc + (y - targets[i]) ** 2, 0);
+    // Upward-only shifting anchors 108 and stacks the rest above it.
+    const upward = targets.map((_, i) => 108 - 17 * (targets.length - 1 - i));
+    const upwardCost = upward.reduce((acc, y, i) => acc + (y - targets[i]) ** 2, 0);
+    expect(cost).toBeLessThan(upwardCost);
+  });
+
+  it("goes to the gap beside a blocked range nearest its target", () => {
+    const blocked = [{ y: 200, half: 8 }];
+    expect(layoutBadges([198], 8.5, 0, 400, blocked)).toEqual([183.5]);
+    expect(layoutBadges([203], 8.5, 0, 400, blocked)).toEqual([216.5]);
+  });
+
+  it("drops the latest-added badges when a gap is too short", () => {
+    // Gap 0–40 holds two 17px badges.
+    expect(layoutBadges([10, 20, 30], 8.5, 0, 40)).toEqual([8.5, 25.5, null]);
+  });
+});
+
+describe("computeSeriesBadges (continued)", () => {
+  const pane = makePane("main", 400);
+  const priceScale = makePriceScale(400, 0, 100);
 
   it("respects searchUpTo for visible-range mode", () => {
     const ctx = mockCtx();
@@ -173,17 +232,15 @@ describe("computeSeriesBadges", () => {
     expect(result[0].label).toBe("42.00");
   });
 
-  it("two overlapping series badges — lower stays, upper shifts", () => {
+  it("two overlapping series badges split evenly around their value", () => {
     const ctx = mockCtx();
     // Both at value 50 → same y before collision resolution
     const a = makeNumberSeries("a", "A", "#2196F3", [50]);
     const b = makeNumberSeries("b", "B", "#FF9800", [50]);
     const result = computeSeriesBadges(ctx, pane, priceScale, [a, b], theme, 11, format);
     expect(result.length).toBe(2);
-    // Sorted descending Y in return value; lower one unchanged, upper one shifted
-    expect(result[0].y).toBeGreaterThan(result[1].y);
-    expect(result[0].y).toBe(200);
-    expect(result[1].y).toBeLessThan(200);
+    // Sorted descending Y in return value; each moves half the overlap.
+    expect(result.map((r) => r.y)).toEqual([208.5, 191.5]);
   });
 });
 

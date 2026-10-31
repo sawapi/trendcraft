@@ -198,6 +198,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — series badges vanished near the top of a pane
+
+Last-value badges (`showSeriesBadges`) cleared each other by shifting
+upward only, and a badge pushed past the pane top was dropped. A series
+whose latest value sat at the top of its pane lost its badge, as did all
+but the lowest of several lines bunched near the top, even with room below.
+Badges now move up or down by the least total squared distance that clears
+each other, the current-price badge and the pane edges, keeping their price
+order. This is an isotonic regression, solved exactly by
+pool-adjacent-violators. A badge is dropped only when the free space is
+too short for all of them.
 ### Fixed — year labels sat months into the year on daily charts
 
 The time axis labelled every Nth bar and wrote the year on the first label
