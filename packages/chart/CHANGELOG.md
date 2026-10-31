@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Deprecated — the CommonJS build, to be removed in 0.8.0
+
+The package ships an ESM build and a CommonJS build (the `.cjs` files and
+their `.d.cts` types). The CommonJS build will be removed in 0.8.0,
+leaving ESM only, and that release will require Node.js 22.12 or later.
+Nothing changes in this release.
+
+Plain Node.js keeps loading it with `require("@trendcraft/chart")`: from 22.12,
+`require()` loads ES modules without a flag, and none of this package's
+modules uses top-level await, which that path cannot load. Two setups
+break and need a change before then:
+
+- **Jest with CommonJS tests:** Jest's module loader supports `require()`
+  of an ES module only on Node.js 24.9 or later. On older Node.js, run
+  Jest in ESM mode or have its transform cover this package.
+- **TypeScript CommonJS projects:** `require()` of an ES module type-checks
+  only under `module: nodenext` with TypeScript 5.8 or later; `node16` and
+  `node18` report it as an error. Switch to `nodenext`, or to ESM.
+
+If this affects you in a way these don't cover, please
+[open an issue](https://github.com/sawapi/trendcraft/issues).
+
 ### Fixed — series badges vanished near the top of a pane
 
 Last-value badges (`showSeriesBadges`) cleared each other by shifting
