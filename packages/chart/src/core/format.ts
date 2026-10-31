@@ -85,8 +85,16 @@ function stepDecimals(step: number): number {
  * From a million up, the labels take one M/B/T unit chosen by the largest
  * tick ("20B, 40B, … 140B"), unless that makes them longer, as on a narrow
  * range like 1,234,520–1,234,600.
+ *
+ * With `log`, ticks that are all 1–9 × 10^k are labelled one by one (see
+ * `logTickLabel`); a log axis over a narrow range falls back to linear
+ * ticks, which keep the shared decimals.
  */
-export function tickPriceFormatter(ticks: readonly number[]): (price: number) => string {
+export function tickPriceFormatter(
+  ticks: readonly number[],
+  log = false,
+): (price: number) => string {
+  if (log && ticks.length > 1 && ticks.every(isLogTick)) return logTickLabel;
   if (ticks.length < 2) return autoFormatPrice;
   const step = Math.abs(ticks[1] - ticks[0]);
   if (!(step > 0) || !Number.isFinite(step)) return autoFormatPrice;
@@ -95,6 +103,27 @@ export function tickPriceFormatter(ticks: readonly number[]): (price: number) =>
   const short = (price: number) =>
     (price && Number.isFinite(price) && unitTick(price, maxAbs, step)) || full(price);
   return short(maxAbs).length < full(maxAbs).length ? short : full;
+}
+
+/** True for a positive 1–9 × 10^k, the values a log axis ticks at. */
+function isLogTick(price: number): boolean {
+  if (!(price > 0)) return false;
+  const m = price / 10 ** Math.floor(Math.log10(price) + 1e-9);
+  return Math.abs(m - Math.round(m)) < 1e-6;
+}
+
+/**
+ * A log-axis tick label. Log ticks have no common step, so each label shows
+ * its own digits ("0.01, 0.1, 1, 10") and, from a million up, its own unit
+ * ("1M, 100M, 10B"), as d3's log tickFormat labels each tick on its own.
+ */
+function logTickLabel(price: number): string {
+  const unit = PRICE_UNITS.find(([size]) => price >= size);
+  const scaled = unit ? price / unit[0] : price;
+  let decimals = 0;
+  while (decimals < 10 && Math.abs(Number(scaled.toFixed(decimals)) - scaled) > scaled * 1e-9)
+    decimals++;
+  return scaled.toFixed(decimals) + (unit ? unit[1] : "");
 }
 
 /**

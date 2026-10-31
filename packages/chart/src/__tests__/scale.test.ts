@@ -183,6 +183,96 @@ describe("PriceScale", () => {
   });
 });
 
+const logScaleTicksOf = (min: number, max: number, maxTicks: number) => {
+  const ps = new PriceScale();
+  ps.setMode("log");
+  ps.setHeight(400);
+  ps.setFixedRange([min, max]);
+  ps.setDataRange(min, max);
+  return ps.getTicks(maxTicks);
+};
+
+describe("PriceScale log mode", () => {
+  const logScale = (min: number, max: number, fixed = false) => {
+    const ps = new PriceScale();
+    ps.setMode("log");
+    ps.setHeight(400);
+    if (fixed) ps.setFixedRange([min, max]);
+    ps.setDataRange(min, max);
+    return ps;
+  };
+
+  // Ticks were the linear nice steps, so a range spanning decades put every
+  // label but "0" in the top sliver of the pane.
+  it("ticks at powers of ten over many decades", () => {
+    const ps = logScale(0.1, 1e11, true);
+    const ticks = ps.getTicks(6);
+    expect(ticks.length).toBeGreaterThan(2);
+    expect(ticks.length).toBeLessThanOrEqual(6);
+    for (const t of ticks) expect(Math.log10(t) % 1).toBeCloseTo(0, 9);
+  });
+
+  it("thins 1–9 multiples to 1/2/5 and then to powers of ten", () => {
+    expect(logScale(1, 100, true).getTicks(6)).toEqual([1, 10, 100]);
+    expect(logScale(1, 100, true).getTicks(8)).toEqual([1, 2, 5, 10, 20, 50, 100]);
+    expect(logScale(0.01, 0.05, true).getTicks(6)).toEqual([0.01, 0.02, 0.03, 0.04, 0.05]);
+  });
+
+  it("spaces ticks evenly in pixels for equal ratios", () => {
+    const ps = logScale(1, 1e4, true);
+    const ys = ps.getTicks(6).map((t) => ps.priceToY(t));
+    expect(ys).toHaveLength(5);
+    for (let i = 1; i < ys.length - 1; i++)
+      expect(ys[i - 1] - ys[i]).toBeCloseTo(ys[i] - ys[i + 1], 6);
+  });
+
+  it("aligns every-k powers of ten to multiples of k", () => {
+    expect(logScaleTicksOf(1, 1e10, 6)).toEqual([1, 100, 1e4, 1e6, 1e8, 1e10]);
+    expect(logScaleTicksOf(0.5, 2e11, 4)).toEqual([1, 1e3, 1e6, 1e9]);
+  });
+
+  // A short pane gets maxTicks 2; the first set with at most two ticks
+  // could hold a single power and send a many-decade range to linear ticks.
+  it("keeps two log ticks on a short pane over decades", () => {
+    const ticks = logScaleTicksOf(7.94e-7, 1.26e-4, 2);
+    expect(ticks).toHaveLength(2);
+    for (const t of ticks) expect(Math.log10(t) % 1).toBeCloseTo(0, 9);
+    expect(logScaleTicksOf(2e-5, 3e-3, 2)).toHaveLength(2);
+  });
+
+  it("recomputes ticks when the mode changes over the same range", () => {
+    const ps = new PriceScale();
+    ps.setHeight(400);
+    ps.setFixedRange([1, 1e4]);
+    ps.setDataRange(1, 1e4);
+    const linear = ps.getTicks(6);
+    ps.setMode("log");
+    expect(ps.getTicks(6)).toEqual([1, 10, 100, 1000, 1e4]);
+    ps.setMode("linear");
+    expect(ps.getTicks(6)).toEqual(linear);
+  });
+
+  it("falls back to linear ticks inside one decade", () => {
+    expect(logScale(120, 180, true).getTicks(6)).toEqual([120, 130, 140, 150, 160, 170, 180]);
+  });
+
+  // The 5% pad was linear, so a range spanning decades padded its bottom
+  // below zero and the log floor added ten-odd empty decades under the data.
+  it("pads a log range in log space", () => {
+    const ps = logScale(0.28, 1.4e11);
+    expect(ps.min).toBeGreaterThan(0.05);
+    expect(ps.min).toBeLessThan(0.28);
+    expect(ps.max).toBeGreaterThan(1.4e11);
+    expect(ps.priceToY(0.28)).toBeLessThan(400);
+    expect(ps.priceToY(0.28)).toBeGreaterThan(400 * 0.9);
+  });
+
+  it("pads linearly when the range is not positive", () => {
+    const ps = logScale(-5, 100);
+    expect(ps.min).toBeCloseTo(-10.25, 9);
+  });
+});
+
 describe("TimeScale session gaps", () => {
   it("no gaps → identical behavior to plain index layout", () => {
     const ts = new TimeScale();

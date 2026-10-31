@@ -65,8 +65,9 @@ export function renderPriceAxis(
   const maxTicks = Math.max(2, opts.maxTicks ?? 6);
   const ticks = priceScale.getTicks(maxTicks);
   // Without a formatter from the caller, every tick label gets the decimals
-  // the tick step needs. A caller's own formatter is used as given.
-  const formatTick = priceFormatter ?? tickPriceFormatter(ticks);
+  // the tick step needs, or on a log axis its own digits. A caller's own
+  // formatter is used as given.
+  const formatTick = priceFormatter ?? tickPriceFormatter(ticks, priceScale.mode === "log");
 
   // Suppress labels too close to pane edges (avoids visual collision with the
   // adjacent pane's edge label) or overlapping foreground labels like the

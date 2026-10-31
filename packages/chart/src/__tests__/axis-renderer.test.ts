@@ -196,6 +196,20 @@ describe("renderPriceAxis tick label decimals", () => {
     for (const t of texts) expect(t).toMatch(/^\d+B$/);
   });
 
+  it("spreads log-axis labels over the pane", () => {
+    const ctx = mockCtx();
+    const ps = makePriceScale(400, 0.28, 1.4e11);
+    ps.setMode("log");
+    ps.setDataRange(0.28, 1.4e11);
+    renderPriceAxis(ctx, ps, 740, 0, 60, 400, theme, 11);
+    const calls = (ctx.fillText as unknown as { mock: { calls: [string, number, number][] } }).mock
+      .calls;
+    expect(calls.length).toBeGreaterThan(3);
+    expect(calls.map(([t]) => t)).toEqual(["1", "100", "10000", "1M", "100M", "10B"]);
+    const ys = calls.map(([, , y]) => y).sort((a, b) => a - b);
+    for (let i = 1; i < ys.length; i++) expect(ys[i] - ys[i - 1]).toBeGreaterThan(20);
+  });
+
   it("uses autoFormatPrice as given when the caller passes it", () => {
     const ctx = mockCtx();
     renderPriceAxis(ctx, makePriceScale(400, 15, 145), 740, 0, 60, 400, theme, 11, autoFormatPrice);

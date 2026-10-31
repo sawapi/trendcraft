@@ -887,10 +887,18 @@ export class PriceScale {
       hi += eps;
     }
 
-    const range = hi - lo;
-    const pad = range * this._padding;
-    this._min = lo - pad;
-    this._max = hi + pad;
+    if (this._mode === "log" && lo > 0) {
+      // Pad by a share of the log range: a linear pad of a range spanning
+      // decades drives the bottom below zero, which the log floor turns
+      // into ten-odd empty decades under the data.
+      const pad = (hi / lo) ** this._padding;
+      this._min = lo / pad;
+      this._max = hi * pad;
+    } else {
+      const pad = (hi - lo) * this._padding;
+      this._min = lo - pad;
+      this._max = hi + pad;
+    }
     this._updateLogCache();
   }
 
@@ -939,7 +947,7 @@ export class PriceScale {
 
   /** Generate nice tick values for the y-axis (memoized per min/max/maxTicks) */
   getTicks(maxTicks = 6): number[] {
-    const key = `${this._min}:${this._max}:${maxTicks}`;
+    const key = `${this._mode}:${this._min}:${this._max}:${maxTicks}`;
     // Return a copy on a cache hit as well: the array is public (PriceScale is
     // exported from the headless entry), and a caller mutating the cached one
     // would corrupt every later frame's ticks.
@@ -950,6 +958,13 @@ export class PriceScale {
       this._ticksCacheKey = key;
       this._ticksCache = [];
       return [];
+    }
+
+    const logTicks = this._mode === "log" ? logScaleTicks(this._min, this._max, maxTicks) : [];
+    if (logTicks.length >= 2) {
+      this._ticksCacheKey = key;
+      this._ticksCache = logTicks;
+      return [...logTicks];
     }
 
     const rawStep = range / maxTicks;
@@ -990,5 +1005,46 @@ export class PriceScale {
     this._ticksCacheKey = key;
     this._ticksCache = ticks;
     return [...ticks];
+  }
+}
+
+/**
+ * Ticks for a log axis, picked like d3's log scale: the 1–9 multiples of
+ * each power of ten, then 1/2/5, then powers of ten alone, the first set
+ * with at most `maxTicks`. d3 keeps all 1–9 ticks and blanks labels; every
+ * tick here is labelled, so the ticks themselves are thinned. Over more
+ * decades than that, every k-th power on multiples of k (1, 100, 10K …) as
+ * d3 aligns them, or from the first power when that leaves fewer than two.
+ * Empty for a range that is not positive; a range inside one decade can
+ * yield fewer than two, and the caller falls back to linear ticks.
+ */
+function logScaleTicks(min: number, max: number, maxTicks: number): number[] {
+  if (!(min > 0)) return [];
+  const lo = Math.floor(Math.log10(min));
+  const hi = Math.floor(Math.log10(max));
+  const pick = (mults: number[], from: number, every: number) => {
+    const ticks: number[] = [];
+    for (let e = from; e <= hi; e += every) {
+      for (const m of mults) {
+        // `m / 10 ** -e` keeps 0.03 exact where `m * 10 ** -2` drifts.
+        const v = e < 0 ? m / 10 ** -e : m * 10 ** e;
+        if (v >= min && v <= max) ticks.push(v);
+      }
+    }
+    return ticks;
+  };
+  for (const mults of [
+    [1, 2, 3, 4, 5, 6, 7, 8, 9],
+    [1, 2, 5],
+  ]) {
+    const ticks = pick(mults, lo, 1);
+    if (ticks.length <= maxTicks) return ticks;
+  }
+  // Ends: once `every` passes the decade count, at most one tick is left.
+  for (let every = 1; ; every++) {
+    const ticks = pick([1], Math.ceil(lo / every) * every, every);
+    if (ticks.length <= maxTicks) {
+      return ticks.length > 1 ? ticks : pick([1], Math.ceil(Math.log10(min) - 1e-9), every);
+    }
   }
 }
