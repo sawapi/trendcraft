@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — log-scale panes kept linear ticks and empty decades
+
+A pane with `yScale: "log"` drew its series on a log scale but its axis
+and grid with the linear nice steps, so on a range spanning decades every
+label but "0" crowded into the top few pixels. Ticks are now picked like
+d3's log scale: the 1–9 multiples of each power of ten, then 1/2/5, then
+powers of ten alone, whichever first fits the pane; over more decades
+than that, every k-th power, aligned as d3 aligns them (1, 100, 10K …).
+d3 keeps every 1–9 tick and blanks some labels, but every tick here is
+labelled, so the ticks themselves are thinned. Each label shows its own
+digits ("0.01, 0.1, 1, 10") and, from a million up, its own M/B/T unit.
+A log range inside one decade keeps linear ticks.
+
+The 5% range padding was also linear, so a range spanning decades padded
+its bottom below zero, and the log floor added ten-odd empty decades under
+the data. A positive log range is now padded by 5% of its log span.
+
+### Changed — the headless entry's size limit is 12.75 kB
+
+It was 12.5 kB. `PriceScale`, which the headless entry exports, now
+carries the log ticks.
+
 ### Fixed — prices of a million and up overflowed the price axis
 
 The price axis printed every digit from 10,000 up, so a series in the

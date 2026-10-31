@@ -83,6 +83,27 @@ describe("tickPriceFormatter from a million up", () => {
   });
 });
 
+describe("tickPriceFormatter on a log axis", () => {
+  it("labels each tick with its own digits and unit", () => {
+    const ticks = [0.01, 0.1, 1, 10, 100];
+    expect(ticks.map(tickPriceFormatter(ticks, true))).toEqual(["0.01", "0.1", "1", "10", "100"]);
+    const big = [1, 100, 1e4, 1e6, 1e8, 1e10];
+    expect(big.map(tickPriceFormatter(big, true))).toEqual([
+      "1",
+      "100",
+      "10000",
+      "1M",
+      "100M",
+      "10B",
+    ]);
+  });
+
+  it("keeps shared decimals for linear fallback ticks", () => {
+    const ticks = [1.2, 1.25, 1.3];
+    expect(ticks.map(tickPriceFormatter(ticks, true))).toEqual(["1.20", "1.25", "1.30"]);
+  });
+});
+
 describe("autoFormatTime", () => {
   const day1 = new Date("2026-01-15T00:00:00Z").getTime();
   const day2 = new Date("2026-01-16T00:00:00Z").getTime();
