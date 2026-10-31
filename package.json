@@ -5,6 +5,7 @@
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
     "lint": "biome check .",
+    "check:links": "node scripts/check-doc-links.mjs",
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
     "prepare": "husky"
@@ -12,6 +13,7 @@
   "devDependencies": {
     "@biomejs/biome": "^2.6.2",
     "@types/node": "^22.20.5",
+    "github-slugger": "2.0.0",
     "husky": "^9.1.7",
     "lint-staged": "^17.6.0",
     "tsx": "^4.23.15",

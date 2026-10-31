@@ -57,6 +57,9 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - name: Markdown links and anchors
+        run: pnpm check:links
+
       - run: pnpm build
 
       - name: Cross-validation (TA-Lib compatibility)

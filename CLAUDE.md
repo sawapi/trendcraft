@@ -18,6 +18,7 @@ pnpm lint                        # Biome (pnpm lint:fix to apply fixes)
 pnpm build                       # all workspace packages, plus strategy-studio
 pnpm typecheck                   # needs pnpm build first: chart/mcp check against core's dist types
 pnpm test                        # Vitest in every package
+pnpm check:links                 # relative links and #anchors in every tracked .md file
 ```
 
 Package-level commands:
@@ -81,7 +82,7 @@ Both are ECharts apps, and each has its own settings dialog.
 - **Tests:**
   - A bug fix comes with a test that fails on the old code.
   - Where a test runner does not reach (examples, configs), show the failure with a script or a browser check instead, and describe it in the PR.
-- **Before pushing:** run `pnpm lint`, `pnpm build` and `pnpm typecheck`, plus `pnpm test` for code changes.
+- **Before pushing:** run `pnpm lint`, `pnpm build` and `pnpm typecheck`, plus `pnpm test` for code changes and `pnpm check:links` for Markdown changes.
 - **Pull requests:**
   - Open a PR; once it is reviewed and CI is green, merge it.
   - The PR body states what changed, why, and how it was verified.
