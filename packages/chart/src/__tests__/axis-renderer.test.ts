@@ -1,13 +1,21 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { autoFormatPrice } from "../core/format";
+import { wallClock } from "../core/time-zone";
+import type { CandleData } from "../core/types";
 import { DARK_THEME } from "../core/types";
 import {
   renderGrid,
   renderPriceAxis,
   renderReferenceLines,
   renderTimeAxis,
+  timeAxisMarks,
 } from "../renderer/axis-renderer";
 import { makeCandle, makePriceScale, makeTimeScale, mockCtx } from "./helpers/mock-ctx";
+
+vi.mock("../core/time-zone", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../core/time-zone")>();
+  return { ...actual, wallClock: vi.fn(actual.wallClock) };
+});
 
 const theme = DARK_THEME;
 
@@ -107,6 +115,131 @@ describe("renderTimeAxis", () => {
     renderTimeAxis(ctx, candles, ts, 0, 400, 740, 24, theme, 11, formatter);
 
     expect(ctx.fillText).toHaveBeenCalled();
+  });
+});
+
+describe("renderTimeAxis calendar marks", () => {
+  // Weekday bars from 2016-02-22 to 2026-10-30, about 2,800 of them.
+  const weekdays = () => {
+    const out: CandleData[] = [];
+    for (let t = Date.UTC(2016, 1, 22); t <= Date.UTC(2026, 9, 30); t += 86_400_000) {
+      const day = new Date(t).getUTCDay();
+      if (day !== 0 && day !== 6) out.push(makeCandle(t, 100));
+    }
+    return out;
+  };
+  const firstBarOfYear = (candles: CandleData[], year: number) =>
+    candles.findIndex((c) => new Date(c.time).getUTCFullYear() === year);
+  const texts = (ctx: CanvasRenderingContext2D) =>
+    (ctx.fillText as unknown as { mock: { calls: [string, number, number][] } }).mock.calls;
+
+  // Labels sat every N bars, so "2017" landed on whichever 2017 bar the
+  // interval reached first — 2017-08-18 on a 1,200px chart of this data.
+  it("puts each year label on the year's first bar", () => {
+    const candles = weekdays();
+    const ts = makeTimeScale(candles.length, 1200);
+    ts.timeZone = "UTC";
+    const ctx = mockCtx();
+    renderTimeAxis(ctx, candles, ts, 0, 400, 1140, 24, theme, 11);
+    const years = texts(ctx).filter(([t]) => /^\d{4}$/.test(t));
+    expect(years.map(([t]) => t)).toEqual([
+      "2017",
+      "2018",
+      "2019",
+      "2020",
+      "2021",
+      "2022",
+      "2023",
+      "2024",
+      "2025",
+      "2026",
+    ]);
+    for (const [t, x] of years) {
+      expect(x).toBeCloseTo(ts.indexToX(firstBarOfYear(candles, Number(t))), 6);
+    }
+  });
+
+  it("draws the vertical grid at the same bars", () => {
+    const candles = weekdays();
+    const ts = makeTimeScale(candles.length, 1200);
+    ts.timeZone = "UTC";
+    const ctx = mockCtx();
+    renderGrid(ctx, makePriceScale(), 0, 0, 1140, 400, theme, ts, candles);
+    const xs = (ctx.moveTo as unknown as { mock: { calls: [number, number][] } }).mock.calls.map(
+      ([x]) => x,
+    );
+    expect(xs).toContain(Math.round(ts.indexToX(firstBarOfYear(candles, 2017))) + 0.5);
+  });
+
+  it("marks month starts when zoomed in", () => {
+    const candles = weekdays();
+    const ts = makeTimeScale(candles.length, 1200);
+    ts.timeZone = "UTC";
+    ts.setVisibleRange(firstBarOfYear(candles, 2020), firstBarOfYear(candles, 2021));
+    const marks = timeAxisMarks(candles, ts);
+    const monthStarts = [...candles.keys()].filter((i) => {
+      const d = new Date(candles[i].time);
+      return (
+        d.getUTCFullYear() === 2020 &&
+        i > 0 &&
+        d.getUTCMonth() !== new Date(candles[i - 1].time).getUTCMonth()
+      );
+    });
+    expect(monthStarts).toHaveLength(12);
+    expect(marks).toEqual(expect.arrayContaining(monthStarts));
+  });
+});
+
+describe("timeAxisMarks while panning and streaming", () => {
+  const daily = (from: number, count: number) =>
+    Array.from({ length: count }, (_, i) => makeCandle(from + i * 86_400_000, 100));
+
+  // Picking over the visible bars alone made the marks alternate (Feb/Apr
+  // vs Mar/May) as a month boundary left the view.
+  it("keeps the same marks while panning", () => {
+    const candles = daily(Date.UTC(2019, 0, 1), 1500);
+    const ts = makeTimeScale(candles.length, 800);
+    ts.timeZone = "UTC";
+    const seen = new Map<number, boolean>();
+    for (let shift = 0; shift < 60; shift++) {
+      ts.setVisibleRange(300 + shift, 600 + shift);
+      const marks = new Set(timeAxisMarks(candles, ts));
+      for (let i = 300 + shift; i < 600 + shift; i++) {
+        const was = seen.get(i);
+        if (was !== undefined) expect(marks.has(i)).toBe(was);
+        seen.set(i, marks.has(i));
+      }
+    }
+  });
+
+  // DataLayer trims maxCandles in place: same array, same length, every
+  // index shifted by one.
+  it("recomputes after the array is trimmed in place", () => {
+    const candles = daily(Date.UTC(2016, 0, 1), 1200);
+    const ts = makeTimeScale(candles.length, 800);
+    ts.timeZone = "UTC";
+    timeAxisMarks(candles, ts);
+    for (let k = 0; k < 5; k++) {
+      candles.push(makeCandle(candles[candles.length - 1].time + 86_400_000, 100));
+      candles.splice(0, 1);
+    }
+    expect(timeAxisMarks(candles, ts)).toEqual(timeAxisMarks([...candles], ts));
+  });
+
+  // Two charts on one page draw from two arrays every frame.
+  it("keeps the marks of two arrays cached side by side", () => {
+    const a = daily(Date.UTC(2016, 0, 1), 1200);
+    const b = daily(Date.UTC(2018, 0, 1), 900);
+    const ts = makeTimeScale(1200, 800);
+    ts.timeZone = "UTC";
+    timeAxisMarks(a, ts);
+    timeAxisMarks(b, ts);
+    vi.mocked(wallClock).mockClear();
+    for (let frame = 0; frame < 3; frame++) {
+      timeAxisMarks(a, ts);
+      timeAxisMarks(b, ts);
+    }
+    expect(wallClock).not.toHaveBeenCalled();
   });
 });
 
