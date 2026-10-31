@@ -71,6 +71,7 @@ Do not publish chart or mcp first when they depend on unreleased core APIs or be
   - for a release with `Breaking` entries, a "Most likely to affect you" table (What / Was / Now) of the changes most users will hit, and a link to the migration guide if there is one.
 
   Write it in the release PR, when `Unreleased` is promoted. The GitHub Release notes reuse it.
+- A minor release comes with a migration guide for each package whose `Breaking` entries are too many to follow from the CHANGELOG alone. If each entry already says how to migrate and a reader can work through them in a few minutes, the CHANGELOG is enough. The guide goes at `packages/<package>/docs/migration-<old>-to-<new>.md` (for example `migration-0.5-to-0.6.md`). Like the 0.6 guides, it sorts the changes by what the user has to do, for example code to change, and behavior that changes with no code change. Start it during the cycle, once the `Breaking` entries reach that point, and finish it in the release PR. Patch releases do not get one.
 
 ## Pre-release (optional)
 
