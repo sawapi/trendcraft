@@ -12,7 +12,7 @@ The full cross-package release workflow (including `trendcraft` coordination and
 - [ ] `pnpm --filter @trendcraft/chart build` succeeds
 - [ ] `pnpm --filter @trendcraft/chart test` green
 - [ ] `pnpm --filter @trendcraft/chart verify:publish` green — confirms every `package.json#exports` subpath resolves in both ESM and CJS and exposes its advertised symbols
-- [ ] `pnpm --filter @trendcraft/chart size-check` within limits. The budget lives in `package.json#size-limit` (brotli). If a feature warrants a raise, get the maintainer's approval, then bump it there and call it out in the CHANGELOG `Changed` section.
+- [ ] `pnpm --filter @trendcraft/chart size-check` within limits. The budget lives in `package.json#size-limit` (brotli). It is set once per minor release in a PR that the maintainer confirms, and that PR adds the CHANGELOG `Changed` entry. A change that stays within it needs no approval; going over a limit needs the maintainer's approval first.
 - [ ] Docs sanity pass — `README.md`, `docs/*.md`, `llms.txt` reflect any new public API. `llms-full.txt` is generated: run `pnpm --filter @trendcraft/chart gen:llms` after any doc change (CI fails on drift via `llms-full-parity.test.ts`)
 - [ ] New viewport/navigation option or semantic? Sweep EVERY navigation consumer — mouse drag, wheel pan/zoom, keyboard (arrows / Home / End), **scrollbar (drag + track click)**, live-edge follow, `fitContent`, duration presets, viewport sync — and verify each honors it. The scrollbar is the historically forgotten one
 - [ ] Examples still build: `cd packages/chart/examples/simple-chart && pnpm build` (repeat for `simple-react-chart`, `simple-vue-chart`)
