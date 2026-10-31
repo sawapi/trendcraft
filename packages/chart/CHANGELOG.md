@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — prices of a million and up overflowed the price axis
+
+The price axis printed every digit from 10,000 up, so a series in the
+hundreds of billions labelled its ticks "140000000000", which the default
+60px axis cut off. From a million up, tick labels now take one M, B or T
+unit chosen by the largest tick ("20B, 40B, … 140B"), with the decimals the
+tick step needs; a narrow range where the unit would make labels longer,
+such as 1,234,520–1,234,600, keeps its full digits. Volume was already
+shortened. As in Highcharts, only the axis labels are shortened: the
+crosshair, last-value badges and OHLC legend keep every digit, so BTC/JPY
+at 15,234,567 still reads in full. A `priceFormatter` passed to the chart
+is used as given.
+
 ## [0.6.1] - 2026-10-31
 
 ### Fixed — types for CommonJS and for node16 / nodenext resolution

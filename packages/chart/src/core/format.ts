@@ -48,20 +48,53 @@ export function detectPrecision(prices: number[]): number {
 }
 
 /**
+ * Units for price-axis ticks of a million and up, largest first. The axis
+ * is a fixed 60px by default, which "140000000000" does not fit. As in
+ * Highcharts, only axis labels are shortened: crosshair, badge and legend
+ * prices keep every digit (BTC/JPY trades around 15,000,000).
+ */
+const PRICE_UNITS = [
+  [1e12, "T"],
+  [1e9, "B"],
+  [1e6, "M"],
+] as const;
+
+/**
+ * A tick in the unit that `abs` (a million and up) calls for, with the
+ * decimals the step needs in that unit; undefined below a million.
+ */
+function unitTick(price: number, abs: number, step: number) {
+  const unit = PRICE_UNITS.find(([size]) => abs >= size);
+  return unit && (price / unit[0]).toFixed(stepDecimals(step / unit[0])) + unit[1];
+}
+
+/** Decimals that show a tick step: 0.1 → 1, 0.25 → 2, 20 → 0. */
+function stepDecimals(step: number): number {
+  // The epsilon keeps steps like 0.1 (log10 = -0.9999…) at one decimal.
+  return Math.min(10, Math.max(0, -Math.floor(Math.log10(step) + 1e-9)));
+}
+
+/**
  * Tick label formatter for one price axis: every label gets the decimals the
  * tick step needs, so an axis reads "20, 40, … 140" or "1.21, 1.22, …"
  * rather than switching precision at 1 or 100 the way `autoFormatPrice`
  * does for a single value. Chart.js and d3 derive axis decimals from the
  * step the same way. Falls back to `autoFormatPrice` with fewer than two
  * ticks, where there is no step.
+ *
+ * From a million up, the labels take one M/B/T unit chosen by the largest
+ * tick ("20B, 40B, … 140B"), unless that makes them longer, as on a narrow
+ * range like 1,234,520–1,234,600.
  */
 export function tickPriceFormatter(ticks: readonly number[]): (price: number) => string {
   if (ticks.length < 2) return autoFormatPrice;
   const step = Math.abs(ticks[1] - ticks[0]);
   if (!(step > 0) || !Number.isFinite(step)) return autoFormatPrice;
-  // The epsilon keeps steps like 0.1 (log10 = -0.9999…) at one decimal.
-  const decimals = Math.min(10, Math.max(0, -Math.floor(Math.log10(step) + 1e-9)));
-  return fixedPriceFormatter(decimals);
+  const full = fixedPriceFormatter(stepDecimals(step));
+  const maxAbs = Math.max(...ticks.map(Math.abs));
+  const short = (price: number) =>
+    (price && Number.isFinite(price) && unitTick(price, maxAbs, step)) || full(price);
+  return short(maxAbs).length < full(maxAbs).length ? short : full;
 }
 
 /**
