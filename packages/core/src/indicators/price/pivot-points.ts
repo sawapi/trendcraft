@@ -6,7 +6,7 @@
  */
 
 import { ensureNormalized } from "../../core/normalize";
-import { tagSeries } from "../../core/tag-series";
+import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { assertOneOf } from "../../utils/validate-keyword";
 import { PIVOT_METHODS } from "../incremental/price/pivot-points";
@@ -127,7 +127,12 @@ export function pivotPoints(
     });
   }
 
-  return tagSeries(result, { kind: "pivotPoints", overlay: true, label: "Pivot" });
+  return tagSeries(
+    result,
+    withLabelParams({ kind: "pivotPoints", overlay: true, label: "Pivot" }, [
+      method === "standard" ? undefined : method,
+    ]),
+  );
 }
 
 /**

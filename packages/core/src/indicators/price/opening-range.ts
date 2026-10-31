@@ -6,7 +6,7 @@
  */
 
 import { ensureNormalized } from "../../core/normalize";
-import { tagSeries } from "../../core/tag-series";
+import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { assertPositive } from "../../utils/validate-number";
 import { assertResetPeriod } from "../../utils/validate-period";
@@ -173,7 +173,10 @@ export function openingRange(
       result.push({ time: candle.time, value: { high: orHigh, low: orLow, breakout } });
     }
 
-    return tagSeries(result, { kind: "openingRange", overlay: true, label: "ORB" });
+    return tagSeries(
+      result,
+      withLabelParams({ kind: "openingRange", overlay: true, label: "ORB" }, [minutes]),
+    );
   }
 
   let sessionStartTime = -1;
@@ -253,5 +256,8 @@ export function openingRange(
     }
   }
 
-  return tagSeries(result, { kind: "openingRange", overlay: true, label: "ORB" });
+  return tagSeries(
+    result,
+    withLabelParams({ kind: "openingRange", overlay: true, label: "ORB" }, [minutes]),
+  );
 }

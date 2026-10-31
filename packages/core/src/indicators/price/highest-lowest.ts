@@ -109,7 +109,10 @@ export function highestLowest(
     }
   }
 
-  return tagSeries(result, { kind: "highestLowest", overlay: true, label: "HiLo" });
+  return tagSeries(
+    result,
+    withLabelParams({ kind: "highestLowest", overlay: true, label: "HiLo" }, [period]),
+  );
 }
 
 /** Series metadata for `highest`; the label gains the period. */

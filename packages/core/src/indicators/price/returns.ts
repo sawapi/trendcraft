@@ -70,7 +70,10 @@ export function returns(
     }
   }
 
-  return tagSeries(result, RETURNS_META);
+  return tagSeries(
+    result,
+    withLabelParams(RETURNS_META, [period, type === "log" ? "log" : undefined]),
+  );
 }
 
 /** Series metadata for `cumulativeReturns`; log returns add "log" to the label. */

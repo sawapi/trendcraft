@@ -6,7 +6,7 @@
  */
 
 import { ensureNormalized, getPrice } from "../../core/normalize";
-import { tagSeries } from "../../core/tag-series";
+import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 import { assertPeriod } from "../../utils/validate-period";
 import { assertPriceSource } from "../../utils/validate-price-source";
@@ -82,5 +82,5 @@ export function standardDeviation(
     result.push({ time: normalized[i].time, value: stdDev });
   }
 
-  return tagSeries(result, STD_DEV_META);
+  return tagSeries(result, withLabelParams(STD_DEV_META, [period]));
 }

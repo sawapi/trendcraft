@@ -11,7 +11,7 @@
  */
 
 import { ensureNormalized } from "../../core/normalize";
-import { tagSeries } from "../../core/tag-series";
+import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { AtrStopsOptions, AtrStopsValue, Candle, NormalizedCandle, Series } from "../../types";
 import { assertPositionDirection } from "../../utils/validate-keyword";
 import { assertPositive } from "../../utils/validate-number";
@@ -111,7 +111,14 @@ export function atrStops(
     }
   }
 
-  return tagSeries(result, { kind: "atrStops", overlay: true, label: "ATR Stops" });
+  return tagSeries(
+    result,
+    withLabelParams({ kind: "atrStops", overlay: true, label: "ATR Stops" }, [
+      period,
+      stopMultiplier,
+      takeProfitMultiplier,
+    ]),
+  );
 }
 
 /**

@@ -6,7 +6,9 @@
  */
 
 import { ensureNormalized } from "../../core/normalize";
+import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { HEIKIN_ASHI_META } from "../indicator-meta";
 
 const EPSILON = 1e-10;
 
@@ -82,5 +84,5 @@ export function heikinAshi(candles: Candle[] | NormalizedCandle[]): Series<Heiki
     prevHaClose = haClose;
   }
 
-  return result;
+  return tagSeries(result, HEIKIN_ASHI_META);
 }

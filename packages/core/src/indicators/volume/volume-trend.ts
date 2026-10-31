@@ -7,7 +7,7 @@
 
 import { ensureNormalized } from "../../core/normalize";
 import { slopeOverIndex } from "../../core/statistics";
-import { tagSeries } from "../../core/tag-series";
+import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series, VolumeTrendValue } from "../../types";
 import { assertNonNegative } from "../../utils/validate-number";
 import { assertPeriod } from "../../utils/validate-period";
@@ -141,7 +141,14 @@ export function volumeTrend(
     });
   }
 
-  return tagSeries(result, { kind: "volumeTrend", overlay: false, label: "Vol Trend" });
+  return tagSeries(
+    result,
+    withLabelParams({ kind: "volumeTrend", overlay: false, label: "Vol Trend" }, [
+      pricePeriod,
+      volumePeriod,
+      maPeriod,
+    ]),
+  );
 }
 
 type TrendInfo = {

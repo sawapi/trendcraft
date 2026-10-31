@@ -2,6 +2,25 @@
 
 ## [Unreleased]
 
+### Fixed — seven indicators had no label, and twelve fixed labels lacked their parameters
+
+`adaptiveRsi`, `adaptiveMa`, `adaptiveBollinger`, `adaptiveStochastics`,
+`volatilityRegime` and `heikinAshi` returned an untagged series, and the
+`linearRegression` preset dropped the label when it rebuilt the series as a
+channel, so a chart fell back to the preset's fixed name. Each now carries
+its label, with the parameters like `SMA(20)`: "Adaptive RSI(14, 6, 28)",
+"LinReg(20)" and so on.
+
+Fixed labels gain their parameters the same way, so two copies with
+different settings can be told apart: `highestLowest` ("HiLo(20)"),
+`standardDeviation`, `atrStops`, `volumeTrend`, `fractals`, `swingPoints`,
+`orderBlock`, `vsa`, `gapAnalysis` ("Gap(0.5%)"), `openingRange`, and
+`returns` ("Returns(1)", or "Returns(1, log)"). `pivotPoints` names a
+non-standard method ("Pivot(fibonacci)"). A label lists the parameters its
+chart preset exposes. Labels whose inputs are display
+settings or a scale constant (`emaRibbon`, `weisWave`, `nvi`,
+`anchoredVwap`, `fvg`) are unchanged.
+
 ## [0.6.1] - 2026-10-31
 
 ### Fixed — types for CommonJS and for node16 / nodenext resolution

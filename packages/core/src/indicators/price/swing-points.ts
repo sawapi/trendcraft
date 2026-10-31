@@ -7,7 +7,7 @@
  */
 
 import { ensureNormalized } from "../../core/normalize";
-import { tagSeries } from "../../core/tag-series";
+import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { assertPeriod } from "../../utils/validate-period";
 
@@ -172,7 +172,13 @@ export function swingPoints(
     });
   }
 
-  return tagSeries(result, { kind: "swingPoints", overlay: true, label: "Swing Points" });
+  return tagSeries(
+    result,
+    withLabelParams({ kind: "swingPoints", overlay: true, label: "Swing Points" }, [
+      leftBars,
+      rightBars,
+    ]),
+  );
 }
 
 /**

@@ -1,8 +1,9 @@
 /**
- * Twelve indicators returned an untagged series, so a chart fell back to the
+ * Indicators that returned an untagged series made a chart fall back to the
  * preset's fixed label: two Highest presets with different periods both read
  * "Highest", and anything reading `__meta.label` got nothing. Each now tags
- * its output, with the parameters in the label like SMA(20).
+ * its output, with the parameters in the label like SMA(20). Fixed labels
+ * such as "HiLo" or "StdDev" gain their parameters the same way.
  */
 
 import { describe, expect, it } from "vitest";
@@ -84,6 +85,26 @@ describe("indicator labels carry their parameters", () => {
     ["typicalPrice", "Typical Price"],
     ["weightedClose", "Weighted Close"],
     ["ewmaVol", "EWMA Vol(0.94)"],
+    // Untagged until now, so the chart fell back to the preset's fixed name.
+    ["adaptiveRsi", "Adaptive RSI(14, 6, 28)"],
+    ["adaptiveMa", "Adaptive MA(10)"],
+    ["adaptiveBollinger", "Adaptive BB(20, 2)"],
+    ["adaptiveStochastics", "Adaptive Stoch(14)"],
+    ["volatilityRegime", "Vol Regime(14, 100)"],
+    ["linearRegression", "LinReg(20)"],
+    ["heikinAshi", "Heikin-Ashi"],
+    // Tagged without the parameters they take.
+    ["highestLowest", "HiLo(20)"],
+    ["standardDeviation", "StdDev(20)"],
+    ["atrStops", "ATR Stops(14, 2, 3)"],
+    ["volumeTrend", "Vol Trend(10, 10, 20)"],
+    ["fractals", "Fractals(2)"],
+    ["swingPoints", "Swing Points(5, 5)"],
+    ["orderBlock", "Order Block(5)"],
+    ["vsa", "VSA(20, 14)"],
+    ["gapAnalysis", "Gap(0.5%)"],
+    ["returns", "Returns(1)"],
+    ["pivotPoints", "Pivot"],
   ] as const)("preset %s keeps the label through compute", (id, expected) => {
     const preset = indicatorPresets[id];
     expect(label(presetCompute(id)(candles, preset?.defaultParams ?? {}))).toBe(expected);
@@ -94,6 +115,16 @@ describe("indicator labels carry their parameters", () => {
     const b = presetCompute("highest")(candles, { period: 50 });
     expect(label(a)).toBe("Highest(20)");
     expect(label(b)).toBe("Highest(50)");
+  });
+
+  it("names a non-default variant", () => {
+    expect(label(presetCompute("returns")(candles, { period: 5, type: "log" }))).toBe(
+      "Returns(5, log)",
+    );
+    expect(label(presetCompute("pivotPoints")(candles, { method: "fibonacci" }))).toBe(
+      "Pivot(fibonacci)",
+    );
+    expect(label(presetCompute("standardDeviation")(candles, { period: 50 }))).toBe("StdDev(50)");
   });
 
   it("keeps the label when the ewmaVol preset maps the series onto candle times", () => {

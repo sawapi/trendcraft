@@ -1882,7 +1882,10 @@ function buildIndicatorPresets(): Record<string, IndicatorPreset> {
         // Calculate residual stdDev for channel bands
         const values: (number | null)[] = raw.map((d) => d.value?.value ?? null);
         const closes = c.map((bar) => bar.close);
-        return raw.map((d, i) => {
+        // Keep the regression's label, which the band rebuild would drop.
+        const meta = (raw as TaggedSeries<unknown>).__meta ?? LINEAR_REG_META;
+        type Band = { upper: number | null; middle: number | null; lower: number | null };
+        const bands = raw.map((d, i): { time: number; value: Band } => {
           const v = d.value?.value;
           if (v == null || i < per - 1)
             return { time: d.time, value: { upper: null, middle: null, lower: null } };
@@ -1900,6 +1903,7 @@ function buildIndicatorPresets(): Record<string, IndicatorPreset> {
           const stdDev = count > 0 ? Math.sqrt(sumSq / count) : 0;
           return { time: d.time, value: { upper: v + stdDev, middle: v, lower: v - stdDev } };
         });
+        return tagSeries(bands, meta);
       }),
       category: "Trend",
       name: "Linear Regression Channel",
