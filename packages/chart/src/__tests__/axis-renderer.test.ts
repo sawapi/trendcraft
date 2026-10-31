@@ -188,6 +188,14 @@ describe("renderPriceAxis tick label decimals", () => {
     expect(new Set(texts).size).toBe(texts.length);
   });
 
+  it("fits labels of prices in the hundreds of billions in the axis", () => {
+    const ctx = mockCtx();
+    renderPriceAxis(ctx, makePriceScale(400, 2.8e10, 1.4e11), 740, 0, 60, 400, theme, 11);
+    const texts = labels(ctx);
+    expect(texts.length).toBeGreaterThan(2);
+    for (const t of texts) expect(t).toMatch(/^\d+B$/);
+  });
+
   it("uses autoFormatPrice as given when the caller passes it", () => {
     const ctx = mockCtx();
     renderPriceAxis(ctx, makePriceScale(400, 15, 145), 740, 0, 60, 400, theme, 11, autoFormatPrice);

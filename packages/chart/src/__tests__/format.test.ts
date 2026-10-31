@@ -7,6 +7,7 @@ import {
   formatShortTime,
   formatVolume,
   pickNiceStep,
+  tickPriceFormatter,
 } from "../core/format";
 
 describe("autoFormatPrice", () => {
@@ -54,6 +55,31 @@ describe("autoFormatPrice", () => {
   it("preserves genuinely tiny values (the formatter is reused outside axis ticks — crosshair / overlay / drawings — where rewriting them as 0 would lose data)", () => {
     expect(autoFormatPrice(1e-12)).toBe("0.00000000");
     expect(autoFormatPrice(1e-9)).toBe("0.00000000");
+  });
+});
+
+describe("autoFormatPrice from a million up", () => {
+  // Crosshair, badges and legend show the exact price; only axis ticks shorten.
+  it("keeps every digit", () => {
+    expect(autoFormatPrice(15_234_567)).toBe("15234567");
+  });
+});
+
+describe("tickPriceFormatter from a million up", () => {
+  it("labels every tick with the largest tick's unit", () => {
+    const ticks = [0, 2e10, 4e10, 6e10, 8e10, 1e11, 1.2e11, 1.4e11];
+    const fmt = tickPriceFormatter(ticks);
+    expect(ticks.map(fmt)).toEqual(["0", "20B", "40B", "60B", "80B", "100B", "120B", "140B"]);
+  });
+
+  it("keeps the decimals the step needs", () => {
+    const fmt = tickPriceFormatter([1_000_000, 1_100_000, 1_200_000]);
+    expect(fmt(1_100_000)).toBe("1.1M");
+  });
+
+  it("keeps full digits when the unit would make labels longer", () => {
+    const fmt = tickPriceFormatter([1_234_520, 1_234_540, 1_234_560]);
+    expect(fmt(1_234_540)).toBe("1234540");
   });
 });
 
