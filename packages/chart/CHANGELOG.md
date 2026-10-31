@@ -68,10 +68,13 @@ The 5% range padding was also linear, so a range spanning decades padded
 its bottom below zero, and the log floor added ten-odd empty decades under
 the data. A positive log range is now padded by 5% of its log span.
 
-### Changed — the headless entry's size limit is 12.75 kB
+### Changed — size limits are the 0.7.0 budget
 
-It was 12.5 kB. `PriceScale`, which the headless entry exports, now
-carries the log ticks.
+The `size-limit` entries are now set once per minor release as a budget,
+instead of being raised one change at a time. For 0.7.0, main goes from
+44.5 kB to 46 kB, the headless entry from 12.5 kB to 13 kB, and the React
+and Vue wrappers, which include main, from 36.5 kB to 38 kB. The other
+entries keep their limits.
 
 ### Fixed — prices of a million and up overflowed the price axis
 

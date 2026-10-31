@@ -69,10 +69,10 @@ Both are ECharts apps, and each has its own settings dialog.
   - Include a JSDoc comment with an `@example`.
 - **Size:** if a file is over 500 lines, propose splitting it before adding more.
 - **Tests:** go in `__tests__/` next to the code they cover.
-- **`@trendcraft/chart` bundle size:**
-  - `size-limit` in `packages/chart/package.json` is the source of truth. React/Vue wrappers include main, so main's growth counts against them too.
-  - Raising a limit needs explicit approval from the maintainer.
-  - Zero runtime dependencies. `trendcraft`, `react` and `vue` are optional peer deps.
+- **Bundle size:**
+  - `size-limit` in each package's `package.json` is the source of truth (core and chart).
+  - The limits are the budget for the next minor release. They are proposed once per release in a PR, and the maintainer confirms them. A PR that stays within them needs no approval; going over a limit still needs explicit approval from the maintainer.
+  - **chart:** React/Vue wrappers include main, so main's growth counts against them too. Zero runtime dependencies. `trendcraft`, `react` and `vue` are optional peer deps.
 - **Chart presets:** when wiring `connectIndicators(chart, { presets: indicatorPresets, ... })`, also call `registerTrendCraftPresets(chart)` from `@trendcraft/chart/presets` before adding indicators. Without it, TrendCraft-specific shapes fall through the built-in introspection and silently render as a generic "Series" with no visible line. This affects adaptiveRsi, connorsRsi, klinger, vsa and others. The canonical setup is in `packages/chart/examples/indicator-showcase/src/main.ts`.
 
 ## Workflow
@@ -87,7 +87,7 @@ Both are ECharts apps, and each has its own settings dialog.
   - Open a PR; once it is reviewed and CI is green, merge it.
   - The PR body states what changed, why, and how it was verified.
   - Do not add attribution lines.
-- **Ask first:** dependency major upgrades with breaking changes, size-limit raises, public API removals or renames, and anything outward-facing beyond the PR itself.
+- **Ask first:** dependency major upgrades with breaking changes, size-limit raises beyond the release budget, public API removals or renames, and anything outward-facing beyond the PR itself.
   - "Outward-facing" covers releases, tags, npm publish and repository settings.
 - **API and design decisions:** check how comparable libraries handle the same problem, and cite what you checked.
 
