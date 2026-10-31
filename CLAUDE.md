@@ -43,6 +43,7 @@ Examples live in `packages/core/examples/` and `packages/chart/examples/`; list 
   - **Core examples** (echarts-viewer, trading-simulator): these have no alias. `trendcraft` resolves through core's package exports to its `dist`, so both `pnpm dev` and `pnpm build` need `pnpm build` at the root first.
   - **Anything else that imports a `dist`** also needs that root build: docs-screenshots, the strategy-studio tests, and `USE_DIST=1`.
 - **Config files:** each `vite.config.ts` is type-checked through a `tsconfig.node.json` next to it. In the packages this runs in `typecheck`; in the examples it runs in `build`. A new config file goes into that `include`.
+- **Typecheck:** core's `typecheck` also type-checks the quick-start and sp500-showcase examples, through `packages/core/tsconfig.examples.json`.
 - **CI coverage:** CI builds only some examples standalone; see the "Build examples" step in `.github/workflows/ci.yml`. For an example outside that list, run its `pnpm build` yourself.
 - **Alpaca:** the Alpaca dev proxies in strategy-studio, echarts-viewer and trading-simulator allow only the GET endpoints those apps use. Keep that allowlist when touching them.
 
