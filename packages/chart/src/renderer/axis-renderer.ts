@@ -13,6 +13,7 @@ import {
   tickPriceFormatter,
 } from "../core/format";
 import type { PriceScale, TimeScale } from "../core/scale";
+import { wallClock } from "../core/time-zone";
 import type { CandleData, ThemeColors } from "../core/types";
 
 /** A Y range (canvas coordinates) that tick labels must not overlap. */
@@ -170,31 +171,25 @@ export function renderTimeAxis(
     return;
   }
 
-  // --- Legacy single-row mode: labels at fixed pixel spacing ---
-  const minLabelSpacing = 80;
-  const barSpacing = timeScale.barSpacing;
-  const labelInterval = Math.max(1, Math.ceil(minLabelSpacing / barSpacing));
-
-  const start = timeScale.startIndex;
-  const end = timeScale.endIndex;
-  const firstAnchor = Math.ceil(start / labelInterval) * labelInterval;
-  let prevLabelTime: number | null = null;
-
+  // --- Single-row mode ---
   // Dominant bar interval, used to decide whether the first label's wall-clock
   // time is meaningful (intraday) or a timezone artifact (daily+). Derived
   // straight from the candle timestamps — not timeScale.medianBarIntervalMs,
   // which is only populated in time-proportional layout mode and is 0 here.
   const barIntervalMs = estimateBarIntervalMs(candles);
+  const coarse = barIntervalMs >= DAY_MS;
+  let prevLabelTime: number | null = null;
 
   let lastRight = Number.NEGATIVE_INFINITY;
-  for (let i = firstAnchor; i < end && i < candles.length; i += labelInterval) {
+  for (const i of timeAxisMarks(candles, timeScale)) {
     const candle = candles[i];
-    if (!candle) continue;
-
     const labelX = timeScale.indexToX(i);
+    // A daily+ mark sits on a calendar boundary, so it is labelled against
+    // the bar before it: "2017" on the year's first bar, "Mar" on a month's.
+    const prevTime = coarse ? (candles[i - 1]?.time ?? null) : prevLabelTime;
     const label = timeFormatter
       ? timeFormatter(candle.time)
-      : autoFormatTime(candle.time, prevLabelTime, barIntervalMs, timeScale.timeZone);
+      : autoFormatTime(candle.time, prevTime, barIntervalMs, timeScale.timeZone);
 
     const right = drawClampedAxisLabel(ctx, label, labelX, y + 6, x, x + width, lastRight);
     // A skipped label is not "the previous label": the next one is formatted
@@ -205,6 +200,104 @@ export function renderTimeAxis(
       prevLabelTime = candle.time;
     }
   }
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+/** Minimum horizontal distance, in px, between two time-axis marks. */
+const MIN_MARK_SPACING = 80;
+
+type MarksEntry = {
+  key: string;
+  barIntervalMs: number;
+  byWeight: number[][];
+  marks: Map<number, number[]>;
+};
+
+/**
+ * Calendar marks per candles array, so charts on one page keep their own.
+ * `key` changes when bars are appended or trimmed from the front
+ * (maxCandles), which shifts every index; an in-place update of the last
+ * bar keeps it.
+ */
+const marksCache = new WeakMap<readonly CandleData[], MarksEntry>();
+
+/**
+ * Bar indexes that get a time-axis label and a vertical grid line.
+ *
+ * Daily and coarser bars are marked on calendar boundaries, the way
+ * lightweight-charts picks its tick marks: each bar is weighted by the
+ * largest boundary it starts (year > month > day) against the bar before
+ * it, and marks are kept from the heaviest weight down while they stay at
+ * least MIN_MARK_SPACING from every mark already kept. As there, the marks
+ * are picked over all the data and then cut to the visible bars, so they
+ * stay put while panning. Labels at a fixed bar interval put "2017" on
+ * whichever bar of 2017 the interval reached first, months into the year.
+ *
+ * Intraday bars keep marks at a fixed bar interval.
+ */
+export function timeAxisMarks(candles: readonly CandleData[], timeScale: TimeScale): number[] {
+  const interval = Math.max(1, Math.ceil(MIN_MARK_SPACING / timeScale.barSpacing));
+  const start = Math.max(0, timeScale.startIndex);
+  const end = Math.min(timeScale.endIndex, candles.length);
+  const tz = timeScale.timeZone;
+  const key = `${candles.length}:${candles[0]?.time}:${candles[candles.length - 1]?.time}:${tz}`;
+  let cache = marksCache.get(candles);
+  if (cache?.key !== key) {
+    cache = { key, barIntervalMs: estimateBarIntervalMs(candles), byWeight: [], marks: new Map() };
+    marksCache.set(candles, cache);
+  }
+  if (cache.barIntervalMs < DAY_MS) {
+    const marks: number[] = [];
+    for (let i = Math.ceil(start / interval) * interval; i < end; i += interval) marks.push(i);
+    return marks;
+  }
+
+  if (cache.byWeight.length === 0) {
+    // byWeight[w] lists the bars of weight w: 3 year, 2 month, 1 day. The
+    // first bar has no bar before it and counts as a day.
+    cache.byWeight = [[], [], [], []];
+    let prev: Date | null = null;
+    for (let i = 0; i < candles.length; i++) {
+      const d = wallClock(candles[i].time, tz);
+      const weight = !prev
+        ? 1
+        : d.getUTCFullYear() !== prev.getUTCFullYear()
+          ? 3
+          : d.getUTCMonth() !== prev.getUTCMonth()
+            ? 2
+            : d.getUTCDate() !== prev.getUTCDate()
+              ? 1
+              : 0;
+      cache.byWeight[weight].push(i);
+      prev = d;
+    }
+  }
+
+  let all = cache.marks.get(interval);
+  if (!all) {
+    all = [];
+    for (let weight = 3; weight >= 1; weight--) {
+      // One pass per weight, left to right: a candidate must clear the kept
+      // marks on both sides and the last one this pass kept.
+      const kept: number[] = [];
+      let p = 0;
+      let last = Number.NEGATIVE_INFINITY;
+      for (const i of cache.byWeight[weight]) {
+        while (p < all.length && all[p] < i) p++;
+        const left = Math.max(p > 0 ? all[p - 1] : Number.NEGATIVE_INFINITY, last);
+        const right = p < all.length ? all[p] : Number.POSITIVE_INFINITY;
+        if (i - left >= interval && right - i >= interval) {
+          kept.push(i);
+          last = i;
+        }
+      }
+      all = [...all, ...kept].sort((a, b) => a - b);
+    }
+    // One entry per zoom level seen; a long zoom session must not grow it forever.
+    if (cache.marks.size >= 32) cache.marks.clear();
+    cache.marks.set(interval, all);
+  }
+  return all.filter((i) => i >= start && i < end);
 }
 
 /** Minimum horizontal gap, in px, between two time-axis labels. */
@@ -350,13 +443,7 @@ export function renderGrid(
 
   // Vertical grid lines (aligned with time axis labels)
   if (timeScale && candles) {
-    const minLabelSpacing = 80;
-    const labelInterval = Math.max(1, Math.ceil(minLabelSpacing / timeScale.barSpacing));
-    const start = timeScale.startIndex;
-    const end = timeScale.endIndex;
-    const firstAnchor = Math.ceil(start / labelInterval) * labelInterval;
-
-    for (let i = firstAnchor; i < end && i < candles.length; i += labelInterval) {
+    for (const i of timeAxisMarks(candles, timeScale)) {
       const gridX = Math.round(timeScale.indexToX(i)) + 0.5;
       ctx.beginPath();
       ctx.moveTo(gridX, y);

@@ -198,6 +198,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — year labels sat months into the year on daily charts
+
+The time axis labelled every Nth bar and wrote the year on the first label
+that fell in a new year, so on ten years of daily bars "2017" sat on
+2017-08-18. Daily and coarser bars are now marked on calendar boundaries,
+as lightweight-charts picks its tick marks: each bar is weighted by the
+largest boundary it starts (year, month, day), and marks are kept from
+the heaviest down while they stay 80px apart. As there, marks are picked
+over all the data, so they stay put while panning. "2017" now sits on the
+year's first bar, and month starts are marked when zoomed in. The vertical
+grid follows the same marks. Intraday bars are unchanged.
 ### Fixed — log-scale panes kept linear ticks and empty decades
 
 A pane with `yScale: "log"` drew its series on a log scale but its axis
