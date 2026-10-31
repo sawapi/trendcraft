@@ -7,9 +7,11 @@
  */
 
 import { ensureNormalized } from "../../core/normalize";
+import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { assertInRange } from "../../utils/validate-number";
 import { assertPeriod } from "../../utils/validate-period";
+import { ADAPTIVE_STOCH_META } from "../indicator-meta";
 import { dmi } from "../momentum/dmi";
 
 /**
@@ -188,5 +190,5 @@ export function adaptiveStochastics(
     });
   }
 
-  return result;
+  return tagSeries(result, withLabelParams(ADAPTIVE_STOCH_META, [basePeriod]));
 }

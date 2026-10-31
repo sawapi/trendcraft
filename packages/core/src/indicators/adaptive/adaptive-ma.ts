@@ -10,9 +10,11 @@
  */
 
 import { ensureNormalized, getPrice } from "../../core/normalize";
+import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { assertInRange, assertPositive } from "../../utils/validate-number";
 import { assertPeriod } from "../../utils/validate-period";
+import { ADAPTIVE_MA_META } from "../indicator-meta";
 
 /**
  * Adaptive Moving Average configuration options
@@ -126,5 +128,5 @@ export function adaptiveMa(
     });
   }
 
-  return result;
+  return tagSeries(result, withLabelParams(ADAPTIVE_MA_META, [erPeriod]));
 }

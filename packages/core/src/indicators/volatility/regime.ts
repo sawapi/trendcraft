@@ -8,6 +8,7 @@
 
 import { annualizationFactor } from "../../calendar";
 import { ensureNormalized } from "../../core/normalize";
+import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type {
   Candle,
   NormalizedCandle,
@@ -17,6 +18,7 @@ import type {
   VolatilityRegimeValue,
 } from "../../types";
 import { assertPeriod } from "../../utils/validate-period";
+import { VOL_REGIME_META } from "../indicator-meta";
 import { atr } from "./atr";
 import { bollingerBands } from "./bollinger-bands";
 
@@ -142,7 +144,7 @@ export function volatilityRegime(
     });
   }
 
-  return result;
+  return tagSeries(result, withLabelParams(VOL_REGIME_META, [opts.atrPeriod, opts.lookbackPeriod]));
 }
 
 /**

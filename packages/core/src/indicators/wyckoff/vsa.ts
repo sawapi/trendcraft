@@ -12,7 +12,7 @@
  */
 
 import { ensureNormalized } from "../../core/normalize";
-import { tagSeries } from "../../core/tag-series";
+import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { assertPositive } from "../../utils/validate-number";
 import { assertPeriod } from "../../utils/validate-period";
@@ -159,7 +159,10 @@ export function vsa(
     });
   }
 
-  return tagSeries(result, { kind: "vsa", overlay: false, label: "VSA" });
+  return tagSeries(
+    result,
+    withLabelParams({ kind: "vsa", overlay: false, label: "VSA" }, [volumeMaPeriod, atrPeriod]),
+  );
 }
 
 /**

@@ -6,7 +6,7 @@
  */
 
 import { ensureNormalized } from "../../core/normalize";
-import { tagSeries } from "../../core/tag-series";
+import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { assertNonNegative } from "../../utils/validate-number";
 import { GAP_ANALYSIS_META } from "../indicator-meta";
@@ -149,5 +149,5 @@ export function gapAnalysis(
     }
   }
 
-  return tagSeries(result, GAP_ANALYSIS_META);
+  return tagSeries(result, withLabelParams(GAP_ANALYSIS_META, [`${minGapPercent}%`]));
 }

@@ -13,9 +13,11 @@
  */
 
 import { ensureNormalized, getPrice } from "../../core/normalize";
+import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { assertFinite, assertPositive } from "../../utils/validate-number";
 import { assertPeriod } from "../../utils/validate-period";
+import { ADAPTIVE_BB_META } from "../indicator-meta";
 
 /**
  * Adaptive Bollinger Bands configuration options
@@ -205,5 +207,5 @@ export function adaptiveBollinger(
     });
   }
 
-  return result;
+  return tagSeries(result, withLabelParams(ADAPTIVE_BB_META, [period, baseStdDev]));
 }

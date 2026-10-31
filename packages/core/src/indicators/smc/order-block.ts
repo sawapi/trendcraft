@@ -9,7 +9,7 @@
  */
 
 import { ensureNormalized } from "../../core/normalize";
-import { tagSeries } from "../../core/tag-series";
+import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { assertNonNegative } from "../../utils/validate-number";
 import { assertPeriod } from "../../utils/validate-period";
@@ -265,7 +265,10 @@ export function orderBlock(
     });
   }
 
-  return tagSeries(result, { kind: "orderBlock", overlay: true, label: "Order Block" });
+  return tagSeries(
+    result,
+    withLabelParams({ kind: "orderBlock", overlay: true, label: "Order Block" }, [swingPeriod]),
+  );
 }
 
 /**

@@ -10,8 +10,10 @@
  */
 
 import { ensureNormalized } from "../../core/normalize";
+import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { assertPeriod } from "../../utils/validate-period";
+import { ADAPTIVE_RSI_META } from "../indicator-meta";
 import { rsi } from "../momentum/rsi";
 import { atr } from "../volatility/atr";
 
@@ -129,5 +131,5 @@ export function adaptiveRsi(
     });
   }
 
-  return result;
+  return tagSeries(result, withLabelParams(ADAPTIVE_RSI_META, [basePeriod, minPeriod, maxPeriod]));
 }
