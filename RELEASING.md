@@ -64,8 +64,13 @@ Do not publish chart or mcp first when they depend on unreleased core APIs or be
 ## CHANGELOG convention
 
 - Keep an `Unreleased` / draft section at the top while work is in flight. Promote to a versioned heading at release time with a concrete date.
-- One CHANGELOG per package (`packages/core/CHANGELOG.md`, `packages/chart/CHANGELOG.md`). Do not maintain a root CHANGELOG.
+- One CHANGELOG per package (`packages/core/CHANGELOG.md`, `packages/chart/CHANGELOG.md`, `packages/mcp/CHANGELOG.md`). Do not maintain a root CHANGELOG.
 - Commit messages can be terse; the CHANGELOG is the user-facing surface and should be written for consumers, not reviewers.
+- Open each released version, patch releases included, with a summary, directly under its version heading and before the categorized entries:
+  - one or two sentences on what the release is;
+  - for a release with `Breaking` entries, a "Most likely to affect you" table (What / Was / Now) of the changes most users will hit, and a link to the migration guide if there is one.
+
+  Write it in the release PR, when `Unreleased` is promoted. The GitHub Release notes reuse it.
 
 ## Pre-release (optional)
 
