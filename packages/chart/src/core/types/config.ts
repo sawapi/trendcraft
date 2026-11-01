@@ -33,7 +33,8 @@ export type ChartOptions = {
   /**
    * IANA time zone the time axis, its day boundaries and the crosshair time
    * label read the clock in, e.g. `"America/New_York"` or `"UTC"`. Default:
-   * the browser's local zone; `""` returns to it through `applyOptions`. An
+   * UTC; `""` returns to it through `applyOptions`. For the viewer's own zone
+   * pass `Intl.DateTimeFormat().resolvedOptions().timeZone`. An
    * unknown name is ignored with an `INVALID_OPTION` warning. A custom
    * `timeFormatter` receives epoch ms and does its own zone handling.
    */

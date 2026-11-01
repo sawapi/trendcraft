@@ -3,8 +3,7 @@
  *
  * Every time label (axis, crosshair) and the date boundaries of the two-row
  * axis read the calendar through {@link wallClock}, so they agree on one
- * clock: the chart's `timeZone` option, or the browser's local zone when it
- * is not set.
+ * clock: the chart's `timeZone` option, or UTC when it is not set.
  */
 
 /**
@@ -19,13 +18,10 @@ const offsets = new Map<string, number>();
 
 /**
  * A Date whose UTC fields (`getUTCFullYear()`, `getUTCHours()`, ...) read the
- * wall clock of `time` in `timeZone`, or in the browser's local zone when
- * `timeZone` is omitted.
+ * wall clock of `time` in `timeZone`, or in UTC when `timeZone` is omitted.
  */
 export function wallClock(time: number, timeZone?: string): Date {
-  return new Date(
-    time + (timeZone ? zoneOffset(time, timeZone) : -new Date(time).getTimezoneOffset() * 60_000),
-  );
+  return new Date(timeZone ? time + zoneOffset(time, timeZone) : time);
 }
 
 /** Offset of `timeZone` from UTC at `time`, in ms. */
