@@ -47,7 +47,7 @@ export class TimeScale {
   private _width = 0;
   /**
    * IANA zone the time labels and day boundaries read the wall clock in
-   * (the chart's `timeZone` option); undefined = the browser's local zone.
+   * (the chart's `timeZone` option); undefined = UTC.
    */
   timeZone: string | undefined;
   /** Total number of candles */
@@ -801,7 +801,7 @@ export class TimeScale {
   }
 }
 
-/** Calendar day key (year*10000 + month*100 + date) in `timeZone` (local when omitted) */
+/** Calendar day key (year*10000 + month*100 + date) in `timeZone` (UTC when omitted) */
 function dayKey(time: number, timeZone?: string): number {
   const d = wallClock(time, timeZone);
   return d.getUTCFullYear() * 10000 + d.getUTCMonth() * 100 + d.getUTCDate();

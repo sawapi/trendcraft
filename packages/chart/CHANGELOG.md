@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Breaking — times read in UTC when `timeZone` is not set
+
+With no `timeZone` option, the time axis, its day boundaries, the crosshair
+date and the year and month marks on daily charts used to read each bar in the
+browser's local zone. A daily bar stamped at 00:00 UTC was labelled one day
+early anywhere west of UTC: `Date.UTC(2017, 2, 1)` read as Feb 28 in New
+York. Intraday bars showed each viewer's own clock time, so labels differed
+from one viewer to the next, and the chart's day and month boundaries
+disagreed with `trendcraft`'s `resample`, which groups bars by UTC days,
+weeks and months.
+
+The default is now UTC, as in lightweight-charts and Highcharts. Intraday
+times read UTC too: in New York, the 09:30 open is labelled 14:30 (13:30 in
+summer). The headless `autoFormatTime` and `formatCrosshairTime` read UTC
+when their `timeZone` argument is omitted, and
+`applyOptions({ timeZone: "" })` returns to UTC.
+
+What to do:
+
+- **Daily bars stamped at 00:00 UTC, or at a US exchange's midnight** (04:00
+  or 05:00 UTC, as Alpaca's are): nothing. They now read the right date in
+  every zone.
+- **Bars stamped at the midnight of an exchange east of UTC**: pass that
+  exchange's zone, for example `timeZone: "Asia/Tokyo"`. Midnight in Tokyo
+  is 15:00 UTC the day before, so in UTC such a bar reads one day early.
+- **Intraday bars in the viewer's own time**, or to keep the previous
+  behavior: pass `timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone`,
+  or the exchange's zone (e.g. `"America/New_York"`) to show session times
+  to every viewer.
+
 ### Deprecated — the CommonJS build, to be removed in 0.8.0
 
 The package ships an ESM build and a CommonJS build (the `.cjs` files and

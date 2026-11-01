@@ -1,5 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { PriceScale, TimeScale } from "../core/scale";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("TimeScale", () => {
   it("converts index to x and back", () => {
@@ -453,7 +457,9 @@ describe("TimeScale.setTimeProportional", () => {
     }
   });
 
-  it("getDateTicks emits one tick per local-day boundary", () => {
+  it("getDateTicks puts day boundaries at UTC midnight when no zone is set", () => {
+    // A browser in New York (UTC-5) must not move them to 05:00 UTC.
+    vi.spyOn(Date.prototype, "getTimezoneOffset").mockReturnValue(300);
     const ts = new TimeScale();
     ts.setWidth(1600);
     // 3 days of bars at 1-hour intervals, each day has 24 bars
@@ -466,12 +472,11 @@ describe("TimeScale.setTimeProportional", () => {
     ts.setTotalCount(times.length);
     ts.setTimeProportional(times);
     ts.scrollTo(0);
-    const ticks = ts.getDateTicks();
-    // Should be <= 3 date tick (one per day boundary in view). Exact count
-    // depends on local TZ interpretation of UTC dates; assert at least 1
-    // and at most 4 (in case of a half-day seen at the edge).
-    expect(ticks.length).toBeGreaterThanOrEqual(1);
-    expect(ticks.length).toBeLessThanOrEqual(4);
+    const boundaries = ts
+      .getDateTicks()
+      .map((t) => t.time)
+      .filter((t) => t !== times[0]);
+    expect(boundaries).toEqual([Date.UTC(2026, 0, 16), Date.UTC(2026, 0, 17)]);
   });
 
   it("clearGaps resets both virt and time data", () => {

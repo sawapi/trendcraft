@@ -1124,7 +1124,7 @@ export class CanvasChart implements ChartInstance {
     this._animateToRange(() => this._timeScale.fitContent());
   }
 
-  /** Validate and apply the `timeZone` option ("" = browser local). */
+  /** Validate and apply the `timeZone` option ("" = the UTC default). */
   private _setTimeZoneOption(timeZone: string): void {
     if (timeZone !== "" && (typeof timeZone !== "string" || !isValidTimeZone(timeZone))) {
       this._warn("timeZone: expected an IANA time zone name, ignoring", timeZone, "INVALID_OPTION");

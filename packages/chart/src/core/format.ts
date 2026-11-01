@@ -172,7 +172,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  * @param intervalMs - Optional dominant bar interval. When the series is
  *   daily-grained or coarser, the first label's wall-clock time is suppressed
  *   (see below). Omit to keep the legacy "show time if non-midnight" behavior.
- * @param timeZone - IANA zone to read the wall clock in (browser local when omitted)
+ * @param timeZone - IANA zone to read the wall clock in (UTC when omitted)
  * @returns Formatted string
  */
 export function autoFormatTime(
@@ -248,7 +248,7 @@ export function autoFormatTime(
 
 /**
  * Format a wall-clock time as a short axis label (HH:MM), 24-hour, in
- * `timeZone` (browser local when omitted).
+ * `timeZone` (UTC when omitted).
  */
 export function formatShortTime(time: number, timeZone?: string): string {
   const d = wallClock(time, timeZone);
@@ -310,10 +310,10 @@ export function pickNiceStep(rangeMs: number, maxTicks: number): number {
 }
 
 /**
- * Format time for crosshair label, in `timeZone` (browser local when
- * omitted). Shows the date, plus the wall-clock time unless it is midnight
- * or the bars are daily or coarser (`intervalMs` ≥ one day), where the hour
- * is a time-zone artifact; the time axis applies the same rule.
+ * Format time for crosshair label, in `timeZone` (UTC when omitted). Shows
+ * the date, plus the wall-clock time unless it is midnight or the bars are
+ * daily or coarser (`intervalMs` ≥ one day), where the hour is a time-zone
+ * artifact; the time axis applies the same rule.
  *
  * @param time - Epoch milliseconds
  * @param timeZone - IANA zone to read the wall clock in
