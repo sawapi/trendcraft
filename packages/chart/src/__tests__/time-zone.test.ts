@@ -11,7 +11,7 @@ import {
   formatShortDate,
   formatShortTime,
 } from "../core/format";
-import { isValidTimeZone, wallClock } from "../core/time-zone";
+import { fromWallClock, isValidTimeZone, wallClock } from "../core/time-zone";
 
 const iso = (d: Date) => d.toISOString().slice(0, 16);
 
@@ -61,6 +61,22 @@ describe("wallClock", () => {
   it("tells known zone names from unknown ones", () => {
     expect(isValidTimeZone("Europe/London")).toBe(true);
     expect(isValidTimeZone("Mars/Olympus_Mons")).toBe(false);
+  });
+});
+
+describe("fromWallClock", () => {
+  it("finds the instant a zone's wall clock reads", () => {
+    expect(fromWallClock(Date.UTC(2026, 0, 1), "Asia/Tokyo")).toBe(Date.UTC(2025, 11, 31, 15));
+    expect(fromWallClock(Date.UTC(2026, 0, 1), "America/New_York")).toBe(Date.UTC(2026, 0, 1, 5));
+    expect(fromWallClock(Date.UTC(2026, 0, 1))).toBe(Date.UTC(2026, 0, 1));
+  });
+
+  it("reads the offset at the answer, not at the guess, across a DST change", () => {
+    // 04:00 EDT on 2024-03-10 is 08:00Z. The offset at 04:00Z is still EST
+    // (-5), which alone would give 09:00Z.
+    expect(fromWallClock(Date.UTC(2024, 2, 10, 4), "America/New_York")).toBe(
+      Date.UTC(2024, 2, 10, 8),
+    );
   });
 });
 

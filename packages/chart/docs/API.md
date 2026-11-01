@@ -109,7 +109,13 @@ type TimeScaleOptions = {
 weekends) in intraday data instead of compressing non-trading hours to a
 zero-width seam. `true` auto-detects gaps from the median bar interval; the
 object form gives fine-grained control (`mode: 'timeGap' | 'dayBoundary' |
-'off'`, `gapThresholdMs`, `intradayThresholdMs`, `sizeBars`).
+'off'`, `gapThresholdMs`, `intradayThresholdMs`, `sizeBars`, `timeZone`).
+`'dayBoundary'` puts a gap at each midnight in `sessionGaps.timeZone`, which
+defaults to the chart's [`timeZone`](#time-zones), so the gaps match the date
+row of the axis. To show one zone but split at another, set both: for example
+`timeZone: 'Asia/Tokyo'` with `sessionGaps: { mode: 'dayBoundary', timeZone:
+'America/New_York' }` shows US stocks in Tokyo time, split at New York
+midnight.
 
 `rightOffset` (default `0`) reserves that many bar-slots of empty space
 between the last candle and the price axis, so the forming candle isn't drawn
@@ -141,6 +147,10 @@ daily bars, then:
   early.
 - **Intraday bars in the viewer's own time**: pass
   `timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone`.
+
+`timeZone` also sets where `'YTD'` in `setVisibleRangeByDuration` starts
+(January 1 in that zone) and, unless `sessionGaps.timeZone` is set, where
+`'dayBoundary'` session gaps go (see [Time scale](#time-scale)).
 
 lightweight-charts and Highcharts both default to UTC, and the core library's
 resampling (`resample`) groups bars by UTC days, weeks and months, so the

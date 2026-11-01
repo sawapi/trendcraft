@@ -2,13 +2,19 @@
  * Range utilities — Duration-to-timestamp resolution for viewport control.
  */
 
+import { fromWallClock, wallClock } from "./time-zone";
 import type { RangeDuration } from "./types";
 
 /**
  * Resolve a RangeDuration to a start timestamp (epoch ms), given the last candle time.
- * Returns null for "ALL" (caller should use fitContent).
+ * Returns null for "ALL" (caller should use fitContent). "YTD" starts at
+ * January 1 in `timeZone` (UTC when omitted), the chart's `timeZone` option.
  */
-export function resolveRangeDuration(duration: RangeDuration, lastTime: number): number | null {
+export function resolveRangeDuration(
+  duration: RangeDuration,
+  lastTime: number,
+  timeZone?: string,
+): number | null {
   switch (duration) {
     case "ALL":
       return null;
@@ -25,8 +31,8 @@ export function resolveRangeDuration(duration: RangeDuration, lastTime: number):
     case "1Y":
       return lastTime - 365 * 86_400_000;
     case "YTD": {
-      const d = new Date(lastTime);
-      return Date.UTC(d.getUTCFullYear(), 0, 1);
+      const year = wallClock(lastTime, timeZone).getUTCFullYear();
+      return fromWallClock(Date.UTC(year, 0, 1), timeZone);
     }
   }
 }

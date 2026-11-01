@@ -24,6 +24,23 @@ export function wallClock(time: number, timeZone?: string): Date {
   return new Date(timeZone ? time + zoneOffset(time, timeZone) : time);
 }
 
+/**
+ * Epoch time whose wall clock in `timeZone` (UTC when omitted) reads the UTC
+ * fields of `wall`; the inverse of {@link wallClock}.
+ */
+export function fromWallClock(wall: number, timeZone?: string): number {
+  if (!timeZone) return wall;
+  // The offset at the guess can differ from the offset at the answer when a
+  // zone transition lies between them; a second pass reads it at the answer.
+  return wall - zoneOffset(wall - zoneOffset(wall, timeZone), timeZone);
+}
+
+/** Calendar day key (year*10000 + month*100 + date) in `timeZone` (UTC when omitted) */
+export function dayKey(time: number, timeZone?: string): number {
+  const d = wallClock(time, timeZone);
+  return d.getUTCFullYear() * 10000 + d.getUTCMonth() * 100 + d.getUTCDate();
+}
+
 /** Offset of `timeZone` from UTC at `time`, in ms. */
 function zoneOffset(time: number, timeZone: string): number {
   const at = Math.floor(time / BUCKET_MS) * BUCKET_MS;

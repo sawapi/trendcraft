@@ -5,7 +5,7 @@
  * PriceScale: price → y pixel
  */
 
-import { wallClock } from "./time-zone";
+import { dayKey } from "./time-zone";
 import type { ScaleMode } from "./types";
 
 // ============================================
@@ -799,12 +799,6 @@ export class TimeScale {
     // — a granted both-sides margin moves bar-by-bar instead of snapping.
     this._startIndex = Math.max(this.allowedMin, Math.min(this.allowedMax, this._startIndex));
   }
-}
-
-/** Calendar day key (year*10000 + month*100 + date) in `timeZone` (UTC when omitted) */
-function dayKey(time: number, timeZone?: string): number {
-  const d = wallClock(time, timeZone);
-  return d.getUTCFullYear() * 10000 + d.getUTCMonth() * 100 + d.getUTCDate();
 }
 
 // ============================================
