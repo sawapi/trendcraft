@@ -37,6 +37,29 @@ What to do:
   or the exchange's zone (e.g. `"America/New_York"`) to show session times
   to every viewer.
 
+### Fixed — `YTD` and day-boundary gaps ignored `timeZone`
+
+`setVisibleRangeByDuration("YTD")` started at January 1 in UTC, and
+`sessionGaps: { mode: "dayBoundary" }` split the bars at UTC midnight, while
+the time axis read its dates in `timeZone`. With `timeZone: "Asia/Tokyo"`, a
+year started nine hours late and the day gaps fell at 09:00 on the axis. Both
+now read the calendar in `timeZone`, so `YTD` starts at that zone's January 1
+and the gaps sit where the axis changes date. Without `timeZone` nothing
+changes: both still use UTC.
+
+With `timeZone` set, day gaps move. US stocks shown in `"Asia/Tokyo"` used to
+get one gap per US session and now get a gap at Tokyo midnight, mid-session.
+To split at the exchange's day while showing another zone, set
+`sessionGaps.timeZone` (e.g. `"America/New_York"`), or `"UTC"` for the
+previous split.
+
+### Added — `sessionGaps.timeZone` for day-boundary gaps
+
+`sessionGaps: { mode: "dayBoundary", timeZone: "America/New_York" }` splits
+the bars at midnight in that zone while the axis shows the chart's
+`timeZone`, for example US stocks in Tokyo time with one gap per New York
+trading day. It defaults to the chart's `timeZone`.
+
 ### Deprecated — the CommonJS build, to be removed in 0.8.0
 
 The package ships an ESM build and a CommonJS build (the `.cjs` files and

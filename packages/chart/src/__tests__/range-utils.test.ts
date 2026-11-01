@@ -27,6 +27,23 @@ describe("resolveRangeDuration", () => {
     expect(got).toBeLessThan(LAST);
   });
 
+  it("YTD starts at January 1 in the given zone", () => {
+    // Tokyo's 2026 starts at 15:00Z on Dec 31; New York's at 05:00Z on Jan 1.
+    expect(resolveRangeDuration("YTD", LAST, "Asia/Tokyo")).toBe(Date.UTC(2025, 11, 31, 15));
+    expect(resolveRangeDuration("YTD", LAST, "America/New_York")).toBe(Date.UTC(2026, 0, 1, 5));
+  });
+
+  it("YTD takes the year from the zone's calendar", () => {
+    // 20:00Z on Dec 31, 2026 is already 2027 in Tokyo; 02:00Z on Jan 1, 2027
+    // is still 2026 in New York.
+    expect(resolveRangeDuration("YTD", Date.UTC(2026, 11, 31, 20), "Asia/Tokyo")).toBe(
+      Date.UTC(2026, 11, 31, 15),
+    );
+    expect(resolveRangeDuration("YTD", Date.UTC(2027, 0, 1, 2), "America/New_York")).toBe(
+      Date.UTC(2026, 0, 1, 5),
+    );
+  });
+
   it("YTD independent of sub-day components", () => {
     const a = resolveRangeDuration("YTD", Date.UTC(2027, 6, 15, 3, 14));
     const b = resolveRangeDuration("YTD", Date.UTC(2027, 11, 31, 23, 59));
