@@ -67,6 +67,38 @@ async function labelsIn(browser: Browser, timezoneId: string, query: string) {
   return { hovered, text };
 }
 
+/** Daily bars at 00:00 UTC, no `timeZone`, in a browser whose own zone is `timezoneId`. */
+async function dailyLabelsIn(browser: Browser, timezoneId: string) {
+  const context = await browser.newContext({ timezoneId, viewport: { width: 1000, height: 700 } });
+  const page = await context.newPage();
+  await openChart(page, "?volume=0");
+  await page.evaluate(() => {
+    const bars = [];
+    for (let i = 0; i < 120; i++) {
+      bars.push({
+        time: Date.UTC(2024, 0, 1) + i * 86_400_000,
+        open: 100,
+        high: 101,
+        low: 99,
+        close: 100,
+        volume: 1,
+      });
+    }
+    window.__tc.chart.setCandles(bars);
+  });
+  await frames(page, 30);
+  const box = await chartBox(page);
+  await page.mouse.move(box.x + box.width * 0.4, box.y + box.height / 3);
+  await frames(page, 2);
+  const hovered = await page.evaluate(() => {
+    const moves = window.__tc.events.filter((e) => e.type === "crosshairMove");
+    return (moves.at(-1)?.data as { time: number | null } | undefined)?.time ?? null;
+  });
+  const text = await drawnText(page);
+  await context.close();
+  return { hovered, text };
+}
+
 test.describe("time zone", () => {
   for (const [name, query] of [
     ["single-row axis", "?volume=0"],
@@ -95,53 +127,26 @@ test.describe("time zone", () => {
     });
   }
 
-  // Daily bars stamped at 00:00 UTC read 09:00 in Tokyo and 19:00 the day
-  // before in New York. That hour is a time-zone artifact, so the crosshair,
-  // like the axis, shows the date alone (in the browser's zone by default).
-  for (const timezoneId of ["Asia/Tokyo", "America/New_York"]) {
-    test(`daily crosshair label in ${timezoneId} has no time`, async ({ browser }) => {
-      const context = await browser.newContext({
-        timezoneId,
-        viewport: { width: 1000, height: 700 },
-      });
-      const page = await context.newPage();
-      await openChart(page, "?volume=0");
-      await page.evaluate(() => {
-        const bars = [];
-        for (let i = 0; i < 120; i++) {
-          bars.push({
-            time: Date.UTC(2024, 0, 1) + i * 86_400_000,
-            open: 100,
-            high: 101,
-            low: 99,
-            close: 100,
-            volume: 1,
-          });
-        }
-        window.__tc.chart.setCandles(bars);
-      });
-      await frames(page, 30);
-      const box = await chartBox(page);
-      await page.mouse.move(box.x + box.width * 0.4, box.y + box.height / 3);
-      await frames(page, 2);
-      const hovered = await page.evaluate(() => {
-        const moves = window.__tc.events.filter((e) => e.type === "crosshairMove");
-        return (moves.at(-1)?.data as { time: number | null } | undefined)?.time ?? null;
-      });
-      expect(hovered).not.toBeNull();
-      const text = await drawnText(page);
-      await context.close();
+  // Daily bars stamped at 00:00 UTC: with no timeZone set the crosshair, like
+  // the axis, shows the bar's UTC date alone, identically in every browser
+  // zone. Read in New York's zone the bar would fall on the day before.
+  test("daily crosshair label is the UTC date in any browser zone", async ({ browser }) => {
+    const tokyo = await dailyLabelsIn(browser, "Asia/Tokyo");
+    const newYork = await dailyLabelsIn(browser, "America/New_York");
 
-      const label = new Intl.DateTimeFormat("sv-SE", {
-        timeZone: timezoneId,
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-      }).format(hovered as number);
-      expect(text).toContain(label);
-      expect(text.some((t) => t.startsWith(`${label} `))).toBe(false);
-    });
-  }
+    expect(tokyo.hovered).not.toBeNull();
+    expect(tokyo.hovered).toBe(newYork.hovered);
+    expect(tokyo.text).toEqual(newYork.text);
+
+    const label = new Intl.DateTimeFormat("sv-SE", {
+      timeZone: "UTC",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(tokyo.hovered as number);
+    expect(tokyo.text).toContain(label);
+    expect(tokyo.text.some((t) => t.startsWith(`${label} `))).toBe(false);
+  });
 
   test("an unknown zone is ignored with a warning", async ({ page }) => {
     await openChart(page, "?volume=0");
