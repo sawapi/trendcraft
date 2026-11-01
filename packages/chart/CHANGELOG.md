@@ -7,6 +7,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Breaking — times read in UTC when `timeZone` is not set
+
+With no `timeZone` option, the time axis, its day boundaries, the crosshair
+date and the year and month marks on daily charts used to read each bar in the
+browser's local zone. A daily bar stamped at 00:00 UTC was labelled one day
+early anywhere west of UTC: `Date.UTC(2017, 2, 1)` read as Feb 28 in New
+York. Intraday bars showed each viewer's own clock time, so labels differed
+from one viewer to the next, and the chart's day and month boundaries
+disagreed with `trendcraft`'s `resample`, which groups bars by UTC days,
+weeks and months.
+
+The default is now UTC, so every viewer sees the same labels and the chart's
+boundaries match `resample`. Intraday times read UTC too: in New York, the
+09:30 open is labelled 14:30 (13:30 in summer). The headless
+`autoFormatTime` and `formatCrosshairTime` read UTC when their `timeZone`
+argument is omitted, and `applyOptions({ timeZone: "" })` returns to UTC.
+
+What to do:
+
+- **Daily bars stamped at 00:00 UTC, or at a US exchange's midnight** (04:00
+  or 05:00 UTC, as Alpaca's are): nothing. They now read the right date in
+  every zone.
+- **Bars stamped at the midnight of an exchange east of UTC**: pass that
+  exchange's zone, for example `timeZone: "Asia/Tokyo"`. Midnight in Tokyo
+  is 15:00 UTC the day before, so in UTC such a bar reads one day early.
+- **Intraday bars in the viewer's own time**, or to keep the previous
+  behavior: pass `timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone`,
+  or the exchange's zone (e.g. `"America/New_York"`) to show session times
+  to every viewer.
+
+### Fixed — `YTD` and day-boundary gaps ignored `timeZone`
+
+`setVisibleRangeByDuration("YTD")` started at January 1 in UTC, and
+`sessionGaps: { mode: "dayBoundary" }` split the bars at UTC midnight, while
+the time axis read its dates in `timeZone`. With `timeZone: "Asia/Tokyo"`, a
+year started nine hours late and the day gaps fell at 09:00 on the axis. Both
+now read the calendar in `timeZone`, so `YTD` starts at that zone's January 1
+and the gaps sit where the axis changes date. Without `timeZone` nothing
+changes: both still use UTC.
+
+With `timeZone` set, day gaps move. US stocks shown in `"Asia/Tokyo"` used to
+get one gap per US session and now get a gap at Tokyo midnight, mid-session.
+To split at the exchange's day while showing another zone, set
+`sessionGaps.timeZone` (e.g. `"America/New_York"`), or `"UTC"` for the
+previous split.
+
+### Added — `sessionGaps.timeZone` for day-boundary gaps
+
+`sessionGaps: { mode: "dayBoundary", timeZone: "America/New_York" }` splits
+the bars at midnight in that zone while the axis shows the chart's
+`timeZone`, for example US stocks in Tokyo time with one gap per New York
+trading day. It defaults to the chart's `timeZone`.
+
 ### Deprecated — the CommonJS build, to be removed in 0.8.0
 
 The package ships an ESM build and a CommonJS build (the `.cjs` files and
@@ -44,34 +97,37 @@ too short for all of them.
 
 The time axis labelled every Nth bar and wrote the year on the first label
 that fell in a new year, so on ten years of daily bars "2017" sat on
-2017-08-18. Daily and coarser bars are now marked on calendar boundaries,
-as lightweight-charts picks its tick marks: each bar is weighted by the
-largest boundary it starts (year, month, day), and marks are kept from
-the heaviest down while they stay 80px apart. As there, marks are picked
-over all the data, so they stay put while panning. "2017" now sits on the
-year's first bar, and month starts are marked when zoomed in. The vertical
-grid follows the same marks. Intraday bars are unchanged.
+2017-08-18. Daily and coarser bars are now marked on calendar boundaries:
+each bar is weighted by the largest boundary it starts (year, month, day),
+and marks are kept from the heaviest down while they stay 80px apart. Marks
+are picked over all the data, so they stay put while panning. "2017" now
+sits on the year's first bar, and month starts are marked when zoomed in.
+The vertical grid follows the same marks. Intraday bars are unchanged.
+
 ### Fixed — log-scale panes kept linear ticks and empty decades
 
 A pane with `yScale: "log"` drew its series on a log scale but its axis
 and grid with the linear nice steps, so on a range spanning decades every
-label but "0" crowded into the top few pixels. Ticks are now picked like
-d3's log scale: the 1–9 multiples of each power of ten, then 1/2/5, then
-powers of ten alone, whichever first fits the pane; over more decades
-than that, every k-th power, aligned as d3 aligns them (1, 100, 10K …).
-d3 keeps every 1–9 tick and blanks some labels, but every tick here is
-labelled, so the ticks themselves are thinned. Each label shows its own
-digits ("0.01, 0.1, 1, 10") and, from a million up, its own M/B/T unit.
+label but "0" crowded into the top few pixels. Ticks are now the 1–9
+multiples of each power of ten, then 1/2/5, then powers of ten alone,
+whichever first fits the pane; over more decades than that, every k-th
+power, aligned on multiples of k (1, 100, 10K …). Every tick is labelled,
+so the ticks themselves are thinned rather than their labels. Each label
+shows its own digits ("0.01, 0.1, 1, 10") and, from a million up, its own
+M/B/T unit.
 A log range inside one decade keeps linear ticks.
 
 The 5% range padding was also linear, so a range spanning decades padded
 its bottom below zero, and the log floor added ten-odd empty decades under
 the data. A positive log range is now padded by 5% of its log span.
 
-### Changed — the headless entry's size limit is 12.75 kB
+### Changed — size limits are the 0.7.0 budget
 
-It was 12.5 kB. `PriceScale`, which the headless entry exports, now
-carries the log ticks.
+The `size-limit` entries are now set once per minor release as a budget,
+instead of being raised one change at a time. For 0.7.0, main goes from
+44.5 kB to 46 kB, the headless entry from 12.5 kB to 13 kB, and the React
+and Vue wrappers, which include main, from 36.5 kB to 38 kB. The other
+entries keep their limits.
 
 ### Fixed — prices of a million and up overflowed the price axis
 
@@ -81,10 +137,10 @@ hundreds of billions labelled its ticks "140000000000", which the default
 unit chosen by the largest tick ("20B, 40B, … 140B"), with the decimals the
 tick step needs; a narrow range where the unit would make labels longer,
 such as 1,234,520–1,234,600, keeps its full digits. Volume was already
-shortened. As in Highcharts, only the axis labels are shortened: the
-crosshair, last-value badges and OHLC legend keep every digit, so BTC/JPY
-at 15,234,567 still reads in full. A `priceFormatter` passed to the chart
-is used as given.
+shortened. Only the axis labels are shortened, since they are read for
+scale and the exact price is a hover away: the crosshair, last-value badges
+and OHLC legend keep every digit, so BTC/JPY at 15,234,567 still reads in
+full. A `priceFormatter` passed to the chart is used as given.
 
 ## [0.6.1] - 2026-10-31
 
@@ -116,8 +172,7 @@ from 100, three below, `0` for zero), so a price axis crossing 100 read
 `80.000` next to `100.00`, and a 0–100 oscillator pane `50.000` next to
 `100.00`. Tick labels now take their decimals from the tick step and share
 them across the axis: an RSI pane reads `0, 20, … 100`, and a step of 0.01
-gives two decimals on every label. Chart.js and d3 derive axis decimals from
-the step the same way. A `priceFormatter` you pass is still used as given,
+gives two decimals on every label. A `priceFormatter` you pass is still used as given,
 and the crosshair and last-value labels are unchanged.
 
 ### Fixed — `detectPrecision` sorted the array it was given
@@ -170,9 +225,8 @@ it, leaking whatever `init` had set up.
 numbers, so 0.3 read "0" and 12.5 read "13". Crypto, fractional shares and
 thin intraday bars carry such volumes. A fractional volume under 1,000 now
 shows 3 significant digits without trailing zeros or exponent ("0.3",
-"12.5", "0.00000025"). The unit is also chosen after rounding, as in
-lightweight-charts' volume formatter, so 999.6 reads "1.0K" and 999,960
-"1.0M" rather than "1000" and "1000.0K".
+"12.5", "0.00000025"). The unit is also chosen after rounding, so 999.6
+reads "1.0K" and 999,960 "1.0M" rather than "1000" and "1000.0K".
 
 ### Fixed — the crosshair showed a time on daily bars
 
@@ -291,12 +345,8 @@ attached. A drawing hotkey (`Alt+H` / `Alt+V` / `Alt+T` / `Alt+F` / `Alt+C` by
 default, or a custom `hotkeys` entry mapped to a drawing type) pressed on a
 chart without drawing tools is ignored silently and left to the page.
 
-The design follows the industry: lightweight-charts v5 moved series types and
-markers into separately imported functions, Chart.js has `Chart.register` and
-`chart.js/auto`, and ECharts has `echarts.use`. For a missing registration,
-ECharts logs an error (in development builds) and skips the component, while
-Chart.js throws. Reporting and skipping is the model here, so that a missing
-registration does not crash a page.
+A missing registration is reported and skipped rather than thrown, so that it
+does not crash a page.
 
 **Migrating:**
 
@@ -1331,7 +1381,7 @@ entry below).
   (#179).
 - **Andrews Pitchfork** gains line labels and the 0.25 / 0.75 half-lines
   between the median and the outer tines (#180).
-- **Plugin visuals aligned with industry conventions** (#181): TTM
+- **Plugin visuals clarified** (#181): TTM
   Squeeze markers render as circular dots on a zero-line rail (was
   rectangles, despite the "dots" name); the Regime Heatmap adds a
   top-left corner pill spelling out the active regime plus confidence
@@ -1466,9 +1516,8 @@ otherwise keep rendering at the previous data's coordinates against
 the new view.
 
 This matches the documented host-driven primitive lifecycle (see
-`connectPricePatterns` JSDoc and the new COOKBOOK recipe) and the
-behavior of other charting libraries (TradingView Lightweight Charts,
-Highcharts annotations, etc.); the chart still does not auto-remove
+`connectPricePatterns` JSDoc and the new COOKBOOK recipe); the chart
+still does not auto-remove
 primitives in `setCandles`, but the helper gives the cleanup pattern
 a named API so hosts don't have to track every handle individually.
 

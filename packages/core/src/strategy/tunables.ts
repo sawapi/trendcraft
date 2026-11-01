@@ -2,11 +2,9 @@
  * Strategy Tunables
  *
  * Walk a `StrategyJSON` to enumerate the numeric parameters that an
- * optimizer or UI can vary. Mirrors the introspection surface every
- * mainstream TA framework exposes — TA-Lib's
- * `TA_GetOptInputParameterInfo`, backtrader's `self.params`, freqtrade's
- * `IntParameter` / `DecimalParameter`, Pine Script's `input.int` /
- * `input.float`.
+ * optimizer or UI can vary, with each parameter's range and type, so a
+ * search grid or a settings form can be built without knowing the
+ * condition types.
  *
  * Each emitted `Tunable.key` follows the canonical path syntax
  * (`<bucket>.<leafIndex>.<paramName>`, see `parseLeafPath` /
@@ -32,11 +30,8 @@ import { flattenStrategyLeaves } from "./walker";
  * The full registry `ParamDef` is attached as `schema` so callers can read
  * `schema.min` / `max` / `default` / `integer` / `precision` /
  * `suggestedMin` / `suggestedMax` directly. There is deliberately **no**
- * heuristic on top — the industry standard (TA-Lib's
- * `TA_OptInput_IntegerRange` vs `TA_OptInput_RealRange`, freqtrade's
- * `IntParameter` vs `DecimalParameter`, Pine Script's `input.int` vs
- * `input.float`) is to make integer / continuous typing explicit at the
- * schema level, not infer it.
+ * heuristic on top: integer / continuous typing is explicit in the schema,
+ * so optimizers and UIs read it instead of guessing from the default value.
  */
 export type Tunable = {
   /** Canonical path: `<bucket>.<leafIndex>.<paramName>`. */

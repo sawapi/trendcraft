@@ -77,7 +77,7 @@ All fields optional.
 | `fontSize` | `number` | `11` | Font size (px). Runtime-updatable via `applyOptions` |
 | `priceFormatter` | `(price: number) => string` | auto-precision | Custom price formatter. When omitted, the price-axis tick labels share one number of decimals taken from the tick step, and other price labels use `autoFormatPrice` |
 | `timeFormatter` | `(time: number) => string` | smart date/time | Custom time-axis label formatter (receives epoch ms; does its own zone handling) |
-| `timeZone` | `string` | browser local | IANA zone (`"America/New_York"`, `"UTC"`) the time axis, its day boundaries and the crosshair time label read the clock in. `""` returns to the browser's zone via `applyOptions` (also from the React/Vue wrappers: pass `""`, not `undefined`); an unknown name is ignored with an `INVALID_OPTION` warning. Runtime-updatable. Daily and coarser bars show dates only; a daily bar stamped at 00:00 UTC falls on the previous day west of UTC, so for such data set `timeZone: "UTC"` ([Time zones](#time-zones)) |
+| `timeZone` | `string` | `"UTC"` | IANA zone (`"America/New_York"`, `"UTC"`) the time axis, its day boundaries and the crosshair time label read the clock in. `""` returns to the UTC default via `applyOptions` (also from the React/Vue wrappers: pass `""`, not `undefined`); an unknown name is ignored with an `INVALID_OPTION` warning. Runtime-updatable. For the viewer's own zone pass `Intl.DateTimeFormat().resolvedOptions().timeZone`; for bars stamped at an exchange's local midnight, pass that exchange's zone ([Time zones](#time-zones)) |
 | `watermark` | `string` | — | Background watermark text |
 | `legend` | `boolean` | `true` | Show series legend |
 | `volume` | `boolean` | `true` | Show volume pane |
@@ -109,7 +109,13 @@ type TimeScaleOptions = {
 weekends) in intraday data instead of compressing non-trading hours to a
 zero-width seam. `true` auto-detects gaps from the median bar interval; the
 object form gives fine-grained control (`mode: 'timeGap' | 'dayBoundary' |
-'off'`, `gapThresholdMs`, `intradayThresholdMs`, `sizeBars`).
+'off'`, `gapThresholdMs`, `intradayThresholdMs`, `sizeBars`, `timeZone`).
+`'dayBoundary'` puts a gap at each midnight in `sessionGaps.timeZone`, which
+defaults to the chart's [`timeZone`](#time-zones), so the gaps match the date
+row of the axis. To show one zone but split at another, set both: for example
+`timeZone: 'Asia/Tokyo'` with `sessionGaps: { mode: 'dayBoundary', timeZone:
+'America/New_York' }` shows US stocks in Tokyo time, split at New York
+midnight.
 
 `rightOffset` (default `0`) reserves that many bar-slots of empty space
 between the last candle and the price axis, so the forming candle isn't drawn
@@ -123,24 +129,31 @@ rejected with a warning.
 ### Time zones
 
 The time axis and the crosshair label read each bar's wall clock in
-`timeZone`, the browser's own zone by default. For intraday bars that is the
-local session time. Daily and coarser bars show the date alone: their hour is
+`timeZone`, UTC by default, so every viewer sees the same labels whatever zone
+their browser is in. Daily and coarser bars show the date alone: their hour is
 only the zone's offset from the timestamp, not a time of day.
 
-The date can still move. A daily bar stamped at 00:00 UTC is 09:00 the same
-day in Tokyo but 19:00 the previous day in New York, so west of UTC it is
-labelled one day early. Which date is right depends on how the data was
-recorded, and a Unix timestamp cannot tell the chart. Check how your data
-provider stamps its daily bars, then:
+Which date a daily bar belongs to depends on how the data was recorded, and a
+Unix timestamp cannot tell the chart. Check how your data provider stamps its
+daily bars, then:
 
-- **Daily bars stamped at 00:00 UTC**: set `timeZone: "UTC"` so every viewer
-  sees the bar's own date.
-- **Bars stamped at local midnight of the exchange**: set `timeZone` to the
-  exchange's zone (e.g. `"Asia/Tokyo"`), or leave the default if viewers are
-  in that zone.
+- **Daily bars stamped at 00:00 UTC**: keep the default.
+- **Bars stamped at local midnight of a US exchange** (e.g. Alpaca's daily
+  bars, at 04:00 or 05:00 UTC): the default works too, since the stamp falls
+  on the same UTC date.
+- **Bars stamped at local midnight of an exchange east of UTC**: set
+  `timeZone` to the exchange's zone (e.g. `"Asia/Tokyo"`). Midnight in Tokyo
+  is 15:00 UTC the previous day, so in UTC such a bar is labelled one day
+  early.
+- **Intraday bars in the viewer's own time**: pass
+  `timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone`.
 
-lightweight-charts takes the same position: its time values are UTC, and it
-advises not to shift date-only data into a time zone.
+`timeZone` also sets where `'YTD'` in `setVisibleRangeByDuration` starts
+(January 1 in that zone) and, unless `sessionGaps.timeZone` is set, where
+`'dayBoundary'` session gaps go (see [Time scale](#time-scale)).
+
+UTC is the default because the core library's resampling (`resample`) groups
+bars by UTC days, weeks and months, so the chart's day boundaries match it.
 
 ### Crosshair
 
@@ -740,7 +753,7 @@ import {
 | Class | Purpose |
 |---|---|
 | `DataLayer` | Holds candles + series. Internal mutation API. |
-| `TimeScale` | Index ↔ pixel X conversion. Manages pan / zoom. Its `timeZone` field (IANA name, `undefined` = browser local) sets the zone `getDateTicks` finds day boundaries in. |
+| `TimeScale` | Index ↔ pixel X conversion. Manages pan / zoom. Its `timeZone` field (IANA name, `undefined` = UTC) sets the zone `getDateTicks` finds day boundaries in. |
 | `PriceScale` | Price ↔ pixel Y. One per pane. |
 | `LayoutEngine` | Computes pane rectangles from `LayoutConfig` + canvas size. |
 | `Viewport` | Combines TimeScale / PriceScale / input handling. |
@@ -784,7 +797,7 @@ autoFormatPrice(price: number): string
 autoFormatTime(time: number, prevTime: number | null, intervalMs?: number, timeZone?: string): string
 formatCrosshairTime(time: number, timeZone?: string, intervalMs?: number): string
 // intervalMs: bar interval; at one day or more the label is the date alone.
-// timeZone: IANA name the wall clock is read in; the browser's local zone when omitted.
+// timeZone: IANA name the wall clock is read in; UTC when omitted.
 formatVolume(vol: number): string
 detectPrecision(values: number[]): number
 fixedPriceFormatter(precision: number): (price: number) => string

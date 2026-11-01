@@ -6,8 +6,7 @@
  * `if (multiplier <= 0) throw ...` lets `NaN` through, and `Infinity` passes
  * any lower bound. Either value then runs on and turns the output into `NaN`
  * or an unbounded band rather than failing. Every helper here therefore
- * rejects non-finite values first, as TA-Lib's range checks do, and then
- * applies the option's own domain.
+ * rejects non-finite values first, and then applies the option's own domain.
  *
  * Bar counts and other integer options use `assertPeriod` instead.
  */

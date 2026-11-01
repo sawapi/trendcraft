@@ -44,11 +44,9 @@ function regimeConfidence(v: RegimeDataPoint["value"]): number | undefined {
 
 export type RegimeHeatmapOptions = {
   /**
-   * Whether to draw a corner badge showing the current regime + confidence.
-   * Mirrors the convention used by TradingView regime indicators
-   * (EXCAVO / LuxAlgo / RWCS_LTD): "trending-up · 72%" style pill in the
-   * top-left so the analyst can read the active regime without decoding
-   * background colors. Default `true`.
+   * Whether to draw a corner badge showing the current regime + confidence:
+   * a "trending-up · 72%" style pill in the top-left so the analyst can
+   * read the active regime without decoding background colors. Default `true`.
    */
   showBadge?: boolean;
 };

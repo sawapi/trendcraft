@@ -33,7 +33,8 @@ export type ChartOptions = {
   /**
    * IANA time zone the time axis, its day boundaries and the crosshair time
    * label read the clock in, e.g. `"America/New_York"` or `"UTC"`. Default:
-   * the browser's local zone; `""` returns to it through `applyOptions`. An
+   * UTC; `""` returns to it through `applyOptions`. For the viewer's own zone
+   * pass `Intl.DateTimeFormat().resolvedOptions().timeZone`. An
    * unknown name is ignored with an `INVALID_OPTION` warning. A custom
    * `timeFormatter` receives epoch ms and does its own zone handling.
    */
@@ -123,9 +124,10 @@ export type SessionGapsOptions = {
    * - `"timeGap"` (default): insert a gap whenever the time delta between
    *   consecutive bars exceeds `gapThresholdMs` (or 4 hours when unset).
    *   Works correctly regardless of data timezone.
-   * - `"dayBoundary"`: insert a gap whenever the UTC calendar day changes
-   *   between consecutive bars. Useful for 24×7 data (crypto / FX) where
-   *   time deltas are uniform but you still want a daily divider.
+   * - `"dayBoundary"`: insert a gap whenever the calendar day changes
+   *   between consecutive bars, read in `timeZone` below. Useful for 24×7
+   *   data (crypto / FX) where time deltas are uniform but you still want a
+   *   daily divider.
    * - `"off"`: disabled.
    */
   mode?: "timeGap" | "dayBoundary" | "off";
@@ -135,6 +137,14 @@ export type SessionGapsOptions = {
   intradayThresholdMs?: number;
   /** For `"timeGap"` mode: the minimum delta to count as a session gap (default: 4 hours). */
   gapThresholdMs?: number;
+  /**
+   * For `"dayBoundary"` mode: the IANA time zone whose midnight starts a new
+   * day, e.g. `"America/New_York"` to split at the exchange's midnight while
+   * the axis shows another zone. Default: the chart's `timeZone` option (UTC
+   * when that is not set); `""` returns to it. An unknown name is ignored
+   * with an `INVALID_OPTION` warning.
+   */
+  timeZone?: string;
 };
 
 /**

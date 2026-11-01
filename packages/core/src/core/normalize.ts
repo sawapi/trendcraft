@@ -116,8 +116,7 @@ function nonFiniteField(candle: NormalizedCandle): (typeof CANDLE_FIELDS)[number
  * One `NaN` close used to poison every running-sum and recursive indicator
  * from that bar on (SMA, EMA, ATR), while RSI counted the bar as unchanged
  * and kept printing plausible values. A non-finite time left the series
- * unsorted. TA-Lib leaves the check to its callers, on the grounds that
- * replacing a `NaN` "feels like hiding a problem": a `NaN` should make you
+ * unsorted. Replacing a `NaN` would hide a problem: a `NaN` should make you
  * ask why it is there. Rejecting it at the boundary is that question asked
  * up front.
  *

@@ -24,6 +24,12 @@ import { resolveRangeDuration } from "../core/range-utils";
 import { RendererRegistry } from "../core/renderer-registry";
 import { type PriceScale, TimeScale } from "../core/scale";
 import { defaultRegistry, type IntrospectionRule } from "../core/series-registry";
+import {
+  computeDayBoundaryGaps,
+  medianBarInterval,
+  type ResolvedSessionGapsOptions,
+  resolveSessionGapsOptions,
+} from "../core/session-gaps";
 import { isValidTimeZone } from "../core/time-zone";
 import type {
   CandleData,
@@ -408,7 +414,7 @@ export class CanvasChart implements ChartInstance {
       mode: options?.crosshair?.mode ?? "normal",
       snapThreshold: options?.crosshair?.snapThreshold ?? 12,
     };
-    this._sessionGapsOpts = resolveSessionGapsOptions(options?.timeScale?.sessionGaps);
+    this._sessionGapsOpts = this._resolveSessionGaps(options?.timeScale?.sessionGaps);
     if (options?.timeScale?.rightOffset !== undefined) {
       this._setRightOffsetOption(options.timeScale.rightOffset);
     }
@@ -1108,7 +1114,7 @@ export class CanvasChart implements ChartInstance {
     if (candles.length === 0) return;
 
     const lastTime = candles[candles.length - 1].time;
-    const startTime = resolveRangeDuration(duration, lastTime);
+    const startTime = resolveRangeDuration(duration, lastTime, this._timeScale.timeZone);
     if (startTime === null) {
       this.fitContent();
       return;
@@ -1124,13 +1130,29 @@ export class CanvasChart implements ChartInstance {
     this._animateToRange(() => this._timeScale.fitContent());
   }
 
-  /** Validate and apply the `timeZone` option ("" = browser local). */
+  /** Validate and apply the `timeZone` option ("" = the UTC default). */
   private _setTimeZoneOption(timeZone: string): void {
     if (timeZone !== "" && (typeof timeZone !== "string" || !isValidTimeZone(timeZone))) {
       this._warn("timeZone: expected an IANA time zone name, ignoring", timeZone, "INVALID_OPTION");
       return;
     }
     this._timeScale.timeZone = timeZone || undefined;
+  }
+
+  /** Resolve `timeScale.sessionGaps`, dropping an unknown `timeZone` with a warning. */
+  private _resolveSessionGaps(
+    input: boolean | SessionGapsOptions | undefined,
+  ): ResolvedSessionGapsOptions {
+    const tz = typeof input === "object" ? input.timeZone : undefined;
+    if (tz !== undefined && tz !== "" && (typeof tz !== "string" || !isValidTimeZone(tz))) {
+      this._warn(
+        "sessionGaps.timeZone: expected an IANA time zone name, ignoring",
+        tz,
+        "INVALID_OPTION",
+      );
+      return resolveSessionGapsOptions({ ...(input as SessionGapsOptions), timeZone: undefined });
+    }
+    return resolveSessionGapsOptions(input);
   }
 
   /** Validate and apply the `timeScale.rightOffset` option.
@@ -1341,6 +1363,10 @@ export class CanvasChart implements ChartInstance {
     }
     if (opts.timeZone !== undefined) {
       this._setTimeZoneOption(opts.timeZone);
+      // Day-boundary gaps follow the chart's zone unless they have their own.
+      if (this._sessionGapsOpts.mode === "dayBoundary" && !this._sessionGapsOpts.timeZone) {
+        this._applySessionGaps();
+      }
       this._needsRender = true;
     }
 
@@ -1359,7 +1385,7 @@ export class CanvasChart implements ChartInstance {
 
     if (opts.timeScale !== undefined) {
       if (opts.timeScale.sessionGaps !== undefined) {
-        this._sessionGapsOpts = resolveSessionGapsOptions(opts.timeScale.sessionGaps);
+        this._sessionGapsOpts = this._resolveSessionGaps(opts.timeScale.sessionGaps);
         this._applySessionGaps();
         this._needsRender = true;
       }
@@ -1796,8 +1822,9 @@ export class CanvasChart implements ChartInstance {
    * - `mode: "timeGap"` (default): time-proportional layout via
    *   `setTimeProportional` — bars sit at their wall-clock positions within a
    *   session and session breaks compress to `sizeBars` bar-widths.
-   * - `mode: "dayBoundary"`: legacy fixed gap at each UTC day change via
-   *   `setGapsBefore` (no time-proportional within-session spacing).
+   * - `mode: "dayBoundary"`: fixed gap at each calendar-day change via
+   *   `setGapsBefore` (no time-proportional within-session spacing). The day
+   *   is read in `sessionGaps.timeZone`, else the chart's `timeZone`.
    * - `mode: "off"`: disable virtual coords (index-based layout).
    */
   private _applySessionGaps(): void {
@@ -1830,77 +1857,6 @@ export class CanvasChart implements ChartInstance {
       });
       return;
     }
-    // Legacy dayBoundary path.
-    const gaps = computeSessionGaps(candles, median, opts);
-    this._timeScale.setGapsBefore(gaps);
+    this._timeScale.setGapsBefore(computeDayBoundaryGaps(candles, opts, this._timeScale.timeZone));
   }
-}
-
-// ============================================
-// Session gap helpers
-// ============================================
-
-type ResolvedSessionGapsOptions = Required<SessionGapsOptions>;
-
-function resolveSessionGapsOptions(
-  input: boolean | SessionGapsOptions | undefined,
-): ResolvedSessionGapsOptions {
-  if (!input) {
-    return {
-      mode: "off",
-      sizeBars: 1,
-      intradayThresholdMs: 6 * 60 * 60 * 1000,
-      gapThresholdMs: 0,
-    };
-  }
-  const opts: SessionGapsOptions = input === true ? {} : input;
-  return {
-    mode: opts.mode ?? "timeGap",
-    sizeBars: opts.sizeBars ?? 1,
-    intradayThresholdMs: opts.intradayThresholdMs ?? 6 * 60 * 60 * 1000,
-    gapThresholdMs: opts.gapThresholdMs ?? 0,
-  };
-}
-
-function medianBarInterval(candles: readonly CandleData[]): number {
-  const deltas: number[] = [];
-  const stride = Math.max(1, Math.floor(candles.length / 64));
-  for (let i = stride; i < candles.length; i += stride) {
-    const d = candles[i].time - candles[i - stride].time;
-    if (d > 0) deltas.push(d / stride);
-  }
-  if (deltas.length === 0) return Number.POSITIVE_INFINITY;
-  deltas.sort((a, b) => a - b);
-  return deltas[Math.floor(deltas.length / 2)];
-}
-
-function computeSessionGaps(
-  candles: readonly CandleData[],
-  medianMs: number,
-  opts: ResolvedSessionGapsOptions,
-): Array<{ index: number; size: number }> {
-  const gaps: Array<{ index: number; size: number }> = [];
-  if (opts.mode === "timeGap") {
-    const threshold = opts.gapThresholdMs > 0 ? opts.gapThresholdMs : medianMs * 2;
-    for (let i = 1; i < candles.length; i++) {
-      const delta = candles[i].time - candles[i - 1].time;
-      if (delta > threshold) {
-        gaps.push({ index: i, size: opts.sizeBars });
-      }
-    }
-  } else if (opts.mode === "dayBoundary") {
-    // Compare UTC calendar day between consecutive bars so cross-timezone
-    // data (e.g. US stocks viewed from Asia) still gets sensible boundaries
-    // — US/Asian/EU sessions all fit within a single UTC day.
-    let prevDay = -1;
-    for (let i = 0; i < candles.length; i++) {
-      const d = new Date(candles[i].time);
-      const day = d.getUTCFullYear() * 10000 + d.getUTCMonth() * 100 + d.getUTCDate();
-      if (prevDay >= 0 && day !== prevDay) {
-        gaps.push({ index: i, size: opts.sizeBars });
-      }
-      prevDay = day;
-    }
-  }
-  return gaps;
 }

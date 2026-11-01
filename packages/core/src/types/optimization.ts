@@ -111,8 +111,7 @@ export type GridSearchOptions = {
    * provided, combinations it rejects are skipped *before* backtesting —
    * they never run, never enter `results`, and don't count toward
    * `validCombinations`. Use it for cross-parameter invariants that no
-   * per-field range can express (e.g. `shortPeriod < longPeriod`), the
-   * exhaustive-grid analogue of vectorbt's parameter mask. The metric
+   * per-field range can express (e.g. `shortPeriod < longPeriod`). The metric
    * `constraints` above filter *after* backtesting on realized metrics;
    * this filters *before*, on the parameters themselves.
    */
@@ -260,9 +259,8 @@ export type MonteCarloOptions = {
    * Drawdown level (as a positive percent) treated as "ruin" for the
    * {@link MonteCarloResult.downside}.`riskOfRuin` figure. A simulation
    * counts toward risk of ruin when its path-dependent max drawdown
-   * reaches or exceeds this level. Default `50` (a 50% peak-to-trough
-   * loss), matching the threshold used by mainstream backtest Monte
-   * Carlo tooling (BuildAlpha, AmiBroker).
+   * reaches or exceeds this level. Default `50`: a 50% peak-to-trough
+   * loss, which takes a 100% gain to recover.
    */
   ruinThreshold?: number;
   /** Progress callback */
@@ -324,9 +322,7 @@ export type MonteCarloResult = {
    * the headline figures for "how risky is this edge?". These replace
    * the previous permutation-test `pValue` / `isSignificant` framing,
    * which forced a binary significance verdict onto a resampling
-   * distribution and compared mismatched Sharpe formulas. The
-   * distribution-based figures below are what mainstream backtest Monte
-   * Carlo tooling reports (StrategyQuant, AmiBroker, BuildAlpha).
+   * distribution and compared mismatched Sharpe formulas.
    */
   downside: {
     /** Fraction of simulations that ended profitable (total return > 0). */

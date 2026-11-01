@@ -4,8 +4,8 @@
  * Created by Tushar Chande, CMO measures momentum using both up and down
  * price movement, oscillating between -100 and +100.
  *
- * Uses Wilder's smoothing method (same approach as RSI) to match
- * the industry-standard TA-Lib implementation.
+ * Uses Wilder's smoothing method (same approach as RSI), so values match
+ * TA-Lib's CMO.
  */
 
 import { ensureNormalized, getPrice } from "../../core/normalize";

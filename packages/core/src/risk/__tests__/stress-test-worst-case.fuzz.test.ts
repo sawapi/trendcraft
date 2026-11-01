@@ -7,8 +7,8 @@ import { stressTest } from "../stress-test";
  * The worst-case scan stressTest used before it read the shared drawdown
  * tracker, kept as the reference. One deliberate change: a new peak is taken
  * at `>=` rather than `>`, so on a flat stretch at the peak the drawdown
- * starts at the stretch's last bar, as the tracker and pyfolio do (see the
- * test below). The old scan started it at the first.
+ * starts at the stretch's last bar, as the tracker does (see the test
+ * below). The old scan started it at the first.
  */
 function referenceWorstCase(equityCurve: number[]) {
   let peak = equityCurve[0];
@@ -95,8 +95,7 @@ describe("stressTest worstCase matches the reference scan", () => {
 
   it("starts a drawdown at the last bar of a flat stretch at its peak", () => {
     // Equity 1 → 1.1 → 1.1 → 0.99: the decline starts at bar 2, one bar
-    // before the trough, not at bar 1 where the old scan started it (as
-    // pyfolio's get_max_drawdown_underwater takes the last bar at the peak).
+    // before the trough, not at bar 1 where the old scan started it.
     const { worstCase } = stressTest([0.1, 0, -0.1], noShock);
     expect(worstCase.duration).toBe(1);
     expect(worstCase.drawdown).toBeCloseTo(0.1, 12);

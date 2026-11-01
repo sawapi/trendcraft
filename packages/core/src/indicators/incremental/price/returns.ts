@@ -8,8 +8,8 @@
  *
  * n-period simple or log returns of close prices.
  *
- * Defaults: `period` defaults to `1` (the universal pandas / NumPy /
- * quantstats convention — `r_t = close_t / close_{t-1} - 1`).
+ * Defaults: `period` defaults to `1`, the one-bar return
+ * `r_t = close_t / close_{t-1} - 1`.
  * `type` defaults to `"simple"`. Reconfig may change either param;
  * the close buffer carries forward as raw values and the new
  * `period` / `type` apply from the next bar onward.

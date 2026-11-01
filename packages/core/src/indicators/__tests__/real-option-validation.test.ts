@@ -8,8 +8,7 @@
  * NaN bands and `srZones(candles, { restarts: Infinity })` never returned.
  * About half of these options had no domain check at all either, so
  * `t3(candles, { vFactor: -1 })` or `cci(candles, { constant: 0 })` ran on.
- * TA-Lib rejects a non-finite or out-of-range real option with TA_BAD_PARAM;
- * these indicators now do the same.
+ * These indicators now reject a non-finite or out-of-range real option.
  */
 
 import { readdirSync, readFileSync, statSync } from "node:fs";

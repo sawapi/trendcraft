@@ -4,6 +4,22 @@ Per-package publish checklist for `@trendcraft/chart`: [packages/chart/RELEASE.m
 
 This is a pnpm workspace monorepo with three independently published packages: `trendcraft` (core), `@trendcraft/chart`, and `@trendcraft/mcp`. Treat their versions and releases as independent; only the repository is shared. The serial-release steps below cover the core→chart dependency chain; `@trendcraft/mcp` follows the same conventions (tag `mcp-v<x.y.z>`, finalize its own CHANGELOG, publish after core when it consumes newly-added core APIs).
 
+## When to release
+
+Cut a release of a package when either of these is true, whichever comes first:
+
+- its `Unreleased` section has more than 10 `Breaking` entries, or
+- a month has passed since its last release, and its `Unreleased` section is not empty.
+
+[Versioning](#versioning-semver-under-0x) decides whether it is a minor or a patch.
+
+Bug fixes do not wait for either trigger:
+
+- a fix for a bug users can see (a wrong calculation, a broken install, broken types or a rendering bug) ships within a few days. Versioning decides whether that release is a patch or a minor, counting everything already in `Unreleased`. Fixes that land close together share one release;
+- documentation-only changes do not trigger a release, unless they correct a published README or `llms` file that leads users to wrong usage.
+
+Once the release PR (version bump and CHANGELOG promotion) is opened, its contents are fixed. Changes merged after that go into the next version, not this one. A late addition means rewriting CHANGELOG entries and migration notes at the last minute.
+
 ## Tag naming
 
 Use prefix-dash form so each package's tags are filterable (`git tag -l 'chart-*'`):
@@ -48,8 +64,14 @@ Do not publish chart or mcp first when they depend on unreleased core APIs or be
 ## CHANGELOG convention
 
 - Keep an `Unreleased` / draft section at the top while work is in flight. Promote to a versioned heading at release time with a concrete date.
-- One CHANGELOG per package (`packages/core/CHANGELOG.md`, `packages/chart/CHANGELOG.md`). Do not maintain a root CHANGELOG.
+- One CHANGELOG per package (`packages/core/CHANGELOG.md`, `packages/chart/CHANGELOG.md`, `packages/mcp/CHANGELOG.md`). Do not maintain a root CHANGELOG.
 - Commit messages can be terse; the CHANGELOG is the user-facing surface and should be written for consumers, not reviewers.
+- Open each released version, patch releases included, with a summary, directly under its version heading and before the categorized entries:
+  - one or two sentences on what the release is;
+  - for a release with `Breaking` entries, a "Most likely to affect you" table (What / Was / Now) of the changes most users will hit, and a link to the migration guide if there is one.
+
+  Write it in the release PR, when `Unreleased` is promoted. The GitHub Release notes reuse it.
+- A minor release comes with a migration guide for each package whose `Breaking` entries are too many to follow from the CHANGELOG alone. If each entry already says how to migrate and a reader can work through them in a few minutes, the CHANGELOG is enough. The guide goes at `packages/<package>/docs/migration-<old>-to-<new>.md` (for example `migration-0.5-to-0.6.md`). Like the 0.6 guides, it sorts the changes by what the user has to do, for example code to change, and behavior that changes with no code change. Start it during the cycle, once the `Breaking` entries reach that point, and finish it in the release PR. Patch releases do not get one.
 
 ## Pre-release (optional)
 

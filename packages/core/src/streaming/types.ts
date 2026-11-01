@@ -232,9 +232,8 @@ export type IndicatorSnapshot = { [key: string]: unknown };
  * bar (a cross, a rising check) records this bar as its new previous value.
  * `"peek"` is a forming bar that may still change: the condition must answer
  * without recording anything, so the next confirmed bar is still compared
- * with the last confirmed one. This is the same model as Pine Script, which
- * rolls a realtime bar's state back before every update and commits only
- * when the bar closes.
+ * with the last confirmed one: a realtime bar's state is rolled back before
+ * every update and committed only when the bar closes.
  */
 export type StreamingConditionContext = {
   mode: "next" | "peek";

@@ -111,7 +111,7 @@ export function cupWithHandle(
       const pivotPoint = Math.max(leftRim.price, rightRim.price);
       const target = pivotPoint + cupHeight; // Measured move from pivot
 
-      // Handle depth should not exceed 50% of cup depth (industry standard)
+      // Handle depth should not exceed 50% of cup depth (common rule)
       const handleRetraceRatio = cupHeight > 0 ? (handle.depth * rightRim.price) / cupHeight : 1;
       if (handleRetraceRatio > 0.5) continue;
 

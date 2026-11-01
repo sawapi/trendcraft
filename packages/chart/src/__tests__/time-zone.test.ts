@@ -4,16 +4,20 @@
  * zone the browser is in.
  */
 
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   autoFormatTime,
   formatCrosshairTime,
   formatShortDate,
   formatShortTime,
 } from "../core/format";
-import { isValidTimeZone, wallClock } from "../core/time-zone";
+import { fromWallClock, isValidTimeZone, wallClock } from "../core/time-zone";
 
 const iso = (d: Date) => d.toISOString().slice(0, 16);
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("wallClock", () => {
   it("reads the zone's wall clock across a DST change", () => {
@@ -42,21 +46,37 @@ describe("wallClock", () => {
     expect(iso(wallClock(Date.UTC(2024, 0, 1, 23, 59), "UTC"))).toBe("2024-01-01T23:59");
   });
 
-  it("reads the browser's local zone when no zone is given", () => {
-    const t = Date.UTC(2024, 6, 1, 13, 45);
-    const local = new Date(t);
-    const d = wallClock(t);
-    expect([d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), d.getUTCHours()]).toEqual([
-      local.getFullYear(),
-      local.getMonth(),
-      local.getDate(),
-      local.getHours(),
-    ]);
+  it("reads UTC when no zone is given, whatever the browser's zone", () => {
+    // A browser in New York (UTC-5): before 0.7.0 an omitted zone read the
+    // browser's clock, so a daily bar stamped at 00:00 UTC fell on the day before.
+    vi.spyOn(Date.prototype, "getTimezoneOffset").mockReturnValue(300);
+    const t = Date.UTC(2017, 2, 1);
+    expect(iso(wallClock(t))).toBe("2017-03-01T00:00");
+    expect(formatCrosshairTime(t, undefined, 86_400_000)).toBe("2017-03-01");
+    expect(autoFormatTime(t, null, 86_400_000)).toBe("Mar 1");
+    expect(formatShortDate(t)).toBe("Mar 1");
+    expect(formatShortTime(Date.UTC(2017, 2, 1, 14, 30))).toBe("14:30");
   });
 
   it("tells known zone names from unknown ones", () => {
     expect(isValidTimeZone("Europe/London")).toBe(true);
     expect(isValidTimeZone("Mars/Olympus_Mons")).toBe(false);
+  });
+});
+
+describe("fromWallClock", () => {
+  it("finds the instant a zone's wall clock reads", () => {
+    expect(fromWallClock(Date.UTC(2026, 0, 1), "Asia/Tokyo")).toBe(Date.UTC(2025, 11, 31, 15));
+    expect(fromWallClock(Date.UTC(2026, 0, 1), "America/New_York")).toBe(Date.UTC(2026, 0, 1, 5));
+    expect(fromWallClock(Date.UTC(2026, 0, 1))).toBe(Date.UTC(2026, 0, 1));
+  });
+
+  it("reads the offset at the answer, not at the guess, across a DST change", () => {
+    // 04:00 EDT on 2024-03-10 is 08:00Z. The offset at 04:00Z is still EST
+    // (-5), which alone would give 09:00Z.
+    expect(fromWallClock(Date.UTC(2024, 2, 10, 4), "America/New_York")).toBe(
+      Date.UTC(2024, 2, 10, 8),
+    );
   });
 });
 

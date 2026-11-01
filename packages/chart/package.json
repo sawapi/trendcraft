@@ -186,12 +186,12 @@
     {
       "name": "Main (createChart + all exports)",
       "path": "dist/index.js",
-      "limit": "44.5 kB"
+      "limit": "46 kB"
     },
     {
       "name": "Headless API",
       "path": "dist/headless.js",
-      "limit": "12.75 kB"
+      "limit": "13 kB"
     },
     {
       "name": "Sparkline (vanilla)",
@@ -221,12 +221,12 @@
     {
       "name": "React wrapper",
       "path": "dist/react/TrendChart.js",
-      "limit": "36.5 kB"
+      "limit": "38 kB"
     },
     {
       "name": "Vue wrapper",
       "path": "dist/vue/TrendChart.js",
-      "limit": "36.5 kB"
+      "limit": "38 kB"
     }
   ],
   "devDependencies": {

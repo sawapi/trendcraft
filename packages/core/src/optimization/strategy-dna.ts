@@ -468,8 +468,8 @@ function wfStabilityScore(stabilityRatio: number): number {
 /**
  * Map Monte Carlo downside risk to a 0–100 robustness score. Driven by
  * the worse of probability-of-loss and risk-of-ruin (a strategy is only
- * as robust as its larger downside). Thresholds mirror the color bands
- * mainstream MC tooling uses for risk of ruin (green < 5%, red > 50%).
+ * as robust as its larger downside). Thresholds: green below 5% risk of
+ * ruin, red above 50%.
  */
 function mcDownsideScore(probLoss: number, riskOfRuin: number): number {
   const risk = Math.max(probLoss, riskOfRuin);

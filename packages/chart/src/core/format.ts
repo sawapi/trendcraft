@@ -49,9 +49,9 @@ export function detectPrecision(prices: number[]): number {
 
 /**
  * Units for price-axis ticks of a million and up, largest first. The axis
- * is a fixed 60px by default, which "140000000000" does not fit. As in
- * Highcharts, only axis labels are shortened: crosshair, badge and legend
- * prices keep every digit (BTC/JPY trades around 15,000,000).
+ * is a fixed 60px by default, which "140000000000" does not fit. Only axis
+ * labels are shortened: crosshair, badge and legend prices keep every digit
+ * (BTC/JPY trades around 15,000,000), since those are read as exact prices.
  */
 const PRICE_UNITS = [
   [1e12, "T"],
@@ -78,8 +78,7 @@ function stepDecimals(step: number): number {
  * Tick label formatter for one price axis: every label gets the decimals the
  * tick step needs, so an axis reads "20, 40, … 140" or "1.21, 1.22, …"
  * rather than switching precision at 1 or 100 the way `autoFormatPrice`
- * does for a single value. Chart.js and d3 derive axis decimals from the
- * step the same way. Falls back to `autoFormatPrice` with fewer than two
+ * does for a single value. Falls back to `autoFormatPrice` with fewer than two
  * ticks, where there is no step.
  *
  * From a million up, the labels take one M/B/T unit chosen by the largest
@@ -115,7 +114,7 @@ function isLogTick(price: number): boolean {
 /**
  * A log-axis tick label. Log ticks have no common step, so each label shows
  * its own digits ("0.01, 0.1, 1, 10") and, from a million up, its own unit
- * ("1M, 100M, 10B"), as d3's log tickFormat labels each tick on its own.
+ * ("1M, 100M, 10B").
  */
 function logTickLabel(price: number): string {
   const unit = PRICE_UNITS.find(([size]) => price >= size);
@@ -172,7 +171,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  * @param intervalMs - Optional dominant bar interval. When the series is
  *   daily-grained or coarser, the first label's wall-clock time is suppressed
  *   (see below). Omit to keep the legacy "show time if non-midnight" behavior.
- * @param timeZone - IANA zone to read the wall clock in (browser local when omitted)
+ * @param timeZone - IANA zone to read the wall clock in (UTC when omitted)
  * @returns Formatted string
  */
 export function autoFormatTime(
@@ -248,7 +247,7 @@ export function autoFormatTime(
 
 /**
  * Format a wall-clock time as a short axis label (HH:MM), 24-hour, in
- * `timeZone` (browser local when omitted).
+ * `timeZone` (UTC when omitted).
  */
 export function formatShortTime(time: number, timeZone?: string): string {
   const d = wallClock(time, timeZone);
@@ -310,10 +309,10 @@ export function pickNiceStep(rangeMs: number, maxTicks: number): number {
 }
 
 /**
- * Format time for crosshair label, in `timeZone` (browser local when
- * omitted). Shows the date, plus the wall-clock time unless it is midnight
- * or the bars are daily or coarser (`intervalMs` ≥ one day), where the hour
- * is a time-zone artifact; the time axis applies the same rule.
+ * Format time for crosshair label, in `timeZone` (UTC when omitted). Shows
+ * the date, plus the wall-clock time unless it is midnight or the bars are
+ * daily or coarser (`intervalMs` ≥ one day), where the hour is a time-zone
+ * artifact; the time axis applies the same rule.
  *
  * @param time - Epoch milliseconds
  * @param timeZone - IANA zone to read the wall clock in

@@ -61,7 +61,7 @@ export function calculateSharpeRatio(
  * Calculate Calmar Ratio (annualized return / max drawdown)
  *
  * Returns `NaN` when `maxDrawdownPercent <= 0` (i.e. there is no
- * meaningful denominator). Matches the empyrical / pyfolio convention
+ * meaningful denominator). Follows the empyrical / pyfolio convention
  * — a flat strategy with no observed drawdown does not have a defined
  * Calmar ratio. Downstream consumers (gridSearch, walkforward) filter
  * `Number.isFinite` to keep NaN strategies out of ranking.

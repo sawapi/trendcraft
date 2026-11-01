@@ -419,7 +419,7 @@ export function ewmaVolatility(returns: number[], options?: EwmaVolatilityOption
   // the uncentered form Σr²/N (mean assumed zero). For daily log
   // returns the two forms differ by μ² — a sub-basis-point effect.
   // We pick centered because (a) it matches standard sample-variance
-  // semantics used by pyfolio / quantstats, and (b) it does not bake
+  // semantics, and (b) it does not bake
   // in a "returns are mean-zero" assumption that breaks on weekly /
   // monthly bars where drift is non-trivial. The incremental
   // sibling (createEwmaVolatility) MUST stay aligned; invariant [8]

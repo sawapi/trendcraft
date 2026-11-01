@@ -224,13 +224,12 @@ const marksCache = new WeakMap<readonly CandleData[], MarksEntry>();
 /**
  * Bar indexes that get a time-axis label and a vertical grid line.
  *
- * Daily and coarser bars are marked on calendar boundaries, the way
- * lightweight-charts picks its tick marks: each bar is weighted by the
- * largest boundary it starts (year > month > day) against the bar before
- * it, and marks are kept from the heaviest weight down while they stay at
- * least MIN_MARK_SPACING from every mark already kept. As there, the marks
- * are picked over all the data and then cut to the visible bars, so they
- * stay put while panning. Labels at a fixed bar interval put "2017" on
+ * Daily and coarser bars are marked on calendar boundaries: each bar is
+ * weighted by the largest boundary it starts (year > month > day) against
+ * the bar before it, and marks are kept from the heaviest weight down while
+ * they stay at least MIN_MARK_SPACING from every mark already kept. The
+ * marks are picked over all the data and then cut to the visible bars, so
+ * they stay put while panning. Labels at a fixed bar interval put "2017" on
  * whichever bar of 2017 the interval reached first, months into the year.
  *
  * Intraday bars keep marks at a fixed bar interval.

@@ -34,7 +34,7 @@ export type McGinleyDynamicOptions = {
  *   MD[i] = MD[i-1] + (Price - MD[i-1]) / (N * (Price / MD[i-1])^4)
  *
  * The widely-used "improved" form adds a smoothing constant `k` to slow
- * the response (k ≈ 0.6 is the de-facto convention on TradingView):
+ * the response (default k = 0.6):
  *
  *   MD[i] = MD[i-1] + (Price - MD[i-1]) / (k * N * (Price / MD[i-1])^4)
  *

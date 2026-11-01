@@ -37,9 +37,8 @@ const isFiniteNumber = (value: unknown): boolean =>
 
 /**
  * Index of the first valid (non-warmup) value in a series, or `-1` if every
- * value is a warmup placeholder. The TrendCraft analogue of TA-Lib's
- * `*_Lookback()`, but read from the actual output so it never drifts from the
- * indicator implementation.
+ * value is a warmup placeholder. Read from the actual output, so it never
+ * drifts from the indicator implementation.
  *
  * Scalar (`number | null`) series use the default test (a finite number).
  * Object-valued series must supply `isValid` naming what counts as a real value.

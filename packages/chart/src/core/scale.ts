@@ -5,7 +5,7 @@
  * PriceScale: price → y pixel
  */
 
-import { wallClock } from "./time-zone";
+import { dayKey } from "./time-zone";
 import type { ScaleMode } from "./types";
 
 // ============================================
@@ -36,7 +36,7 @@ export type TimeProportionalOptions = {
  *     - {@link setTimeProportional} — spacing within a session proportional
  *       to the bar's wall-clock delta, with long session breaks compressed
  *       to a fixed visual gap. Enables {@link timeToX}, {@link getTimeTicks},
- *       {@link getDateTicks} for a Yahoo / TradingView style time axis.
+ *       {@link getDateTicks} for a time axis that follows the clock.
  */
 export class TimeScale {
   /** First visible candle index */
@@ -47,7 +47,7 @@ export class TimeScale {
   private _width = 0;
   /**
    * IANA zone the time labels and day boundaries read the wall clock in
-   * (the chart's `timeZone` option); undefined = the browser's local zone.
+   * (the chart's `timeZone` option); undefined = UTC.
    */
   timeZone: string | undefined;
   /** Total number of candles */
@@ -801,12 +801,6 @@ export class TimeScale {
   }
 }
 
-/** Calendar day key (year*10000 + month*100 + date) in `timeZone` (local when omitted) */
-function dayKey(time: number, timeZone?: string): number {
-  const d = wallClock(time, timeZone);
-  return d.getUTCFullYear() * 10000 + d.getUTCMonth() * 100 + d.getUTCDate();
-}
-
 // ============================================
 // PriceScale
 // ============================================
@@ -1009,12 +1003,12 @@ export class PriceScale {
 }
 
 /**
- * Ticks for a log axis, picked like d3's log scale: the 1–9 multiples of
- * each power of ten, then 1/2/5, then powers of ten alone, the first set
- * with at most `maxTicks`. d3 keeps all 1–9 ticks and blanks labels; every
- * tick here is labelled, so the ticks themselves are thinned. Over more
- * decades than that, every k-th power on multiples of k (1, 100, 10K …) as
- * d3 aligns them, or from the first power when that leaves fewer than two.
+ * Ticks for a log axis: the 1–9 multiples of each power of ten, then 1/2/5,
+ * then powers of ten alone, the first set with at most `maxTicks`. Every
+ * tick is labelled, so the ticks themselves are thinned rather than their
+ * labels. Over more decades than that, every k-th power on multiples of k
+ * (1, 100, 10K …), so the marks stay put as the range moves, or from the
+ * first power when that leaves fewer than two.
  * Empty for a range that is not positive; a range inside one decade can
  * yield fewer than two, and the caller falls back to linear ticks.
  */

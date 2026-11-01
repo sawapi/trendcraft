@@ -320,9 +320,8 @@ function renderWyckoffPhase(
       const conf = last.confidence ?? 0;
       // Sub-phase letter (A/B/C/D/E in classical Wyckoff notation, or
       // arbitrary text for forks like "Spring") gets its own chip rendered
-      // alongside the main badge — that's how LuxAlgo / AGProLabs Wyckoff
-      // tools surface it. Combining the two strings into one badge buries
-      // the sub-phase tag in trailing text and makes it easy to miss.
+      // alongside the main badge. Combining the two strings into one badge
+      // buries the sub-phase tag in trailing text and makes it easy to miss.
       const subPhase = last.subPhase ? last.subPhase.trim() : "";
       const text = `Wyckoff: ${label} (${conf.toFixed(0)})`;
       const rgb = PHASE_COLORS[last.phase] ?? PHASE_COLORS.unknown;

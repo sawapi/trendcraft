@@ -3,8 +3,7 @@
  *
  * Every time label (axis, crosshair) and the date boundaries of the two-row
  * axis read the calendar through {@link wallClock}, so they agree on one
- * clock: the chart's `timeZone` option, or the browser's local zone when it
- * is not set.
+ * clock: the chart's `timeZone` option, or UTC when it is not set.
  */
 
 /**
@@ -19,13 +18,27 @@ const offsets = new Map<string, number>();
 
 /**
  * A Date whose UTC fields (`getUTCFullYear()`, `getUTCHours()`, ...) read the
- * wall clock of `time` in `timeZone`, or in the browser's local zone when
- * `timeZone` is omitted.
+ * wall clock of `time` in `timeZone`, or in UTC when `timeZone` is omitted.
  */
 export function wallClock(time: number, timeZone?: string): Date {
-  return new Date(
-    time + (timeZone ? zoneOffset(time, timeZone) : -new Date(time).getTimezoneOffset() * 60_000),
-  );
+  return new Date(timeZone ? time + zoneOffset(time, timeZone) : time);
+}
+
+/**
+ * Epoch time whose wall clock in `timeZone` (UTC when omitted) reads the UTC
+ * fields of `wall`; the inverse of {@link wallClock}.
+ */
+export function fromWallClock(wall: number, timeZone?: string): number {
+  if (!timeZone) return wall;
+  // The offset at the guess can differ from the offset at the answer when a
+  // zone transition lies between them; a second pass reads it at the answer.
+  return wall - zoneOffset(wall - zoneOffset(wall, timeZone), timeZone);
+}
+
+/** Calendar day key (year*10000 + month*100 + date) in `timeZone` (UTC when omitted) */
+export function dayKey(time: number, timeZone?: string): number {
+  const d = wallClock(time, timeZone);
+  return d.getUTCFullYear() * 10000 + d.getUTCMonth() * 100 + d.getUTCDate();
 }
 
 /** Offset of `timeZone` from UTC at `time`, in ms. */

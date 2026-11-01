@@ -656,7 +656,7 @@ export function computeExtendedMetrics(
     }
   }
 
-  // Calmar: CAGR / maxDrawdown. Industry "return per unit of pain".
+  // Calmar: CAGR / maxDrawdown, "return per unit of pain".
   const calmarRatio = maxDrawdown > 0 ? cagrPercent / maxDrawdown : 0;
 
   return {

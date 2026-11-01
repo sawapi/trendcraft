@@ -30,7 +30,7 @@ A conceptual walkthrough of `@trendcraft/chart`. If you just want to get pixels 
 `@trendcraft/chart` is a Canvas-based charting library built specifically for financial time series. It optimizes for three things:
 
 1. **Indicator auto-detection** — pass a `trendcraft` indicator output and the chart figures out where it belongs, what scale it needs, and what reference lines to draw.
-2. **A small, focused runtime** — no runtime dependencies, ~41 kB main bundle (brotli, size-limit enforced), one canvas per chart, no virtual DOM.
+2. **A small, focused runtime** — no runtime dependencies, ~43 kB main bundle (brotli, size-limit enforced), one canvas per chart, no virtual DOM.
 3. **Extensibility as a plugin system, not a configuration tree** — custom series types and overlays ship as plain functions you register.
 
 What it's **not**:

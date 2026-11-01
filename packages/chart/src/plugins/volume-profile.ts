@@ -65,8 +65,7 @@ export type VolumeProfileState = {
    * Whether to draw horizontal lines and labels at the Value Area High and
    * Low (VAH / VAL). Default true. The shaded fill from
    * `highlightValueArea` only marks which levels are *inside* the area —
-   * these explicit lines are what TradingView, Bookmap and most volume
-   * profile tools draw so the upper and lower bounds are readable as
+   * these explicit lines make the upper and lower bounds readable as
    * specific price levels at a glance.
    */
   showValueAreaBounds?: boolean;

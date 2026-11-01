@@ -257,7 +257,7 @@ export const DEFAULTS = {
   donchianWeight: 0.2,
   atrWeight: 0.1,
   // ADX < 20 = weak/no trend (range-bound likely)
-  // Based on industry standard: ADX < 20-25 = sideways market
+  // Common reading: ADX < 20-25 = sideways market
   adxThreshold: 20,
   // ADX > 25 = trend present (should not be considered range-bound)
   adxTrendThreshold: 25,
