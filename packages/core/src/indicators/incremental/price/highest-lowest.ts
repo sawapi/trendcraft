@@ -9,8 +9,7 @@
  * Uses CircularBuffer with O(n) scan per update (period is typically small).
  *
  * Defaults: `period` has no default and must be supplied, as for the batch
- * `highestLowest()`. Libraries disagree on one (TA-Lib's MAX/MIN use 30,
- * Tulip none). On resume, it may be omitted to inherit from the snapshot.
+ * `highestLowest()`; there is no generally agreed window. On resume, it may be omitted to inherit from the snapshot.
  */
 
 import { assertFiniteCandle } from "../../../core/normalize";

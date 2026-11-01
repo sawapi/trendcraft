@@ -83,7 +83,7 @@ function getPercentile(sorted: number[], p: number): number {
  * Calculate statistics from array of values.
  *
  * `Infinity` (a profit factor with no losing trade) is a value like any
- * other, as in numpy: it ranks above every finite value in the median,
+ * other: it ranks above every finite value in the median,
  * percentiles and max, a single one makes the mean `Infinity`, and the
  * standard deviation is then `NaN` (undefined). Read the median when
  * infinite samples are possible.

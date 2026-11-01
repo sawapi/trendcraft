@@ -1,8 +1,8 @@
 /**
  * Preset trading calendars for common markets.
  *
- * Values are conventional periods-per-year used in industry for Sharpe /
- * volatility annualization. They do not carry holiday tables — core
+ * Values are the conventional periods-per-year for Sharpe / volatility
+ * annualization. They do not carry holiday tables — core
  * intentionally avoids year-by-year data that would go stale.
  */
 

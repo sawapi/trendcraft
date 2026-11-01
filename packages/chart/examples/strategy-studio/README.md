@@ -78,7 +78,7 @@ A `Source · Symbol · TF` toolbar appears in the header. The Symbol field autoc
 **Notes**:
 
 - Free-tier `feed=iex`. Intraday volume coverage is lower than SIP but bar shapes are accurate.
-- Adjustment is `split` to align with TradingView's default chart behaviour.
+- Adjustment is `split`: prices are continuous across splits but not reduced by dividends.
 - Lookback per timeframe is sized so all timeframes return ~2,000–2,500 bars (enough warmup for SMA(200) / Ichimoku).
 - Per-symbol/timeframe results are cached in memory for the session; use `Reload` to bust the cache.
 

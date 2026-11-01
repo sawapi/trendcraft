@@ -20,7 +20,7 @@ export type SparklineSession = {
  *
  * - `{ trend: 'auto' }` (default): in line mode, the whole line is colored by
  *   period direction (last close vs first close). In candle mode, each candle
- *   is colored by its own open/close (industry-standard "green/red candles").
+ *   is colored by its own open/close ("green/red candles").
  * - `{ trend: 'period' }`: forces a single color across the whole sparkline,
  *   chosen by period direction. Useful in candle mode when you want the
  *   *whole* watchlist row to read as up/down at a glance.
@@ -122,8 +122,8 @@ export type SparklineOptions = {
   session?: SparklineSession;
   /**
    * Visual gap (in CSS pixels) reserved on the canvas for each session break.
-   * 'auto' = max(2, width * 0.03); `0` disables the gap (Yahoo-style — 11:30
-   * and 12:30 candles end up adjacent). Default: 'auto'.
+   * 'auto' = max(2, width * 0.03); `0` disables the gap, so the candles on
+   * either side of a break (e.g. 11:30 and 12:30) sit next to each other. Default: 'auto'.
    */
   breakGap?: number | "auto";
   /**

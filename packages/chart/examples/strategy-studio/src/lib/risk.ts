@@ -135,10 +135,9 @@ function sampleVariance(xs: number[], mean: number): number {
 }
 
 /**
- * Sample-size driven default Kelly fraction. Industry consensus
- * (MacLean–Thorp–Ziemba "Good and Bad Properties of Kelly", Van Tharp)
- * is that Full Kelly is fragile to estimation error and only safe with
- * a large sample of in-distribution trades; below 100 decided trades
+ * Sample-size driven default Kelly fraction. Full Kelly is fragile to
+ * estimation error (see MacLean–Thorp–Ziemba, "Good and Bad Properties of
+ * Kelly") and only safe with a large sample of in-distribution trades; below 100 decided trades
  * we step down to Quarter Kelly, and never seed Full Kelly automatically.
  */
 export function recommendedKellyFraction(sampleSize: number): number {

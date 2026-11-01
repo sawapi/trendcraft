@@ -96,7 +96,7 @@ export const OPTIMIZATION_METRICS = /* @__PURE__ */ Object.keys(
 ) as OptimizationMetric[];
 
 /**
- * Mean across the defined entries (numpy `nanmean`); returns 0 when every
+ * Mean across the defined (non-NaN) entries; returns 0 when every
  * value is NaN. NaN means "undefined for this period" (e.g. Calmar with
  * maxDD=0): treating it as 0 would silently bias the average, so dropping
  * the period from the denominator preserves "no data" semantics. Infinity

@@ -118,7 +118,7 @@ export function detectChannel(
 ): PatternSignal[] {
   const {
     swingLookback = 3,
-    minPoints = 3, // Industry standard: 3 touches per boundary, 4+ total
+    minPoints = 3, // Common rule: 3 touches per boundary, 4+ total
     minRSquared = 0.6,
     flatTolerance = 0.0003,
     parallelTolerance = 0.0003,

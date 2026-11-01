@@ -251,8 +251,8 @@ function makeDivergencePrimitive(
 /**
  * Connect RSI divergence visualization. Always draws on the price pane (the
  * label-bearing primitive). Additionally, if the user has enabled the default
- * RSI(14) indicator, draws a mirrored connector on the RSI sub-pane — this is
- * the TradingView-standard "both panes" rendering.
+ * RSI(14) indicator, draws a mirrored connector on the RSI sub-pane, so the
+ * divergence reads on both the price and the oscillator.
  */
 function connectRsiDivergence(candles: NormalizedCandle[]): PluginHandle | null {
   const signals = rsiDivergence(candles);

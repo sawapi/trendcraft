@@ -57,9 +57,8 @@ export type Tunable = CoreTunable & {
  *   would miss the user's saved value.
  * - `isInteger`: falls back to a numeric heuristic for registry entries
  *   that haven't been annotated with `ParamDef.integer`. Core
- *   deliberately doesn't infer this (matches TA-Lib / freqtrade / Pine
- *   Script: integer vs float typing should be explicit at the schema
- *   level), but Studio still needs *some* answer for un-annotated
+ *   deliberately doesn't infer this (integer vs float typing is explicit
+ *   at the schema level), but Studio still needs *some* answer for un-annotated
  *   entries so the range slider's step works.
  */
 export function listTunables(strategy: StrategyJSON): Tunable[] {

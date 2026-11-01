@@ -15,9 +15,8 @@ const TABS: { key: Tab; label: string }[] = [
 ];
 
 /**
- * Three-tab result panel mirroring the TradingView / MT5 strategy-report
- * structure: KPI snapshot first, long/short breakdown second, trade-level
- * statistics third. Tabs let us surface the nine extended `BacktestResult`
+ * Three-tab result panel: KPI snapshot first, long/short breakdown second,
+ * trade-level statistics third. Tabs let us surface the nine extended `BacktestResult`
  * fields (sortino, calmar, cagr, expectancy, exposure, avg/largest win,
  * avg/largest loss) without flooding the default view.
  */

@@ -2,12 +2,12 @@
  * Return-distribution and rolling performance metrics.
  *
  * These operate on a bare array of periodic returns expressed as fractions
- * (e.g. `0.012` for +1.2%), matching the empyrical / quantstats convention.
+ * (e.g. `0.012` for +1.2%), the same input convention as empyrical / quantstats.
  * The caller chooses the granularity — pass daily returns for daily-resolution
  * metrics, monthly returns for monthly ones.
  *
- * Conventions (deliberately mirroring empyrical / quantstats so values are
- * comparable to the Python canon):
+ * Conventions (the same definitions as empyrical / quantstats, so values can
+ * be compared with theirs):
  * - An undefined ratio (zero or empty denominator) returns `NaN`, except
  *   `profitFactorFromReturns`, which returns `Infinity` when there are gains
  *   but no losses and `0` when everything is flat — the quantstats scalar
@@ -67,9 +67,9 @@ export type OmegaOptions = {
  * the area below it. An Omega above 1 means gains beyond the threshold
  * outweigh shortfalls below it.
  *
- * Mirrors empyrical's `omega_ratio`: `requiredReturn` is treated as an
- * annualised rate and de-annualised to per-period τ, then subtracted (along
- * with the per-period `riskFree`) from every observation.
+ * Follows the same definition as empyrical's `omega_ratio`: `requiredReturn`
+ * is treated as an annualised rate and de-annualised to per-period τ, then
+ * subtracted (along with the per-period `riskFree`) from every observation.
  *
  * @param returns - Periodic returns as fractions
  * @param options - Threshold and annualisation options
@@ -112,8 +112,8 @@ export function omegaRatio(returns: number[], options: OmegaOptions = {}): numbe
  * `|percentile(cutoff)| / |percentile(1 - cutoff)|`. A value above 1 means
  * the best returns are larger in magnitude than the worst.
  *
- * Matches quantstats' `tail_ratio` (default cutoff 0.95, i.e. 95th vs 5th
- * percentile, linear-interpolated).
+ * Follows the same definition as quantstats' `tail_ratio` (default cutoff
+ * 0.95, i.e. 95th vs 5th percentile, linear-interpolated).
  *
  * @param returns - Periodic returns as fractions
  * @param cutoff - Upper percentile in [0.5, 1] (default 0.95). Below 0.5 the

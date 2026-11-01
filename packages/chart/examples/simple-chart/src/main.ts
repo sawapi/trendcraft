@@ -583,7 +583,7 @@ document.getElementById("btn-plugin-trail")?.addEventListener("click", (e) => {
   }
 });
 
-// --- Volume Overlay Demo: Yahoo Finance style volume on main pane ---
+// --- Volume Overlay Demo: volume bars along the bottom of the main pane ---
 
 const VOL_OVERLAY_CONFIG = {
   pane: "main" as const,

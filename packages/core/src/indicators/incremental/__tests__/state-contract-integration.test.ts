@@ -534,7 +534,7 @@ type AnchoredVwapValueShape = {
 // ---- Bundle D (Wave 1 final): Returns / HighestLowest ----
 
 // Returns — Windowed, canonical defaults (period=1, type="simple"
-// match pandas / quantstats convention). The close buffer carries
+// follow the pandas / quantstats convention). The close buffer carries
 // forward as raw values across both period AND type changes — `type`
 // only affects the formula, not the buffered data.
 describeContract<number | null, ReturnsState>({

@@ -3056,7 +3056,7 @@ interface Trade {
 }
 ```
 
-`profitFactor` は、利益があって負けトレード（`return < 0` のトレード。損益ゼロは含みません）がないとき `Infinity` になり、どの有限の比率よりも上に順位付けされます。`gridSearch` などの最適化と `calculateStatistics` はそのように順位付けし、numpy と同じく `Infinity` を含む平均は `Infinity` になります。ウォークフォワードの平均は、指標が `NaN` の期間を除きます（numpy の `nanmean` と同じ）が、`calculateStatistics` と感度分析の平均は除きません。`JSON.stringify` は `Infinity` を `null` として書き出すので、結果を JSON に保存するコードでは `null` を「負けトレードなし」と読み戻してください。負けなしの結果は 1〜2 回の幸運なトレードであることが多いので、`profitFactor` で最適化するときは `constraint("tradeCount", ">=", 30)` のような取引回数の制約を付けてください。
+`profitFactor` は、利益があって負けトレード（`return < 0` のトレード。損益ゼロは含みません）がないとき `Infinity` になり、どの有限の比率よりも上に順位付けされます。`gridSearch` などの最適化と `calculateStatistics` はそのように順位付けし、`Infinity` を含む平均は `Infinity` になります。ウォークフォワードの平均は、指標が `NaN` の期間を除きますが、`calculateStatistics` と感度分析の平均は除きません。`JSON.stringify` は `Infinity` を `null` として書き出すので、結果を JSON に保存するコードでは `null` を「負けトレードなし」と読み戻してください。負けなしの結果は 1〜2 回の幸運なトレードであることが多いので、`profitFactor` で最適化するときは `constraint("tradeCount", ">=", 30)` のような取引回数の制約を付けてください。
 
 ---
 
@@ -4353,7 +4353,7 @@ const stats = calculateStatistics([1, 2, 3, 4, 5]);
 console.log(stats.mean);    // 3
 console.log(stats.median);  // 3
 
-// Infinity（負けトレードなしの profit factor）も numpy と同じく 1 つの値として扱います。
+// Infinity（負けトレードなしの profit factor）も 1 つの値として扱います。
 // 中央値・パーセンタイルの順位に入り、平均にもそのまま反映されます
 const pf = calculateStatistics([1, 2, 3, Infinity, Infinity]);
 pf.median; // 3
@@ -4591,12 +4591,7 @@ type MarginConfig = {
 経過時間方式はあえて残している。オーバーナイト方式にはタイムゾーンと決済の締め時刻
 が要り、設定を誤ってももっともらしい結果が出てしまう。実際の課金は受渡日、日数の
 数え方（360 日か 365 日か）、段階金利にも左右されるので、オーバーナイト方式でも近似
-にとどまる。バックテスターの扱いもさまざまで、
-[backtrader](https://github.com/mementum/backtrader/blob/master/backtrader/comminfo.py)
-は暦日が変わるごとに 365 日基準で（既定では空売りのポジションに対して、借入額ではなく
-ポジションの価額に）、
-[LEAN の空売りコストモデル](https://github.com/QuantConnect/Lean/blob/master/Common/Securities/Equity/ShortMarginInterestRateModel.cs)
-は日付が変わるごとに 360 日基準で課金し、zipline と LEAN の既定は課金しない。
+にとどまる。
 
 360 日基準にしたい場合は、`interestRate × 365 / 360` を渡す。
 
@@ -4904,7 +4899,7 @@ const preview = evaluateStreamingCondition(entryCondition, snapshot, candle, { m
 前の足と比べる条件（クロス、`*Rising` / `*Falling`、`obvUpTick` / `obvDownTick`、`*Flip`、`newHigh` / `newLow`、`priceDroppedAtr` / `priceGainedAtr`）は、前の足の値を内部に持っています。その値を更新してよいかは `context.mode` で決まります。
 
 - `"next"`（既定）: 確定した足。条件はこの足を新しい「前の足」として記録します。
-- `"peek"`: まだ変わりうる確定前の足。条件は答えますが何も記録しないので、次の確定足は最後の確定足と比べられます。`pipeline.peek()` はこれを渡します。Pine Script も同じで、リアルタイムの足は更新のたびに状態を巻き戻し、足が閉じたときだけ確定させます。
+- `"peek"`: まだ変わりうる確定前の足。条件は答えますが何も記録しないので、次の確定足は最後の確定足と比べられます。`pipeline.peek()` はこれを渡します。リアルタイムの足は更新のたびに状態を巻き戻し、足が閉じたときだけ確定させます。
 
 `and`、`or`、`not` は毎回すべての子を評価します。そのため、`and` の前の条件が false でも、状態を持つ子はすべての足を見ます。
 

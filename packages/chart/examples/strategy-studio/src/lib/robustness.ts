@@ -7,10 +7,9 @@ import {
 } from "trendcraft";
 
 /**
- * Default Monte Carlo iteration count. 1000 is the industry-canonical
- * baseline (AmiBroker / StrategyQuant / BuildAlpha all default here):
- * enough for stable 5th/95th percentile estimates without a perceptible
- * pause on a few-hundred-trade backtest.
+ * Default Monte Carlo iteration count. 1000 is enough for stable 5th/95th
+ * percentile estimates without a perceptible pause on a few-hundred-trade
+ * backtest.
  */
 export const DEFAULT_MC_ITERATIONS = 1000;
 

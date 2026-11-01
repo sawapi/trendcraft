@@ -85,8 +85,8 @@ export function MonteCarloReport({
 }
 
 /**
- * Color a risk fraction by the bands mainstream Monte Carlo tooling uses
- * (green < 5%, amber < 20%, red ≥ 20%, deep red ≥ 50%).
+ * Color a risk fraction by band (green < 5%, amber < 20%, red ≥ 20%,
+ * deep red ≥ 50%).
  */
 function riskColor(p: number): string {
   if (p < 0.05) return "#16a34a";
