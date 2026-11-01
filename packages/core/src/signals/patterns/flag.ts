@@ -273,7 +273,7 @@ export function detectFlag(
     const midIndex = (consStart + consEnd) / 2;
     const patternHeight = Math.abs(upper.valueAt(midIndex) - lower.valueAt(midIndex));
 
-    // Consolidation should retrace no more than 50% of the pole (industry standard: 38-50%)
+    // Consolidation should retrace no more than 50% of the pole (common rule: 38-50%)
     if (patternHeight > pole.magnitude * 0.5) continue;
 
     // Consolidation duration should not greatly exceed the flagpole duration

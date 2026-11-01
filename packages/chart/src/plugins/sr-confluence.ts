@@ -101,10 +101,8 @@ function renderSrConfluence(
       ctx.font = canvasFont(9, fontFamily);
       ctx.textAlign = "right";
       ctx.textBaseline = "middle";
-      // Strength score + touch count (when available). Mirrors the
-      // convention used by TradingView S/R indicators (BigBeluga, MTF
-      // Confluence) where "how many tests has this level survived" is
-      // surfaced alongside the numeric strength.
+      // Strength score + touch count (when available): "how many tests has
+      // this level survived" reads more directly than the score alone.
       const label =
         zone.touchCount != null && zone.touchCount > 0
           ? `S${zone.strength.toFixed(0)} · ×${zone.touchCount}`

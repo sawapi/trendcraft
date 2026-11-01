@@ -5,9 +5,8 @@
  * each bar and reports a performance table per regime, plus the empirical
  * regime transition matrix observed over the candle window.
  *
- * Attribution is **bar/return-level**, the convention shared by pyfolio,
- * quantstats and Alphalens (grouping period returns by a categorical label):
- * each daily return is assigned to the regime of the bar it is realised on,
+ * Attribution is **bar/return-level** (grouping period returns by a
+ * categorical label): each daily return is assigned to the regime of the bar it is realised on,
  * then the headline statistics are aggregated within each regime. A position
  * held across a regime change therefore has its P&L split across regimes, which
  * is the intended behaviour. The per-regime `tradeCount` is a separate,

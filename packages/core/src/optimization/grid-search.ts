@@ -225,8 +225,8 @@ export function gridSearch(
       };
 
       // Only keep valid, scored results unless keepAllResults is true.
-      // Calmar / MAR / Recovery return NaN when maxDD <= 0 (matches
-      // empyrical / pyfolio), and an undefined score cannot be ranked.
+      // Calmar / MAR / Recovery return NaN when maxDD <= 0, and an
+      // undefined score cannot be ranked.
       // Infinity is a score: a profit factor with no losing trade, which
       // ranks above every finite one.
       const scored = !Number.isNaN(score);

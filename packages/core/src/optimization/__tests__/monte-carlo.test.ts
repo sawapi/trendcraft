@@ -618,7 +618,7 @@ describe("Monte Carlo Simulation", () => {
 
 describe("calculateStatistics with infinite values", () => {
   // A resample with no losing trade has a profit factor of Infinity. It is a
-  // value, as in numpy: ranked, and carried through the mean.
+  // value: ranked, and carried through the mean.
   const INF = Number.POSITIVE_INFINITY;
 
   it("ranks Infinity in the median and percentiles and carries it into the mean", () => {

@@ -90,7 +90,7 @@ export function resolveColors(
 
   // trend
   if (effective.trend === "auto" && mode === "candle") {
-    // Industry standard: each candle colored by its own open/close.
+    // Each candle colored by its own open/close.
     return {
       stroke: defaults.up,
       fill: defaults.up,

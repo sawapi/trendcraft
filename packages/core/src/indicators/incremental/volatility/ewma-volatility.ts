@@ -264,8 +264,7 @@ export function createEwmaVolatility(
     // to be zero — for daily log returns this differs from the
     // centered form by μ², a sub-basis-point effect. We pick the
     // centered form because (a) it is what `Math.var`-style sample
-    // statistics imply and what pyfolio / quantstats use under the
-    // hood, and (b) it does not silently bake in a "returns are
+    // statistics imply, and (b) it does not silently bake in a "returns are
     // mean-zero" assumption that breaks on monthly / weekly bars
     // where the drift is non-trivial. Batch and incremental MUST
     // use the same form; invariant [8] enforces this bar-for-bar.

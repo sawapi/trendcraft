@@ -893,8 +893,8 @@ describe("period guard inventory", () => {
   /**
    * Bar-count options destructured from `options` with no `assertPeriod` call
    * naming them. Each is still checked before any early return, so an invalid
-   * value is rejected whatever the data: TA-Lib likewise rejects a bad option
-   * before looking at the input length. A wrapper that returns early on empty
+   * value is rejected whatever the data, before the input length is looked
+   * at. A wrapper that returns early on empty
    * or short input must check at its own entry rather than rely on the inner
    * indicator; anything not listed here fails the test below.
    */

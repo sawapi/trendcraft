@@ -3078,7 +3078,7 @@ interface Trade {
 }
 ```
 
-`profitFactor` is `Infinity` when there is profit but no losing trade (a trade with `return < 0`; a breakeven trade is not one), so a no-loss run ranks above every finite ratio. `gridSearch`, the other optimizers and `calculateStatistics` rank it that way, and a mean over values that include it is `Infinity`, as in numpy. Walk-forward averages also skip periods where a metric is `NaN` (like numpy's `nanmean`); `calculateStatistics` and the sensitivity means do not. `JSON.stringify` writes `Infinity` as `null`, so code that serializes a result should read `null` back as "no losing trade". A no-loss run is often one or two lucky trades, so when optimizing on `profitFactor` add a trade-count constraint such as `constraint("tradeCount", ">=", 30)`.
+`profitFactor` is `Infinity` when there is profit but no losing trade (a trade with `return < 0`; a breakeven trade is not one), so a no-loss run ranks above every finite ratio. `gridSearch`, the other optimizers and `calculateStatistics` rank it that way, and a mean over values that include it is `Infinity`. Walk-forward averages also skip periods where a metric is `NaN`; `calculateStatistics` and the sensitivity means do not. `JSON.stringify` writes `Infinity` as `null`, so code that serializes a result should read `null` back as "no losing trade". A no-loss run is often one or two lucky trades, so when optimizing on `profitFactor` add a trade-count constraint such as `constraint("tradeCount", ">=", 30)`.
 
 ---
 
@@ -4389,7 +4389,7 @@ const stats = calculateStatistics([1, 2, 3, 4, 5]);
 console.log(stats.mean);    // 3
 console.log(stats.median);  // 3
 
-// Infinity (a profit factor with no losing trade) is a value, as in numpy:
+// Infinity (a profit factor with no losing trade) is a value:
 // it ranks in the median and percentiles and carries through the mean
 const pf = calculateStatistics([1, 2, 3, Infinity, Infinity]);
 pf.median; // 3
@@ -4638,14 +4638,7 @@ interest here and none at a broker.
 The elapsed-time model is kept on purpose. An overnight model needs a timezone
 and a settlement cutoff, and set wrong they give plausible but wrong numbers.
 Real billing also depends on settlement dates, the day-count basis and tiered
-rates, so an overnight model would still be an approximation. Backtesters
-differ here as well:
-[backtrader](https://github.com/mementum/backtrader/blob/master/backtrader/comminfo.py)
-charges per calendar-date change on a 365-day basis, on short positions by
-default and on position value rather than a loan,
-[LEAN's short-fee model](https://github.com/QuantConnect/Lean/blob/master/Common/Securities/Equity/ShortMarginInterestRateModel.cs)
-per date change on a 360-day basis, and zipline and LEAN's default charge
-nothing.
+rates, so an overnight model would still be an approximation.
 
 For a 360-day basis, pass `interestRate × 365 / 360`.
 
@@ -4953,7 +4946,7 @@ const preview = evaluateStreamingCondition(entryCondition, snapshot, candle, { m
 Conditions that compare with the previous bar (crosses, `*Rising` / `*Falling`, `obvUpTick` / `obvDownTick`, `*Flip`, `newHigh` / `newLow`, `priceDroppedAtr` / `priceGainedAtr`) keep that bar internally. `context.mode` decides whether this call may move it:
 
 - `"next"` (the default): a confirmed bar. The condition records it as its new previous bar.
-- `"peek"`: a forming bar that may still change. The condition answers but records nothing, so the next confirmed bar is still compared with the last confirmed one. `pipeline.peek()` passes this. Pine Script works the same way: it rolls a realtime bar's state back before each update and commits it only when the bar closes.
+- `"peek"`: a forming bar that may still change. The condition answers but records nothing, so the next confirmed bar is still compared with the last confirmed one. `pipeline.peek()` passes this. A realtime bar's state is rolled back before each update and committed only when the bar closes.
 
 `and`, `or` and `not` evaluate every child on every bar, so a stateful child behind a false `and` sibling still sees each bar.
 

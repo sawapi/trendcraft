@@ -115,9 +115,9 @@ function renderOrderBlocks(
     ctx.lineWidth = 1;
     ctx.strokeRect(startX, topY, w, h);
 
-    // Top-left label — "BB" / "OB" matches LuxAlgo SMC convention
-    // (Bullish Block / Order Block). Mitigation tag distinguishes used
-    // blocks at a glance without changing the color palette.
+    // Top-left label: "BB" (Bullish Block) or "OB" (Order Block). The
+    // mitigation tag distinguishes used blocks at a glance without changing
+    // the color palette.
     const label = zone.type === "bullish" ? "BB" : "OB";
     const text = zone.mitigated ? `${label} ✕` : label;
     ctx.fillStyle = `rgba(${rgb},${zone.mitigated ? 0.45 : 0.85})`;
@@ -193,15 +193,15 @@ function renderSweepMarkers(
     ctx.beginPath();
     if (marker.type === "bullish") {
       // Up triangle (swept low → bullish signal). The bar swept *sell-side*
-      // liquidity (stops below recent lows) and reversed up — LuxAlgo SMC
-      // labels this "SSL" (Sell-Side Liquidity).
+      // liquidity (stops below recent lows) and reversed up: a
+      // Sell-Side Liquidity (SSL) sweep.
       ctx.moveTo(x, y - size);
       ctx.lineTo(x - size, y + size);
       ctx.lineTo(x + size, y + size);
     } else {
       // Down triangle (swept high → bearish signal). The bar swept
-      // *buy-side* liquidity (stops above recent highs) — LuxAlgo SMC
-      // labels this "BSL" (Buy-Side Liquidity).
+      // *buy-side* liquidity (stops above recent highs): a Buy-Side
+      // Liquidity (BSL) sweep.
       ctx.moveTo(x, y + size);
       ctx.lineTo(x - size, y - size);
       ctx.lineTo(x + size, y - size);

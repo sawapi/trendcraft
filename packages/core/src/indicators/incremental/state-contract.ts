@@ -114,8 +114,8 @@ export type ResolveResumeOptions<TParams extends Record<string, unknown>, TState
   fromState: IndicatorSnapshot<TState> | null | undefined;
   /**
    * Canonical defaults. Partial — keys can be omitted for params
-   * with no meaningful canonical default (e.g., SMA's `period`: every
-   * mainstream library makes the caller specify it). The merged
+   * with no meaningful canonical default (e.g., SMA's `period`, which
+   * depends entirely on what the caller is measuring). The merged
    * `params` returned by `resolveResume` is still typed as `TParams`
    * (the caller's declared intent); the constructor is expected to
    * validate that any required-but-defaultless key was supplied via

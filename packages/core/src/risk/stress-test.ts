@@ -52,8 +52,7 @@ export type StressTestResult = {
     /**
      * Bars from the peak that started the worst drawdown to its trough. The
      * drawdown starts at the last bar at which equity stood at that peak,
-     * whether it stayed there (a flat stretch) or came back to it exactly,
-     * as in pyfolio.
+     * whether it stayed there (a flat stretch) or came back to it exactly.
      */
     duration: number;
     /**

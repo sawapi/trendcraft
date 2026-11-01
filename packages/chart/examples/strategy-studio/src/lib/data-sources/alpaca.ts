@@ -55,8 +55,8 @@ export const PORTFOLIO_SYMBOLS: ReadonlyArray<{ symbol: string; label: string }>
 /**
  * Fetch historical bars for a given symbol/timeframe via the dev-server proxy.
  * Pagination is handled internally; returns a chronologically ordered array
- * of `StudioCandle`. Adjustment is `split` to align with TradingView's default
- * chart behaviour for sanity comparisons.
+ * of `StudioCandle`. Adjustment is `split`: continuous across splits, but not
+ * reduced by dividends.
  */
 export async function fetchAlpacaBars(
   symbol: string,

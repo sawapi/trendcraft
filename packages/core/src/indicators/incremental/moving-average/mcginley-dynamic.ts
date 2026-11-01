@@ -16,11 +16,10 @@
  * library-wide `resolveResume` recursive policy.
  *
  * Extreme-gap behavior: the `(price / MD)^4` ratio is uncapped, which
- * matches the canonical McGinley (1990) formulation as used by
- * TradingView and StockCharts. On upward gaps the denominator grows
- * fast, so the indicator simply lags more — graceful. On *downward*
- * gaps the denominator shrinks to ~0 and the next MD can swing to a
- * large negative value (e.g. `price = 0.1 × MD` → denom ≈ 8.4e-4,
+ * matches the canonical McGinley (1990) formulation. On upward gaps the
+ * denominator grows fast, so the indicator simply lags more — graceful.
+ * On *downward* gaps the denominator shrinks to ~0 and the next MD can
+ * swing to a large negative value (e.g. `price = 0.1 × MD` → denom ≈ 8.4e-4,
  * adjustment ≈ -1071 × MD). In practice price = 0 / extreme-down
  * gaps mostly indicate dirty input rather than real moves; reject
  * those upstream. Some third-party implementations clamp the ratio

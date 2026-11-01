@@ -380,7 +380,7 @@ For series-type plugins (e.g. footprint candles), use `defineSeriesRenderer`. Se
 
 **Goal:** Replace the chart's candles with an unrelated dataset (a different symbol, a new timeframe, a freshly uploaded file) without leaving primitive overlays anchored to the old (time, price) coordinates.
 
-Chart primitives — anything registered via `registerPrimitive` or the built-in `connectPricePatterns` / `connectVolumeProfile` / `connectSrConfluence` / etc. — capture their coordinates at build time and **do not** auto-invalidate when `setCandles` runs. This is intentional and matches TradingView Lightweight Charts and Highcharts behavior, where annotations stay attached and re-project from `(time, price)` each frame. The downside is that primitives built from the previous data can render at coordinates that happen to overlap the new view, silently misleading the reader.
+Chart primitives — anything registered via `registerPrimitive` or the built-in `connectPricePatterns` / `connectVolumeProfile` / `connectSrConfluence` / etc. — capture their coordinates at build time and **do not** auto-invalidate when `setCandles` runs. This is intentional: annotations stay attached and re-project from `(time, price)` each frame. The downside is that primitives built from the previous data can render at coordinates that happen to overlap the new view, silently misleading the reader.
 
 The cleanup pattern:
 

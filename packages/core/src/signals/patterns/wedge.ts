@@ -110,7 +110,7 @@ export function detectWedge(
 ): PatternSignal[] {
   const {
     swingLookback = 3,
-    minPoints = 3, // Industry standard: 3 touches per trendline to validate
+    minPoints = 3, // Common rule: 3 touches per trendline to validate
     minRSquared = 0.6,
     maxBreakoutBars = 20,
     validateVolume = true,

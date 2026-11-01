@@ -294,8 +294,8 @@ describe("renderPriceAxis tick label decimals", () => {
 
   // Each tick used to be formatted by its own magnitude, so one axis read
   // "20.000, 40.000, 80.000, 100.00, 120.00" and an RSI pane "50.000" next
-  // to "100.00". The decimals now come from the tick step, as in Chart.js and
-  // d3, and every label on the axis shares them.
+  // to "100.00". The decimals now come from the tick step, and every label on
+  // the axis shares them.
   it("gives a price axis that crosses 100 one number of decimals", () => {
     const ctx = mockCtx();
     renderPriceAxis(ctx, makePriceScale(400, 15, 145), 740, 0, 60, 400, theme, 11);

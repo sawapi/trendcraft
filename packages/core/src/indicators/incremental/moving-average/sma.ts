@@ -6,8 +6,8 @@
  * `IndicatorSnapshot<SmaState>` and `fromState` accepts the same.
  *
  * Defaults: `source` defaults to `"close"`. `period` has no canonical
- * default (Pine Script / TA-Lib / Tulip all require it from the
- * caller); it must be supplied on first construction. On resume, it
+ * default, since it depends on what the caller is measuring; it must be
+ * supplied on first construction. On resume, it
  * may be omitted to inherit from the snapshot.
  */
 

@@ -89,6 +89,7 @@ Both are ECharts apps, and each has its own settings dialog.
   - Do not add attribution lines.
 - **Ask first:** dependency major upgrades with breaking changes, size-limit raises beyond the release budget, public API removals or renames, and anything outward-facing beyond the PR itself.
   - "Outward-facing" covers releases, tags, npm publish and repository settings.
-- **API and design decisions:** check how comparable libraries handle the same problem, and cite what you checked.
+- **API and design decisions:** check how comparable libraries handle the same problem, and record what you checked in the maintainer's private tracker, not in the PR, commits or docs.
+  - Public text (CHANGELOG, docs, code comments, PR bodies, commit messages) gives the project's own reason, never "library X does it this way". Compatibility facts that users compare against stay, such as "matches TA-Lib" and cross-validation results.
 
 Releases: see [RELEASING.md](RELEASING.md).

@@ -109,7 +109,7 @@ describe("Optimization Metrics", () => {
   });
 
   describe("calculateCalmarRatio", () => {
-    it("returns NaN when drawdown is 0 (matches empyrical / pyfolio convention)", () => {
+    it("returns NaN when drawdown is 0 (follows the empyrical / pyfolio convention)", () => {
       expect(calculateCalmarRatio(10, 0)).toBeNaN();
       expect(calculateCalmarRatio(0, 0)).toBeNaN();
       expect(calculateCalmarRatio(-5, 0)).toBeNaN();
@@ -131,7 +131,7 @@ describe("Optimization Metrics", () => {
   });
 
   describe("calculateRecoveryFactor", () => {
-    it("returns NaN when drawdown is 0 (matches empyrical / pyfolio convention)", () => {
+    it("returns NaN when drawdown is 0 (follows the empyrical / pyfolio convention)", () => {
       expect(calculateRecoveryFactor(1000, 0)).toBeNaN();
       expect(calculateRecoveryFactor(0, 0)).toBeNaN();
       expect(calculateRecoveryFactor(-100, 0)).toBeNaN();
@@ -148,7 +148,7 @@ describe("Optimization Metrics", () => {
   });
 
   describe("calculateMAR", () => {
-    it("returns NaN when drawdown is 0 (matches empyrical / pyfolio convention)", () => {
+    it("returns NaN when drawdown is 0 (follows the empyrical / pyfolio convention)", () => {
       expect(calculateMAR(10, 252, 0)).toBeNaN();
       expect(calculateMAR(0, 252, 0)).toBeNaN();
       expect(calculateMAR(-5, 252, 0)).toBeNaN();

@@ -199,9 +199,8 @@ rows.
 candles. The chart's `setCandles` already drops bars with non-finite prices
 or volume.
 
-**Why throw.** TA-Lib leaves its input unchecked. Its maintainers' reason is
-that silently replacing a `NaN` would hide a problem: a `NaN` should prompt
-the question of why it is there. Throwing asks that question at the
+**Why throw.** Silently replacing a `NaN` would hide a problem: a `NaN`
+should prompt the question of why it is there. Throwing asks that question at the
 boundary.
 
 `runScreening` still skips a symbol whose data has such a row, as before; the
@@ -271,9 +270,8 @@ already used:
   `createSuperSmoother`, and its options argument may be omitted.
 
 **Default removed (breaking).** `createHighestLowest` now requires `period`,
-as `highestLowest` always has. It used to default to 20. Libraries
-disagree on this window: TA-Lib's MAX/MIN default to 30, and Tulip has no
-default. Pass `{ period: 20 }` to keep the old behaviour. The streaming
+as `highestLowest` always has. It used to default to 20, a window with no
+generally agreed value. Pass `{ period: 20 }` to keep the old behaviour. The streaming
 presets already pass it. Its type says so too: `period` is required for a new
 indicator and may be left out only when resuming with `fromState`, where it
 comes from the snapshot.
@@ -288,8 +286,8 @@ confirmed, so the next confirmed bar was compared with the forming one.
 `createTradingSession` peeks on every trade when `emitPartial` is set.
 
 Conditions now take an optional third argument, `context: { mode: "next" |
-"peek" }`, which is the Pine Script model: a realtime bar is rolled back
-before each update and committed only on close. Stateful conditions record
+"peek" }`: a realtime bar is rolled back before each update and committed
+only on close. Stateful conditions record
 the bar only on `"next"`, the default, and `pipeline.peek()` passes
 `"peek"`. Unified conditions (`defineUnifiedCondition`) receive the same
 argument through `toStreamingCondition()`. A custom condition that keeps
@@ -308,11 +306,9 @@ This changes working code that relied on the short-circuit as a guard. In
 even when the first is false, and it may throw or record state. A child
 that relied on a sibling to guard it must now check for itself.
 
-Pine Script made the opposite change in v6, to lazy `and` / `or`. Its
-migration guide then asks scripts to call history-dependent functions on
-every bar, by moving them to the global scope. TrendCraft's preset
-conditions are closures that a caller cannot move, so evaluating every
-child is how they get that guarantee.
+History-dependent conditions must see every bar. TrendCraft's preset
+conditions are closures that a caller cannot move out of an `and` / `or`,
+so evaluating every child is how they get that guarantee.
 
 ### Breaking — scoring evaluator factories and `rotateStrategies` reject out-of-range numbers
 
@@ -452,9 +448,8 @@ reported an improvement.
 
 Every result now reports the ratio rounded to 2 decimals, `Infinity` when
 there is profit but no losing trade (`return < 0`; a breakeven trade is not
-one), and 0 when there is neither. `Infinity` for no loss matches quantstats
-(single series) and vectorbt, and is what `profitFactorFromReturns` and
-`rotateStrategies` already used. What changes:
+one), and 0 when there is neither. `Infinity` for no loss is what
+`profitFactorFromReturns` and `rotateStrategies` already used. What changes:
 
 - `BacktestResult.profitFactor`, `PortfolioBacktestResult.portfolio.profitFactor`,
   `calculateTradeStats(...).profitFactor`, `report(...).profitFactor` and
@@ -465,9 +460,9 @@ one), and 0 when there is neither. `Infinity` for no loss matches quantstats
 - `gridSearch` and `combinationSearch` rank `Infinity` first and can pick it
   as the best score; they used to drop every non-finite score. `NaN` (an
   undefined Calmar, MAR or recovery factor) is still dropped.
-- Means treat `Infinity` as a value, as numpy does, so one infinite value
-  makes the mean `Infinity`. Walk-forward averages also skip periods where a
-  metric is `NaN` (like numpy's `nanmean`); `calculateStatistics` and the
+- Means treat `Infinity` as a value, so one infinite value makes the mean
+  `Infinity`. Walk-forward averages also skip periods where a metric is
+  `NaN`; `calculateStatistics` and the
   sensitivity means do not. `calculateStatistics` (and Monte Carlo `statistics.profitFactor`)
   ranks it in the median, percentiles and max, and one infinite sample makes
   `mean` `Infinity` and `stdDev` `NaN`; read the median instead.
@@ -533,10 +528,9 @@ On 100,000 random return series (flat bars, exact round trips, wipe-outs,
 empty and one-bar series) the result matches the old scan exactly, with one
 deliberate difference. `worstCase.duration` now starts at the last bar at
 which equity stood at its peak. That covers both equity that stayed at the
-peak (a flat stretch) and equity that came back to it exactly. This is how
-pyfolio's `get_max_drawdown_underwater` measures it. The old scan started
-at the first such bar, so it counted the flat bars, or an earlier dip that
-had already recovered, as part of the decline, although its own recovery
+peak (a flat stretch) and equity that came back to it exactly. The old scan
+started at the first such bar, so it counted the flat bars, or an earlier dip
+that had already recovered, as part of the decline, although its own recovery
 rule treats a return to the peak as recovered. `duration` therefore changes
 only when equity touches its peak value more than once before falling;
 `drawdown`, `recoveryDays` and `recovered` are unchanged.
@@ -1905,7 +1899,7 @@ counterparts of the others already rejected these values, or do not take the
 option.
 
 An option is now rejected whatever the data and whatever mode it applies to,
-as TA-Lib rejects a bad option before it looks at the input. Wrappers that
+so a bad option fails before the input is looked at. Wrappers that
 used to rely on an inner indicator's check skipped it on empty input, or on
 input shorter than the period: `calculateAtrPercent(twoBars, { atrPeriod: 2.5
 })` returned `atrPercent: 0`. These now check at entry: the swing-based
@@ -1931,9 +1925,8 @@ Multipliers, factors, thresholds and percentages accepted `NaN` and
 `Infinity` passes any lower bound. `bollingerBands(candles, { stdDev: NaN })`
 returned `NaN` bands, and `srZones(candles, { restarts: Infinity })` never
 returned. About half of these options had no range check at all either, so
-`t3(candles, { vFactor: -1 })` or `cci(candles, { constant: 0 })` ran on. Like
-TA-Lib, which returns `TA_BAD_PARAM` for a non-finite or out-of-range real
-option, they now throw `<label> must be a finite number`, or a message naming
+`t3(candles, { vFactor: -1 })` or `cci(candles, { constant: 0 })` ran on. They
+now throw `<label> must be a finite number`, or a message naming
 the range.
 
 - **Must be positive:**
@@ -2007,8 +2000,7 @@ indicators it wraps, the Safe API reports all of these as `INVALID_PARAMETER`.
 
 The return metrics took `periodsPerYear` as given. `0` scaled a Sharpe,
 Sortino or rolling volatility to `0` (`sqrt(0)`), a negative value turned it
-into `NaN`, and `NaN` or `Infinity` propagated. empyrical and quantstats
-accept any value here too; this library throws instead, as
+into `NaN`, and `NaN` or `Infinity` propagated. It now throws, as
 `annualizationFactor` already does. `periodsPerYear` must now be a positive
 finite number — fractional values such as the span-derived `251.7` stay valid
 — in `omegaRatio`, `sharpeFromReturns`, `sortinoFromReturns`, `rollingSharpe`,
@@ -2024,8 +2016,7 @@ a message naming `sharpeFromReturns` otherwise. It now throws on entry, naming
 `calculateRuntimeMetrics`.
 
 The rolling window of `rollingSharpe` and `rollingVolatility`, and `report`'s
-`rollingWindow`, must be an integer of at least 1, as pandas' `rolling`
-requires. `1.5` used to return all `NaN`, with the computed values written
+`rollingWindow`, must be an integer of at least 1. `1.5` used to return all `NaN`, with the computed values written
 to stray keys such as `"0.5"` on the array, and `NaN` or `Infinity` returned
 all `NaN`. The messages name the function, e.g.
 `rollingSharpe window must be at least 1` (was `rollingSharpe: window must be
@@ -2046,16 +2037,14 @@ the data:
   `riskFreeRate` in `calculateSharpeRatio`, `calculateAllMetrics`,
   `calculateRuntimeMetrics` and `ulcerPerformanceIndex`.
 - **Required return:** `requiredReturn` in `omegaRatio` and `report`.
-  `omegaRatio` used to return `NaN` for `requiredReturn <= -1`, as
-  empyrical and quantstats do (quantstats with a "must be > -1" warning); it
-  now throws. With `periodsPerYear: 1` it used no bound at all.
+  `omegaRatio` used to return `NaN` for `requiredReturn <= -1`; it now
+  throws. With `periodsPerYear: 1` it used no bound at all.
 
 `tailRatio` and `commonSenseRatio` now require `cutoff` in `[0.5, 1]`. A
-cutoff above 1 or `NaN` returned `NaN`, where numpy and pandas raise an
-error for such a quantile. Below 0.5 the "upper" percentile falls under the
-lower one, so `tailRatio(returns, 0.05)` silently returned the reciprocal of
-the 0.95 ratio; quantstats accepts that, but the documented range was
-already `(0.5, 1)`.
+cutoff above 1 or `NaN` returned `NaN`, a quantile that does not exist. Below
+0.5 the "upper" percentile falls under the lower one, so
+`tailRatio(returns, 0.05)` silently returned the reciprocal of the 0.95
+ratio, while the documented range was already `(0.5, 1)`.
 
 Several functions that read the annualisation through `annualizationFactor`
 returned before reaching it on empty, short or flat input, so an invalid
@@ -2074,9 +2063,8 @@ second day VWAP and TWAP still averaged in the whole first day, and
 `openingRange` kept the first day's range and flagged a breakout against it.
 These options now throw on anything but their keywords or a positive integer,
 whatever the data and including when an incremental indicator resumes from a
-saved state that carries such a keyword, as TA-Lib returns `TA_BAD_PARAM` for
-an unknown moving-average type and pandas raises `Invalid frequency` for the
-VWAP anchor pandas-ta passes to it:
+saved state that carries such a keyword, so a typo fails loudly instead of
+silently computing something else:
 
 - `resetPeriod` in `vwap`: `"session"`, `"rolling"` or a bar count.
 - `sessionResetPeriod` in `twap` and `createTwap`, and in `marketProfile`:
@@ -2166,9 +2154,7 @@ be one of "open", "high", "low", "close", "hl2", "hlc3", "ohlc4", "volume", got
 "hcl3"`, and `trendcraft/safe` classifies it as `INVALID_PARAMETER`. Each list
 is declared with `keywords<T>()` against the option's own type, and the check
 accepts only such a list, so a list that leaves out a member of the type, or
-names one it lacks, does not compile. pandas-ta raises a `KeyError` for a
-column name it cannot find, and TA-Lib returns `TA_BAD_PARAM` for an
-out-of-range moving-average type.
+names one it lacks, does not compile.
 
 Scope: every keyword option declared in an options type, plus string-union
 parameters of exported functions. The incremental `weisWave` and `returns`
@@ -2715,8 +2701,8 @@ selection. `expectedMaxSharpe` propagates `NaN` rather than swallowing it.
 the arithmetic average *monthly* return by max drawdown; the canonical MAR is
 annualized return over max drawdown. Anything screening on the `"mar"`
 optimization metric — grid-search ranking, constraints, walk-forward
-aggregation — was comparing against industry thresholds an order of magnitude
-away. It is not a monotone rescaling either, so rankings could differ: over
+aggregation — was comparing against the usual MAR thresholds an order of
+magnitude away. It is not a monotone rescaling either, so rankings could differ: over
 two years, 300% return against a 50% drawdown beat 200% against 36% on the
 monthly form (0.250 vs 0.231) and loses on the annualized one (2.00 vs 2.03).
 Note that this makes `"mar"` and `"calmar"` coincide for full-history results,
@@ -3185,9 +3171,9 @@ runs may report different (correct) numbers.
 - **`firstValidIndex(series)` / `warmupBars(series)` / `trimWarmup(series)`** —
   series utilities that report (or strip) an indicator's warmup region by reading
   the actual output: the index of the first valid value, the count of leading
-  warmup placeholders, and the series with that region removed. The TrendCraft
-  analogue of TA-Lib's `*_Lookback()`, but derived from the output rather than a
-  hand-maintained per-indicator formula, so it stays correct for option-dependent
+  warmup placeholders, and the series with that region removed. The warmup is
+  derived from the output rather than a hand-maintained per-indicator formula,
+  so it stays correct for option-dependent
   warmups (e.g. `sma({ period })`) without drifting from the implementations.
 - For scalar `number | null` series (moving averages, RSI, ATR, …) a warmup bar
   is simply `null`/non-finite, which is the default. Object-valued outputs have
@@ -3539,8 +3525,7 @@ snapshot name now incorporates it (`t3_<period>_<vFactor>`).
 ### Added — optimizer cross-parameter constraints (`validateParams` + `paramFilter`)
 
 The grid-search engine can now reject structurally-invalid parameter
-combinations *before* backtesting them, the exhaustive-grid analogue of
-vectorbt's parameter mask. `GridSearchOptions` and `WalkForwardOptions`
+combinations *before* backtesting them. `GridSearchOptions` and `WalkForwardOptions`
 gain a `paramFilter?: (params) => boolean`; combinations it rejects never
 run, never enter `results`, and don't count toward `validCombinations`
 (distinct from metric `constraints`, which filter *after* backtesting on
@@ -3590,10 +3575,8 @@ for outcome-uncertainty and probability-of-loss estimates. The previous
 behaviour is still available as `method: "shuffle"` for sequence-risk
 analysis, where only the path-dependent max drawdown varies.
 
-This matches the resampling distinction drawn by mainstream backtest MC
-tooling, where bootstrap (with replacement) is the default for "how
-reliable is this edge?" and order shuffling is the narrower
-sequence-risk test.
+Bootstrap (with replacement) answers "how reliable is this edge?", and
+order shuffling is the narrower sequence-risk test.
 
 The result's significance fields are replaced by a **downside-risk
 summary measured directly on the resampled outcomes**. The previous
@@ -3608,8 +3591,6 @@ drawdown reaches a configurable `ruinThreshold`, default 50%), and the
 human-readable `reason` and the `confidenceLevel` but no longer carries
 `isSignificant`. `summarizeMonteCarloResult` returns `{ probProfit,
 probLoss, riskOfRuin, expectedSharpe, sharpe95CI, originalSharpe }`.
-These distribution-based figures are what mainstream backtest Monte
-Carlo tooling reports (StrategyQuant, AmiBroker, BuildAlpha).
 `originalResult` is unchanged (still the backtest's reported metrics).
 
 ### Added — Robustness helpers: walk-forward efficiency, stitched OOS equity, Deflated Sharpe
@@ -3636,11 +3617,9 @@ Carlo tooling reports (StrategyQuant, AmiBroker, BuildAlpha).
 ### Added — `listTunables(strategy)` for numeric parameter introspection
 
 Walks a `StrategyJSON`'s entry / exit conditions and emits one `Tunable`
-per numeric registry-declared parameter. Mirrors the strategy-parameter
-introspection surface exposed by other TA frameworks (TA-Lib's
-`TA_GetOptInputParameterInfo`, backtrader's `self.params`, freqtrade's
-`IntParameter` / `DecimalParameter`, Pine Script's `input.int` /
-`input.float`).
+per numeric registry-declared parameter, with its range and type, so a
+search grid or a settings form can be built without knowing the condition
+types.
 
 Each `Tunable.key` follows the canonical `<bucket>.<leafIndex>.<paramName>`
 path syntax so the result feeds `gridSearchFromJSON` without
@@ -3648,9 +3627,8 @@ translation. The full registry `ParamDef` is attached as `schema` so
 callers can read `min` / `max` / `default` / `integer` / `precision` /
 `suggestedMin` / `suggestedMax` directly. There is **no** heuristic on
 top — integer / continuous typing is read from the explicit
-`schema.integer` annotation, in line with the industry pattern of
-making this typing explicit at the schema level (TA-Lib enum,
-freqtrade class hierarchy, Pine Script function pair).
+`schema.integer` annotation, so optimizers and UIs read it instead of
+guessing from the default value.
 
 Conditions whose registry entry is missing or whose params are all
 non-numeric are silently skipped, so a strategy with `alwaysTrue` /
@@ -3685,8 +3663,7 @@ cannot drift on which kind maps where.
   only, so upside volatility no longer penalizes the score. `0` when
   there are no negative returns. Annualized with `sqrt(252)` to match
   Sharpe's convention.
-- `calmarRatio` — `cagrPercent / maxDrawdown`. Industry-standard
-  "return per unit of pain". `0` when `maxDrawdown` is zero.
+- `calmarRatio` — `cagrPercent / maxDrawdown`: "return per unit of pain". `0` when `maxDrawdown` is zero.
 - `cagrPercent` — compound annual growth rate, computed from the
   candle span (first bar time → last bar time). Replaces having to
   guess at "what's my actual annualized return" from
@@ -3711,10 +3688,6 @@ cannot drift on which kind maps where.
   over (epoch ms). Stored so derived analyses (equity-curve filter,
   slicing, post-hoc annualization) can recompute time-based metrics
   without re-supplying the window.
-
-Matches TradingView Performance Summary, QuantifiedStrategies'
-checklist, and Van Tharp's metrics framework — what veteran traders
-expect to see in a backtest summary.
 
 The metric math is consolidated into a single
 `computeExtendedMetrics(...)` helper exported from
@@ -4023,7 +3996,7 @@ Three Tier-2 candidates were probed and deferred:
   trade) to outrank legitimate strategies and become `bestScore =
   Infinity`. Downstream (Strategy DNA, MCP recommendations) inherited
   the bad ranking. The three functions now return `NaN` when the
-  ratio is undefined, matching the empyrical / pyfolio convention
+  ratio is undefined, following the empyrical / pyfolio convention
   (`np.nan` on `max_dd >= 0` or non-finite). **Breaking** for callers
   that compared the result to `Number.POSITIVE_INFINITY` — branch on
   `Number.isFinite(value)` instead.

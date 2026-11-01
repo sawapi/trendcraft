@@ -152,9 +152,8 @@ daily bars, then:
 (January 1 in that zone) and, unless `sessionGaps.timeZone` is set, where
 `'dayBoundary'` session gaps go (see [Time scale](#time-scale)).
 
-lightweight-charts and Highcharts both default to UTC, and the core library's
-resampling (`resample`) groups bars by UTC days, weeks and months, so the
-chart's day boundaries match it by default.
+UTC is the default because the core library's resampling (`resample`) groups
+bars by UTC days, weeks and months, so the chart's day boundaries match it.
 
 ### Crosshair
 
