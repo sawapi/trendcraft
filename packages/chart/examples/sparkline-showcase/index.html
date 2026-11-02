@@ -4,33 +4,66 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>@trendcraft/chart — Sparkline Showcase</title>
+  <script>
+    // Apply the initial theme before first paint.
+    document.documentElement.dataset.theme = window.matchMedia("(prefers-color-scheme: light)")
+      .matches
+      ? "light"
+      : "dark";
+  </script>
   <style>
+    :root[data-theme="dark"] {
+      --bg: #0a0e17;
+      --surface: #111827;
+      --surface-2: #1f2937;
+      --border: #2a3443;
+      --text: #d1d4dc;
+      --text-muted: #9ca3af;
+      --accent: #2196f3;
+      --accent-text: #ffffff;
+      --up: #16a34a;
+      --down: #dc2626;
+    }
+    :root[data-theme="light"] {
+      --bg: #ffffff;
+      --surface: #f8fafc;
+      --surface-2: #eef2f7;
+      --border: #cbd3de;
+      --text: #1f2937;
+      --text-muted: #6b7280;
+      --accent: #1976d2;
+      --accent-text: #ffffff;
+      --up: #15803d;
+      --down: #c62828;
+    }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: #0a0e17;
-      color: #d1d4dc;
+      background: var(--bg);
+      color: var(--text);
     }
     header {
       padding: 12px 16px;
-      border-bottom: 1px solid #1f2937;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
       display: flex;
-      gap: 16px;
+      gap: 8px 16px;
       align-items: center;
       flex-wrap: wrap;
     }
     h1 { font-size: 14px; font-weight: 600; }
-    .controls { display: flex; gap: 12px; font-size: 12px; align-items: center; }
+    .controls { display: flex; flex-wrap: wrap; gap: 8px 12px; font-size: 12px; align-items: center; }
     select, button {
-      background: #1f2937;
-      color: #d1d4dc;
-      border: 1px solid #374151;
+      background: var(--surface-2);
+      color: var(--text);
+      border: 1px solid var(--border);
       border-radius: 4px;
       padding: 4px 8px;
       font-size: 12px;
+      max-width: 100%;
     }
+    button { cursor: pointer; }
     main {
-      max-width: 480px;
       padding: 12px 16px;
     }
     .group {
@@ -38,32 +71,40 @@
     }
     .group-header {
       font-size: 12px;
-      color: #9ca3af;
+      color: var(--text-muted);
       padding-bottom: 6px;
-      border-bottom: 1px solid #1f2937;
+      border-bottom: 1px solid var(--border);
       margin-bottom: 4px;
+    }
+    /* Rows flow into as many columns as fit; one column at phone width. */
+    .rows {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr));
+      column-gap: 32px;
     }
     .row {
       display: grid;
-      grid-template-columns: 60px 1fr 80px 90px;
+      grid-template-columns: 60px minmax(80px, 1fr) 64px 92px;
       gap: 8px;
       align-items: center;
       padding: 6px 0;
-      border-bottom: 1px solid #111827;
+      border-bottom: 1px solid var(--border);
       font-size: 13px;
+      min-width: 0;
     }
-    .symbol { color: #60a5fa; font-weight: 600; }
-    .name { color: #9ca3af; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .row > * { min-width: 0; }
+    .symbol { color: var(--accent); font-weight: 600; }
     .price { text-align: right; font-variant-numeric: tabular-nums; }
-    .change { text-align: right; font-variant-numeric: tabular-nums; font-size: 11px; }
-    .up { color: #16a34a; }
-    .down { color: #dc2626; }
-    .spark { display: block; }
+    .change { text-align: right; font-variant-numeric: tabular-nums; font-size: 11px; white-space: nowrap; }
+    .up { color: var(--up); }
+    .down { color: var(--down); }
+    .spark { display: block; width: 100%; height: 32px; }
     .stats {
       font-size: 11px;
-      color: #9ca3af;
+      color: var(--text-muted);
+      background: var(--surface);
       padding: 8px 16px;
-      border-top: 1px solid #1f2937;
+      border-top: 1px solid var(--border);
     }
   </style>
 </head>
@@ -84,7 +125,7 @@
           <option value="auto">auto (default)</option>
           <option value="period">period (single color)</option>
           <option value="baseline">baseline (=100)</option>
-          <option value="fixed">fixed (#60a5fa)</option>
+          <option value="fixed">fixed (accent)</option>
         </select>
       </label>
       <label>
@@ -105,6 +146,7 @@
         </select>
       </label>
       <button id="regen">Regenerate</button>
+      <button id="theme">Light</button>
     </div>
   </header>
   <main id="root"></main>
