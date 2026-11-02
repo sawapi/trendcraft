@@ -14,11 +14,20 @@ pnpm dev
 
 ## Features
 
-- `<TrendChart>` component with reactive props (`App.vue`)
-- `useTrendChart` composable with imperative effects (`src/HookDemo.vue`)
+The header has two tabs, one per API:
+
+- **Component** — `<TrendChart>` with reactive props (`src/App.vue`)
+- **Hook** — `useTrendChart` composable with imperative effects (`src/HookDemo.vue`): click the chart to place a horizontal line and watch the `drawingComplete` event
+
+The Component tab shows:
+
 - SMA, BB, RSI, MACD toggles via Vue refs
-- Backtest result as computed prop
-- Dark/Light theme switch
+- A golden-cross / dead-cross backtest as a computed prop; turning it off sets the prop back to `undefined`, which clears the markers and the equity pane
+- Custom renderers and primitives passed through the wrapper's `plugins` prop:
+  - **S/R Zones** — a primitive (`definePrimitive`) that shades support/resistance bands behind the candles
+  - **Trail Stop** — a custom series renderer (`defineSeriesRenderer`) that draws an ATR trailing stop as a stepped line on the price pane; the indicator entry selects it with `config: { type: "trailingStop", pane: "main" }`
+- **Vol Overlay** — an indicator entry with its own `config` (`pane: "main"`, `scaleId: "left"`, `maxHeightRatio`) that draws volume along the bottom of the price pane instead of in its own pane
+- Dark/Light theme switch (the initial theme follows `prefers-color-scheme`), applied to both tabs through the `theme` prop
 
 ## When to pick each API
 

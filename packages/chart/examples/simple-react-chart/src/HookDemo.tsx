@@ -5,8 +5,7 @@
  * from the hook and drive it from your own `useEffect`. Same chart,
  * different entry point than the `<TrendChart>` component in App.tsx.
  *
- * This component is not mounted by default — import it from `main.tsx`
- * to see it running, or copy into your own app.
+ * Shown by the "Hook" tab in the demo header (see App.tsx).
  */
 
 import { registerDrawingTools } from "@trendcraft/chart/features";
@@ -18,11 +17,11 @@ import sampleData from "../../simple-chart/data.json";
 const candles = sampleData.slice(0, 200);
 const indicators = [sma(candles, { period: 20 })];
 
-export function HookDemo() {
+export function HookDemo({ theme }: { theme: "dark" | "light" }) {
   const { containerRef, chart } = useTrendChart({
     candles,
     indicators,
-    theme: "dark",
+    theme,
     options: { watermark: "HOOK" },
     features: [registerDrawingTools],
   });
@@ -49,17 +48,10 @@ export function HookDemo() {
   }, [chart]);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      <div
-        style={{
-          padding: 8,
-          background: "#1e222d",
-          color: "#d1d4dc",
-          fontSize: 12,
-          fontFamily: "monospace",
-        }}
-      >
-        useTrendChart demo — click chart to place horizontal line · last: {lastEvent}
+    <div className="hook-demo">
+      <div className="hook-demo-info">
+        useTrendChart demo — click the chart to place a horizontal line ·{" "}
+        <span className="muted">last:</span> {lastEvent}
       </div>
       <div ref={containerRef} style={{ flex: 1, minHeight: 0 }} />
     </div>

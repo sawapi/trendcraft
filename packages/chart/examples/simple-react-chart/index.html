@@ -4,10 +4,75 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>@trendcraft/chart — React Demo</title>
+  <script>
+    // Apply the initial theme before first paint; the app reads it back from here.
+    document.documentElement.dataset.theme = window.matchMedia("(prefers-color-scheme: light)").matches
+      ? "light"
+      : "dark";
+  </script>
   <style>
+    :root[data-theme="dark"] {
+      --bg: #0a0e17;
+      --surface: #131722;
+      --surface-2: #1e222d;
+      --border: #2a2e39;
+      --text: #d1d4dc;
+      --text-muted: #787b86;
+      --accent: #2196f3;
+      --accent-text: #ffffff;
+      --up: #26a69a;
+      --down: #ef5350;
+    }
+    :root[data-theme="light"] {
+      --bg: #ffffff;
+      --surface: #f5f6f8;
+      --surface-2: #e8eaee;
+      --border: #d6d9de;
+      --text: #131722;
+      --text-muted: #6a6d78;
+      --accent: #2196f3;
+      --accent-text: #ffffff;
+      --up: #26a69a;
+      --down: #ef5350;
+    }
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: -apple-system, sans-serif; background: #0a0e17; color: #d1d4dc; }
+    body { font-family: -apple-system, sans-serif; background: var(--bg); color: var(--text); }
     #root { height: 100vh; display: flex; flex-direction: column; }
+    header {
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+    }
+    header h1 { font-size: 14px; font-weight: 600; }
+    .badge { font-size: 10px; background: #4caf50; color: #fff; padding: 2px 6px; border-radius: 3px; }
+    .controls { display: flex; gap: 4px; margin-left: auto; flex-wrap: wrap; }
+    .tabs { display: flex; gap: 4px; }
+    header button {
+      padding: 4px 8px;
+      font-size: 11px;
+      background: var(--surface-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    header button:hover { border-color: var(--accent); }
+    header button.active { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+    .chart-area { flex: 1; min-height: 0; }
+    .hook-demo { display: flex; flex-direction: column; height: 100%; }
+    .hook-demo-info {
+      padding: 8px 12px;
+      background: var(--surface-2);
+      color: var(--text);
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+      font-family: monospace;
+    }
+    .hook-demo-info .muted { color: var(--text-muted); }
   </style>
 </head>
 <body>
