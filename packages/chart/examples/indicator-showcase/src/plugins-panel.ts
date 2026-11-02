@@ -73,6 +73,8 @@ type PluginSpec = {
 };
 
 export type PluginsPanelHandle = {
+  /** Ids of the plugins currently connected, in activation order. */
+  getActiveIds(): string[];
   /** Remove the panel DOM + detach every active plugin from the chart. */
   destroy(): void;
 };
@@ -337,10 +339,19 @@ export function createPluginsPanel(
   container: HTMLElement,
   candles: NormalizedCandle[],
   chart: ChartInstance,
-  opts: { live?: LiveSource } = {},
+  opts: {
+    live?: LiveSource;
+    /**
+     * Plugins to connect right away. Used when the panel is rebuilt on a
+     * mode / timeframe switch: each plugin is built again from `candles`,
+     * because a build captures the candle history it was given.
+     */
+    initialActive?: readonly string[];
+  } = {},
 ): PluginsPanelHandle {
   chartRef = chart;
   const active = new Map<string, PluginHandle>();
+  const toggles = new Map<string, () => void>();
   const liveConns = new Map<string, LivePrimitivesConnection>();
   const panelRoot = document.createElement("div");
   panelRoot.dataset.role = "plugins-panel";
@@ -349,18 +360,18 @@ export function createPluginsPanel(
   // Header
   const header = document.createElement("div");
   header.style.cssText =
-    "padding:10px 12px;background:#181c27;border-top:1px solid #2a2e39;border-bottom:1px solid #1e222d;font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;";
+    "padding:10px 12px;background:var(--bg);border-top:1px solid var(--border);border-bottom:1px solid var(--border);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;";
   header.textContent = "▼ Plugins";
   panelRoot.appendChild(header);
 
   for (const spec of SPECS) {
     const row = document.createElement("div");
     row.style.cssText =
-      "padding:8px 12px 8px 24px;cursor:pointer;border-bottom:1px solid #1e222d;display:flex;align-items:flex-start;gap:10px;user-select:none;";
+      "padding:8px 12px 8px 24px;cursor:pointer;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:10px;user-select:none;";
 
     const checkbox = document.createElement("div");
     checkbox.style.cssText =
-      "width:14px;height:14px;border:1px solid #4a4e59;border-radius:3px;margin-top:2px;flex-shrink:0;";
+      "width:14px;height:14px;border:1px solid var(--text-muted);border-radius:3px;margin-top:2px;flex-shrink:0;";
 
     const text = document.createElement("div");
     text.style.cssText = "flex:1;min-width:0;";
@@ -369,7 +380,7 @@ export function createPluginsPanel(
     title.style.cssText = "font-weight:500;";
     const desc = document.createElement("div");
     desc.textContent = spec.description;
-    desc.style.cssText = "font-size:11px;color:#787b86;margin-top:2px;";
+    desc.style.cssText = "font-size:11px;color:var(--text-muted);margin-top:2px;";
     text.appendChild(title);
     text.appendChild(desc);
 
@@ -379,17 +390,17 @@ export function createPluginsPanel(
 
     const applyActive = (isActive: boolean) => {
       if (isActive) {
-        checkbox.style.background = "#2196F3";
-        checkbox.style.borderColor = "#2196F3";
-        row.style.background = "#1e2530";
+        checkbox.style.background = "var(--accent)";
+        checkbox.style.borderColor = "var(--accent)";
+        row.style.background = "color-mix(in srgb, var(--accent) 12%, transparent)";
       } else {
         checkbox.style.background = "transparent";
-        checkbox.style.borderColor = "#4a4e59";
+        checkbox.style.borderColor = "var(--text-muted)";
         row.style.background = "transparent";
       }
     };
 
-    row.addEventListener("click", () => {
+    const toggle = () => {
       const existing = active.get(spec.id);
       if (existing) {
         liveConns.get(spec.id)?.disconnect();
@@ -412,10 +423,19 @@ export function createPluginsPanel(
           liveConns.set(spec.id, conn);
         }
       }
-    });
+    };
+    toggles.set(spec.id, toggle);
+    row.addEventListener("click", toggle);
+  }
+
+  for (const id of opts.initialActive ?? []) {
+    if (!active.has(id)) toggles.get(id)?.();
   }
 
   return {
+    getActiveIds() {
+      return [...active.keys()];
+    },
     destroy() {
       for (const conn of liveConns.values()) conn.disconnect();
       liveConns.clear();

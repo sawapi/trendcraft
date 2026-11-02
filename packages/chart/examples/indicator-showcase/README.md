@@ -20,17 +20,25 @@ pnpm dev
 - **Browse all presets** — sidebar is auto-generated from `indicatorPresets`
   metadata, grouped by category (moving-average, momentum, volatility, …).
 - **Tweak parameters** — each entry exposes `paramSchema` controls.
-- **Daily / Intraday toggle** — the bundled daily sample data, or a synthetic
-  1-minute dataset (see `src/data-intraday.ts`) so intraday-only plugins like
-  Session Zones or ICT Kill Zones can be demo'd.
-- **Static / Live Simulate toggle** — replays the dataset bar-by-bar through
+- **Timeframe toggle (Daily / 1H)** — the bundled daily sample data, or a synthetic
+  1-hour dataset (14 days × 24 bars, see `src/data-intraday.ts`) so the
+  intraday-only Session Zones plugin (ICT kill-zone backgrounds) can be demo'd.
+- **Static / Live toggle** — replays the dataset bar-by-bar through
   `connectIndicators({ live })`, exercising the same code path that production
-  live feeds use.
+  live feeds use. Switching mode or timeframe keeps the selected indicators
+  (with their params), plugins and signals; plugins and signals are rebuilt
+  against the new candles.
 - **Signals panel** — overlay detected signals (crosses, divergences, …).
+  RSI Divergence adds RSI(14) when no RSI is on, so its RSI-pane connectors
+  show; turning the signal off removes that RSI again unless you changed it.
 - **Plugins panel** — toggle Regime Heatmap, SMC Layer, Wyckoff Phase, etc.
+- **Toolbar** — each toggle shows `Name: current state` (`Timeframe`, `Chart`,
+  `Badges`, `Mode`, `Theme`); `Fit` and `Export PNG` are plain actions.
 - **Last-value badges** — `Badges` and `Mode` toolbar buttons exercise
   `showSeriesBadges` / `seriesBadgeMode` (absolute vs visible).
-- **Theme + PNG export** — light/dark and `chart.toImage("image/png")`.
+- **Theme + PNG export** — light/dark (starts from the OS colour scheme; the
+  whole UI follows the CSS tokens in `index.html`) and
+  `chart.toImage("image/png")`.
 
 ## When to read this code
 
