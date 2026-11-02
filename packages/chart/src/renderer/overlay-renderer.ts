@@ -13,6 +13,7 @@ import { defaultRegistry } from "../core/series-registry";
 import type { CandleData, DataPoint, PaneRect, ThemeColors, TimeframeOverlay } from "../core/types";
 import { isFiniteOHLC } from "../core/validation";
 import type { AxisExcludeRange } from "./axis-renderer";
+import { seriesColor } from "./series-color";
 
 /**
  * Render current price line (dashed horizontal line at latest close).
@@ -189,7 +190,7 @@ export function renderPaneTitles(
     for (const s of paneSeries) {
       const label = s.config.label;
       if (!label) continue;
-      ctx.fillStyle = s.config.color ?? theme.text;
+      ctx.fillStyle = seriesColor(s.config, theme.text);
       ctx.fillText(label, x, y);
       x += ctx.measureText(label).width + GAP;
     }
