@@ -53,6 +53,13 @@ To split at the exchange's day while showing another zone, set
 `sessionGaps.timeZone` (e.g. `"America/New_York"`), or `"UTC"` for the
 previous split.
 
+### Fixed — SMC order-block labels did not name the direction
+
+`connectSmcLayer` labelled bullish order blocks "BB" and bearish ones "OB", so
+a bearish block's label read as an order block of either direction, and "BB"
+is easily taken for a breaker block. The labels are now "Bull OB" and
+"Bear OB"; a mitigated block still gets the "✕" tag.
+
 ### Added — `sessionGaps.timeZone` for day-boundary gaps
 
 `sessionGaps: { mode: "dayBoundary", timeZone: "America/New_York" }` splits

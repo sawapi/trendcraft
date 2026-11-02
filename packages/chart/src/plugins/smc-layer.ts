@@ -115,10 +115,11 @@ function renderOrderBlocks(
     ctx.lineWidth = 1;
     ctx.strokeRect(startX, topY, w, h);
 
-    // Top-left label: "BB" (Bullish Block) or "OB" (Order Block). The
+    // Top-left label: "Bull OB" or "Bear OB", so the direction reads without
+    // relying on color ("BB" alone is easily read as a breaker block). The
     // mitigation tag distinguishes used blocks at a glance without changing
     // the color palette.
-    const label = zone.type === "bullish" ? "BB" : "OB";
+    const label = zone.type === "bullish" ? "Bull OB" : "Bear OB";
     const text = zone.mitigated ? `${label} ✕` : label;
     ctx.fillStyle = `rgba(${rgb},${zone.mitigated ? 0.45 : 0.85})`;
     ctx.fillText(text, startX + 3, topY + 2);

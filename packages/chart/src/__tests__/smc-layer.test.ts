@@ -112,8 +112,8 @@ describe("createSmcLayer", () => {
 
     expect(ctx.fillRect).toHaveBeenCalled();
     expect(ctx.strokeRect).toHaveBeenCalled();
-    expect(ctx.fillText).toHaveBeenCalledWith("BB", expect.any(Number), expect.any(Number));
-    expect(ctx.fillText).toHaveBeenCalledWith("OB", expect.any(Number), expect.any(Number));
+    expect(ctx.fillText).toHaveBeenCalledWith("Bull OB", expect.any(Number), expect.any(Number));
+    expect(ctx.fillText).toHaveBeenCalledWith("Bear OB", expect.any(Number), expect.any(Number));
   });
 
   it("annotates a mitigated order block with the strikethrough tag", () => {
@@ -136,7 +136,7 @@ describe("createSmcLayer", () => {
 
     plugin.render(makeRenderContext(ctx), state);
 
-    expect(ctx.fillText).toHaveBeenCalledWith("BB ✕", expect.any(Number), expect.any(Number));
+    expect(ctx.fillText).toHaveBeenCalledWith("Bull OB ✕", expect.any(Number), expect.any(Number));
   });
 
   it("renders mitigated OB with lower alpha", () => {
