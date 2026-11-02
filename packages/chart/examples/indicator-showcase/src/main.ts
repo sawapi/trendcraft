@@ -23,7 +23,7 @@ import { createLiveSimulator, type SimulatorHandle } from "./live-simulator";
 import { createPluginsPanel, type PluginsPanelHandle } from "./plugins-panel";
 import type { SidebarEntry } from "./sidebar";
 import { createSidebar } from "./sidebar";
-import { createSignalsPanel, type SignalsPanelHandle } from "./signals-panel";
+import { createSignalsPanel, type RsiPaneProvider, type SignalsPanelHandle } from "./signals-panel";
 
 type Timeframe = "daily" | "intraday";
 
@@ -54,7 +54,9 @@ for (const [id, preset] of Object.entries(indicatorPresets)) {
 
 const chartEl = document.getElementById("chart") as HTMLElement;
 const sidebarEl = document.getElementById("sidebar") as HTMLElement;
-const chart = createChart(chartEl, { theme: "dark" });
+// index.html sets data-theme from prefers-color-scheme before first paint.
+const initialTheme = document.documentElement.dataset.theme === "light" ? "light" : "dark";
+const chart = createChart(chartEl, { theme: initialTheme });
 registerTrendCraftPresets(chart);
 // The Plugins panel's fib / trend / channel toggles add drawings
 registerDrawingTools(chart);
@@ -72,7 +74,112 @@ let signalsPanel: SignalsPanelHandle;
 let livePanel: LivePanelHandle | null = null;
 let simulator: SimulatorHandle | null = null;
 
-function mount(timeframe: Timeframe, mode: Mode): void {
+/** What the user has turned on — carried across mode / timeframe switches. */
+type Selection = {
+  indicators: {
+    presetId: string;
+    snapshotName: string;
+    params: Record<string, unknown>;
+    color: string | undefined;
+  }[];
+  plugins: string[];
+  signals: string[];
+};
+
+const EMPTY_SELECTION: Selection = { indicators: [], plugins: [], signals: [] };
+
+function captureSelection(): Selection {
+  return {
+    indicators: (conn?.list() ?? []).map((h) => ({
+      presetId: h.presetId,
+      snapshotName: h.snapshotName,
+      params: { ...h.params },
+      color: h.color,
+    })),
+    plugins: pluginsPanel?.getActiveIds() ?? [],
+    signals: signalsPanel?.getActiveIds() ?? [],
+  };
+}
+
+// ============================================
+// Sidebar (built once; its selection state outlives every mount)
+// ============================================
+
+const sidebarAPI = createSidebar(sidebarEl, catalog, {
+  onToggle(id, active, params) {
+    // A manual change to RSI hands it back to the user (see rsiPane below).
+    if (id === "rsi") rsiAddedBySignal = false;
+    if (active) {
+      const finalParams = resolveParams(id, params);
+      // Force the primary's snapshotName = presetId so editing params
+      // later removes just this instance (not every SMA, etc.).
+      conn.add(id, { ...finalParams, snapshotName: id });
+    } else {
+      conn.remove(id);
+    }
+  },
+  onParamChange(id, params) {
+    if (id === "rsi") rsiAddedBySignal = false;
+    // Preserve the current color across the remove+add round-trip so
+    // editing a period in the active-bar pill doesn't re-roll the palette
+    // and hand the same instance a different color mid-session.
+    const oldColor = conn.get(id)?.color;
+    conn.remove(id);
+    const finalParams = resolveParams(id, params);
+    const overrides: Record<string, unknown> = { ...finalParams, snapshotName: id };
+    if (oldColor) overrides.series = { color: oldColor };
+    conn.add(id, overrides);
+  },
+  onAddExtra({ presetId, snapshotName, params }) {
+    const finalParams = resolveParams(presetId, params);
+    conn.add(presetId, { ...finalParams, snapshotName });
+  },
+  onRemoveExtra(snapshotName) {
+    conn.remove(snapshotName);
+  },
+  onChangeExtraParams({ presetId, snapshotName, params }) {
+    const oldColor = conn.get(snapshotName)?.color;
+    conn.remove(snapshotName);
+    const finalParams = resolveParams(presetId, params);
+    const overrides: Record<string, unknown> = { ...finalParams, snapshotName };
+    if (oldColor) overrides.series = { color: oldColor };
+    conn.add(presetId, overrides);
+  },
+});
+
+// ============================================
+// RSI pane for the RSI Divergence signal
+// ============================================
+//
+// Turning RSI Divergence on adds the primary RSI (default RSI(14)) through the
+// sidebar when no RSI is mounted, so the mirrored RSI-pane connectors are
+// visible. Turning the signal off removes that RSI again only if the signal
+// added it and the user has not touched it since; an RSI the user added (or
+// edited) stays.
+
+let rsiAddedBySignal = false;
+
+const rsiPane: RsiPaneProvider = {
+  acquire() {
+    // A sub-pane's id is its indicator's snapshotName.
+    const existing = conn.get("rsi") ?? conn.listByPreset("rsi")[0];
+    if (existing) return existing.snapshotName;
+    sidebarAPI.setPrimaryActive("rsi", true);
+    rsiAddedBySignal = true;
+    return "rsi";
+  },
+  release() {
+    if (!rsiAddedBySignal) return;
+    sidebarAPI.setPrimaryActive("rsi", false);
+    rsiAddedBySignal = false;
+  },
+};
+
+// ============================================
+// Mount / unmount
+// ============================================
+
+function mount(timeframe: Timeframe, mode: Mode, selection: Selection = EMPTY_SELECTION): void {
   currentTimeframe = timeframe;
   currentMode = mode;
   currentCandles = timeframe === "daily" ? dailyCandles : intradayCandles;
@@ -91,81 +198,48 @@ function mount(timeframe: Timeframe, mode: Mode): void {
     conn = connectIndicators(chart, { presets: indicatorPresets, candles: currentCandles });
   }
 
-  // Sidebar is rebuilt from scratch — its DOM/state are reset by createSidebar.
-  // We still need to wipe the container because the plugins panel is a sibling
-  // appended below it.
-  sidebarEl.innerHTML = "";
-
-  const sidebarAPI = createSidebar(sidebarEl, catalog, {
-    onToggle(id, active, params) {
-      if (active) {
-        const finalParams = resolveParams(id, params);
-        // Force the primary's snapshotName = presetId so editing params
-        // later removes just this instance (not every SMA, etc.).
-        conn.add(id, { ...finalParams, snapshotName: id });
-      } else {
-        conn.remove(id);
-      }
-    },
-    onParamChange(id, params) {
-      // Preserve the current color across the remove+add round-trip so
-      // editing a period in the active-bar pill doesn't re-roll the palette
-      // and hand the same instance a different color mid-session.
-      const oldColor = conn.get(id)?.color;
-      conn.remove(id);
-      const finalParams = resolveParams(id, params);
-      const overrides: Record<string, unknown> = { ...finalParams, snapshotName: id };
-      if (oldColor) overrides.series = { color: oldColor };
-      conn.add(id, overrides);
-    },
-    onAddExtra({ presetId, snapshotName, params }) {
-      const finalParams = resolveParams(presetId, params);
-      conn.add(presetId, { ...finalParams, snapshotName });
-    },
-    onRemoveExtra(snapshotName) {
-      conn.remove(snapshotName);
-    },
-    onChangeExtraParams({ presetId, snapshotName, params }) {
-      const oldColor = conn.get(snapshotName)?.color;
-      conn.remove(snapshotName);
-      const finalParams = resolveParams(presetId, params);
-      const overrides: Record<string, unknown> = { ...finalParams, snapshotName };
-      if (oldColor) overrides.series = { color: oldColor };
-      conn.add(presetId, overrides);
-    },
-  });
+  // Re-add the previous selection on the new connection, keeping each
+  // instance's snapshotName (= its sidebar identity) and color.
+  // resolveParams re-derives candle-dependent params (anchoredVwap's anchor).
+  for (const ind of selection.indicators) {
+    const overrides: Record<string, unknown> = {
+      ...resolveParams(ind.presetId, ind.params),
+      snapshotName: ind.snapshotName,
+    };
+    if (ind.color) overrides.series = { color: ind.color };
+    conn.add(ind.presetId, overrides);
+  }
 
   const scrollSlot = sidebarAPI.getScrollSlot();
-  // Live panel goes ABOVE the indicator list and other panels (mounted before
-  // the scroll slot's existing children so it's always visible at the top).
+  // Live panel goes ABOVE the indicator list and other panels.
   livePanel = createLivePanel(scrollSlot, {
     onModeChange(next) {
       if (next === currentMode) return;
-      const tf = currentTimeframe;
-      unmount();
-      mount(tf, next);
+      remount(currentTimeframe, next);
     },
     onReset() {
       // Rebuild the entire live pipeline. simulator.reset() alone would strand
       // the chart at its streamed state and leave conn/livePrimsConn subscribed
       // to the disposed LiveCandle.
-      const tf = currentTimeframe;
-      unmount();
-      mount(tf, "live");
+      remount(currentTimeframe, "live");
     },
   });
   livePanel.setMode(currentMode);
-  // Re-attach the live panel root as the first child of scrollSlot so it sits
-  // above the (later-appended) plugins / signals panels and the indicator list.
-  // (The list itself was inserted before the panel was created, so prepending
-  // here puts the live panel at the top of the scroll viewport.)
+  // createLivePanel appended its root after the indicator list; move it to
+  // the top of the scroll viewport, above the list and the panels below.
   if (scrollSlot.firstChild && scrollSlot.firstChild !== scrollSlot.lastChild) {
     scrollSlot.prepend(scrollSlot.lastChild as Node);
   }
+  // Plugins and signals capture the candles they are built from, so they are
+  // rebuilt here against the new dataset rather than carried over.
   pluginsPanel = createPluginsPanel(scrollSlot, currentCandles, chart, {
     live: simulator?.live,
+    initialActive: selection.plugins,
   });
-  signalsPanel = createSignalsPanel(scrollSlot, currentCandles, chart);
+  signalsPanel = createSignalsPanel(scrollSlot, currentCandles, chart, {
+    initialActive: selection.signals,
+    rsiPane,
+  });
   if (mode === "live" && simulator) {
     livePanel.bindSimulator(simulator);
   }
@@ -180,6 +254,13 @@ function unmount(): void {
   conn?.disconnect();
   simulator?.dispose();
   simulator = null;
+}
+
+/** Rebuild the pipeline for a new timeframe / mode, keeping the selection. */
+function remount(timeframe: Timeframe, mode: Mode): void {
+  const selection = captureSelection();
+  unmount();
+  mount(timeframe, mode, selection);
 }
 
 /** Resolve special-case params for specific indicators */
@@ -200,20 +281,22 @@ mount("daily", "static");
 const timeframeBtn = document.getElementById("btn-timeframe") as HTMLElement;
 timeframeBtn.addEventListener("click", () => {
   const next: Timeframe = currentTimeframe === "daily" ? "intraday" : "daily";
-  const mode = currentMode;
-  unmount();
-  mount(next, mode);
-  timeframeBtn.textContent = next === "daily" ? "Daily" : "1H";
+  remount(next, currentMode);
+  timeframeBtn.textContent = `Timeframe: ${next === "daily" ? "Daily" : "1H"}`;
 });
+
+// Toolbar toggles are labelled "Name: current state".
 
 // Theme toggle
 const themeBtn = document.getElementById("btn-theme") as HTMLElement;
-let isDark = true;
+let isDark = initialTheme === "dark";
+themeBtn.textContent = `Theme: ${isDark ? "Dark" : "Light"}`;
 themeBtn.addEventListener("click", () => {
   isDark = !isDark;
-  chart.setTheme(isDark ? "dark" : "light");
-  themeBtn.textContent = isDark ? "Light" : "Dark";
-  document.body.style.background = isDark ? "#131722" : "#ffffff";
+  const theme = isDark ? "dark" : "light";
+  document.documentElement.dataset.theme = theme;
+  chart.setTheme(theme);
+  themeBtn.textContent = `Theme: ${isDark ? "Dark" : "Light"}`;
 });
 
 // Chart type cycle
@@ -224,8 +307,9 @@ typeBtn.addEventListener("click", () => {
   chartTypeIdx = (chartTypeIdx + 1) % chartTypes.length;
   const t = chartTypes[chartTypeIdx];
   chart.setChartType(t);
-  typeBtn.textContent =
+  const label =
     t === "candlestick" ? "Candle" : t === "ohlc" ? "OHLC" : t.charAt(0).toUpperCase() + t.slice(1);
+  typeBtn.textContent = `Chart: ${label}`;
 });
 
 // Fit button
@@ -274,6 +358,13 @@ exportBtn.addEventListener("click", async () => {
 // ============================================
 // Responsive sidebar toggle
 // ============================================
+
+// The narrow-screen drawer opens below the toolbar, whose height changes as
+// its buttons wrap; keep --toolbar-h in sync for the #sidebar `top` offset.
+const toolbarEl = document.querySelector(".toolbar") as HTMLElement;
+new ResizeObserver(() => {
+  document.documentElement.style.setProperty("--toolbar-h", `${toolbarEl.offsetHeight}px`);
+}).observe(toolbarEl);
 
 const menuBtn = document.getElementById("btn-menu") as HTMLElement;
 menuBtn.addEventListener("click", () => {

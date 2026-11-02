@@ -54,19 +54,19 @@ export function createLivePanel(
   // Root
   const root = document.createElement("div");
   root.style.cssText =
-    "padding:10px 12px;border-bottom:1px solid #2a2e39;background:#1a1d28;flex-shrink:0;";
+    "padding:10px 12px;border-bottom:1px solid var(--border);background:var(--bg);flex-shrink:0;";
 
   // Header label
   const header = document.createElement("div");
   header.style.cssText =
-    "font-size:11px;font-weight:700;color:#787b86;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:8px;";
+    "font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:0.5px;text-transform:uppercase;margin-bottom:8px;";
   header.textContent = "Mode";
   root.appendChild(header);
 
   // Mode pill
   const pill = document.createElement("div");
   pill.style.cssText =
-    "display:flex;background:#131722;border:1px solid #2a2e39;border-radius:6px;overflow:hidden;margin-bottom:10px;";
+    "display:flex;background:var(--surface);border:1px solid var(--border);border-radius:6px;overflow:hidden;margin-bottom:10px;";
   const staticBtn = makeSegBtn("Static", true);
   const liveBtn = makeSegBtn("Live", false);
   pill.appendChild(staticBtn);
@@ -97,7 +97,7 @@ export function createLivePanel(
   speedRow.style.cssText = "display:flex;gap:4px;align-items:center;";
   const speedLabel = document.createElement("span");
   speedLabel.textContent = "Speed";
-  speedLabel.style.cssText = "font-size:11px;color:#787b86;flex-shrink:0;width:42px;";
+  speedLabel.style.cssText = "font-size:11px;color:var(--text-muted);flex-shrink:0;width:42px;";
   speedRow.appendChild(speedLabel);
   const speedBtns: HTMLButtonElement[] = SPEED_PRESETS.map((preset, idx) => {
     const b = document.createElement("button");
@@ -118,16 +118,16 @@ export function createLivePanel(
   // Progress bar
   const progressWrap = document.createElement("div");
   progressWrap.style.cssText =
-    "height:6px;background:#131722;border:1px solid #2a2e39;border-radius:3px;overflow:hidden;position:relative;";
+    "height:6px;background:var(--surface);border:1px solid var(--border);border-radius:3px;overflow:hidden;position:relative;";
   const progressFill = document.createElement("div");
   progressFill.style.cssText =
-    "height:100%;width:0;background:linear-gradient(90deg,#2196F3,#26a69a);transition:width 0.05s linear;";
+    "height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--up));transition:width 0.05s linear;";
   progressWrap.appendChild(progressFill);
   controls.appendChild(progressWrap);
 
   // State label
   const stateLabel = document.createElement("div");
-  stateLabel.style.cssText = "font-size:10px;color:#787b86;text-align:center;";
+  stateLabel.style.cssText = "font-size:10px;color:var(--text-muted);text-align:center;";
   stateLabel.textContent = "idle";
   controls.appendChild(stateLabel);
 
@@ -210,8 +210,8 @@ function segBtnCss(active: boolean): string {
   return `
     flex:1;padding:6px 12px;font-size:12px;font-weight:600;
     border:none;cursor:pointer;
-    background:${active ? "#2196F3" : "transparent"};
-    color:${active ? "#fff" : "#d1d4dc"};
+    background:${active ? "var(--accent)" : "transparent"};
+    color:${active ? "var(--accent-text)" : "var(--text)"};
     transition:background 0.15s;
   `;
 }
@@ -219,7 +219,7 @@ function segBtnCss(active: boolean): string {
 function controlBtnCss(): string {
   return `
     width:100%;padding:6px 12px;font-size:12px;
-    background:#2a2e39;border:1px solid #363a45;border-radius:4px;
-    color:#d1d4dc;cursor:pointer;
+    background:var(--surface-2);border:1px solid var(--border);border-radius:4px;
+    color:var(--text);cursor:pointer;
   `;
 }

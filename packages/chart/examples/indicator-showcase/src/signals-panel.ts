@@ -37,10 +37,34 @@ type SignalSpec = {
   id: string;
   label: string;
   description: string;
-  connect: (candles: NormalizedCandle[]) => PluginHandle | null;
+  /** Mirrors onto an RSI sub-pane, which the host's `RsiPaneProvider` keeps mounted. */
+  usesRsiPane?: boolean;
+  connect: (candles: NormalizedCandle[], env: SignalEnv) => PluginHandle | null;
+};
+
+/** Pane id of the RSI(14) preset under its own default snapshotName. */
+const DEFAULT_RSI_PANE_ID = "rsi14";
+
+/** Host-provided context passed to `SignalSpec.connect`. */
+type SignalEnv = {
+  /** Pane id of the RSI sub-pane the divergence connectors are mirrored into. */
+  rsiPaneId: string;
+};
+
+/**
+ * Lets the host keep an RSI sub-pane on the chart while RSI Divergence is on.
+ * `acquire` makes sure an RSI indicator is mounted and returns its pane id;
+ * `release` is called when the user turns the signal off (not on `destroy`,
+ * so a panel rebuild does not drop the RSI the host restores).
+ */
+export type RsiPaneProvider = {
+  acquire(): string;
+  release(): void;
 };
 
 export type SignalsPanelHandle = {
+  /** Ids of the signals currently shown, in activation order. */
+  getActiveIds(): string[];
   destroy(): void;
 };
 
@@ -249,12 +273,11 @@ function makeDivergencePrimitive(
 }
 
 /**
- * Connect RSI divergence visualization. Always draws on the price pane (the
- * label-bearing primitive). Additionally, if the user has enabled the default
- * RSI(14) indicator, draws a mirrored connector on the RSI sub-pane, so the
- * divergence reads on both the price and the oscillator.
+ * Connect RSI divergence visualization. Draws on the price pane (the
+ * label-bearing primitive) and a mirrored connector on the RSI sub-pane
+ * `rsiPaneId`, so the divergence reads on both the price and the oscillator.
  */
-function connectRsiDivergence(candles: NormalizedCandle[]): PluginHandle | null {
+function connectRsiDivergence(candles: NormalizedCandle[], rsiPaneId: string): PluginHandle | null {
   const signals = rsiDivergence(candles);
   if (signals.length === 0) return null;
 
@@ -267,13 +290,12 @@ function connectRsiDivergence(candles: NormalizedCandle[]): PluginHandle | null 
   );
   chartRef.registerPrimitive(pricePlugin);
 
-  // Pane id for the default RSI(14) preset matches its snapshotName "rsi14"
-  // (see `helpers.ts:97` + `live-presets.ts` snapshotName fn). If no RSI is
-  // mounted the registered primitive is harmless — the chart simply has no
-  // such pane to render into.
+  // An indicator's sub-pane id is its snapshotName. If that pane goes away
+  // (the user removes RSI) the registered primitive is harmless — the chart
+  // simply has no such pane to render into.
   const rsiPlugin = makeDivergencePrimitive(
     signals,
-    "rsi14",
+    rsiPaneId,
     "showcase-rsi-divergence-rsi",
     (s) => s.indicator,
     false,
@@ -313,8 +335,10 @@ const SPECS: SignalSpec[] = [
   {
     id: "rsiDivergence",
     label: "RSI Divergence",
-    description: "Mirrored dashed connectors on price pane + RSI(14) sub-pane (enable RSI to see)",
-    connect: (candles) => connectRsiDivergence(candles),
+    description:
+      "Mirrored dashed connectors on price pane + RSI sub-pane (adds RSI(14) if it is not on)",
+    usesRsiPane: true,
+    connect: (candles, env) => connectRsiDivergence(candles, env.rsiPaneId),
   },
   {
     id: "bbSqueeze",
@@ -353,27 +377,33 @@ export function createSignalsPanel(
   container: HTMLElement,
   candles: NormalizedCandle[],
   chart: ChartInstance,
+  opts: {
+    /** Signals to show right away (used when the panel is rebuilt). */
+    initialActive?: readonly string[];
+    rsiPane?: RsiPaneProvider;
+  } = {},
 ): SignalsPanelHandle {
   chartRef = chart;
   const active = new Map<string, PluginHandle>();
+  const toggles = new Map<string, () => void>();
   const panelRoot = document.createElement("div");
   panelRoot.dataset.role = "signals-panel";
   container.appendChild(panelRoot);
 
   const header = document.createElement("div");
   header.style.cssText =
-    "padding:10px 12px;background:#181c27;border-top:1px solid #2a2e39;border-bottom:1px solid #1e222d;font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;";
+    "padding:10px 12px;background:var(--bg);border-top:1px solid var(--border);border-bottom:1px solid var(--border);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;";
   header.textContent = "\u25BC Signals";
   panelRoot.appendChild(header);
 
   for (const spec of SPECS) {
     const row = document.createElement("div");
     row.style.cssText =
-      "padding:8px 12px 8px 24px;cursor:pointer;border-bottom:1px solid #1e222d;display:flex;align-items:flex-start;gap:10px;user-select:none;";
+      "padding:8px 12px 8px 24px;cursor:pointer;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:10px;user-select:none;";
 
     const checkbox = document.createElement("div");
     checkbox.style.cssText =
-      "width:14px;height:14px;border:1px solid #4a4e59;border-radius:3px;margin-top:2px;flex-shrink:0;";
+      "width:14px;height:14px;border:1px solid var(--text-muted);border-radius:3px;margin-top:2px;flex-shrink:0;";
 
     const text = document.createElement("div");
     text.style.cssText = "flex:1;min-width:0;";
@@ -382,7 +412,7 @@ export function createSignalsPanel(
     title.style.cssText = "font-weight:500;";
     const desc = document.createElement("div");
     desc.textContent = spec.description;
-    desc.style.cssText = "font-size:11px;color:#787b86;margin-top:2px;";
+    desc.style.cssText = "font-size:11px;color:var(--text-muted);margin-top:2px;";
     text.appendChild(title);
     text.appendChild(desc);
 
@@ -392,12 +422,12 @@ export function createSignalsPanel(
 
     const applyActive = (isActive: boolean) => {
       if (isActive) {
-        checkbox.style.background = "#2196F3";
-        checkbox.style.borderColor = "#2196F3";
-        row.style.background = "#1e2530";
+        checkbox.style.background = "var(--accent)";
+        checkbox.style.borderColor = "var(--accent)";
+        row.style.background = "color-mix(in srgb, var(--accent) 12%, transparent)";
       } else {
         checkbox.style.background = "transparent";
-        checkbox.style.borderColor = "#4a4e59";
+        checkbox.style.borderColor = "var(--text-muted)";
         row.style.background = "transparent";
       }
     };
@@ -406,22 +436,26 @@ export function createSignalsPanel(
       const original = desc.textContent;
       const originalColor = desc.style.color;
       desc.textContent = "No events detected on the current dataset";
-      desc.style.color = "#ef5350";
+      desc.style.color = "var(--down)";
       setTimeout(() => {
         desc.textContent = original;
         desc.style.color = originalColor;
       }, 1800);
     };
 
-    row.addEventListener("click", () => {
+    const rsiPane = spec.usesRsiPane ? opts.rsiPane : undefined;
+    const toggle = () => {
       const existing = active.get(spec.id);
       if (existing) {
         existing.remove();
         active.delete(spec.id);
         applyActive(false);
+        rsiPane?.release();
       } else {
-        const handle = spec.connect(candles);
+        const rsiPaneId = rsiPane?.acquire() ?? DEFAULT_RSI_PANE_ID;
+        const handle = spec.connect(candles, { rsiPaneId });
         if (!handle) {
+          rsiPane?.release();
           console.warn(`Signal ${spec.id} produced no events for the current dataset`);
           flashEmpty();
           return;
@@ -429,10 +463,19 @@ export function createSignalsPanel(
         active.set(spec.id, handle);
         applyActive(true);
       }
-    });
+    };
+    toggles.set(spec.id, toggle);
+    row.addEventListener("click", toggle);
+  }
+
+  for (const id of opts.initialActive ?? []) {
+    if (!active.has(id)) toggles.get(id)?.();
   }
 
   return {
+    getActiveIds() {
+      return [...active.keys()];
+    },
     destroy() {
       for (const h of active.values()) h.remove();
       active.clear();
