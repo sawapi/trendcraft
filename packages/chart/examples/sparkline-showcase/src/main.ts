@@ -1,14 +1,15 @@
 import {
   type ColorSpec,
   createSparklineGroup,
+  type ResolvedColors,
   type SparklineCandle,
   type SparklineGroup,
+  type SparklineHandle,
   type SparklineOptions,
 } from "@trendcraft/chart/sparkline";
 
 type Ticker = {
   symbol: string;
-  name: string;
   closes: number[];
   candles: SparklineCandle[];
   last: number;
@@ -17,14 +18,42 @@ type Ticker = {
 };
 
 const FIRST = ["AAPL", "MSFT", "GOOG", "AMZN", "META", "NVDA", "TSLA", "JPM", "V", "WMT"];
-const SUFFIX = ["A", "B", "C", "X", "Y", "Z"];
 
+// mulberry32: small, deterministic and well mixed even for consecutive small
+// seeds. (A raw LCG seeded with 1, 2, 3, ... returns almost the same first draw
+// for every seed, which made nearly every ticker drift down.)
 function rng(seed: number) {
-  let s = seed >>> 0;
+  let a = seed >>> 0;
   return () => {
-    s = (s * 1664525 + 1013904223) >>> 0;
-    return s / 0xffffffff;
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
+}
+
+// Fictional tickers: two distinct syllables from this list ("KOVA", "ZIQU"),
+// 24 × 23 = 552 symbols, shuffled once with a fixed seed. The syllables were
+// chosen so that no pair spells a word. Index i maps to FICTIONAL[i % 552], so
+// any 500 consecutive indices are unique, whatever the Regenerate seed.
+const SYLLABLES = [
+  ...["KO", "VA", "VO", "ZI", "ZU", "XA", "XI", "VU", "XO", "WI", "HU", "QO"],
+  ...["QI", "YI", "WO", "RU", "MU", "QU", "QA", "QE", "JU", "YE", "WE", "ZE"],
+];
+const FICTIONAL: string[] = (() => {
+  const out: string[] = [];
+  for (const a of SYLLABLES) for (const b of SYLLABLES) if (a !== b) out.push(a + b);
+  const r = rng(20240501);
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(r() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+})();
+
+function tickerSymbol(i: number): string {
+  return i < FIRST.length ? FIRST[i] : FICTIONAL[i % FICTIONAL.length];
 }
 
 function makeTicker(i: number, len: number, timestamps?: number[]): Ticker {
@@ -46,13 +75,11 @@ function makeTicker(i: number, len: number, timestamps?: number[]): Ticker {
     candles.push({ time, open, high: hi, low: lo, close, volume: 0 });
     prev = close;
   }
-  const symbol =
-    i < FIRST.length ? FIRST[i] : `T${i.toString().padStart(3, "0")}${SUFFIX[i % SUFFIX.length]}`;
+  const symbol = tickerSymbol(i);
   const last = closes[closes.length - 1];
   const first = closes[0];
   return {
     symbol,
-    name: `${symbol} Holdings, Inc.`,
     closes,
     candles,
     last,
@@ -82,13 +109,30 @@ const colorSel = document.getElementById("color") as HTMLSelectElement;
 const countSel = document.getElementById("count") as HTMLSelectElement;
 const sessionSel = document.getElementById("session") as HTMLSelectElement;
 const regenBtn = document.getElementById("regen") as HTMLButtonElement;
+const themeBtn = document.getElementById("theme") as HTMLButtonElement;
 
 let group: SparklineGroup | null = null;
+let handles: SparklineHandle[] = [];
 let regenSeed = 0;
+
+type Theme = "light" | "dark";
+
+function currentTheme(): Theme {
+  return document.documentElement.dataset.theme === "light" ? "light" : "dark";
+}
+
+function cssVar(name: string): string {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+/** Sparkline palette taken from the page theme tokens. */
+function themeColors(): Partial<ResolvedColors> {
+  return { up: cssVar("--up"), down: cssVar("--down"), baseline: cssVar("--text-muted") };
+}
 
 function colorSpec(_mode: "line" | "candle"): ColorSpec {
   const v = colorSel.value;
-  if (v === "fixed") return { fixed: "#60a5fa" };
+  if (v === "fixed") return { fixed: cssVar("--accent") };
   if (v === "baseline") return { baseline: 100 };
   return { trend: v as "auto" | "period" };
 }
@@ -98,6 +142,7 @@ function render() {
     group.destroy();
     group = null;
   }
+  handles = [];
   root.innerHTML = "";
 
   const t0 = performance.now();
@@ -132,6 +177,10 @@ function render() {
   header.className = "group-header";
   header.textContent = `${tickers.length} tickers`;
   groupEl.appendChild(header);
+  const rowsEl = document.createElement("div");
+  rowsEl.className = "rows";
+  groupEl.appendChild(rowsEl);
+  const colors = themeColors();
 
   const mode = modeSel.value as "line" | "candle";
   const cspec = colorSpec(mode);
@@ -145,13 +194,12 @@ function render() {
     row.className = "row";
 
     const sym = document.createElement("div");
-    sym.innerHTML = `<div class="symbol">${t.symbol}</div><div class="name">${t.name}</div>`;
+    sym.className = "symbol";
+    sym.textContent = t.symbol;
 
     const sparkWrap = document.createElement("div");
     const cv = document.createElement("canvas");
     cv.className = "spark";
-    cv.style.width = "120px";
-    cv.style.height = "32px";
     sparkWrap.appendChild(cv);
 
     const price = document.createElement("div");
@@ -163,7 +211,7 @@ function render() {
     change.textContent = `${fmtChange(t.change)} (${fmtPct(t.changePct)})`;
 
     row.append(sym, sparkWrap, price, change);
-    groupEl.appendChild(row);
+    rowsEl.appendChild(row);
 
     const opts: SparklineOptions = useJpx
       ? {
@@ -172,6 +220,7 @@ function render() {
           // candles even in line mode (line picks up .close from candles).
           data: t.candles,
           color: cspec,
+          colors,
           fill: true,
           baseline: "auto",
           session: jpxSession,
@@ -180,11 +229,12 @@ function render() {
           type: mode,
           data: mode === "candle" ? t.candles : t.closes,
           color: cspec,
+          colors,
           fill: true,
           baseline: "auto",
           totalSlots: Math.round(totalSlots),
         };
-    group.add(cv, opts);
+    handles.push(group.add(cv, opts));
   }
 
   root.appendChild(groupEl);
@@ -202,4 +252,31 @@ regenBtn.addEventListener("click", () => {
   render();
 });
 
+function applyTheme(theme: Theme) {
+  document.documentElement.dataset.theme = theme;
+  // The button names the theme it switches to.
+  themeBtn.textContent = theme === "dark" ? "Light" : "Dark";
+  const colors = themeColors();
+  const fixed = colorSel.value === "fixed" ? { color: colorSpec("line") } : {};
+  for (const h of handles) h.update({ colors, ...fixed });
+}
+
+themeBtn.addEventListener("click", () => {
+  applyTheme(currentTheme() === "dark" ? "light" : "dark");
+});
+
+// The sparkline column stretches with the layout, so repaint when it resizes.
+let resizeFrame = 0;
+let rootWidth = 0;
+new ResizeObserver(([entry]) => {
+  const width = entry.contentRect.width;
+  if (width === rootWidth) return;
+  rootWidth = width;
+  cancelAnimationFrame(resizeFrame);
+  resizeFrame = requestAnimationFrame(() => {
+    for (const h of handles) h.render();
+  });
+}).observe(root);
+
+applyTheme(currentTheme());
 render();

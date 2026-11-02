@@ -1,7 +1,7 @@
 # sparkline-showcase
 
 Catalog demo for the `@trendcraft/chart/sparkline` subpath — small inline
-canvases (≈120 × 32 px) for ticker tables and dashboards.
+canvases (32 px tall, about 100–170 px wide here) for ticker tables and dashboards.
 
 ## Setup
 
@@ -24,8 +24,14 @@ pnpm dev
     bars that have not arrived yet (right side stays blank).
   - `JPX session w/ lunch break` — time-based `session` definition with a
     `breaks` window; the lunch gap renders as a visible break.
-- **Shared hover** — all sparklines in the group share a hover index via
-  `createSparklineGroup({ hover: true })`.
+- **Group hover** — `createSparklineGroup({ hover: true })` attaches one
+  listener to the container and shares one tooltip across the group; it shows
+  the value under the cursor for the sparkline you are hovering only.
+- **Responsive list** — rows flow into as many columns as fit the window, and
+  the sparkline column stretches with it; at phone width it is one column.
+- **Theme** — the Light / Dark button switches the page and the sparklines
+  (their `colors` follow the page's colour tokens). The initial theme follows
+  the OS setting.
 - **Regenerate** — reseeds the synthetic price series.
 
 ## When to read this code
