@@ -12,6 +12,7 @@ import { DEFAULT_FONT_FAMILY } from "../core/font";
 import { cssColor, escapeHtml } from "../core/html";
 import { type ChartLocale, DEFAULT_LOCALE } from "../core/i18n";
 import type { ThemeColors } from "../core/types";
+import { seriesColor } from "./series-color";
 
 type LegendAction = "toggle" | "edit" | "remove";
 
@@ -149,7 +150,7 @@ export class LegendOverlay {
   private _renderRow(s: InternalSeries): string {
     const rawLabel = s.config.label ?? "";
     const t = cssColor(this._theme.text);
-    const color = cssColor(s.config.color ?? this._theme.text, t);
+    const color = cssColor(seriesColor(s.config, this._theme.text), t);
     const style = s.visible ? "" : "opacity:.35;text-decoration:line-through";
     const label = escapeHtml(rawLabel);
     const id = escapeHtml(s.id);

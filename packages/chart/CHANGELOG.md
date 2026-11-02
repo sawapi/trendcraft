@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — multi-channel series showed a white or black legend swatch
+
+Series drawn with `channelColors` and no `color` (Bollinger Bands, MACD,
+Ichimoku, DMI, Keltner, Donchian, Supertrend, Stochastics and 17 other
+presets) took the theme's text colour for their legend swatch, pane title
+and info-overlay label: a white dot on dark charts and a black one on light
+charts, matching none of their lines. They now use the series' first channel
+colour, for example the upper band's blue for Bollinger Bands and the MACD
+line's blue for MACD. The `color` passed to `formatInfoOverlay` follows the
+same rule.
+
 ## [0.7.0] - 2026-11-02
 
 This release reads times in UTC when `timeZone` is not set, so every viewer

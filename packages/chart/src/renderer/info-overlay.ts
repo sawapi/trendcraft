@@ -11,6 +11,7 @@ import { type ChartLocale, DEFAULT_LOCALE } from "../core/i18n";
 import type { RendererRegistry } from "../core/renderer-registry";
 import { defaultRegistry } from "../core/series-registry";
 import type { CandleData, InfoOverlayData, PaneRect, ThemeColors } from "../core/types";
+import { seriesColor } from "./series-color";
 
 export class InfoOverlay {
   private _container: HTMLElement;
@@ -110,7 +111,7 @@ export class InfoOverlay {
       if (this._formatInfoOverlay) {
         const seriesData = mainSeries.map((s) => ({
           label: s.config.label ?? "",
-          color: s.config.color ?? this._theme.text,
+          color: seriesColor(s.config, this._theme.text),
           value: s.data[i]?.value ?? null,
         }));
         customHtml = this._formatInfoOverlay({
@@ -207,7 +208,10 @@ export class InfoOverlay {
         .map((s) => {
           const label = s.config.label;
           if (!label) return "";
-          const color = cssColor(s.config.color ?? this._theme.text, cssColor(this._theme.text));
+          const color = cssColor(
+            seriesColor(s.config, this._theme.text),
+            cssColor(this._theme.text),
+          );
           return `<span style="color:${color}">${escapeHtml(label)}</span>`;
         })
         .filter(Boolean)
@@ -225,7 +229,7 @@ export class InfoOverlay {
     if (!point || point.value === null || point.value === undefined) return "";
 
     const label = escapeHtml(s.config.label ?? "?");
-    const color = cssColor(s.config.color ?? this._theme.text, cssColor(this._theme.text));
+    const color = cssColor(seriesColor(s.config, this._theme.text), cssColor(this._theme.text));
 
     // Check custom renderer formatValue first
     if (this._rendererRegistry) {
