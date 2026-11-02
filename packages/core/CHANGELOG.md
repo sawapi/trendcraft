@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.6.2] - 2026-11-02
+
+A patch release: seven indicators that returned an untagged series now carry
+a label, and fixed labels include their parameters (e.g. "HiLo(20)" instead
+of "HiLo"), so two copies with different settings can be told apart. Code
+that matches on label text sees the new strings. It also announces the
+removal of the CommonJS build in 0.8.0; the CommonJS build itself is
+unchanged in this release.
+
 ### Deprecated — the CommonJS build, to be removed in 0.8.0
 
 The package ships an ESM build and a CommonJS build (the `.cjs` files and

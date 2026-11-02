@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-02
+
+This release reads times in UTC when `timeZone` is not set, so every viewer
+sees the same dates and the chart agrees with `trendcraft`'s `resample`. It
+also makes `YTD` and day-boundary gaps follow `timeZone`, fixes several axis
+and label rendering bugs, and announces the removal of the CommonJS build in
+0.8.0.
+
+**Most likely to affect you**
+
+| What | Was | Now |
+| --- | --- | --- |
+| Time labels with no `timeZone` option | The browser's local zone | UTC; pass `timeZone` to choose a zone ([details](#breaking--times-read-in-utc-when-timezone-is-not-set)) |
+| Day-boundary gaps and `YTD` with `timeZone` set | UTC midnight and January 1 in UTC | Midnight and January 1 in `timeZone`; `sessionGaps.timeZone` overrides the gaps |
+| SMC order-block labels | "BB" (bullish), "OB" (bearish) | "Bull OB", "Bear OB" |
+
 ### Breaking — times read in UTC when `timeZone` is not set
 
 With no `timeZone` option, the time axis, its day boundaries, the crosshair
@@ -1774,6 +1790,7 @@ Initial public release.
 - `react` (optional, `>=19.0.0`) — required only when using the React wrapper.
 - `vue` (optional, `>=3.3.0`) — required only when using the Vue wrapper.
 
+[0.7.0]: https://github.com/sawapi/trendcraft/releases/tag/chart-v0.7.0
 [0.6.1]: https://github.com/sawapi/trendcraft/releases/tag/chart-v0.6.1
 [0.6.0]: https://github.com/sawapi/trendcraft/releases/tag/chart-v0.6.0
 [0.5.0]: https://github.com/sawapi/trendcraft/releases/tag/chart-v0.5.0
