@@ -490,6 +490,12 @@ export class CanvasChart implements ChartInstance {
 
     // Auto-remove empty panes when last series is removed
     this._data.setOnPaneEmpty((paneId) => {
+      // A backtest still draws its equity curve here: keep the pane, and let
+      // removeBacktest drop it later as the backtest's own.
+      if (paneId === "equity" && this._data.backtestResult) {
+        this._equityPaneAdded = true;
+        return;
+      }
       if (this._layout.removePane(paneId)) {
         this._priceScales.delete(paneId);
         this._needsRender = true;
