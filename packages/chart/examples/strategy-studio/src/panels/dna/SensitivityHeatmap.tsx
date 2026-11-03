@@ -3,9 +3,8 @@ import { formatMetric, metricScaler } from "../../lib/metric-format";
 
 /**
  * Linear interpolation between blue (low) and red (high) for a metric
- * value normalized to [0, 1]. Mirrors echarts-viewer's color palette
- * but as plain CSS so this panel pulls in no charting dependency —
- * keeps Studio's bundle small.
+ * value normalized to [0, 1], as plain CSS so this panel pulls in no
+ * charting dependency — keeps Studio's bundle small.
  */
 function metricToColor(normalized: number): string {
   // Normalized in [0, 1]: 0 = coldest, 1 = hottest.
@@ -42,9 +41,8 @@ type Props = {
 
 /**
  * Sensitivity visualization without an external chart library: a bar
- * list for the 1D view and an HTML table for the 2D pairwise view.
- * The viewer's panel uses echarts; Studio drops that dependency to
- * keep the bundle compact and renders the same data with CSS.
+ * list for the 1D view and an HTML table for the 2D pairwise view,
+ * rendered with CSS to keep the bundle compact.
  */
 export function SensitivityHeatmap({
   data,

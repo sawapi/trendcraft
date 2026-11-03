@@ -4,8 +4,7 @@
  * Linear-interpolation percentile is used elsewhere in core (monte-carlo
  * confidence intervals, drawdown distribution analysis) and is now also
  * needed by post-optimization analytics (`computeParameterSensitivity`,
- * `safeZoneFromResults`) and by example apps (echarts-viewer's
- * `strategyDna`). Exposing one canonical implementation keeps every
+ * `safeZoneFromResults`). Exposing one canonical implementation keeps every
  * consumer agreed on edge-case semantics (empty / single-element
  * inputs, non-mutation, sort cost) so a "p25 of these scores" call
  * means the same thing everywhere.

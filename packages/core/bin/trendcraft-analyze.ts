@@ -374,7 +374,7 @@ Score each factor +1 (bullish), -1 (bearish), or 0 (neutral):
 }
 
 // ---------------------------------------------------------------------------
-// CSV Parser (inline, supports PER/PBR - based on echarts-viewer's parseCSV)
+// CSV Parser (inline, supports PER/PBR)
 // ---------------------------------------------------------------------------
 
 function parseCsvWithFundamentals(text: string): ParseResult {
