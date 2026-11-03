@@ -1,6 +1,5 @@
 packages:
   - "packages/*"
-  - "packages/chart/examples/strategy-studio"
 
 # Supply chain security: delay installing newly published versions.
 # 4320 minutes = 3 days. Blocks packages published less than 3 days ago,

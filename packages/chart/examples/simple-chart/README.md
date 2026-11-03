@@ -25,4 +25,3 @@ The smallest useful chart, in one file (`src/main.ts`, under 100 lines):
 
 - [`../indicator-showcase`](../indicator-showcase): every indicator preset, the plugins and a live bar-by-bar mode
 - [`../simple-react-chart`](../simple-react-chart) and [`../simple-vue-chart`](../simple-vue-chart): the same kind of chart through the React and Vue wrappers
-- [`../strategy-studio`](../strategy-studio): a full app with drawing tools, chart types and strategy backtests

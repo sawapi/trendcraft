@@ -3,7 +3,7 @@
  * array on a timer, splitting each pending candle into N intra-candle ticks
  * before the final candleComplete.
  *
- * Used by example apps (indicator-showcase Live Mode, Strategy Studio Replay)
+ * Used by example apps (indicator-showcase Live Mode)
  * to demonstrate / dogfood `connectIndicators({ live })` and
  * `connectLivePrimitives` against a deterministic, replayable stream
  * synthesized from past candles. No network feed required.

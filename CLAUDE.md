@@ -15,7 +15,7 @@ The public API of each package is its `src/index.ts` (chart also has `headless.t
 ```bash
 pnpm install --frozen-lockfile   # always --frozen-lockfile; see below
 pnpm lint                        # Biome (pnpm lint:fix to apply fixes)
-pnpm build                       # all workspace packages, plus strategy-studio
+pnpm build                       # all workspace packages
 pnpm typecheck                   # needs pnpm build first: chart/mcp check against core's dist types
 pnpm test                        # Vitest in every package
 pnpm check:links                 # relative links and #anchors in every tracked .md file
@@ -37,15 +37,13 @@ Use `--frozen-lockfile` for every install. A plain `pnpm install` in a fresh `gi
 
 Examples live in `packages/core/examples/` and `packages/chart/examples/`; list the directories for the current set. They are not like the packages:
 
-- **Install:** every example except strategy-studio installs on its own with `pnpm install --ignore-workspace` and has its own lockfile.
-  - strategy-studio is a workspace member, and it also keeps a standalone lockfile. After a dependency change, update that lockfile with `pnpm install --ignore-workspace --lockfile-only`.
+- **Install:** every example installs on its own with `pnpm install --ignore-workspace` and has its own lockfile.
 - **Workspace prerequisite:**
   - **Chart examples:** Vite aliases `trendcraft` and `@trendcraft/chart` to their sources, so `pnpm dev` works standalone. `pnpm build` type-checks those sources, so it needs the workspace install at the repo root first.
-  - **Anything else that imports a `dist`** also needs that root build: docs-screenshots, the strategy-studio tests, and `USE_DIST=1`.
+  - **Anything else that imports a `dist`** also needs that root build: docs-screenshots and `USE_DIST=1`.
 - **Config files:** each `vite.config.ts` is type-checked through a `tsconfig.node.json` next to it. In the packages this runs in `typecheck`; in the examples it runs in `build`. A new config file goes into that `include`.
 - **Typecheck:** core's `typecheck` also type-checks the quick-start and sp500-showcase examples, through `packages/core/tsconfig.examples.json`.
 - **CI coverage:** CI builds only some examples standalone; see the "Build examples" step in `.github/workflows/ci.yml`. For an example outside that list, run its `pnpm build` yourself.
-- **Alpaca:** the Alpaca dev proxy in strategy-studio allows only the GET endpoints the app uses. Keep that allowlist when touching it.
 
 ## Conventions
 
