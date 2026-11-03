@@ -227,7 +227,8 @@ const marksCache = new WeakMap<readonly CandleData[], MarksEntry>();
  * Daily and coarser bars are marked on calendar boundaries: each bar is
  * weighted by the largest boundary it starts (year > month > day) against
  * the bar before it, and marks are kept from the heaviest weight down while
- * they stay at least MIN_MARK_SPACING from every mark already kept. The
+ * they stay at least MIN_MARK_SPACING from every mark already kept. A
+ * lighter mark is not added in a gap where a heavier one was left out. The
  * marks are picked over all the data and then cut to the visible bars, so
  * they stay put while panning. Labels at a fixed bar interval put "2017" on
  * whichever bar of 2017 the interval reached first, months into the year.
@@ -275,22 +276,35 @@ export function timeAxisMarks(candles: readonly CandleData[], timeScale: TimeSca
   let all = cache.marks.get(interval);
   if (!all) {
     all = [];
+    // Heavier candidates left out for lack of room, sorted. A lighter mark
+    // may not fill a gap that one of them falls in: with Jul and Aug left
+    // out between "Jun" and "2023", a day mark there ("Jun · Sep 15 · 2023")
+    // reads as a stray date among months.
+    let dropped: number[] = [];
     for (let weight = 3; weight >= 1; weight--) {
       // One pass per weight, left to right: a candidate must clear the kept
       // marks on both sides and the last one this pass kept.
       const kept: number[] = [];
+      const droppedNow: number[] = [];
       let p = 0;
+      let q = 0;
       let last = Number.NEGATIVE_INFINITY;
       for (const i of cache.byWeight[weight]) {
         while (p < all.length && all[p] < i) p++;
-        const left = Math.max(p > 0 ? all[p - 1] : Number.NEGATIVE_INFINITY, last);
+        const leftKept = p > 0 ? all[p - 1] : Number.NEGATIVE_INFINITY;
+        const left = Math.max(leftKept, last);
         const right = p < all.length ? all[p] : Number.POSITIVE_INFINITY;
-        if (i - left >= interval && right - i >= interval) {
+        while (q < dropped.length && dropped[q] <= leftKept) q++;
+        const gapHasDropped = q < dropped.length && dropped[q] < right;
+        if (!gapHasDropped && i - left >= interval && right - i >= interval) {
           kept.push(i);
           last = i;
+        } else {
+          droppedNow.push(i);
         }
       }
       all = [...all, ...kept].sort((a, b) => a - b);
+      dropped = [...dropped, ...droppedNow].sort((a, b) => a - b);
     }
     // One entry per zoom level seen; a long zoom session must not grow it forever.
     if (cache.marks.size >= 32) cache.marks.clear();
