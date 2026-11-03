@@ -106,9 +106,17 @@ function drawTriangle(
   ctx.fill();
 }
 
+type LabelRect = { x: number; y: number; w: number; h: number };
+
 /**
- * Pill-shaped label with a small triangular tail pointing back toward (anchorX, anchorY).
- * The pill itself is offset; the tail visually connects label → anchor.
+ * Pill-shaped label with a small triangular tail pointing back toward
+ * (anchorX, anchorY). The pill itself is offset; the tail visually connects
+ * label → anchor.
+ *
+ * The label is skipped when it would overlap one in `placed` (the labels
+ * already drawn this frame): two signals a few bars apart would otherwise
+ * stack their labels, one peeking out from behind the other. Returns whether
+ * the label was drawn.
  */
 function drawAnchoredLabel(
   ctx: CanvasRenderingContext2D,
@@ -117,16 +125,21 @@ function drawAnchoredLabel(
   text: string,
   bg: string,
   placement: "above" | "below",
-): void {
+  placed: LabelRect[],
+): boolean {
   ctx.font = "11px system-ui, sans-serif";
   const padX = 6;
-  const _padY = 3;
   const w = ctx.measureText(text).width + padX * 2;
   const h = 18;
   const gap = 12;
   const labelY = placement === "above" ? anchorY - gap - h : anchorY + gap;
   const labelX = anchorX - w / 2;
   const r = 3;
+  const overlaps = placed.some(
+    (p) => labelX < p.x + p.w && p.x < labelX + w && labelY < p.y + p.h && p.y < labelY + h,
+  );
+  if (overlaps) return false;
+  placed.push({ x: labelX, y: labelY, w, h });
 
   ctx.fillStyle = bg;
   ctx.beginPath();
@@ -161,6 +174,7 @@ function drawAnchoredLabel(
   ctx.textAlign = "center";
   ctx.fillText(text, anchorX, labelY + h / 2);
   ctx.textAlign = "start";
+  return true;
 }
 
 // ---- Signal: MA Cross (5/25) -----------------------------------------------
@@ -227,7 +241,9 @@ function makeDivergencePrimitive(
       clipToPane(ctx, pane);
       const start = timeScale.startIndex;
       const end = timeScale.endIndex;
-      for (const sig of state.signals) {
+      const placed: LabelRect[] = [];
+      // Newest first, so where two labels would overlap the latest one is kept
+      for (const sig of [...state.signals].reverse()) {
         if (sig.secondIdx < start || sig.firstIdx >= end) continue;
         const v = pickValue(sig);
         const x1 = timeScale.indexToX(sig.firstIdx);
@@ -264,6 +280,7 @@ function makeDivergencePrimitive(
             label,
             `rgba(${rgb},0.9)`,
             sig.type === "bullish" ? "below" : "above",
+            placed,
           );
         }
       }
