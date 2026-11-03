@@ -17,9 +17,6 @@ export function seriesColor(
   volumeUp: string = fallback,
 ): string {
   if (config.color) return config.color;
-  // A histogram with no colour of its own is drawn in the theme's up / down
-  // volume colours, so its swatch takes the up colour.
-  if (config.type === "histogram") return volumeUp;
   const channels = config.channelColors;
   if (channels) {
     for (const key of Object.keys(channels)) {
@@ -27,5 +24,9 @@ export function seriesColor(
       if (c) return c;
     }
   }
+  // A single histogram with no colour of its own is drawn in the theme's
+  // up / down volume colours, so its swatch takes the up colour. A
+  // multi-channel series typed "histogram" (MACD) has its channel colours.
+  if (config.type === "histogram") return volumeUp;
   return fallback;
 }

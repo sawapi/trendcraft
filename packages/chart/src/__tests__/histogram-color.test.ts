@@ -67,6 +67,18 @@ describe("histogram colour", () => {
     );
   });
 
+  it("keeps a multi-channel histogram's first channel colour for its swatch", () => {
+    // MACD is typed "histogram" but carries channel colours; its swatch is the
+    // MACD line's blue, not the volume colour.
+    expect(
+      seriesColor(
+        { type: "histogram", channelColors: { macd: "#2196F3", signal: "#FF9800" } },
+        DARK_THEME.text,
+        DARK_THEME.volumeUp,
+      ),
+    ).toBe("#2196F3");
+  });
+
   it("gives an uncoloured histogram the up-volume swatch", () => {
     expect(seriesColor({ type: "histogram" }, DARK_THEME.text, DARK_THEME.volumeUp)).toBe(
       DARK_THEME.volumeUp,
