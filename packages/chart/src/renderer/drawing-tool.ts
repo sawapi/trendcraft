@@ -64,6 +64,14 @@ export class DrawingTool {
   handleTap(pos: PointerInfo): boolean {
     if (!this._activeTool) return false;
 
+    const mainPane = this._deps.getLayout().paneRects.find((p) => p.id === "main");
+    if (!mainPane) return false;
+    // Drawings live on the price pane. A tap in another pane (volume, an
+    // indicator) would read a price off the main scale far outside its
+    // range and spend the tool on an invisible drawing; ignore it and keep
+    // the tool engaged.
+    if (pos.y < mainPane.y || pos.y > mainPane.y + mainPane.height) return false;
+
     const ts = this._deps.getTimeScale();
     const candles = this._deps.getCandles();
     const idx = ts.xToIndex(pos.x);
@@ -71,8 +79,6 @@ export class DrawingTool {
     if (!candle) return false;
     const time = candle.time;
 
-    const mainPane = this._deps.getLayout().paneRects.find((p) => p.id === "main");
-    if (!mainPane) return false;
     const scales = this._deps.getPriceScales().get("main");
     if (!scales) return false;
     const price = scales.right.yToPrice(pos.y - mainPane.y);
@@ -110,6 +116,10 @@ export class DrawingTool {
     if (!mainPane) return undefined;
     const scales = this._deps.getPriceScales().get("main");
     if (!scales) return undefined;
+
+    // Outside the price pane a tap would be ignored, so show no preview
+    // there rather than one at an off-scale price that cannot be placed.
+    if (vs.mouseY < mainPane.y || vs.mouseY > mainPane.y + mainPane.height) return undefined;
 
     const endTime = endCandle.time;
     const endPrice = scales.right.yToPrice(vs.mouseY - mainPane.y);
