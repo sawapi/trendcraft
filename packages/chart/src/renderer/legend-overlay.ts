@@ -150,7 +150,7 @@ export class LegendOverlay {
   private _renderRow(s: InternalSeries): string {
     const rawLabel = s.config.label ?? "";
     const t = cssColor(this._theme.text);
-    const color = cssColor(seriesColor(s.config, this._theme.text), t);
+    const color = cssColor(seriesColor(s.config, this._theme.text, this._theme.volumeUp), t);
     const style = s.visible ? "" : "opacity:.35;text-decoration:line-through";
     const label = escapeHtml(rawLabel);
     const id = escapeHtml(s.id);

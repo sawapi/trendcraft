@@ -1,4 +1,4 @@
-import { DARK_THEME, definePrimitive, defineSeriesRenderer, LIGHT_THEME } from "@trendcraft/chart";
+import { definePrimitive, defineSeriesRenderer } from "@trendcraft/chart";
 import { registerBacktest } from "@trendcraft/chart/features";
 import { TrendChart } from "@trendcraft/chart/react";
 import { useMemo, useState } from "react";
@@ -159,15 +159,14 @@ export function App() {
           scaleId: "left",
           type: "histogram",
           maxHeightRatio: 0.2,
-          // Histogram bars take the theme's up / down volume colours, so the
-          // legend swatch uses the up colour to match them
-          color: (theme === "dark" ? DARK_THEME : LIGHT_THEME).volumeUp,
+          // No `color`: bars follow each candle's direction in the theme's
+          // volume colours, and the legend swatch takes the up colour
           label: "Volume",
         },
       });
     }
     return list;
-  }, [showSma, showBb, showRsi, showMacd, showTrail, showVolOverlay, theme]);
+  }, [showSma, showBb, showRsi, showMacd, showTrail, showVolOverlay]);
 
   const backtestResult = useMemo(() => {
     if (!showBacktest) return undefined;
