@@ -125,7 +125,14 @@ const sidebarAPI = createSidebar(sidebarEl, catalog, {
     return replaceIndicator(id, id, params);
   },
   onAddExtra({ presetId, snapshotName, params }) {
-    return tryAdd(presetId, { ...resolveParams(presetId, params), snapshotName });
+    // A "+" copy gets its own colour, so two MACDs or two bands can be told
+    // apart; replaceIndicator keeps it across later param edits.
+    const color = EXTRA_COLORS[extraColorIndex++ % EXTRA_COLORS.length];
+    return tryAdd(presetId, {
+      ...resolveParams(presetId, params),
+      snapshotName,
+      series: { color },
+    });
   },
   onRemoveExtra(snapshotName) {
     conn.remove(snapshotName);
@@ -134,6 +141,10 @@ const sidebarAPI = createSidebar(sidebarEl, catalog, {
     return replaceIndicator(presetId, snapshotName, params);
   },
 });
+
+/** Colours for "+" copies, in turn: distinct from the presets' own blues and oranges. */
+const EXTRA_COLORS = ["#e91e63", "#26a69a", "#9c27b0", "#8bc34a", "#00bcd4", "#ffc107", "#3f51b5"];
+let extraColorIndex = 0;
 
 /** Add an indicator instance; false (with a console warning) if it throws. */
 function tryAdd(presetId: string, overrides: Record<string, unknown>): boolean {

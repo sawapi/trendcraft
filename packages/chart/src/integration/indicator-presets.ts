@@ -44,11 +44,8 @@ export const INDICATOR_PRESETS = new Map<string, IndicatorPreset>([
     {
       pane: "main",
       label: "Bollinger Bands",
-      channelColors: {
-        upper: "#2196F3",
-        middle: "#FF9800",
-        lower: "#2196F3",
-      },
+      // No channelColors: a band takes the series colour (auto-assigned or
+      // given) for its lines and fill, so two bands never share one blue.
       lineWidth: 1,
     },
   ],

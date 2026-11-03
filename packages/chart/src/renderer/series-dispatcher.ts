@@ -3,6 +3,7 @@
  * Extracted from canvas-chart.ts for maintainability.
  */
 
+import { withAlpha } from "../core/color-utils";
 import type { DataLayer, InternalSeries } from "../core/data-layer";
 import { getDecimationTarget, lttb } from "../core/decimation";
 import { barLeft, DrawHelper, oddPixelWidth } from "../core/draw-helper";
@@ -199,6 +200,9 @@ export function dispatchSeries(
   if (rule.name === "band") {
     const channels = getCachedChannels(s, rule);
     const cc = s.config.channelColors;
+    // A band line without a colour of its own takes the series colour, and
+    // the fill a light tint of it.
+    const base = s.config.color;
     renderBand(
       ctx,
       channels.get("upper") ?? [],
@@ -207,9 +211,10 @@ export function dispatchSeries(
       timeScale,
       priceScale,
       definedOnly({
-        upperColor: cc?.upper,
-        middleColor: cc?.middle,
-        lowerColor: cc?.lower,
+        upperColor: cc?.upper ?? base,
+        middleColor: cc?.middle ?? base,
+        lowerColor: cc?.lower ?? base,
+        fillColor: base ? withAlpha(base, 0.08) : undefined,
         lineWidth: s.config.lineWidth,
       }),
     );
@@ -390,7 +395,11 @@ export function dispatchSeries(
   let colorIdx = 0;
   for (const [name, vals] of channels) {
     renderChannelLine(ctx, vals, timeScale, priceScale, {
-      color: cc?.[name] ?? fallbackColors[colorIdx % fallbackColors.length],
+      // The first channel is the series' own line: it takes the series colour
+      color:
+        cc?.[name] ??
+        (colorIdx === 0 ? s.config.color : undefined) ??
+        fallbackColors[colorIdx % fallbackColors.length],
       lineWidth,
     });
     colorIdx++;

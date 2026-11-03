@@ -4,6 +4,7 @@
 
 import type { DataPoint, SeriesConfig } from "../core/types";
 import { INDICATOR_PRESETS } from "./indicator-presets";
+import { channelColorsWithOwnColor } from "./series-introspector";
 
 // ============================================
 // Duck-typed interfaces (no core imports)
@@ -115,6 +116,10 @@ export function buildSeriesConfig(
     label: overrides?.label,
     yRange: overrides?.yRange ?? meta.yRange,
     referenceLines: overrides?.referenceLines ?? meta.referenceLines,
-    channelColors: overrides?.channelColors ?? chartPreset?.channelColors,
+    channelColors: channelColorsWithOwnColor(
+      overrides?.channelColors,
+      overrides?.color,
+      chartPreset?.channelColors,
+    ),
   };
 }
