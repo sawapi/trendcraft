@@ -3,6 +3,7 @@
  * Green (high score / bullish) → Yellow (neutral) → Red (low score / bearish).
  */
 
+import { barFillSpans } from "../core/draw-helper";
 import type { TimeScale } from "../core/scale";
 import type { DataPoint, PaneRect } from "../core/types";
 
@@ -18,7 +19,7 @@ export function renderScoreHeatmap(
 ): void {
   const start = timeScale.startIndex;
   const end = timeScale.endIndex;
-  const barWidth = Math.max(1, timeScale.barSpacing);
+  const span = barFillSpans(timeScale.barSpacing);
 
   ctx.save();
   ctx.beginPath();
@@ -30,12 +31,13 @@ export function renderScoreHeatmap(
     if (!point || point.value === null || point.value === undefined) continue;
 
     const score = Math.max(0, Math.min(100, point.value));
-    const x = timeScale.indexToX(i);
+    const s = span(timeScale.indexToX(i));
+    if (!s) continue;
     const color = scoreToColor(score);
 
     ctx.fillStyle = color;
     ctx.globalAlpha = 0.12;
-    ctx.fillRect(x - barWidth / 2, paneRect.y, barWidth, paneRect.height);
+    ctx.fillRect(s[0], paneRect.y, s[1], paneRect.height);
   }
 
   ctx.globalAlpha = 1;

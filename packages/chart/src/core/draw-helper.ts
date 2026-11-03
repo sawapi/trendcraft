@@ -327,3 +327,26 @@ export function roundRectPath(
   ctx.quadraticCurveTo(x, y, x + r, y);
   ctx.closePath();
 }
+
+/**
+ * Horizontal extent of per-bar background fills (heatmaps, zone shading)
+ * that never stack. Call the returned function once per bar, left to right,
+ * with the bar's center x: it returns the fill's `[left, width]`, or `null`
+ * to skip the bar.
+ *
+ * Bars wider than a pixel get their own span. Below a pixel per bar, a fill
+ * drawn a full pixel wide would overlap its neighbours, and translucent fills
+ * compound: at 0.3 px per bar each pixel was painted about three times, so a
+ * 0.4 alpha shade came out nearly opaque. There, only the first bar in each
+ * pixel column is drawn.
+ */
+export function barFillSpans(barSpacing: number): (x: number) => [number, number] | null {
+  if (barSpacing >= 1) return (x) => [x - barSpacing / 2, barSpacing];
+  let lastColumn = Number.NEGATIVE_INFINITY;
+  return (x) => {
+    const column = Math.floor(x);
+    if (column === lastColumn) return null;
+    lastColumn = column;
+    return [column, 1];
+  };
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { DrawHelper, strokeNullableLine, withPaneClip } from "../core/draw-helper";
+import { barFillSpans, DrawHelper, strokeNullableLine, withPaneClip } from "../core/draw-helper";
 import { PriceScale, TimeScale } from "../core/scale";
 
 /** Create a minimal mock CanvasRenderingContext2D */
@@ -306,5 +306,25 @@ describe("strokeNullableLine()", () => {
     expect(ctx.moveTo).not.toHaveBeenCalled();
     expect(ctx.lineTo).not.toHaveBeenCalled();
     expect(ctx.stroke).toHaveBeenCalledOnce();
+  });
+});
+
+describe("barFillSpans", () => {
+  it("gives each bar its own span when bars are a pixel or wider", () => {
+    const span = barFillSpans(8);
+    expect(span(20)).toEqual([16, 8]);
+    expect(span(28)).toEqual([24, 8]);
+  });
+
+  it("draws one bar per pixel column below a pixel per bar", () => {
+    const span = barFillSpans(0.3);
+    const xs = Array.from({ length: 10 }, (_, i) => 5 + i * 0.3);
+    const spans = xs.map(span).filter((s) => s !== null);
+    // 10 bars from x = 5 to 7.7 fall in pixel columns 5, 6 and 7: one fill each
+    expect(spans).toEqual([
+      [5, 1],
+      [6, 1],
+      [7, 1],
+    ]);
   });
 });

@@ -19,7 +19,7 @@
  * ```
  */
 
-import { withPaneClip } from "../core/draw-helper";
+import { barFillSpans, withPaneClip } from "../core/draw-helper";
 import { canvasFont } from "../core/font";
 import type { PrimitivePlugin, PrimitiveRenderContext } from "../core/plugin-types";
 import { definePrimitive } from "../core/plugin-types";
@@ -82,7 +82,7 @@ function renderSessionZones(
 
   const start = timeScale.startIndex;
   const end = timeScale.endIndex;
-  const barWidth = Math.max(1, timeScale.barSpacing);
+  const span = barFillSpans(timeScale.barSpacing);
 
   withPaneClip(ctx, pane, () => {
     // Collect spans first, then render labels with collision avoidance so
@@ -100,10 +100,11 @@ function renderSessionZones(
 
       if (inKillZone && zone) {
         const rgb = zoneToRgb(zone);
-        const x = timeScale.indexToX(i);
-
-        ctx.fillStyle = `rgba(${rgb},0.18)`;
-        ctx.fillRect(x - barWidth / 2, pane.y, barWidth, pane.height);
+        const s = span(timeScale.indexToX(i));
+        if (s) {
+          ctx.fillStyle = `rgba(${rgb},0.18)`;
+          ctx.fillRect(s[0], pane.y, s[1], pane.height);
+        }
 
         if (zone !== spanZone) {
           if (spanStart >= 0 && spanZone) {
