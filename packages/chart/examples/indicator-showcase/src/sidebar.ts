@@ -14,6 +14,7 @@
 
 import type { IndicatorCategory, ParamSchema } from "trendcraft";
 import { type ActiveBarItem, createActiveBar } from "./active-bar";
+import { bumpUntilUnique, createParamInput, isValidParam } from "./param-input";
 
 /** Sidebar entry derived from IndicatorPreset */
 export type SidebarEntry = {
@@ -47,17 +48,22 @@ type ExtraInstance = {
   params: Record<string, unknown>;
 };
 
+/**
+ * Callbacks that add or change an indicator return whether it was applied.
+ * `false` means the indicator rejected the params (for example a fast period
+ * not below the slow one), and the sidebar puts its own state back.
+ */
 export type SidebarCallbacks = {
   /** Toggle the primary (default-snapshotName) instance for this preset. */
-  onToggle: (id: string, active: boolean, params: Record<string, unknown>) => void;
+  onToggle: (id: string, active: boolean, params: Record<string, unknown>) => boolean;
   /** Change params for the primary instance (only fires if active). */
-  onParamChange: (id: string, params: Record<string, unknown>) => void;
+  onParamChange: (id: string, params: Record<string, unknown>) => boolean;
   /** Add an extra instance with an explicit snapshotName. */
-  onAddExtra: (extra: ExtraInstance) => void;
+  onAddExtra: (extra: ExtraInstance) => boolean;
   /** Remove an extra instance by its snapshotName. */
   onRemoveExtra: (snapshotName: string) => void;
   /** Change params of an extra instance by its snapshotName. */
-  onChangeExtraParams: (extra: ExtraInstance) => void;
+  onChangeExtraParams: (extra: ExtraInstance) => boolean;
 };
 
 export type SidebarAPI = {
@@ -162,12 +168,7 @@ export function createSidebar(
     return `${presetId}#${n}`;
   }
 
-  /**
-   * When the user clicks "+" repeatedly without editing params, we'd end up
-   * with identical overlapping instances. Auto-bump the first numeric param
-   * until the resulting param tuple doesn't collide with any existing
-   * instance (primary or extra) for this preset.
-   */
+  /** Params for a new "+" instance that differ from every existing one. */
   function differentiateParams(
     entry: SidebarEntry,
     params: Record<string, unknown>,
@@ -177,21 +178,7 @@ export function createSidebar(
     for (const ex of extraInstances.values()) {
       if (ex.presetId === entry.id) used.push(JSON.stringify(ex.params));
     }
-    const firstNumericKey = entry.params.find((p) => typeof p.default === "number")?.key;
-    if (!firstNumericKey) return params;
-
-    const result = { ...params };
-    const schema = entry.params.find((p) => p.key === firstNumericKey);
-    const step = typeof schema?.step === "number" ? schema.step : 1;
-    const max = typeof schema?.max === "number" ? schema.max : Number.POSITIVE_INFINITY;
-    for (let i = 0; i < 50; i++) {
-      if (!used.includes(JSON.stringify(result))) return result;
-      const cur = Number(result[firstNumericKey] ?? 0);
-      const next = cur + Math.max(step, Math.round(cur * 0.5));
-      if (next > max) break;
-      result[firstNumericKey] = next;
-    }
-    return result;
+    return bumpUntilUnique(entry.params, params, used);
   }
 
   function renderList() {
@@ -311,7 +298,7 @@ export function createSidebar(
             const snapshotName = nextExtraKey(entry.id);
             const extra: ExtraInstance = { presetId: entry.id, snapshotName, params };
             extraInstances.set(snapshotName, extra);
-            callbacks.onAddExtra(extra);
+            if (!callbacks.onAddExtra(extra)) extraInstances.delete(snapshotName);
             renderActiveBar();
           });
           row.appendChild(addBtn);
@@ -343,7 +330,9 @@ export function createSidebar(
           } else {
             activeIds.delete(entry.id);
           }
-          callbacks.onToggle(entry.id, nowActive, getParams(entry.id));
+          if (!callbacks.onToggle(entry.id, nowActive, getParams(entry.id))) {
+            activeIds.delete(entry.id);
+          }
           renderList();
           renderActiveBar();
         });
@@ -373,12 +362,22 @@ export function createSidebar(
             );
             input.addEventListener("change", () => {
               const val = Number.parseFloat(input.value);
-              if (!Number.isNaN(val)) {
-                const paramMap = currentParams.get(entry.id);
-                if (paramMap) paramMap[p.key] = val;
-                if (activeIds.has(entry.id)) {
-                  callbacks.onParamChange(entry.id, getParams(entry.id));
+              const paramMap = currentParams.get(entry.id);
+              if (!paramMap || !isValidParam(p, val)) {
+                // Out of range or not a whole step: put the current value back
+                input.value = String(paramMap?.[p.key] ?? p.default);
+                return;
+              }
+              const previous = paramMap[p.key];
+              paramMap[p.key] = val;
+              if (activeIds.has(entry.id)) {
+                if (!callbacks.onParamChange(entry.id, getParams(entry.id))) {
+                  // Rejected by the indicator: keep the values it still runs with
+                  paramMap[p.key] = previous;
+                  input.value = String(previous ?? p.default);
                 }
+                // Keep the pill in the active bar in step with the panel
+                renderActiveBar();
               }
             });
             paramRow.appendChild(input);
@@ -389,24 +388,6 @@ export function createSidebar(
         }
       }
     }
-  }
-
-  function createParamInput(p: ParamSchema, value: number): HTMLInputElement {
-    const input = document.createElement("input");
-    input.type = "number";
-    input.value = String(value);
-    if (p.min !== undefined) input.min = String(p.min);
-    if (p.max !== undefined) input.max = String(p.max);
-    if (p.step !== undefined) input.step = String(p.step);
-    input.style.cssText =
-      "width:70px;padding:4px 6px;background:var(--surface-2);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:12px;text-align:right;outline:none;";
-    input.addEventListener("focus", () => {
-      input.style.borderColor = "var(--accent)";
-    });
-    input.addEventListener("blur", () => {
-      input.style.borderColor = "var(--border)";
-    });
-    return input;
   }
 
   function renderActiveBar() {
@@ -423,9 +404,14 @@ export function createSidebar(
         editableKey: editKey,
         onEdit: (newVal) => {
           const paramMap = currentParams.get(id);
-          if (paramMap && editKey) paramMap[editKey] = newVal;
-          callbacks.onParamChange(id, getParams(id));
-          renderList();
+          const schema = entry.params.find((p) => p.key === editKey);
+          if (paramMap && editKey && schema && isValidParam(schema, newVal)) {
+            const previous = paramMap[editKey];
+            paramMap[editKey] = newVal;
+            if (!callbacks.onParamChange(id, getParams(id))) paramMap[editKey] = previous;
+            renderList();
+          }
+          // An invalid value leaves the indicator as it was; redraw the pill
           renderActiveBar();
         },
         onRemove: () => {
@@ -447,8 +433,12 @@ export function createSidebar(
         params: extra.params,
         editableKey: editKey,
         onEdit: (newVal) => {
-          if (editKey) extra.params = { ...extra.params, [editKey]: newVal };
-          callbacks.onChangeExtraParams(extra);
+          const schema = entry.params.find((p) => p.key === editKey);
+          if (editKey && schema && isValidParam(schema, newVal)) {
+            const previous = extra.params;
+            extra.params = { ...extra.params, [editKey]: newVal };
+            if (!callbacks.onChangeExtraParams(extra)) extra.params = previous;
+          }
           renderActiveBar();
         },
         onRemove: () => {
@@ -487,7 +477,7 @@ export function createSidebar(
       if (activeIds.has(id) === active) return;
       if (active) activeIds.add(id);
       else activeIds.delete(id);
-      callbacks.onToggle(id, active, getParams(id));
+      if (!callbacks.onToggle(id, active, getParams(id))) activeIds.delete(id);
       renderList();
       renderActiveBar();
     },

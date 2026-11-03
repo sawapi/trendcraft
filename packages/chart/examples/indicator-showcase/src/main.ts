@@ -109,43 +109,67 @@ const sidebarAPI = createSidebar(sidebarEl, catalog, {
   onToggle(id, active, params) {
     // A manual change to RSI hands it back to the user (see rsiPane below).
     if (id === "rsi") rsiAddedBySignal = false;
-    if (active) {
-      const finalParams = resolveParams(id, params);
-      // Force the primary's snapshotName = presetId so editing params
-      // later removes just this instance (not every SMA, etc.).
-      conn.add(id, { ...finalParams, snapshotName: id });
-    } else {
+    if (!active) {
       conn.remove(id);
+      return true;
     }
+    // Force the primary's snapshotName = presetId so editing params
+    // later removes just this instance (not every SMA, etc.).
+    return tryAdd(id, { ...resolveParams(id, params), snapshotName: id });
   },
   onParamChange(id, params) {
     if (id === "rsi") rsiAddedBySignal = false;
     // Preserve the current color across the remove+add round-trip so
     // editing a period in the active-bar pill doesn't re-roll the palette
     // and hand the same instance a different color mid-session.
-    const oldColor = conn.get(id)?.color;
-    conn.remove(id);
-    const finalParams = resolveParams(id, params);
-    const overrides: Record<string, unknown> = { ...finalParams, snapshotName: id };
-    if (oldColor) overrides.series = { color: oldColor };
-    conn.add(id, overrides);
+    return replaceIndicator(id, id, params);
   },
   onAddExtra({ presetId, snapshotName, params }) {
-    const finalParams = resolveParams(presetId, params);
-    conn.add(presetId, { ...finalParams, snapshotName });
+    return tryAdd(presetId, { ...resolveParams(presetId, params), snapshotName });
   },
   onRemoveExtra(snapshotName) {
     conn.remove(snapshotName);
   },
   onChangeExtraParams({ presetId, snapshotName, params }) {
-    const oldColor = conn.get(snapshotName)?.color;
-    conn.remove(snapshotName);
-    const finalParams = resolveParams(presetId, params);
-    const overrides: Record<string, unknown> = { ...finalParams, snapshotName };
-    if (oldColor) overrides.series = { color: oldColor };
-    conn.add(presetId, overrides);
+    return replaceIndicator(presetId, snapshotName, params);
   },
 });
+
+/** Add an indicator instance; false (with a console warning) if it throws. */
+function tryAdd(presetId: string, overrides: Record<string, unknown>): boolean {
+  try {
+    conn.add(presetId, overrides);
+    return true;
+  } catch (err) {
+    conn.remove(overrides.snapshotName as string);
+    console.warn(`${presetId}: these params could not be applied`, err);
+    return false;
+  }
+}
+
+/**
+ * Swap an indicator instance for one with new params, keeping its colour.
+ * If the new params make the indicator throw, the previous instance is put
+ * back and this returns false, so the sidebar can restore its own state.
+ */
+function replaceIndicator(
+  presetId: string,
+  snapshotName: string,
+  params: Record<string, unknown>,
+): boolean {
+  const old = conn.get(snapshotName);
+  const oldColor = old?.color;
+  const oldParams = old ? { ...old.params } : undefined;
+  const build = (p: Record<string, unknown>) => {
+    const overrides: Record<string, unknown> = { ...resolveParams(presetId, p), snapshotName };
+    if (oldColor) overrides.series = { color: oldColor };
+    return overrides;
+  };
+  conn.remove(snapshotName);
+  if (tryAdd(presetId, build(params))) return true;
+  if (oldParams) tryAdd(presetId, build(oldParams));
+  return false;
+}
 
 // ============================================
 // RSI pane for the RSI Divergence signal
