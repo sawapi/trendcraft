@@ -244,6 +244,13 @@ candles. Below a pixel per bar these fills are now drawn once per pixel
 column. The regime heatmap is also lighter (alpha 0.06 to 0.16 by
 confidence, was 0.15 to 0.40), so the candles stay readable over it.
 
+### Fixed — the equity pane vanished with its last series while a backtest was shown
+
+With a backtest drawn, removing the last series placed in the `equity` pane
+dropped the whole pane, so the equity curve disappeared. The pane now stays
+while a backtest is shown, and `removeBacktest()` drops it once nothing else
+uses it.
+
 ### Fixed — multi-channel series showed a white or black legend swatch
 
 Series drawn with `channelColors` and no `color` (Bollinger Bands, MACD,

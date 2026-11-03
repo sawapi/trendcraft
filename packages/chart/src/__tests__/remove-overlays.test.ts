@@ -141,6 +141,31 @@ describe("remove* overlay methods", () => {
     expect(paneIds(chart)).toContain("equity");
   });
 
+  it("keeps the equity pane while a backtest is shown and its last series goes", () => {
+    chart.addBacktest(BACKTEST);
+    const handle = chart.addIndicator(
+      candles.map((c) => ({ time: c.time, value: c.close })),
+      { pane: "equity", label: "Mine" },
+    );
+    handle.remove();
+    expect(paneIds(chart)).toContain("equity");
+    // The pane is the backtest's again, so removing the backtest drops it
+    chart.removeBacktest();
+    expect(paneIds(chart)).not.toContain("equity");
+  });
+
+  it("keeps an equity pane the app's series made once a backtest uses it", () => {
+    const handle = chart.addIndicator(
+      candles.map((c) => ({ time: c.time, value: c.close })),
+      { pane: "equity", label: "Mine" },
+    );
+    chart.addBacktest(BACKTEST);
+    handle.remove();
+    expect(paneIds(chart)).toContain("equity");
+    chart.removeBacktest();
+    expect(paneIds(chart)).not.toContain("equity");
+  });
+
   it("removePatterns, removeScores, removeSignals and removeTrades clear their data", () => {
     chart.addPatterns([PATTERN]);
     chart.addScores([{ time: T0, value: 50 }]);
