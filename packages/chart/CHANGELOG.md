@@ -21,6 +21,17 @@ The React and Vue wrappers call them when the `backtest`, `patterns`,
 so turning an overlay off in the app now clears it. A prop that was never
 set leaves alone anything the app added through the chart instance.
 
+### Added — sparkline tooltip colours from CSS custom properties
+
+The `createSparklineGroup` hover tooltip took a fixed dark style, so it stayed
+dark on a light page. Its background, text colour and border now come from
+`--tc-sparkline-tooltip-bg`, `--tc-sparkline-tooltip-color` and
+`--tc-sparkline-tooltip-border`. Set them on `:root` in a stylesheet (the
+tooltip is a child of `body`, so variables scoped to a container do not
+reach it); a theme switch
+that changes them restyles the tooltip with no call into the group. Unset,
+the tooltip looks as before.
+
 ### Fixed — a stray date among month labels on the time axis
 
 On daily and coarser data, the time axis could show one date among month

@@ -177,6 +177,15 @@ export type SparklineHandle = {
 
 export type SparklineGroupOptions = {
   container: HTMLElement;
+  /**
+   * Show a tooltip on hover. Default: true.
+   *
+   * The tooltip's colours come from CSS custom properties, with a dark
+   * default: `--tc-sparkline-tooltip-bg`, `--tc-sparkline-tooltip-color` and
+   * `--tc-sparkline-tooltip-border` (a `border` shorthand). Set them on
+   * `:root` (or `html` / `body`): the tooltip is a child of `body`, so
+   * variables scoped to a container do not reach it.
+   */
   hover?: boolean | { format?: (d: HoverPayload) => string };
 };
 

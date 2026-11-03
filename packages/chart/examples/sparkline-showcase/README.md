@@ -30,8 +30,9 @@ pnpm dev
 - **Responsive list** — rows flow into as many columns as fit the window, and
   the sparkline column stretches with it; at phone width it is one column.
 - **Theme** — the Light / Dark button switches the page and the sparklines
-  (their `colors` follow the page's colour tokens). The initial theme follows
-  the OS setting.
+  (their `colors` follow the page's colour tokens). The hover tooltip follows
+  too, through the `--tc-sparkline-tooltip-*` custom properties set per theme
+  in `index.html`. The initial theme follows the OS setting.
 - **Regenerate** — reseeds the synthetic price series.
 
 ## When to read this code
