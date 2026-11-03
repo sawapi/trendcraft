@@ -304,8 +304,23 @@ export class TimeScale {
   }
 
   setWidth(width: number): void {
+    const oldWidth = this._width;
+    const oldSpan = this.windowSpan;
     this._width = width;
     this.recalcVisibleCount();
+    // Keep the right edge, at the same zoom: the newest bars are what a
+    // viewer follows, so a narrower window gives up bars on the left rather
+    // than pushing the latest ones off screen. An explicit logical-range
+    // viewport keeps its own start; a zero-width window has no edge to keep.
+    if (oldWidth > 0 && width > 0 && this._granted === null && this._totalCount > 0) {
+      const shift = oldSpan - this.windowSpan;
+      if (this._virt.length === 0) {
+        this._startIndex += shift;
+      } else {
+        this._startIndex = this.realAtVirt(this.virtAt(this._startIndex) + shift);
+      }
+      this.clamp();
+    }
   }
 
   /** Index to center-x pixel position within data area */

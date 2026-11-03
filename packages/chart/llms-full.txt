@@ -269,6 +269,15 @@ edge above). The tag now stays inside the price pane, pinned to its top or
 bottom edge like the series badges, and the dashed line is drawn only while
 the price is in view.
 
+### Fixed — narrowing the chart pushed the latest bars off screen
+
+When the chart got narrower (a window resize, a phone rotated to portrait)
+while zoomed in, it kept the left edge of the view, so the newest bars went
+off the right side. It now keeps the right edge at the same zoom and gives
+up bars on the left; widening adds bars on the left until the first bar.
+A view showing all the data still refits, and a viewport set with
+`setVisibleLogicalRange` keeps its own start.
+
 ### Fixed — multi-channel series showed a white or black legend swatch
 
 Series drawn with `channelColors` and no `color` (Bollinger Bands, MACD,
