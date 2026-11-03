@@ -3,6 +3,7 @@
  * Renders OHLCV candles with wicks and colored bodies.
  */
 
+import { barLeft, oddPixelWidth } from "../core/draw-helper";
 import type { PriceScale, TimeScale } from "../core/scale";
 import type { CandleData, ThemeColors } from "../core/types";
 import { isFiniteOHLC } from "../core/validation";
@@ -23,9 +24,10 @@ export function renderCandlesticks(
 ): void {
   const start = originalIndices ? 0 : timeScale.startIndex;
   const end = originalIndices ? candles.length : timeScale.endIndex;
-  const candleWidth = timeScale.candleWidth;
-  const halfCandle = candleWidth / 2;
-  const wickWidth = Math.max(1, candleWidth * 0.1);
+  // Odd whole-pixel widths: the wick, the body and the crosshair share the
+  // pixel column round(x), with the wick and crosshair in the body's middle.
+  const bodyWidth = oddPixelWidth(timeScale.candleWidth);
+  const wickWidth = oddPixelWidth(timeScale.candleWidth * 0.1);
 
   for (let i = start; i < end && i < candles.length; i++) {
     const candle = candles[i];
@@ -57,15 +59,16 @@ export function renderCandlesticks(
 
     // Body
     ctx.fillStyle = isUp ? theme.upColor : theme.downColor;
-    ctx.fillRect(Math.round(x - halfCandle), bodyTop, Math.round(candleWidth), bodyHeight);
+    const bodyLeft = barLeft(x, bodyWidth);
+    ctx.fillRect(bodyLeft, bodyTop, bodyWidth, bodyHeight);
 
     // Body border for very small candles
     if (bodyHeight <= 1) {
       ctx.strokeStyle = isUp ? theme.upColor : theme.downColor;
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(sx - halfCandle, bodyTop);
-      ctx.lineTo(sx + halfCandle, bodyTop);
+      ctx.moveTo(bodyLeft, bodyTop);
+      ctx.lineTo(bodyLeft + bodyWidth, bodyTop);
       ctx.stroke();
     }
   }

@@ -2,6 +2,7 @@
  * OHLC Bar Renderer — Traditional OHLC bars (vertical line + left/right ticks).
  */
 
+import { oddPixelWidth } from "../core/draw-helper";
 import type { PriceScale, TimeScale } from "../core/scale";
 import type { CandleData, ThemeColors } from "../core/types";
 
@@ -32,7 +33,8 @@ export function renderOhlcBars(
     const closeY = Math.round(priceScale.priceToY(candle.close)) + 0.5;
 
     ctx.strokeStyle = color;
-    ctx.lineWidth = Math.max(1, timeScale.candleWidth * 0.15);
+    // Odd whole-pixel width, centred on round(x) + 0.5 like the crosshair
+    ctx.lineWidth = oddPixelWidth(timeScale.candleWidth * 0.15);
 
     // Vertical line (high to low)
     ctx.beginPath();

@@ -350,3 +350,21 @@ export function barFillSpans(barSpacing: number): (x: number) => [number, number
     return [column, 1];
   };
 }
+
+/**
+ * A bar width in whole pixels, odd so the bar has a middle pixel column.
+ * The crosshair and the candle wick are 1 px lines at x = round(x) + 0.5,
+ * i.e. pixel column round(x); an odd-width bar starting at
+ * {@link barLeft} puts that column exactly in its middle. An even width
+ * steps down by one (at least 1). Widths are in CSS pixels, so the edges
+ * land on device pixels at a pixel ratio of 1 or 2.
+ */
+export function oddPixelWidth(width: number): number {
+  const w = Math.max(1, Math.round(width));
+  return w % 2 === 0 ? w - 1 : w;
+}
+
+/** Left edge of a bar of odd pixel width `w` centred on the column of `x`. */
+export function barLeft(x: number, w: number): number {
+  return Math.round(x) - (w - 1) / 2;
+}

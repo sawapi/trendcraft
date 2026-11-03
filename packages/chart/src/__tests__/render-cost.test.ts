@@ -10,6 +10,7 @@
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { InternalSeries } from "../core/data-layer";
+import { barLeft, oddPixelWidth } from "../core/draw-helper";
 import { TimeScale } from "../core/scale";
 import { defaultRegistry } from "../core/series-registry";
 import type { CandleData, DataPoint } from "../core/types";
@@ -107,12 +108,12 @@ describe("zoomed-out bars", () => {
     const data = candles(BARS);
     const ts = makeTimeScale(BARS, WIDTH);
     const ps = makePriceScale(100, 0, 2000);
-    const halfBar = Math.max(1, ts.barSpacing * 0.6) / 2;
+    const w = oddPixelWidth(ts.barSpacing * 0.6);
     const zeroY = ps.priceToY(0);
     // What each bar covered when drawn one by one.
     const perBar = data.map((c, i) => {
       const y = ps.priceToY(c.volume);
-      return { x: ts.indexToX(i) - halfBar, y, w: 1, h: zeroY - y };
+      return { x: barLeft(ts.indexToX(i), w), y, w, h: zeroY - y };
     });
 
     const { rects } = record((ctx) => renderVolume(ctx, data, ts, ps, DARK_THEME));
@@ -129,12 +130,12 @@ describe("zoomed-out bars", () => {
       ts.setWidth(WIDTH);
       ts.setVisibleLogicalRange(100.37, 100.37 + WIDTH / spacing);
       const ps = makePriceScale(100, 0, 2000);
-      const barWidth = Math.max(1, ts.barSpacing * 0.6);
+      const barWidth = oddPixelWidth(ts.barSpacing * 0.6);
       const zeroY = ps.priceToY(0);
       const perBar = [];
       for (let i = ts.startIndex; i < ts.endIndex; i++) {
         const y = ps.priceToY(data[i].volume);
-        perBar.push({ x: ts.indexToX(i) - barWidth / 2, y, w: barWidth, h: zeroY - y });
+        perBar.push({ x: barLeft(ts.indexToX(i), barWidth), y, w: barWidth, h: zeroY - y });
       }
 
       const { rects } = record((ctx) => renderVolume(ctx, data, ts, ps, DARK_THEME));
