@@ -96,7 +96,11 @@ export function introspect<T>(
     colorPalette: userConfig?.color ? undefined : presetPalette,
     lineWidth: userConfig?.lineWidth ?? preset?.lineWidth,
     label,
-    channelColors: userConfig?.channelColors ?? preset?.channelColors,
+    channelColors: channelColorsWithOwnColor(
+      userConfig?.channelColors,
+      userConfig?.color,
+      preset?.channelColors,
+    ),
   };
 
   return {
@@ -108,4 +112,22 @@ export function introspect<T>(
     yRange: userConfig?.yRange ?? meta?.yRange ?? preset?.yRange,
     referenceLines: userConfig?.referenceLines ?? meta?.referenceLines ?? preset?.referenceLines,
   };
+}
+
+/**
+ * The channel colours a series is drawn with. The caller's own
+ * `channelColors` win. Otherwise a preset's channel colours apply, except
+ * that a `color` the caller gave recolours the first channel, the series' own
+ * line (the MACD line, %K, ADX); the other channels keep the preset's colours.
+ */
+export function channelColorsWithOwnColor(
+  own: Record<string, string> | undefined,
+  color: string | undefined,
+  preset: Record<string, string> | undefined,
+): Record<string, string> | undefined {
+  if (own) return own;
+  if (!preset) return undefined;
+  if (!color) return preset;
+  const [first] = Object.keys(preset);
+  return first === undefined ? preset : { ...preset, [first]: color };
 }

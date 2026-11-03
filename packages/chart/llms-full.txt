@@ -316,6 +316,25 @@ now matched by identity: an entry still in the list keeps its series, and
 only removed or new entries are touched. Pass the same object for an
 indicator that has not changed (memoise it, or build it once) to keep it.
 
+### Fixed — a series colour was ignored by bands and multi-line presets
+
+46 of the 104 presets ignored a `color` passed to them, and bands ignored
+the colour the chart assigns, so Bollinger Bands, Keltner and Donchian (and
+a second Bollinger Bands) were all the same blue. Now:
+
+- **Bands** draw their lines and a light fill in the series colour unless
+  `channelColors` sets them. Each band gets its own palette colour, so bands
+  shown together differ; a single Bollinger Bands is still blue, now with a
+  blue middle line instead of an orange one.
+- **Presets with channel colours** (MACD, Stochastics, DMI, …): a `color`
+  you pass recolours the series' own line (the MACD line, %K, ADX), and the
+  other lines keep their colours. `channelColors` still sets every line.
+- **Other multi-line series** draw their first line in the series colour,
+  so Adaptive RSI's line matches its orange legend.
+
+Presets drawn by their own renderer in colours that carry a meaning
+(fractals, fair value gaps, order blocks, Heikin-Ashi) are unchanged.
+
 ### Fixed — multi-channel series showed a white or black legend swatch
 
 Series drawn with `channelColors` and no `color` (Bollinger Bands, MACD,

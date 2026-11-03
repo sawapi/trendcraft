@@ -72,3 +72,14 @@ export function pickReadableTextColor(background: string, fallback = "#ffffff"):
   // how most chart themes (dark + light) are already tuned.
   return relativeLuminance(rgb) < 0.5 ? "#ffffff" : "#000000";
 }
+
+/**
+ * `color` with its alpha set to `alpha`, as an `rgba()` string. Returns
+ * `color` unchanged when it cannot be parsed.
+ */
+export function withAlpha(color: string, alpha: number): string {
+  const rgb = parseColor(color);
+  if (!rgb) return color;
+  const [r, g, b] = rgb.map((v) => Math.round(v * 255));
+  return `rgba(${r},${g},${b},${alpha})`;
+}
