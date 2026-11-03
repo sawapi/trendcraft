@@ -32,6 +32,8 @@ import type { ChartEventEmitter } from "./event-emitter";
 import {
   type ComputedBadge,
   computeSeriesBadges,
+  currentPriceLabelHeight,
+  currentPriceLabelY,
   drawSeriesBadges,
   renderPriceLine,
   renderTimeframeOverlays,
@@ -297,8 +299,12 @@ export function renderFrame(rc: RenderContext): RenderResult {
     const mainPane = paneRects.find((p) => p.id === "main");
     const mainScales = mainPane ? rc.priceScales.get("main") : undefined;
     if (mainPane && mainScales) {
-      mainPriceExcludeY = mainScales.right.priceToY(candles[currentPriceIndex].close) + mainPane.y;
-      mainPriceExcludeHalf = rc.fontSize / 2 + 3; // fontSize + padY(3) — matches overlay-renderer
+      mainPriceExcludeY = currentPriceLabelY(
+        mainScales.right.priceToY(candles[currentPriceIndex].close) + mainPane.y,
+        mainPane,
+        rc.fontSize,
+      );
+      mainPriceExcludeHalf = currentPriceLabelHeight(rc.fontSize) / 2;
     }
   }
 

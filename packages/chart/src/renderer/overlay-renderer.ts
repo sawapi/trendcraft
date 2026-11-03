@@ -48,32 +48,58 @@ export function renderPriceLine(
   const y = ps.priceToY(price) + mainPane.y;
   const isUp = lastCandle.close >= lastCandle.open;
   const color = isUp ? theme.upColor : theme.downColor;
+  const top = mainPane.y;
+  const bottom = mainPane.y + mainPane.height;
 
-  ctx.strokeStyle = color;
-  ctx.lineWidth = 1;
-  ctx.setLineDash([4, 3]);
-  ctx.globalAlpha = 0.7;
-  ctx.beginPath();
-  ctx.moveTo(mainPane.x, Math.round(y) + 0.5);
-  ctx.lineTo(mainPane.x + mainPane.width, Math.round(y) + 0.5);
-  ctx.stroke();
-  ctx.setLineDash([]);
-  ctx.globalAlpha = 1;
+  // The dashed line marks the price inside the pane only; outside it would
+  // run across the pane below (volume, indicators).
+  if (y >= top && y <= bottom) {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 3]);
+    ctx.globalAlpha = 0.7;
+    ctx.beginPath();
+    ctx.moveTo(mainPane.x, Math.round(y) + 0.5);
+    ctx.lineTo(mainPane.x + mainPane.width, Math.round(y) + 0.5);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.globalAlpha = 1;
+  }
 
   const label = autoFormatPrice(price);
   ctx.font = canvasFont(fontSize, fontFamily);
   const padX = 6;
-  const padY = 3;
   const labelW = measureTextWidth(ctx, label) + padX * 2;
-  const labelH = fontSize + padY * 2;
+  const labelH = currentPriceLabelHeight(fontSize);
   const labelX = mainPane.x + mainPane.width;
+  // Like the series badges, the label stays inside the price pane: pinned to
+  // its top or bottom edge when the price is out of view.
+  const labelY = currentPriceLabelY(y, mainPane, fontSize);
 
   ctx.fillStyle = color;
-  ctx.fillRect(labelX, y - labelH / 2, labelW, labelH);
+  ctx.fillRect(labelX, labelY - labelH / 2, labelW, labelH);
   ctx.fillStyle = "#fff";
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
-  ctx.fillText(label, labelX + padX, y);
+  ctx.fillText(label, labelX + padX, labelY);
+}
+
+/** Height of the current-price label: the font size plus 3 px above and below. */
+export function currentPriceLabelHeight(fontSize: number): number {
+  return fontSize + 6;
+}
+
+/**
+ * Centre of the current-price label for a price at `y`: `y` itself, clamped
+ * so the whole label stays inside `pane`.
+ */
+export function currentPriceLabelY(
+  y: number,
+  pane: Pick<PaneRect, "y" | "height">,
+  fontSize: number,
+): number {
+  const half = currentPriceLabelHeight(fontSize) / 2;
+  return Math.min(pane.y + pane.height - half, Math.max(pane.y + half, y));
 }
 
 /**

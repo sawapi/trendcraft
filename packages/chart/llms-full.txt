@@ -260,6 +260,15 @@ follow the candle's direction in the volume colours, and the swatch takes
 the up colour instead of a palette colour that matched no bar. This also
 affects the Gap Analysis and Weis Wave presets, which draw such a histogram.
 
+### Fixed — the current-price tag was drawn over the pane below
+
+When the last price was outside the price pane's visible range, for example
+zoomed into an older stretch of data, the current-price tag and its dashed
+line were drawn over the volume or indicator pane below (or the chart's top
+edge above). The tag now stays inside the price pane, pinned to its top or
+bottom edge like the series badges, and the dashed line is drawn only while
+the price is in view.
+
 ### Fixed — multi-channel series showed a white or black legend swatch
 
 Series drawn with `channelColors` and no `color` (Bollinger Bands, MACD,

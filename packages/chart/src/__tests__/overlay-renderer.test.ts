@@ -21,6 +21,31 @@ describe("renderPriceLine", () => {
     expect(ctx.fillText).toHaveBeenCalled(); // price label
   });
 
+  // The price scale spans 90–120; a close of 80 is below the price pane, which
+  // sits above the volume pane. The tag must stay in the price pane.
+  it("pins the label inside the price pane when the price is below it", () => {
+    const ctx = mockCtx();
+    const candles = [makeCandle(1, 100), makeCandle(2, 80)];
+    renderPriceLine(ctx, candles, paneRects, priceScales, theme, 11);
+    expect(ctx.stroke).not.toHaveBeenCalled(); // no dashed line outside the pane
+    const [, labelTop, , labelH] = (ctx.fillRect as unknown as { mock: { calls: number[][] } }).mock
+      .calls[0];
+    expect(labelTop).toBeGreaterThanOrEqual(0);
+    expect(labelTop + labelH).toBeLessThanOrEqual(400);
+    const [, , textY] = (ctx.fillText as unknown as { mock: { calls: [string, number, number][] } })
+      .mock.calls[0];
+    expect(textY).toBe(400 - labelH / 2);
+  });
+
+  it("pins the label inside the price pane when the price is above it", () => {
+    const ctx = mockCtx();
+    const candles = [makeCandle(1, 100), makeCandle(2, 130)];
+    renderPriceLine(ctx, candles, paneRects, priceScales, theme, 11);
+    expect(ctx.stroke).not.toHaveBeenCalled();
+    const [, labelTop] = (ctx.fillRect as unknown as { mock: { calls: number[][] } }).mock.calls[0];
+    expect(labelTop).toBe(0);
+  });
+
   it("returns early for empty candles", () => {
     const ctx = mockCtx();
     renderPriceLine(ctx, [], paneRects, priceScales, theme, 11);
