@@ -41,24 +41,11 @@ Examples live in `packages/core/examples/` and `packages/chart/examples/`; list 
   - strategy-studio is a workspace member, and it also keeps a standalone lockfile. After a dependency change, update that lockfile with `pnpm install --ignore-workspace --lockfile-only`.
 - **Workspace prerequisite:**
   - **Chart examples:** Vite aliases `trendcraft` and `@trendcraft/chart` to their sources, so `pnpm dev` works standalone. `pnpm build` type-checks those sources, so it needs the workspace install at the repo root first.
-  - **Core examples** (echarts-viewer, trading-simulator): these have no alias. `trendcraft` resolves through core's package exports to its `dist`, so both `pnpm dev` and `pnpm build` need `pnpm build` at the root first.
   - **Anything else that imports a `dist`** also needs that root build: docs-screenshots, the strategy-studio tests, and `USE_DIST=1`.
 - **Config files:** each `vite.config.ts` is type-checked through a `tsconfig.node.json` next to it. In the packages this runs in `typecheck`; in the examples it runs in `build`. A new config file goes into that `include`.
 - **Typecheck:** core's `typecheck` also type-checks the quick-start and sp500-showcase examples, through `packages/core/tsconfig.examples.json`.
 - **CI coverage:** CI builds only some examples standalone; see the "Build examples" step in `.github/workflows/ci.yml`. For an example outside that list, run its `pnpm build` yourself.
-- **Alpaca:** the Alpaca dev proxies in strategy-studio, echarts-viewer and trading-simulator allow only the GET endpoints those apps use. Keep that allowlist when touching them.
-
-### echarts-viewer and trading-simulator (`packages/core/examples/`)
-
-Both are ECharts apps, and each has its own settings dialog.
-
-- A new indicator or feature with UI settings must be added to that app's `src/components/IndicatorSettingsDialog.tsx`. The UI does not discover indicators on its own.
-- ECharts layout:
-  - Account for label height, title heights, margins and dataZoom position, and check that nothing overlaps.
-  - Overlay indicators go on the main chart, not in a subchart, unless asked otherwise.
-- ECharts colours:
-  - A line series takes its legend and tooltip colour from `itemStyle.color` or the palette, not `lineStyle.color`. Set `itemStyle.color` too.
-  - For a histogram coloured per bar, set the series `itemStyle.color` to one representative bar colour (the up or high one), so the legend shows a real colour.
+- **Alpaca:** the Alpaca dev proxy in strategy-studio allows only the GET endpoints the app uses. Keep that allowlist when touching it.
 
 ## Conventions
 

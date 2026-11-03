@@ -11,10 +11,7 @@ The studio runs **fully offline with no LLM key**. It uses `detectMarketRegime` 
 | `simple-chart`, `simple-react-chart`, `simple-vue-chart` | Minimal "hello world" for each binding |
 | `indicator-showcase` | All 96+ presets in a catalog (per-preset minimal demo) |
 | `sparkline-showcase` | Sparkline subpath demo |
-| `echarts-viewer` (formerly `chart-viewer`) | Shows the `trendcraft` core used with a chart library other than `@trendcraft/chart` (here: ECharts). A full analysis app, ECharts-based |
 | **Strategy Studio** (this) | **Flagship `@trendcraft/chart` dogfooding + cross-feature integration**. The place to verify TrendCraft as a fullstack toolkit |
-
-`echarts-viewer` and `indicator-showcase` are intentionally preserved — they cover different value propositions and overlap in functionality is by design.
 
 ## Roadmap (PR-by-PR)
 
@@ -38,7 +35,7 @@ The studio runs **fully offline with no LLM key**. It uses `detectMarketRegime` 
 | PR15 | chart: shared signal-pattern primitive (zigzag + neckline + target, extracted from indicator-showcase; carved out from PR6) | open |
 | Phase 2 | Ask AI panel via `@trendcraft/mcp` tools (conversational comprehension over generation — see project memory for the refined direction) | future |
 
-The studio now spans every feature surface from the original plan; remaining roadmap items are chart-package upgrades that benefit other examples too. When PR14 + PR15 land, Studio will be a true superset of `echarts-viewer`'s analysis surface, all rendered through `@trendcraft/chart`.
+The studio now spans every feature surface from the original plan; remaining roadmap items are chart-package upgrades that benefit other examples too.
 
 ## Architecture notes
 
