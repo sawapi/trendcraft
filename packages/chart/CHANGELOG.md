@@ -105,6 +105,15 @@ and wick and OHLC line widths now use odd whole-pixel widths centred on that
 column, so the crosshair runs through their middle. Bars can be up to a
 pixel narrower than before.
 
+### Fixed — a drawing tool was spent by a tap in the volume pane
+
+With a drawing tool engaged, a tap in the volume pane (or any pane below
+the price pane) read a price off the price scale far outside its range,
+completed an invisible drawing and released the tool. Drawings live on the
+price pane: taps outside it are now ignored (a vertical line too), the tool
+stays engaged for the next tap, and a two-click tool's preview is hidden
+while the cursor is outside the price pane.
+
 ### Fixed — multi-channel series showed a white or black legend swatch
 
 Series drawn with `channelColors` and no `color` (Bollinger Bands, MACD,

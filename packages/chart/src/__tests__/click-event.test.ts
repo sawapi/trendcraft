@@ -162,6 +162,29 @@ describe("chart click event", () => {
     chart.destroy();
   });
 
+  it("ignores a drawing tap outside the price pane and keeps the tool", () => {
+    // A tap in the volume pane read a price off the main scale and spent
+    // the tool on a drawing nobody could see.
+    const container = makeContainer();
+    const chart = createChart(container, { width: 800, height: 400 });
+    chart.setCandles(sampleCandles);
+    chart.setDrawingTool("hline");
+    const panes = (
+      chart as unknown as { _layout: { paneRects: { id: string; y: number; height: number }[] } }
+    )._layout.paneRects;
+    const volume = panes.find((p) => p.id === "volume");
+    const main = panes.find((p) => p.id === "main");
+    if (!volume || !main) throw new Error("expected main and volume panes");
+
+    const canvas = container.querySelector("canvas") as HTMLCanvasElement;
+    clickCanvas(canvas, 200, volume.y + volume.height / 2);
+    expect(chart.getDrawings()).toEqual([]);
+
+    clickCanvas(canvas, 200, main.y + main.height / 2);
+    expect(chart.getDrawings()).toHaveLength(1);
+    chart.destroy();
+  });
+
   it("emits drawingToolChanged when the tool is set, completed, or cancelled", () => {
     // Toolbar UIs sync their highlighted state via this event so they don't
     // drift when the chart clears the tool internally (drawing completion,
