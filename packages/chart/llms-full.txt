@@ -305,6 +305,15 @@ price pane: taps outside it are now ignored (a vertical line too), the tool
 stays engaged for the next tap, and a two-click tool's preview is hidden
 while the cursor is outside the price pane.
 
+### Fixed — the React and Vue wrappers re-added every indicator on each change
+
+When the `indicators` list changed, the wrappers removed every series and
+added the whole list back. A series hidden from the legend came back, and
+panes moved (an equity pane could jump above an indicator's). Entries are
+now matched by identity: an entry still in the list keeps its series, and
+only removed or new entries are touched. Pass the same object for an
+indicator that has not changed (memoise it, or build it once) to keep it.
+
 ### Fixed — multi-channel series showed a white or black legend swatch
 
 Series drawn with `channelColors` and no `color` (Bollinger Bands, MACD,
@@ -3252,6 +3261,8 @@ function MyChart({ candles }: { candles: CandleData[] }) {
 `features` takes register functions from `@trendcraft/chart/features`. The `signals`, `trades`, `drawings`, `backtest`, `patterns` and `scores` props need their feature. Features are attached when the chart is created; changing the array later has no effect.
 
 In both the React and Vue wrappers, setting `signals`, `trades`, `backtest`, `patterns` or `scores` back to `undefined` clears that overlay with its remove method. A prop that was never set does not clear anything, so an overlay added through the chart instance stays.
+
+`indicators` entries are matched by object identity. An entry still in the list keeps its series, with its legend visibility and pane position; pass the same object for an indicator that has not changed (memoised, or built once), or it is removed and re-added and its pane moves to the end. New entries are added after the existing ones, so inserting one mid-list does not reorder panes.
 
 ### Vue
 

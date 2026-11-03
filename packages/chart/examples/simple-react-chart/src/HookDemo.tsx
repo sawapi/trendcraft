@@ -22,6 +22,8 @@ export function HookDemo({ theme }: { theme: "dark" | "light" }) {
     candles,
     indicators,
     theme,
+    // Open on the latest bars rather than fitting all of them
+    fitOnLoad: false,
     options: { watermark: "HOOK" },
     features: [registerDrawingTools],
   });

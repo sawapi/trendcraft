@@ -47,6 +47,7 @@ import type {
   Drawing,
   LayoutConfig,
   SeriesConfig,
+  SeriesHandle,
   SignalMarker,
   ThemeColors,
   TimeframeOverlay,
@@ -71,6 +72,9 @@ export type IndicatorInput<T = unknown> = {
   data: DataPoint<T>[];
   config?: SeriesConfig;
 };
+
+/** One entry of the `indicators` option. */
+type IndicatorEntry = DataPoint<unknown>[] | IndicatorInput;
 
 export type UseTrendChartOptions = {
   candles: CandleData[];
@@ -214,16 +218,33 @@ export function useTrendChart(opts: UseTrendChartOptions): UseTrendChartResult {
     if (layout) chart?.setLayout(layout);
   }, [chart, layout]);
 
-  // Indicators
+  // Indicators. Entries are matched by identity: one still in the list keeps
+  // its series (and so its legend visibility and pane position); only the
+  // entries that left are removed and the new ones added.
+  const indicatorHandles = useRef(new Map<IndicatorEntry, SeriesHandle>());
+  const indicatorChart = useRef<ChartInstance | null>(null);
   useEffect(() => {
+    const handles = indicatorHandles.current;
+    if (indicatorChart.current !== chart) {
+      // A new chart instance holds none of the old series
+      handles.clear();
+      indicatorChart.current = chart;
+    }
     if (!chart) return;
-    const handles = (indicators ?? []).map((ind) => {
-      if (Array.isArray(ind)) return chart.addIndicator(ind);
-      return chart.addIndicator(ind.data, ind.config);
-    });
-    return () => {
-      for (const h of handles) h.remove();
-    };
+    const next = new Set(indicators ?? []);
+    for (const [ind, h] of handles) {
+      if (!next.has(ind)) {
+        h.remove();
+        handles.delete(ind);
+      }
+    }
+    for (const ind of next) {
+      if (handles.has(ind)) continue;
+      handles.set(
+        ind,
+        Array.isArray(ind) ? chart.addIndicator(ind) : chart.addIndicator(ind.data, ind.config),
+      );
+    }
   }, [chart, indicators]);
 
   // Signals

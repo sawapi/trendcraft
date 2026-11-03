@@ -100,6 +100,25 @@ describe("useTrendChart (React)", () => {
     expect(currentMock.__state.indicators.size).toBe(2);
   });
 
+  it("keeps the series of an indicator entry that stays in the list", () => {
+    // Re-adding every entry on each change brought back a series the user had
+    // hidden from the legend, and moved panes around.
+    const a = [{ time: 1, value: 10 }];
+    const b = [{ time: 1, value: 20 }];
+    const { rerender } = render(<Harness opts={{ candles: sampleCandles, indicators: [a] }} />);
+    expect(currentMock.addIndicator).toHaveBeenCalledTimes(1);
+    const [handleA] = [...currentMock.__state.indicators] as { remove: () => void }[];
+
+    rerender(<Harness opts={{ candles: sampleCandles, indicators: [a, b] }} />);
+    expect(currentMock.addIndicator).toHaveBeenCalledTimes(2); // only b is new
+    expect(vi.mocked(handleA.remove)).not.toHaveBeenCalled();
+
+    rerender(<Harness opts={{ candles: sampleCandles, indicators: [b] }} />);
+    expect(vi.mocked(handleA.remove)).toHaveBeenCalledTimes(1);
+    expect(currentMock.addIndicator).toHaveBeenCalledTimes(2);
+    expect(currentMock.__state.indicators.size).toBe(1);
+  });
+
   it("keeps unchanged renderers registered and unregisters removed ones", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const a = { type: "a", render: vi.fn(), init: vi.fn(), destroy: vi.fn() };
