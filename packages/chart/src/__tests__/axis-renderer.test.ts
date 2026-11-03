@@ -171,6 +171,64 @@ describe("renderTimeAxis calendar marks", () => {
     expect(xs).toContain(Math.round(ts.indexToX(firstBarOfYear(candles, 2017))) + 0.5);
   });
 
+  // When some month starts are left out for lack of room, a day mark could
+  // still fit in a gap between two kept months, and the axis read
+  // "Jun · Sep 15 · 2023". A day mark may not fill a gap where a month start
+  // was left out.
+  it.each([600, 900, 1220, 1600, 2400])(
+    "puts no day mark among months when some months are left out (%ipx)",
+    (width) => {
+      const candles: CandleData[] = [];
+      for (let t = Date.UTC(2022, 0, 3); candles.length < 1000; t += 86_400_000) {
+        const day = new Date(t).getUTCDay();
+        if (day !== 0 && day !== 6) candles.push(makeCandle(t, 100));
+      }
+      const ts = makeTimeScale(candles.length, width);
+      ts.timeZone = "UTC";
+      const isBoundary = (i: number, part: "month" | "year") => {
+        if (i === 0) return false;
+        const d = new Date(candles[i].time);
+        const p = new Date(candles[i - 1].time);
+        return part === "year"
+          ? d.getUTCFullYear() !== p.getUTCFullYear()
+          : d.getUTCMonth() !== p.getUTCMonth();
+      };
+      const marks = timeAxisMarks(candles, ts);
+      const monthStarts = [...candles.keys()].filter((i) => isBoundary(i, "month"));
+      const markedMonths = monthStarts.filter((i) => marks.includes(i));
+      if (markedMonths.length < monthStarts.length) {
+        expect(marks.filter((i) => !isBoundary(i, "month"))).toEqual([]);
+      }
+    },
+  );
+
+  // A month cut short (a halt, a partial import) leaves its start too close to
+  // the next month's to ever mark both. That gap alone must not turn day
+  // marks off for the rest of the axis.
+  it.each([4000, 8000, 16000])(
+    "keeps day marks elsewhere when one month is cut short (%ipx)",
+    (width) => {
+      const candles: CandleData[] = [];
+      for (let t = Date.UTC(2022, 0, 3); candles.length < 600; t += 86_400_000) {
+        const d = new Date(t);
+        const halted = d.getUTCFullYear() === 2023 && d.getUTCMonth() === 5 && d.getUTCDate() > 3;
+        if (d.getUTCDay() !== 0 && d.getUTCDay() !== 6 && !halted) candles.push(makeCandle(t, 100));
+      }
+      const ts = makeTimeScale(candles.length, width);
+      ts.timeZone = "UTC";
+      const marks = timeAxisMarks(candles, ts);
+      const dayMarks = marks.filter((i) => {
+        if (i === 0) return true;
+        return (
+          new Date(candles[i].time).getUTCMonth() === new Date(candles[i - 1].time).getUTCMonth()
+        );
+      });
+      // Day marks still fill the months on either side of the short one
+      const in2022 = dayMarks.filter((i) => new Date(candles[i].time).getUTCFullYear() === 2022);
+      expect(in2022.length).toBeGreaterThan(0);
+    },
+  );
+
   it("marks month starts when zoomed in", () => {
     const candles = weekdays();
     const ts = makeTimeScale(candles.length, 1200);

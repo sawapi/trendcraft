@@ -204,13 +204,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 and `removeTrades()` clear what the matching add method drew. Before, an
 overlay could be replaced but not taken off the chart. `removeBacktest()`
 also drops the equity pane that `addBacktest()` added, unless a series has
-been placed in it or the app's layout declared it. Calling one when nothing is drawn does nothing, and none
-of them needs its feature registered.
+been placed in it or the app's layout declared it. Calling one when nothing
+is drawn does nothing, and none of them needs its feature registered.
 
 The React and Vue wrappers call them when the `backtest`, `patterns`,
 `scores`, `signals` or `trades` prop goes from a value back to `undefined`,
 so turning an overlay off in the app now clears it. A prop that was never
 set leaves alone anything the app added through the chart instance.
+
+### Fixed — a stray date among month labels on the time axis
+
+On daily and coarser data, the time axis could show one date among month
+labels, for example "Jun · Sep 15 · 2023" across a few years of daily bars.
+When there was room for only some month starts, a day mark could still fit in
+a gap where months had been left out. A date is now added only in a gap
+where no month or year start was left out, so that axis reads in months and
+years only. A short month elsewhere in the data, such as one cut off by a
+trading halt, does not affect the rest of the axis.
 
 ### Fixed — multi-channel series showed a white or black legend swatch
 
