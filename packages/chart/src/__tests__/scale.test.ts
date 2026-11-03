@@ -508,3 +508,41 @@ describe("TimeScale.panTo", () => {
     expect(ts.rawStartIndex).toBe(5_000);
   });
 });
+
+describe("TimeScale.setWidth keeps the right edge", () => {
+  const make = () => {
+    const ts = new TimeScale();
+    ts.setTotalCount(1000);
+    ts.setWidth(1200);
+    ts.setVisibleRange(900, 1000); // zoomed in on the latest 100 bars
+    return ts;
+  };
+
+  it("keeps the latest bars in view when the window narrows", () => {
+    const ts = make();
+    expect(ts.endIndex).toBe(1000);
+    const spacing = ts.barSpacing;
+    ts.setWidth(375);
+    expect(ts.endIndex).toBe(1000);
+    expect(ts.barSpacing).toBe(spacing); // same zoom
+  });
+
+  it("keeps the right edge mid-history too", () => {
+    const ts = new TimeScale();
+    ts.setTotalCount(1000);
+    ts.setWidth(1200);
+    ts.setVisibleRange(400, 500);
+    const right = ts.rawStartIndex + 1200 / ts.barSpacing;
+    ts.setWidth(600);
+    expect(ts.rawStartIndex + 600 / ts.barSpacing).toBeCloseTo(right, 6);
+  });
+
+  it("widens to the left, and stops at the first bar", () => {
+    const ts = make();
+    ts.setWidth(375);
+    ts.setWidth(1200);
+    expect(ts.endIndex).toBe(1000);
+    ts.setWidth(100_000);
+    expect(ts.rawStartIndex).toBe(0);
+  });
+});
