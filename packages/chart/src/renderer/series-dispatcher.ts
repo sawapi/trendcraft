@@ -5,7 +5,7 @@
 
 import type { DataLayer, InternalSeries } from "../core/data-layer";
 import { getDecimationTarget, lttb } from "../core/decimation";
-import { DrawHelper } from "../core/draw-helper";
+import { barLeft, DrawHelper, oddPixelWidth } from "../core/draw-helper";
 import type { RendererRegistry } from "../core/renderer-registry";
 import type { PriceScale, TimeScale } from "../core/scale";
 import type { IntrospectionRule } from "../core/series-registry";
@@ -127,8 +127,7 @@ export function dispatchSeries(
       const downColor = own ?? theme?.volumeDown ?? color;
       const start = timeScale.startIndex;
       const end = timeScale.endIndex;
-      const barWidth = Math.max(1, timeScale.barSpacing * 0.6);
-      const halfBar = barWidth / 2;
+      const barWidth = oddPixelWidth(timeScale.barSpacing * 0.6);
       const zeroY = priceScale.priceToY(0);
       const bars = new BarBatch(barWidth);
       for (let i = start; i < end && i < s.data.length; i++) {
@@ -138,7 +137,7 @@ export function dispatchSeries(
         const isDown = candles?.[i] ? candles[i].close < candles[i].open : false;
         const top = Math.min(valY, zeroY);
         bars.add(
-          timeScale.indexToX(i) - halfBar,
+          barLeft(timeScale.indexToX(i), barWidth),
           top,
           top + Math.max(1, Math.abs(valY - zeroY)),
           isDown,

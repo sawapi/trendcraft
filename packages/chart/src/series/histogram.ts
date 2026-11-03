@@ -3,6 +3,7 @@
  * Renders vertical bars for volume, MACD histogram, etc.
  */
 
+import { barLeft, oddPixelWidth } from "../core/draw-helper";
 import type { PriceScale, TimeScale } from "../core/scale";
 import type { CandleData, ThemeColors } from "../core/types";
 
@@ -110,8 +111,8 @@ export function renderVolume(
 ): void {
   const start = timeScale.startIndex;
   const end = timeScale.endIndex;
-  const barWidth = Math.max(1, timeScale.barSpacing * 0.6);
-  const halfBar = barWidth / 2;
+  // Odd whole-pixel width, centred on the crosshair's pixel column
+  const barWidth = oddPixelWidth(timeScale.barSpacing * 0.6);
   const zeroY = priceScale.priceToY(0);
   const bars = new BarBatch(barWidth);
 
@@ -121,7 +122,7 @@ export function renderVolume(
 
     const volY = priceScale.priceToY(candle.volume);
     bars.add(
-      timeScale.indexToX(i) - halfBar,
+      barLeft(timeScale.indexToX(i), barWidth),
       Math.min(volY, zeroY),
       Math.max(volY, zeroY),
       candle.close < candle.open,
@@ -144,8 +145,7 @@ export function renderHistogram(
   const start = timeScale.startIndex;
   const end = timeScale.endIndex;
   const widthFraction = options.widthFraction ?? 0.6;
-  const barWidth = Math.max(1, timeScale.barSpacing * widthFraction);
-  const halfBar = barWidth / 2;
+  const barWidth = oddPixelWidth(timeScale.barSpacing * widthFraction);
   const zeroY = priceScale.priceToY(0);
   const bars = new BarBatch(barWidth);
 
@@ -156,7 +156,7 @@ export function renderHistogram(
     const valY = priceScale.priceToY(val);
     const top = Math.min(valY, zeroY);
     bars.add(
-      timeScale.indexToX(i) - halfBar,
+      barLeft(timeScale.indexToX(i), barWidth),
       top,
       top + Math.max(1, Math.abs(valY - zeroY)),
       val < 0,

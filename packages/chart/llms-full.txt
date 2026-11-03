@@ -285,6 +285,17 @@ Trades) was drawn on one line whatever the width, so on a phone it ran past
 the equity pane and over the price axis. Items that do not fit now move to
 the next line.
 
+### Fixed — candle bodies and volume bars sat up to a pixel off the wick and crosshair
+
+The crosshair and the candle wick are drawn on the pixel column of each
+bar's centre, but candle bodies rounded their left edge and width
+separately, and volume and histogram bars were not rounded at all. Some
+bodies sat a pixel to one side of their wick, and volume bars had blurred
+edges that drifted from the crosshair. Bodies, volume bars, histogram bars,
+and wick and OHLC line widths now use odd whole-pixel widths centred on that
+column, so the crosshair runs through their middle. Bars can be up to a
+pixel narrower than before.
+
 ### Fixed — multi-channel series showed a white or black legend swatch
 
 Series drawn with `channelColors` and no `color` (Bollinger Bands, MACD,
