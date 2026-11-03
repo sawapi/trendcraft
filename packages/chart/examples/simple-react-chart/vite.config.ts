@@ -7,6 +7,9 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const useDist = process.env.USE_DIST === "1";
 
 export default defineConfig({
+  // Relative asset URLs, so the built app also works from a sub-path
+  // (GitHub Pages serves it at /<repo>/<example>/, not at the site root).
+  base: "./",
   plugins: [react()],
   resolve: {
     alias: {
