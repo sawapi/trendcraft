@@ -320,6 +320,16 @@ for (const ticker of tickers) {
 }
 ```
 
+The hover tooltip is one element on `document.body`, dark by default. Set its colours from your stylesheet on `:root` (or `html` / `body`), for example per theme. Variables scoped to a container do not reach it, since the tooltip is not inside that container:
+
+```css
+:root[data-theme="light"] {
+  --tc-sparkline-tooltip-bg: #ffffff;
+  --tc-sparkline-tooltip-color: #131722;
+  --tc-sparkline-tooltip-border: 1px solid #e0e3eb;
+}
+```
+
 The sparkline subpath has its own bundle budget (see the `size-limit` field in `packages/chart/package.json`) and does not pull in the main chart code.
 
 ---

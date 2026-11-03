@@ -249,6 +249,19 @@ describe("createSparklineGroup", () => {
     group.destroy();
   });
 
+  it("takes the tooltip colours from CSS custom properties, with a dark default", () => {
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    const group = createSparklineGroup({ container: root, hover: true });
+    const tip = document.querySelector("[data-tc-sparkline-tooltip]") as HTMLElement;
+    expect(tip.style.background).toContain("var(--tc-sparkline-tooltip-bg");
+    expect(tip.style.background).toContain("rgba(20, 23, 34, 0.92)");
+    expect(tip.style.color).toContain("var(--tc-sparkline-tooltip-color");
+    expect(tip.style.border).toContain("var(--tc-sparkline-tooltip-border");
+    group.destroy();
+    root.remove();
+  });
+
   it("session maps candles by time and skips break ranges", () => {
     const root = document.createElement("div");
     document.body.appendChild(root);
