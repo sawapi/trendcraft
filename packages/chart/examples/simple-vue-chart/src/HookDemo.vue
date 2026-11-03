@@ -5,8 +5,7 @@
   `chart.value` in a watchEffect and drive it from your own code. Same
   chart, different entry point than the <TrendChart> component in App.vue.
 
-  Not mounted by default — import this component from main.ts to see it
-  running, or copy the pattern into your own app.
+  Shown by the "Hook" tab in the demo header (see App.vue).
 -->
 
 <script setup lang="ts">
@@ -16,6 +15,8 @@ import { sma } from "trendcraft";
 import { ref, watchEffect } from "vue";
 import sampleData from "../../simple-chart/data.json";
 
+const props = defineProps<{ theme: "dark" | "light" }>();
+
 const candles = sampleData.slice(0, 200);
 const indicators = [sma(candles, { period: 20 })];
 
@@ -23,7 +24,7 @@ const indicators = [sma(candles, { period: 20 })];
 const { containerRef, chart } = useTrendChart({
   candles,
   indicators,
-  theme: "dark",
+  theme: () => props.theme,
   options: { watermark: "HOOK" },
   features: [registerDrawingTools],
 });
@@ -50,17 +51,10 @@ watchEffect((onCleanup) => {
 </script>
 
 <template>
-  <div style="display: flex; flex-direction: column; height: 100%">
-    <div
-      style="
-        padding: 8px;
-        background: #1e222d;
-        color: #d1d4dc;
-        font-size: 12px;
-        font-family: monospace;
-      "
-    >
-      useTrendChart demo — click chart to place horizontal line · last: {{ lastEvent }}
+  <div class="hook-demo">
+    <div class="hook-demo-info">
+      useTrendChart demo — click the chart to place a horizontal line ·
+      <span class="muted">last:</span> {{ lastEvent }}
     </div>
     <div ref="containerRef" style="flex: 1; min-height: 0" />
   </div>

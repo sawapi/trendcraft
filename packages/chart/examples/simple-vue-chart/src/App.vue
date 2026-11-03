@@ -1,20 +1,22 @@
 <script setup lang="ts">
-import { definePrimitive, defineSeriesRenderer } from "@trendcraft/chart";
+import { DARK_THEME, definePrimitive, defineSeriesRenderer, LIGHT_THEME } from "@trendcraft/chart";
 import { registerBacktest } from "@trendcraft/chart/features";
 // biome-ignore lint/correctness/noUnusedImports: used as <TrendChart> in the .vue template — Biome can't see template usage.
 import { TrendChart } from "@trendcraft/chart/vue";
 import {
   bollingerBands,
+  deadCrossCondition,
   goldenCrossCondition,
   macd,
   normalizeCandles,
   rsi,
-  rsiBelow,
   runBacktest,
   sma,
 } from "trendcraft";
 import { computed, ref } from "vue";
 import sampleData from "../../simple-chart/data.json";
+// biome-ignore lint/correctness/noUnusedImports: used as <HookDemo> in the .vue template — Biome can't see template usage.
+import HookDemo from "./HookDemo.vue";
 
 const candles = sampleData;
 const showSma = ref(true);
@@ -25,14 +27,36 @@ const showBacktest = ref(false);
 const showSrZones = ref(false);
 const showTrail = ref(false);
 const showVolOverlay = ref(false);
-const theme = ref<"dark" | "light">("dark");
+// index.html sets the initial theme from prefers-color-scheme before first paint.
+const theme = ref<"dark" | "light">(
+  document.documentElement.dataset.theme === "light" ? "light" : "dark",
+);
+// biome-ignore lint/correctness/noUnusedVariables: bound to template via `view === ...` — Biome can't see the .vue template usage.
+const view = ref<"component" | "hook">("component");
 
 // --- Plugin: S/R Zone Primitive ---
+// Support and resistance bands around the high and low of the last 60 bars
+function srZones(): { price: number; height: number; color: string }[] {
+  const recent = sampleData.slice(-60);
+  let high = Number.NEGATIVE_INFINITY;
+  let low = Number.POSITIVE_INFINITY;
+  for (const c of recent) {
+    if (c.high > high) high = c.high;
+    if (c.low < low) low = c.low;
+  }
+  const h = (high - low) * 0.1;
+  return [
+    { price: high, height: h, color: "rgba(239,83,80,0.2)" },
+    { price: low, height: h, color: "rgba(38,166,154,0.2)" },
+  ];
+}
+
 const srZonePrimitive = definePrimitive({
   name: "srZones",
   pane: "main",
   zOrder: "below",
-  defaultState: { zones: [] as { price: number; height: number; color: string }[] },
+  // The sample data never changes, so the zones are worked out once here
+  defaultState: { zones: srZones() },
   render: ({ draw }, state) => {
     for (const zone of state.zones) {
       draw.rect(
@@ -117,11 +141,20 @@ const indicators = computed(() => {
         config: import("@trendcraft/chart").SeriesConfig;
       }
   )[] = [];
-  if (showSma.value) list.push(sma(candles, { period: 20 }));
+  if (showSma.value) {
+    // A colour that stands apart from the Bollinger Bands' blue
+    list.push({ data: sma(candles, { period: 50 }), config: { color: "#ab47bc" } });
+  }
   if (showBb.value) list.push(bollingerBands(candles));
   if (showRsi.value) list.push(rsi(candles));
   if (showMacd.value) list.push(macd(candles));
-  if (showTrail.value) list.push(computeTrailingStop());
+  if (showTrail.value) {
+    // `type: "trailingStop"` routes the series to the custom renderer passed via `plugins`.
+    list.push({
+      data: computeTrailingStop(),
+      config: { type: "trailingStop", pane: "main", color: "#FF9800", label: "Trail Stop" },
+    });
+  }
   if (showVolOverlay.value) {
     list.push({
       data: candles.map((c: { time: number; volume: number }) => ({
@@ -133,7 +166,9 @@ const indicators = computed(() => {
         scaleId: "left",
         type: "histogram",
         maxHeightRatio: 0.2,
-        color: "rgba(100,181,246,0.3)",
+        // Histogram bars take the theme's up / down volume colours, so the
+        // legend swatch uses the up colour to match them
+        color: (theme.value === "dark" ? DARK_THEME : LIGHT_THEME).volumeUp,
         label: "Volume",
       },
     });
@@ -145,32 +180,23 @@ const indicators = computed(() => {
 const backtestResult = computed(() => {
   if (!showBacktest.value) return undefined;
   const normalized = normalizeCandles(candles);
-  return runBacktest(normalized, goldenCrossCondition(), rsiBelow(70), { capital: 100000 });
+  return runBacktest(normalized, goldenCrossCondition(), deadCrossCondition(), {
+    capital: 100000,
+  });
 });
 
 // biome-ignore lint/correctness/noUnusedVariables: bound to template via `:plugins` — Biome can't see the .vue template usage.
-const plugins = computed(() => {
-  if (!showSrZones.value) return { renderers: [trailRenderer] };
-  const recent = candles.slice(-60);
-  let high = Number.NEGATIVE_INFINITY;
-  let low = Number.POSITIVE_INFINITY;
-  for (const c of recent) {
-    if (c.high > high) high = c.high;
-    if (c.low < low) low = c.low;
-  }
-  const h = (high - low) * 0.02;
-  srZonePrimitive.defaultState = {
-    zones: [
-      { price: high, height: h, color: "rgba(239,83,80,0.15)" },
-      { price: low, height: h, color: "rgba(38,166,154,0.15)" },
-    ],
-  };
-  return { renderers: [trailRenderer], primitives: [srZonePrimitive] };
-});
+const plugins = computed(() =>
+  showSrZones.value
+    ? { renderers: [trailRenderer], primitives: [srZonePrimitive] }
+    : { renderers: [trailRenderer] },
+);
 
 // biome-ignore lint/correctness/noUnusedVariables: bound to template via `@click="toggleTheme"` — Biome can't see the .vue template usage.
 function toggleTheme() {
-  theme.value = theme.value === "dark" ? "light" : "dark";
+  const next = theme.value === "dark" ? "light" : "dark";
+  document.documentElement.dataset.theme = next;
+  theme.value = next;
 }
 
 // biome-ignore lint/correctness/noUnusedVariables: bound to template via `:features` — Biome can't see the .vue template usage.
@@ -178,23 +204,30 @@ const features = [registerBacktest];
 </script>
 
 <template>
-  <header style="padding:8px 12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:#131722;border-bottom:1px solid #2a2e39">
-    <h1 style="font-size:14px;font-weight:600">Vue Demo</h1>
-    <span style="font-size:10px;background:#42b883;color:#fff;padding:2px 6px;border-radius:3px">Vue</span>
-    <div style="display:flex;gap:4px;margin-left:auto;flex-wrap:wrap">
-      <button :class="{ active: showSma }" @click="showSma = !showSma">SMA 20</button>
-      <button :class="{ active: showBb }" @click="showBb = !showBb">BB</button>
-      <button :class="{ active: showRsi }" @click="showRsi = !showRsi">RSI</button>
-      <button :class="{ active: showMacd }" @click="showMacd = !showMacd">MACD</button>
-      <button :class="{ active: showBacktest }" @click="showBacktest = !showBacktest">Backtest</button>
-      <button :class="{ active: showSrZones }" @click="showSrZones = !showSrZones">S/R Zones</button>
-      <button :class="{ active: showTrail }" @click="showTrail = !showTrail">Trail Stop</button>
-      <button :class="{ active: showVolOverlay }" @click="showVolOverlay = !showVolOverlay">Vol Overlay</button>
-      <button @click="toggleTheme">{{ theme === 'dark' ? 'Light' : 'Dark' }}</button>
+  <header>
+    <h1>Vue Demo</h1>
+    <span class="badge">Vue</span>
+    <div class="tabs">
+      <button type="button" :class="{ active: view === 'component' }" @click="view = 'component'">Component</button>
+      <button type="button" :class="{ active: view === 'hook' }" @click="view = 'hook'">Hook</button>
+    </div>
+    <div class="controls">
+      <template v-if="view === 'component'">
+        <button type="button" :class="{ active: showSma }" @click="showSma = !showSma">SMA 50</button>
+        <button type="button" :class="{ active: showBb }" @click="showBb = !showBb">BB</button>
+        <button type="button" :class="{ active: showRsi }" @click="showRsi = !showRsi">RSI</button>
+        <button type="button" :class="{ active: showMacd }" @click="showMacd = !showMacd">MACD</button>
+        <button type="button" :class="{ active: showBacktest }" @click="showBacktest = !showBacktest">Backtest</button>
+        <button type="button" :class="{ active: showSrZones }" @click="showSrZones = !showSrZones">S/R Zones</button>
+        <button type="button" :class="{ active: showTrail }" @click="showTrail = !showTrail">Trail Stop</button>
+        <button type="button" :class="{ active: showVolOverlay }" @click="showVolOverlay = !showVolOverlay">Vol Overlay</button>
+      </template>
+      <button type="button" @click="toggleTheme">Theme: {{ theme === 'dark' ? 'Dark' : 'Light' }}</button>
     </div>
   </header>
-  <div style="flex:1;min-height:0">
+  <div class="chart-area">
     <TrendChart
+      v-if="view === 'component'"
       :candles="candles"
       :indicators="indicators"
       :backtest="backtestResult"
@@ -203,19 +236,6 @@ const features = [registerBacktest];
       :theme="theme"
       :options="{ watermark: 'VUE', volume: !showVolOverlay }"
     />
+    <HookDemo v-else :theme="theme" />
   </div>
 </template>
-
-<style>
-button {
-  padding: 4px 8px;
-  font-size: 11px;
-  background: #1e222d;
-  color: #d1d4dc;
-  border: 1px solid #2a2e39;
-  border-radius: 4px;
-  cursor: pointer;
-}
-button:hover { background: #2a2e39; }
-button.active { background: #2196F3; color: #fff; border-color: #2196F3; }
-</style>

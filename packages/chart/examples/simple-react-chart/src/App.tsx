@@ -1,25 +1,43 @@
-import { definePrimitive, defineSeriesRenderer } from "@trendcraft/chart";
+import { DARK_THEME, definePrimitive, defineSeriesRenderer, LIGHT_THEME } from "@trendcraft/chart";
 import { registerBacktest } from "@trendcraft/chart/features";
 import { TrendChart } from "@trendcraft/chart/react";
 import { useMemo, useState } from "react";
 import {
   bollingerBands,
+  deadCrossCondition,
   goldenCrossCondition,
   macd,
   normalizeCandles,
   rsi,
-  rsiBelow,
   runBacktest,
   sma,
 } from "trendcraft";
 import sampleData from "../../simple-chart/data.json";
+import { HookDemo } from "./HookDemo";
 
 // --- Plugin: S/R Zone Primitive ---
+// Support and resistance bands around the high and low of the last 60 bars
+function srZones(): { price: number; height: number; color: string }[] {
+  const recent = sampleData.slice(-60);
+  let high = Number.NEGATIVE_INFINITY;
+  let low = Number.POSITIVE_INFINITY;
+  for (const c of recent) {
+    if (c.high > high) high = c.high;
+    if (c.low < low) low = c.low;
+  }
+  const h = (high - low) * 0.1;
+  return [
+    { price: high, height: h, color: "rgba(239,83,80,0.2)" },
+    { price: low, height: h, color: "rgba(38,166,154,0.2)" },
+  ];
+}
+
 const srZonePrimitive = definePrimitive({
   name: "srZones",
   pane: "main",
   zOrder: "below",
-  defaultState: { zones: [] as { price: number; height: number; color: string }[] },
+  // The sample data never changes, so the zones are worked out once here
+  defaultState: { zones: srZones() },
   render: ({ draw }, state) => {
     for (const zone of state.zones) {
       draw.rect(
@@ -105,7 +123,11 @@ export function App() {
   const [showSrZones, setShowSrZones] = useState(false);
   const [showTrail, setShowTrail] = useState(false);
   const [showVolOverlay, setShowVolOverlay] = useState(false);
-  const [theme, setTheme] = useState<"dark" | "light">("dark");
+  // index.html sets the initial theme from prefers-color-scheme before first paint.
+  const [theme, setTheme] = useState<"dark" | "light">(() =>
+    document.documentElement.dataset.theme === "light" ? "light" : "dark",
+  );
+  const [view, setView] = useState<"component" | "hook">("component");
 
   const indicators = useMemo(() => {
     const list: (
@@ -115,11 +137,20 @@ export function App() {
           config: import("@trendcraft/chart").SeriesConfig;
         }
     )[] = [];
-    if (showSma) list.push(sma(candles, { period: 20 }));
+    if (showSma) {
+      // A colour that stands apart from the Bollinger Bands' blue
+      list.push({ data: sma(candles, { period: 50 }), config: { color: "#ab47bc" } });
+    }
     if (showBb) list.push(bollingerBands(candles));
     if (showRsi) list.push(rsi(candles));
     if (showMacd) list.push(macd(candles));
-    if (showTrail) list.push(computeTrailingStop(candles));
+    if (showTrail) {
+      // `type: "trailingStop"` routes the series to the custom renderer passed via `plugins`.
+      list.push({
+        data: computeTrailingStop(candles),
+        config: { type: "trailingStop", pane: "main", color: "#FF9800", label: "Trail Stop" },
+      });
+    }
     if (showVolOverlay) {
       list.push({
         data: candles.map((c) => ({ time: c.time, value: c.volume })),
@@ -128,105 +159,99 @@ export function App() {
           scaleId: "left",
           type: "histogram",
           maxHeightRatio: 0.2,
-          color: "rgba(100,181,246,0.3)",
+          // Histogram bars take the theme's up / down volume colours, so the
+          // legend swatch uses the up colour to match them
+          color: (theme === "dark" ? DARK_THEME : LIGHT_THEME).volumeUp,
           label: "Volume",
         },
       });
     }
     return list;
-  }, [showSma, showBb, showRsi, showMacd, showTrail, showVolOverlay]);
+  }, [showSma, showBb, showRsi, showMacd, showTrail, showVolOverlay, theme]);
 
   const backtestResult = useMemo(() => {
     if (!showBacktest) return undefined;
     const normalized = normalizeCandles(candles);
-    return runBacktest(normalized, goldenCrossCondition(), rsiBelow(70), { capital: 100000 });
+    return runBacktest(normalized, goldenCrossCondition(), deadCrossCondition(), {
+      capital: 100000,
+    });
   }, [showBacktest]);
 
-  // Compute S/R zones
-  const plugins = useMemo(() => {
-    if (!showSrZones) return { renderers: [trailRenderer] };
-    const recent = candles.slice(-60);
-    let high = Number.NEGATIVE_INFINITY;
-    let low = Number.POSITIVE_INFINITY;
-    for (const c of recent) {
-      if (c.high > high) high = c.high;
-      if (c.low < low) low = c.low;
-    }
-    const h = (high - low) * 0.02;
-    srZonePrimitive.defaultState = {
-      zones: [
-        { price: high, height: h, color: "rgba(239,83,80,0.15)" },
-        { price: low, height: h, color: "rgba(38,166,154,0.15)" },
-      ],
-    };
-    return { renderers: [trailRenderer], primitives: [srZonePrimitive] };
-  }, [showSrZones]);
+  const plugins = useMemo(
+    () =>
+      showSrZones
+        ? { renderers: [trailRenderer], primitives: [srZonePrimitive] }
+        : { renderers: [trailRenderer] },
+    [showSrZones],
+  );
+
+  const toggleTheme = () => {
+    const next = theme === "dark" ? "light" : "dark";
+    document.documentElement.dataset.theme = next;
+    setTheme(next);
+  };
 
   return (
     <>
-      <header
-        style={{
-          padding: "8px 12px",
-          display: "flex",
-          alignItems: "center",
-          gap: "8px",
-          flexWrap: "wrap",
-          background: "#131722",
-          borderBottom: "1px solid #2a2e39",
-        }}
-      >
-        <h1 style={{ fontSize: 14, fontWeight: 600 }}>React Demo</h1>
-        <span
-          style={{
-            fontSize: 10,
-            background: "#4caf50",
-            color: "#fff",
-            padding: "2px 6px",
-            borderRadius: 3,
-          }}
-        >
-          React
-        </span>
-        <div style={{ display: "flex", gap: 4, marginLeft: "auto", flexWrap: "wrap" }}>
-          <Btn active={showSma} onClick={() => setShowSma(!showSma)}>
-            SMA 20
+      <header>
+        <h1>React Demo</h1>
+        <span className="badge">React</span>
+        <div className="tabs">
+          <Btn active={view === "component"} onClick={() => setView("component")}>
+            Component
           </Btn>
-          <Btn active={showBb} onClick={() => setShowBb(!showBb)}>
-            BB
+          <Btn active={view === "hook"} onClick={() => setView("hook")}>
+            Hook
           </Btn>
-          <Btn active={showRsi} onClick={() => setShowRsi(!showRsi)}>
-            RSI
-          </Btn>
-          <Btn active={showMacd} onClick={() => setShowMacd(!showMacd)}>
-            MACD
-          </Btn>
-          <Btn active={showBacktest} onClick={() => setShowBacktest(!showBacktest)}>
-            Backtest
-          </Btn>
-          <Btn active={showSrZones} onClick={() => setShowSrZones(!showSrZones)}>
-            S/R Zones
-          </Btn>
-          <Btn active={showTrail} onClick={() => setShowTrail(!showTrail)}>
-            Trail Stop
-          </Btn>
-          <Btn active={showVolOverlay} onClick={() => setShowVolOverlay(!showVolOverlay)}>
-            Vol Overlay
-          </Btn>
-          <Btn active={false} onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
-            {theme === "dark" ? "Light" : "Dark"}
+        </div>
+        <div className="controls">
+          {view === "component" && (
+            <>
+              <Btn active={showSma} onClick={() => setShowSma(!showSma)}>
+                SMA 50
+              </Btn>
+              <Btn active={showBb} onClick={() => setShowBb(!showBb)}>
+                BB
+              </Btn>
+              <Btn active={showRsi} onClick={() => setShowRsi(!showRsi)}>
+                RSI
+              </Btn>
+              <Btn active={showMacd} onClick={() => setShowMacd(!showMacd)}>
+                MACD
+              </Btn>
+              <Btn active={showBacktest} onClick={() => setShowBacktest(!showBacktest)}>
+                Backtest
+              </Btn>
+              <Btn active={showSrZones} onClick={() => setShowSrZones(!showSrZones)}>
+                S/R Zones
+              </Btn>
+              <Btn active={showTrail} onClick={() => setShowTrail(!showTrail)}>
+                Trail Stop
+              </Btn>
+              <Btn active={showVolOverlay} onClick={() => setShowVolOverlay(!showVolOverlay)}>
+                Vol Overlay
+              </Btn>
+            </>
+          )}
+          <Btn active={false} onClick={toggleTheme}>
+            Theme: {theme === "dark" ? "Dark" : "Light"}
           </Btn>
         </div>
       </header>
-      <div style={{ flex: 1, minHeight: 0 }}>
-        <TrendChart
-          candles={candles}
-          indicators={indicators}
-          backtest={backtestResult}
-          features={[registerBacktest]}
-          plugins={plugins}
-          theme={theme}
-          options={{ watermark: "REACT", volume: !showVolOverlay }}
-        />
+      <div className="chart-area">
+        {view === "component" ? (
+          <TrendChart
+            candles={candles}
+            indicators={indicators}
+            backtest={backtestResult}
+            features={[registerBacktest]}
+            plugins={plugins}
+            theme={theme}
+            options={{ watermark: "REACT", volume: !showVolOverlay }}
+          />
+        ) : (
+          <HookDemo theme={theme} />
+        )}
       </div>
     </>
   );
@@ -242,18 +267,7 @@ function Btn({
   children: React.ReactNode;
 }) {
   return (
-    <button
-      onClick={onClick}
-      style={{
-        padding: "4px 8px",
-        fontSize: 11,
-        background: active ? "#2196F3" : "#1e222d",
-        color: active ? "#fff" : "#d1d4dc",
-        border: `1px solid ${active ? "#2196F3" : "#2a2e39"}`,
-        borderRadius: 4,
-        cursor: "pointer",
-      }}
-    >
+    <button type="button" className={active ? "active" : undefined} onClick={onClick}>
       {children}
     </button>
   );
