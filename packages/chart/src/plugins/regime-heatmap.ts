@@ -21,7 +21,7 @@
  * ```
  */
 
-import { roundRectPath, withPaneClip } from "../core/draw-helper";
+import { barFillSpans, roundRectPath, withPaneClip } from "../core/draw-helper";
 import { canvasFont } from "../core/font";
 import type { PrimitivePlugin, PrimitiveRenderContext } from "../core/plugin-types";
 import { definePrimitive } from "../core/plugin-types";
@@ -83,7 +83,7 @@ function renderRegimeHeatmap(
 
   const start = timeScale.startIndex;
   const end = timeScale.endIndex;
-  const barWidth = Math.max(1, timeScale.barSpacing);
+  const span = barFillSpans(timeScale.barSpacing);
 
   withPaneClip(ctx, pane, () => {
     for (let i = start; i < end && i < data.length; i++) {
@@ -92,11 +92,14 @@ function renderRegimeHeatmap(
 
       const { regime, label } = point.value;
       const rgb = regimeToRgb(regime, label);
-      const alpha = 0.15 + (regimeConfidence(point.value) ?? 0.5) * 0.25;
-      const x = timeScale.indexToX(i);
+      // Light enough that the candles drawn over it stay readable in both
+      // themes; confidence still deepens the shade, from 0.06 to 0.16
+      const alpha = 0.06 + (regimeConfidence(point.value) ?? 0.5) * 0.1;
+      const s = span(timeScale.indexToX(i));
+      if (!s) continue;
 
       ctx.fillStyle = `rgba(${rgb},${alpha.toFixed(3)})`;
-      ctx.fillRect(x - barWidth / 2, pane.y, barWidth, pane.height);
+      ctx.fillRect(s[0], pane.y, s[1], pane.height);
     }
   });
 

@@ -27,7 +27,7 @@
  * ```
  */
 
-import { withPaneClip } from "../core/draw-helper";
+import { barFillSpans, withPaneClip } from "../core/draw-helper";
 import { canvasFont } from "../core/font";
 import type { PrimitivePlugin, PrimitiveRenderContext } from "../core/plugin-types";
 import { definePrimitive } from "../core/plugin-types";
@@ -209,7 +209,6 @@ function renderWyckoffPhase(
 
   const start = timeScale.startIndex;
   const end = timeScale.endIndex;
-  const barWidth = Math.max(1, timeScale.barSpacing);
   const last = phases[phases.length - 1]?.value;
 
   withPaneClip(ctx, pane, () => {
@@ -284,15 +283,17 @@ function renderWyckoffPhase(
     // ----- 3. Bottom timeline bar -----
     if (options.showTimelineBar) {
       const barY = pane.y + pane.height - PHASE_BAR_HEIGHT;
+      const span = barFillSpans(timeScale.barSpacing);
       for (let i = start; i < end && i < phases.length; i++) {
         const point = phases[i];
         if (!point?.value) continue;
         const { phase, confidence } = point.value;
         const rgb = PHASE_COLORS[phase] ?? PHASE_COLORS.unknown;
         const alpha = 0.4 + ((confidence ?? 50) / 100) * 0.5;
-        const x = timeScale.indexToX(i);
+        const s = span(timeScale.indexToX(i));
+        if (!s) continue;
         ctx.fillStyle = `rgba(${rgb},${alpha.toFixed(3)})`;
-        ctx.fillRect(x - barWidth / 2, barY, barWidth, PHASE_BAR_HEIGHT);
+        ctx.fillRect(s[0], barY, s[1], PHASE_BAR_HEIGHT);
       }
 
       // VSA event dots just above the timeline bar

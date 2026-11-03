@@ -292,9 +292,42 @@ describe("createRegimeHeatmap", () => {
       plugin.defaultState,
     );
 
-    // confidence=0 → alpha=0.15, confidence=1 → alpha=0.40
-    expect(fillStyles[0]).toContain("0.150");
-    expect(fillStyles[1]).toContain("0.400");
+    // confidence=0 → alpha=0.06, confidence=1 → alpha=0.16: faint enough for
+    // the candles drawn over the shading to stay readable
+    expect(fillStyles[0]).toContain("0.060");
+    expect(fillStyles[1]).toContain("0.160");
+  });
+});
+
+describe("regime heatmap at less than a pixel per bar", () => {
+  // At 0.25 px per bar, a fill drawn a full pixel wide per bar covered each
+  // pixel four times, so the translucent shading compounded to near-opaque.
+  it("paints each pixel column once", () => {
+    const data = makeRegimeData(
+      Array.from({ length: 40 }, () => ({ regime: 2, label: "trending-up", confidence: 1 })),
+    );
+    const plugin = createRegimeHeatmap(data, { showBadge: false });
+    const ctx = mockCtx();
+    const rects: [number, number][] = [];
+    ctx.fillRect = vi.fn((x: number, _y: number, w: number) => {
+      rects.push([x, w]);
+    }) as unknown as typeof ctx.fillRect;
+    const ts = {
+      startIndex: 0,
+      endIndex: 40,
+      barSpacing: 0.25,
+      indexToX: (i: number) => 10 + i * 0.25,
+    } as TimeScale;
+    plugin.render(
+      { ctx, pane: mockPaneRect, timeScale: ts } as PrimitiveRenderContext,
+      plugin.defaultState,
+    );
+    // 40 bars over 10 px: one fill per pixel column, none overlapping
+    expect(rects).toHaveLength(10);
+    const sorted = [...rects].sort((a, b) => a[0] - b[0]);
+    for (let k = 1; k < sorted.length; k++) {
+      expect(sorted[k][0]).toBeGreaterThanOrEqual(sorted[k - 1][0] + sorted[k - 1][1]);
+    }
   });
 });
 
