@@ -118,10 +118,13 @@ export function dispatchSeries(
   if (rule.name === "number") {
     // Honor explicit type override (e.g., volume as histogram)
     if (s.config.type === "histogram") {
-      // Render histogram inline without .map() allocation
+      // Render histogram inline without .map() allocation. An explicit
+      // `color` fills every bar; with none, bars follow the candle's
+      // direction in the theme's volume colours.
       const candles = dataLayer?.candles;
-      const upColor = theme?.volumeUp ?? color;
-      const downColor = theme?.volumeDown ?? color;
+      const own = s.config.color;
+      const upColor = own ?? theme?.volumeUp ?? color;
+      const downColor = own ?? theme?.volumeDown ?? color;
       const start = timeScale.startIndex;
       const end = timeScale.endIndex;
       const barWidth = Math.max(1, timeScale.barSpacing * 0.6);

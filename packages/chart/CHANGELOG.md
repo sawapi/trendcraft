@@ -60,6 +60,15 @@ dropped the whole pane, so the equity curve disappeared. The pane now stays
 while a backtest is shown, and `removeBacktest()` drops it once nothing else
 uses it.
 
+### Fixed — a histogram's `color` was ignored and its legend swatch did not match
+
+A series added with `type: "histogram"` and a `color` drew its bars in the
+theme's up / down volume colours, while its legend swatch showed the given
+colour. The `color` now fills every bar. Without a `color`, bars still
+follow the candle's direction in the volume colours, and the swatch takes
+the up colour instead of a palette colour that matched no bar. This also
+affects the Gap Analysis and Weis Wave presets, which draw such a histogram.
+
 ### Fixed — multi-channel series showed a white or black legend swatch
 
 Series drawn with `channelColors` and no `color` (Bollinger Bands, MACD,

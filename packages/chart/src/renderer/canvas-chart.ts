@@ -819,7 +819,13 @@ export class CanvasChart implements ChartInstance {
     // remove→re-add (e.g. param-change) cycle stable so the same indicator
     // usually comes back with the same color. Fall back to the per-palette
     // counter when every palette entry is taken.
-    if (!result.config.color && !result.config.channelColors) {
+    // A histogram with no colour is drawn in the theme's up / down volume
+    // colours, so it takes no palette colour either.
+    if (
+      !result.config.color &&
+      !result.config.channelColors &&
+      result.config.type !== "histogram"
+    ) {
       const presetPalette = result.config.colorPalette;
       const palette =
         presetPalette && presetPalette.length > 0 ? presetPalette : CanvasChart._COLOR_PALETTE;

@@ -166,6 +166,8 @@ chart.addIndicator(mySeries, {
 });
 ```
 
+With `type: 'histogram'`, a `color` fills every bar. Leave it out to colour each bar by its candle's direction in the theme's volume colours; the legend swatch then takes the up colour.
+
 `'sub'` mints a new auto-generated sub-pane on every call; any other string is a literal pane id — indicators passing the same id share that pane.
 
 ### Custom introspection rules

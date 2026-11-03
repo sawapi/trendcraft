@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { DARK_THEME, definePrimitive, defineSeriesRenderer, LIGHT_THEME } from "@trendcraft/chart";
+import { definePrimitive, defineSeriesRenderer } from "@trendcraft/chart";
 import { registerBacktest } from "@trendcraft/chart/features";
 // biome-ignore lint/correctness/noUnusedImports: used as <TrendChart> in the .vue template — Biome can't see template usage.
 import { TrendChart } from "@trendcraft/chart/vue";
@@ -166,9 +166,8 @@ const indicators = computed(() => {
         scaleId: "left",
         type: "histogram",
         maxHeightRatio: 0.2,
-        // Histogram bars take the theme's up / down volume colours, so the
-        // legend swatch uses the up colour to match them
-        color: (theme.value === "dark" ? DARK_THEME : LIGHT_THEME).volumeUp,
+        // No `color`: bars follow each candle's direction in the theme's
+        // volume colours, and the legend swatch takes the up colour
         label: "Volume",
       },
     });
