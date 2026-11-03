@@ -223,6 +223,8 @@ Summary info for every registered series: `{ id, paneId, type, label, visible }`
 
 These methods need a feature from `@trendcraft/chart/features`: `addSignals` / `addTrades` need `registerMarkers`, `addBacktest` / `addPatterns` need `registerBacktest`, and `addScores` needs `registerScores`. Without it, the call warns once (`FEATURE_NOT_REGISTERED`) and does nothing. See [Optional features](#optional-features).
 
+Each add method replaces what its previous call drew. The matching remove method clears it: `removeSignals()`, `removeTrades()`, `removeBacktest()`, `removePatterns()` and `removeScores()`. A remove method does nothing when nothing is drawn, and needs no feature registered.
+
 ```typescript
 addSignals(signals: SignalMarker[]): void
 ```
@@ -236,7 +238,7 @@ Draw entry/exit markers with holding-period shading. `TradeMarker = { entryTime,
 ```typescript
 addBacktest(result: BacktestResultData): void
 ```
-Visualize a `trendcraft` `BacktestResult` — trade markers + equity curve sub-pane + summary bar. Pass the `runBacktest` result as it is.
+Visualize a `trendcraft` `BacktestResult` — trade markers + equity curve sub-pane + summary bar. Pass the `runBacktest` result as it is. `removeBacktest()` clears all three and drops the equity pane, unless a series has been placed in it or your layout declared it.
 
 - **Equity curve:** the result's own `equityCurve` (mark-to-market equity per candle), placed on the candles from `firstBarTime`. The chart never rebuilds a curve from trade returns, which is wrong once positions are sized or partly closed. If the result has no `equityCurve` with a `firstBarTime`, or the curve does not line up with the loaded candles, no curve is drawn, and the chart warns once per result (`NO_EQUITY_CURVE`). The trades and summary are still drawn.
 - **Drawdown shading** follows the drawn curve: from the bar that set a peak until the curve is back at it. `drawdownPeriods` is not read.
@@ -692,6 +694,8 @@ function MyChart({ candles }: { candles: CandleData[] }) {
 `chart` is `null` before mount, the live instance after — drops into `useEffect` deps cleanly.
 
 `features` takes register functions from `@trendcraft/chart/features`. The `signals`, `trades`, `drawings`, `backtest`, `patterns` and `scores` props need their feature. Features are attached when the chart is created; changing the array later has no effect.
+
+In both the React and Vue wrappers, setting `signals`, `trades`, `backtest`, `patterns` or `scores` back to `undefined` clears that overlay with its remove method. A prop that was never set does not clear anything, so an overlay added through the chart instance stays.
 
 ### Vue
 

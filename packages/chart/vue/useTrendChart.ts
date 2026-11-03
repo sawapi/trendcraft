@@ -248,15 +248,17 @@ export function useTrendChart(opts: UseTrendChartOptions): UseTrendChartResult {
 
   watch(
     () => toValue(opts.signals),
-    (val) => {
+    (val, old) => {
       if (val) chart.value?.addSignals(val);
+      else if (old) chart.value?.removeSignals();
     },
   );
 
   watch(
     () => toValue(opts.trades),
-    (val) => {
+    (val, old) => {
       if (val) chart.value?.addTrades(val);
+      else if (old) chart.value?.removeTrades();
     },
   );
 
@@ -280,22 +282,25 @@ export function useTrendChart(opts: UseTrendChartOptions): UseTrendChartResult {
 
   watch(
     () => toValue(opts.backtest),
-    (val) => {
+    (val, old) => {
       if (val) chart.value?.addBacktest(val);
+      else if (old) chart.value?.removeBacktest();
     },
   );
 
   watch(
     () => toValue(opts.patterns),
-    (val: ChartPatternSignal[] | undefined) => {
+    (val: ChartPatternSignal[] | undefined, old: ChartPatternSignal[] | undefined) => {
       if (val) chart.value?.addPatterns(val);
+      else if (old) chart.value?.removePatterns();
     },
   );
 
   watch(
     () => toValue(opts.scores),
-    (val: DataPoint<number | null>[] | undefined) => {
+    (val: DataPoint<number | null>[] | undefined, old: DataPoint<number | null>[] | undefined) => {
       if (val) chart.value?.addScores(val);
+      else if (old) chart.value?.removeScores();
     },
   );
 

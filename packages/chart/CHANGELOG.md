@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — remove methods for overlays
+
+`removeBacktest()`, `removePatterns()`, `removeScores()`, `removeSignals()`
+and `removeTrades()` clear what the matching add method drew. Before, an
+overlay could be replaced but not taken off the chart. `removeBacktest()`
+also drops the equity pane that `addBacktest()` added, unless a series has
+been placed in it or the app's layout declared it. Calling one when nothing is drawn does nothing, and none
+of them needs its feature registered.
+
+The React and Vue wrappers call them when the `backtest`, `patterns`,
+`scores`, `signals` or `trades` prop goes from a value back to `undefined`,
+so turning an overlay off in the app now clears it. A prop that was never
+set leaves alone anything the app added through the chart instance.
+
 ### Fixed — multi-channel series showed a white or black legend swatch
 
 Series drawn with `channelColors` and no `color` (Bollinger Bands, MACD,
