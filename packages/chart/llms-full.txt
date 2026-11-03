@@ -259,6 +259,8 @@ colour. The `color` now fills every bar. Without a `color`, bars still
 follow the candle's direction in the volume colours, and the swatch takes
 the up colour instead of a palette colour that matched no bar. This also
 affects the Gap Analysis and Weis Wave presets, which draw such a histogram.
+Multi-channel series typed as a histogram, such as MACD, keep their first
+channel colour for the swatch.
 
 ### Fixed — the current-price tag was drawn over the pane below
 
