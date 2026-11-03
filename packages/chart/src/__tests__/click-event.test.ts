@@ -235,8 +235,8 @@ describe("chart click event", () => {
     // After the second click of a two-click drawing (rectangle, ray, etc.)
     // DrawingTool clears its internal active flag before the browser
     // dispatches the trailing native `dblclick`. The plain isActive() guard
-    // would let that dblclick through and hosts (Strategy Studio) would
-    // anchor Replay on the drawing's end-point.
+    // would let that dblclick through, and a host listening for dblclick
+    // (to anchor a replay, say) would act on the drawing's end-point.
     const container = makeContainer();
     const chart = createChart(container, { width: 800, height: 400 });
     chart.setCandles(sampleCandles);
