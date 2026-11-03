@@ -27,9 +27,8 @@ const DRAWING_TOOLS: ReadonlyArray<{ id: DrawingType; label: string; title: stri
 /**
  * Toolbar pinned above the chart. Exposes the chart-type switcher, drawing
  * tools, and Fit content — the controls a user expects from a "complete"
- * chart demo. Studio is the flagship example, so feature parity with
- * simple-chart's drawing affordances and indicator-showcase's chart-type
- * cycle is intentional here.
+ * chart demo. Studio is the flagship example, and the only one with a drawing
+ * toolbar; the chart-type cycle matches indicator-showcase's.
  */
 export function ChartToolbar({ chart }: ChartToolbarProps) {
   const [chartType, setChartType] = useState<ChartType>("candlestick");

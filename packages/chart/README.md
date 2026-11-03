@@ -134,7 +134,7 @@ Runnable example apps live in the repo. Each installs on its own: from the examp
 
 | Example | What it shows |
 |---|---|
-| [simple-chart](https://github.com/sawapi/trendcraft/tree/main/packages/chart/examples/simple-chart) | Vanilla TypeScript chart with indicators, drawings, and plugins |
+| [simple-chart](https://github.com/sawapi/trendcraft/tree/main/packages/chart/examples/simple-chart) | Start here: a vanilla TypeScript chart with a few indicators, a backtest and a theme switch |
 | [indicator-showcase](https://github.com/sawapi/trendcraft/tree/main/packages/chart/examples/indicator-showcase) | Multi-indicator catalog (canonical preset / auto-detection setup) |
 | [simple-react-chart](https://github.com/sawapi/trendcraft/tree/main/packages/chart/examples/simple-react-chart) | React wrapper usage |
 | [simple-vue-chart](https://github.com/sawapi/trendcraft/tree/main/packages/chart/examples/simple-vue-chart) | Vue wrapper usage |
