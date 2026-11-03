@@ -12,10 +12,17 @@ pnpm dev
 
 `pnpm dev` works on its own: Vite serves `trendcraft` and `@trendcraft/chart` straight from their sources. `pnpm build` also typechecks those sources, which needs the workspace's type packages, so install the workspace once first (`pnpm install --frozen-lockfile` at the repo root).
 
-## Features
+## What it shows
 
-- SMA, Bollinger Bands, Ichimoku, RSI, MACD toggles
-- Drawing tools (H-Line, Fibonacci)
-- Backtest visualization (Golden Cross strategy)
-- Score heatmap (RSI as background color)
-- Dark/Light theme switch
+The smallest useful chart, in one file (`src/main.ts`, under 100 lines):
+
+- `createChart` and `setCandles` with the bundled daily sample data
+- trendcraft indicators added with `chart.addIndicator` and taken off with the handle's `remove()`. SMA 50 and Bollinger Bands land on the price pane, while RSI 14 and MACD get panes of their own. The SMA shows the optional style argument (`{ color }`).
+- A golden-cross / dead-cross backtest drawn with `addBacktest` (trade markers, an equity pane and a summary line) and cleared with `removeBacktest`
+- A dark / light theme switch that starts from the OS setting
+
+## Where next
+
+- [`../indicator-showcase`](../indicator-showcase): every indicator preset, the plugins and a live bar-by-bar mode
+- [`../simple-react-chart`](../simple-react-chart) and [`../simple-vue-chart`](../simple-vue-chart): the same kind of chart through the React and Vue wrappers
+- [`../strategy-studio`](../strategy-studio): a full app with drawing tools, chart types and strategy backtests

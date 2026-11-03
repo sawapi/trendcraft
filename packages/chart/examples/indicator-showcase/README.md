@@ -49,4 +49,4 @@ pnpm dev
 - Looking for plugin wiring (`createRegimeHeatmap`, `createSmcLayer`, etc.) —
   see `src/plugins-panel.ts`.
 
-For a smaller "one indicator at a time" demo, see [`../simple-chart`](../simple-chart).
+For the smallest starting point, a few indicators in under 100 lines, see [`../simple-chart`](../simple-chart).
