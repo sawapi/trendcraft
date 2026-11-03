@@ -651,6 +651,7 @@ export function renderFrame(rc: RenderContext): RenderResult {
         rc.locale,
         rc.fontFamily,
         partial,
+        equityPane.width,
       );
     }
   }

@@ -186,6 +186,37 @@ describe("renderBacktestTrades", () => {
 });
 
 describe("renderBacktestSummary", () => {
+  // On a 375px phone the one-line summary ran past the equity pane into the
+  // price axis; items that do not fit go to the next line.
+  it("wraps items that would run past maxWidth", () => {
+    const ctx = mockCtx(); // measureText → 40 px, so each item is 80 px wide
+    renderBacktestSummary(
+      ctx,
+      baseResult(),
+      0,
+      0,
+      DARK_THEME,
+      11,
+      undefined,
+      undefined,
+      undefined,
+      200,
+    );
+    const calls = (ctx.fillText as unknown as { mock: { calls: [string, number, number][] } }).mock
+      .calls;
+    const values = calls.filter((_, i) => i % 2 === 1); // label, value, label, value, …
+    for (const [, x] of values) expect(x + 40).toBeLessThanOrEqual(196);
+    expect(new Set(calls.map(([, , y]) => y)).size).toBeGreaterThan(1);
+  });
+
+  it("keeps one line when there is room", () => {
+    const ctx = mockCtx();
+    renderBacktestSummary(ctx, baseResult(), 0, 0, DARK_THEME, 11);
+    const calls = (ctx.fillText as unknown as { mock: { calls: [string, number, number][] } }).mock
+      .calls;
+    expect(new Set(calls.map(([, , y]) => y)).size).toBe(1);
+  });
+
   it("uses upColor for positive return, downColor for negative", () => {
     const ctx = mockCtx();
     const fills: string[] = [];

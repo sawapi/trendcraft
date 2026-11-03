@@ -278,6 +278,13 @@ up bars on the left; widening adds bars on the left until the first bar.
 A view showing all the data still refits, and a viewport set with
 `setVisibleLogicalRange` keeps its own start.
 
+### Fixed — the backtest summary ran into the price axis on narrow charts
+
+The summary line above the equity curve (Return, Win, Sharpe, MaxDD, PF,
+Trades) was drawn on one line whatever the width, so on a phone it ran past
+the equity pane and over the price axis. Items that do not fit now move to
+the next line.
+
 ### Fixed — multi-channel series showed a white or black legend swatch
 
 Series drawn with `channelColors` and no `color` (Bollinger Bands, MACD,
