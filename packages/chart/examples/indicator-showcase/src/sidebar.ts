@@ -106,8 +106,11 @@ export function createSidebar(
 
   // Build DOM
   container.innerHTML = "";
+  // No height here: the page sizes the sidebar (a stretched flex item on
+  // desktop, top/bottom insets in the phone drawer). An inline height:100%
+  // overrode the drawer's bottom inset and pushed it off a phone screen.
   container.style.cssText =
-    "display:flex;flex-direction:column;height:100%;background:var(--surface);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:13px;overflow:hidden;";
+    "display:flex;flex-direction:column;background:var(--surface);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:13px;overflow:hidden;";
 
   // Search bar
   const searchBox = document.createElement("div");
