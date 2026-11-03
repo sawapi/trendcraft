@@ -697,6 +697,8 @@ function MyChart({ candles }: { candles: CandleData[] }) {
 
 In both the React and Vue wrappers, setting `signals`, `trades`, `backtest`, `patterns` or `scores` back to `undefined` clears that overlay with its remove method. A prop that was never set does not clear anything, so an overlay added through the chart instance stays.
 
+`indicators` entries are matched by object identity. An entry still in the list keeps its series, with its legend visibility and pane position; pass the same object for an indicator that has not changed (memoised, or built once), or it is removed and re-added and its pane moves to the end. New entries are added after the existing ones, so inserting one mid-list does not reorder panes.
+
 ### Vue
 
 ```typescript

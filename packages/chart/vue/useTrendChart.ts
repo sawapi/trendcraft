@@ -128,7 +128,8 @@ export function useTrendChart(opts: UseTrendChartOptions): UseTrendChartResult {
   const chart = shallowRef<ChartInstance | null>(null);
 
   // Track indicator handles across re-applies so we can release them
-  let indicatorHandles: SeriesHandle[] = [];
+  // Indicators matched by identity across updates (see applyIndicators)
+  const indicatorHandles = new Map<DataPoint<unknown>[] | IndicatorInput, SeriesHandle>();
   // Track drawings/timeframes applied per watch so cleanup removes the right ones
   let appliedDrawingIds: string[] = [];
   let appliedTimeframeIds: string[] = [];
@@ -186,7 +187,7 @@ export function useTrendChart(opts: UseTrendChartOptions): UseTrendChartResult {
   onUnmounted(() => {
     chart.value?.destroy();
     chart.value = null;
-    indicatorHandles = [];
+    indicatorHandles.clear();
     appliedDrawingIds = [];
     appliedTimeframeIds = [];
     appliedPrimitiveNames = [];
@@ -315,18 +316,26 @@ export function useTrendChart(opts: UseTrendChartOptions): UseTrendChartResult {
     },
   );
 
+  // An entry still in the list keeps its series (and so its legend
+  // visibility and pane position); only the entries that left are removed
+  // and the new ones added.
   function applyIndicators(
     c: ChartInstance,
     list: (DataPoint<unknown>[] | IndicatorInput)[] | undefined,
   ) {
-    for (const h of indicatorHandles) h.remove();
-    indicatorHandles = [];
-    for (const ind of list ?? []) {
-      if (Array.isArray(ind)) {
-        indicatorHandles.push(c.addIndicator(ind));
-      } else {
-        indicatorHandles.push(c.addIndicator(ind.data, ind.config));
+    const next = new Set(list ?? []);
+    for (const [ind, h] of indicatorHandles) {
+      if (!next.has(ind)) {
+        h.remove();
+        indicatorHandles.delete(ind);
       }
+    }
+    for (const ind of next) {
+      if (indicatorHandles.has(ind)) continue;
+      indicatorHandles.set(
+        ind,
+        Array.isArray(ind) ? c.addIndicator(ind) : c.addIndicator(ind.data, ind.config),
+      );
     }
   }
 

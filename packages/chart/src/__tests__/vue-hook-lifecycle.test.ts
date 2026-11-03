@@ -200,6 +200,35 @@ describe("useTrendChart (Vue)", () => {
     expect(onCrosshairMove).toHaveBeenCalledWith({ time: 1, price: 100 });
   });
 
+  it("keeps the series of an indicator entry that stays in the list", async () => {
+    const a = [{ time: 1, value: 10 }];
+    const b = [{ time: 1, value: 20 }];
+    const list = shallowRef<(typeof a)[]>([a]);
+    const Harness = defineComponent({
+      setup() {
+        const { containerRef } = useTrendChart({ candles: sampleCandles, indicators: list });
+        return () => h("div", { ref: containerRef });
+      },
+    });
+    mount(Harness);
+    const tick = async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    };
+    expect(currentMock.addIndicator).toHaveBeenCalledTimes(1);
+    const [handleA] = [...currentMock.__state.indicators] as { remove: () => void }[];
+
+    list.value = [a, b];
+    await tick();
+    expect(currentMock.addIndicator).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(handleA.remove)).not.toHaveBeenCalled();
+
+    list.value = [b];
+    await tick();
+    expect(vi.mocked(handleA.remove)).toHaveBeenCalledTimes(1);
+    expect(currentMock.__state.indicators.size).toBe(1);
+  });
+
   it("chart shallow ref stays identity-stable across unrelated re-renders", async () => {
     const trigger = ref(0);
     const captured = shallowRef<unknown[]>([]);

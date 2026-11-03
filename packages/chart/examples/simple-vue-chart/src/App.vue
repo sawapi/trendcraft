@@ -2,7 +2,7 @@
 import { definePrimitive, defineSeriesRenderer } from "@trendcraft/chart";
 import { registerBacktest } from "@trendcraft/chart/features";
 // biome-ignore lint/correctness/noUnusedImports: used as <TrendChart> in the .vue template — Biome can't see template usage.
-import { TrendChart } from "@trendcraft/chart/vue";
+import { type IndicatorInput, TrendChart } from "@trendcraft/chart/vue";
 import {
   bollingerBands,
   deadCrossCondition,
@@ -132,48 +132,45 @@ function computeTrailingStop() {
   });
 }
 
+// The sample data never changes, so every indicator is computed once. The
+// wrapper then sees the same object on every update and leaves its series
+// alone: a series hidden from the legend stays hidden, and panes keep their order.
+const SERIES = {
+  // A colour that stands apart from the Bollinger Bands' blue
+  sma: { data: sma(candles, { period: 50 }), config: { color: "#ab47bc" } },
+  bb: bollingerBands(candles),
+  rsi: rsi(candles),
+  macd: macd(candles),
+  // `type: "trailingStop"` routes the series to the custom renderer passed via `plugins`.
+  trail: {
+    data: computeTrailingStop(),
+    config: { type: "trailingStop", pane: "main", color: "#FF9800", label: "Trail Stop" },
+  },
+  volume: {
+    data: candles.map((c: { time: number; volume: number }) => ({ time: c.time, value: c.volume })),
+    config: {
+      pane: "main",
+      scaleId: "left",
+      type: "histogram",
+      maxHeightRatio: 0.2,
+      // No `color`: bars follow each candle's direction in the theme's
+      // volume colours, and the legend swatch takes the up colour
+      label: "Volume",
+    },
+  },
+} satisfies Record<string, IndicatorInput | { time: number; value: unknown }[]>;
+
 // biome-ignore lint/correctness/noUnusedVariables: bound to template via `:indicators` — Biome can't see the .vue template usage.
-const indicators = computed(() => {
-  const list: (
-    | { time: number; value: unknown }[]
-    | {
-        data: { time: number; value: unknown }[];
-        config: import("@trendcraft/chart").SeriesConfig;
-      }
-  )[] = [];
-  if (showSma.value) {
-    // A colour that stands apart from the Bollinger Bands' blue
-    list.push({ data: sma(candles, { period: 50 }), config: { color: "#ab47bc" } });
-  }
-  if (showBb.value) list.push(bollingerBands(candles));
-  if (showRsi.value) list.push(rsi(candles));
-  if (showMacd.value) list.push(macd(candles));
-  if (showTrail.value) {
-    // `type: "trailingStop"` routes the series to the custom renderer passed via `plugins`.
-    list.push({
-      data: computeTrailingStop(),
-      config: { type: "trailingStop", pane: "main", color: "#FF9800", label: "Trail Stop" },
-    });
-  }
-  if (showVolOverlay.value) {
-    list.push({
-      data: candles.map((c: { time: number; volume: number }) => ({
-        time: c.time,
-        value: c.volume,
-      })),
-      config: {
-        pane: "main",
-        scaleId: "left",
-        type: "histogram",
-        maxHeightRatio: 0.2,
-        // No `color`: bars follow each candle's direction in the theme's
-        // volume colours, and the legend swatch takes the up colour
-        label: "Volume",
-      },
-    });
-  }
-  return list;
-});
+const indicators = computed(() =>
+  [
+    showSma.value && SERIES.sma,
+    showBb.value && SERIES.bb,
+    showRsi.value && SERIES.rsi,
+    showMacd.value && SERIES.macd,
+    showTrail.value && SERIES.trail,
+    showVolOverlay.value && SERIES.volume,
+  ].filter((x) => x !== false),
+);
 
 // biome-ignore lint/correctness/noUnusedVariables: bound to template via `:backtest` — Biome can't see the .vue template usage.
 const backtestResult = computed(() => {
@@ -226,8 +223,11 @@ const features = [registerBacktest];
     </div>
   </header>
   <div class="chart-area">
+    <!-- fit-on-load false: open on the latest bars, as the vanilla chart does,
+         instead of fitting all 1000 into the width -->
     <TrendChart
       v-if="view === 'component'"
+      :fit-on-load="false"
       :candles="candles"
       :indicators="indicators"
       :backtest="backtestResult"

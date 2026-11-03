@@ -25,6 +25,8 @@ const { containerRef, chart } = useTrendChart({
   candles,
   indicators,
   theme: () => props.theme,
+  // Open on the latest bars rather than fitting all of them
+  fitOnLoad: false,
   options: { watermark: "HOOK" },
   features: [registerDrawingTools],
 });

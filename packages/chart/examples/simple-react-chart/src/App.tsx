@@ -1,6 +1,6 @@
 import { definePrimitive, defineSeriesRenderer } from "@trendcraft/chart";
 import { registerBacktest } from "@trendcraft/chart/features";
-import { TrendChart } from "@trendcraft/chart/react";
+import { type IndicatorInput, TrendChart } from "@trendcraft/chart/react";
 import { useMemo, useState } from "react";
 import {
   bollingerBands,
@@ -113,6 +113,32 @@ function computeTrailingStop(candles: typeof sampleData) {
   });
 }
 
+// The sample data never changes, so every indicator is computed once
+const SERIES = {
+  // A colour that stands apart from the Bollinger Bands' blue
+  sma: { data: sma(sampleData, { period: 50 }), config: { color: "#ab47bc" } },
+  bb: bollingerBands(sampleData),
+  rsi: rsi(sampleData),
+  macd: macd(sampleData),
+  // `type: "trailingStop"` routes the series to the custom renderer passed via `plugins`.
+  trail: {
+    data: computeTrailingStop(sampleData),
+    config: { type: "trailingStop", pane: "main", color: "#FF9800", label: "Trail Stop" },
+  },
+  volume: {
+    data: sampleData.map((c) => ({ time: c.time, value: c.volume })),
+    config: {
+      pane: "main",
+      scaleId: "left",
+      type: "histogram",
+      maxHeightRatio: 0.2,
+      // No `color`: bars follow each candle's direction in the theme's
+      // volume colours, and the legend swatch takes the up colour
+      label: "Volume",
+    },
+  },
+} satisfies Record<string, IndicatorInput | { time: number; value: unknown }[]>;
+
 export function App() {
   const candles = sampleData;
   const [showSma, setShowSma] = useState(true);
@@ -129,44 +155,21 @@ export function App() {
   );
   const [view, setView] = useState<"component" | "hook">("component");
 
-  const indicators = useMemo(() => {
-    const list: (
-      | { time: number; value: unknown }[]
-      | {
-          data: { time: number; value: unknown }[];
-          config: import("@trendcraft/chart").SeriesConfig;
-        }
-    )[] = [];
-    if (showSma) {
-      // A colour that stands apart from the Bollinger Bands' blue
-      list.push({ data: sma(candles, { period: 50 }), config: { color: "#ab47bc" } });
-    }
-    if (showBb) list.push(bollingerBands(candles));
-    if (showRsi) list.push(rsi(candles));
-    if (showMacd) list.push(macd(candles));
-    if (showTrail) {
-      // `type: "trailingStop"` routes the series to the custom renderer passed via `plugins`.
-      list.push({
-        data: computeTrailingStop(candles),
-        config: { type: "trailingStop", pane: "main", color: "#FF9800", label: "Trail Stop" },
-      });
-    }
-    if (showVolOverlay) {
-      list.push({
-        data: candles.map((c) => ({ time: c.time, value: c.volume })),
-        config: {
-          pane: "main",
-          scaleId: "left",
-          type: "histogram",
-          maxHeightRatio: 0.2,
-          // No `color`: bars follow each candle's direction in the theme's
-          // volume colours, and the legend swatch takes the up colour
-          label: "Volume",
-        },
-      });
-    }
-    return list;
-  }, [showSma, showBb, showRsi, showMacd, showTrail, showVolOverlay]);
+  // Each entry is built once (see SERIES), so the wrapper sees the same
+  // object on every render and leaves its series alone: a series hidden from
+  // the legend stays hidden, and panes keep their order.
+  const indicators = useMemo(
+    () =>
+      [
+        showSma && SERIES.sma,
+        showBb && SERIES.bb,
+        showRsi && SERIES.rsi,
+        showMacd && SERIES.macd,
+        showTrail && SERIES.trail,
+        showVolOverlay && SERIES.volume,
+      ].filter((x) => x !== false),
+    [showSma, showBb, showRsi, showMacd, showTrail, showVolOverlay],
+  );
 
   const backtestResult = useMemo(() => {
     if (!showBacktest) return undefined;
@@ -241,6 +244,9 @@ export function App() {
       <div className="chart-area">
         {view === "component" ? (
           <TrendChart
+            // Open on the latest bars, as the vanilla chart does, instead of
+            // fitting all 1000 into the width (about 0.3 px each on a phone)
+            fitOnLoad={false}
             candles={candles}
             indicators={indicators}
             backtest={backtestResult}

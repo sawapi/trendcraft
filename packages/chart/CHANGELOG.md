@@ -114,6 +114,15 @@ price pane: taps outside it are now ignored (a vertical line too), the tool
 stays engaged for the next tap, and a two-click tool's preview is hidden
 while the cursor is outside the price pane.
 
+### Fixed — the React and Vue wrappers re-added every indicator on each change
+
+When the `indicators` list changed, the wrappers removed every series and
+added the whole list back. A series hidden from the legend came back, and
+panes moved (an equity pane could jump above an indicator's). Entries are
+now matched by identity: an entry still in the list keeps its series, and
+only removed or new entries are touched. Pass the same object for an
+indicator that has not changed (memoise it, or build it once) to keep it.
+
 ### Fixed — multi-channel series showed a white or black legend swatch
 
 Series drawn with `channelColors` and no `color` (Bollinger Bands, MACD,
