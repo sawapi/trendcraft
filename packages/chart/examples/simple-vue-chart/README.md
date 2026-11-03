@@ -22,7 +22,7 @@ The header has two tabs, one per API:
 The Component tab shows:
 
 - SMA, BB, RSI, MACD toggles via Vue refs
-- A golden-cross / dead-cross backtest as a computed prop; turning it off sets the prop back to `undefined`, which clears the markers and the equity pane
+- A backtest that buys when SMA 5 crosses above SMA 25 and sells when it crosses back below, as a computed prop; turning it off sets the prop back to `undefined`, which clears the markers and the equity pane
 - Custom renderers and primitives passed through the wrapper's `plugins` prop:
   - **S/R Zones** — a primitive (`definePrimitive`) that shades support/resistance bands behind the candles
   - **Trail Stop** — a custom series renderer (`defineSeriesRenderer`) that draws an ATR trailing stop as a stepped line on the price pane; the indicator entry selects it with `config: { type: "trailingStop", pane: "main" }`

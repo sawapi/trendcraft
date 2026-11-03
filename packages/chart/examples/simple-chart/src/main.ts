@@ -60,7 +60,7 @@ for (const button of document.querySelectorAll<HTMLButtonElement>("[data-indicat
   });
 }
 
-// --- Backtest: buy on a golden cross, sell on a dead cross ---
+// --- Backtest: buy when SMA 5 crosses above SMA 25, sell when it crosses below ---
 
 const backtestButton = document.getElementById("btn-backtest") as HTMLButtonElement;
 backtestButton.addEventListener("click", () => {
@@ -69,8 +69,8 @@ backtestButton.addEventListener("click", () => {
   if (on) {
     const result = runBacktest(
       normalizeCandles(candles),
-      goldenCrossCondition(),
-      deadCrossCondition(),
+      goldenCrossCondition(5, 25),
+      deadCrossCondition(5, 25),
       { capital: 100_000 },
     );
     // Trade markers on the price pane, an equity pane and a summary line

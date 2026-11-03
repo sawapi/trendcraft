@@ -180,7 +180,8 @@ const indicators = computed(() => {
 const backtestResult = computed(() => {
   if (!showBacktest.value) return undefined;
   const normalized = normalizeCandles(candles);
-  return runBacktest(normalized, goldenCrossCondition(), deadCrossCondition(), {
+  // Buy when SMA 5 crosses above SMA 25, sell when it crosses back below
+  return runBacktest(normalized, goldenCrossCondition(5, 25), deadCrossCondition(5, 25), {
     capital: 100000,
   });
 });
@@ -217,7 +218,7 @@ const features = [registerBacktest];
         <button type="button" :class="{ active: showBb }" @click="showBb = !showBb">BB</button>
         <button type="button" :class="{ active: showRsi }" @click="showRsi = !showRsi">RSI</button>
         <button type="button" :class="{ active: showMacd }" @click="showMacd = !showMacd">MACD</button>
-        <button type="button" :class="{ active: showBacktest }" @click="showBacktest = !showBacktest">Backtest</button>
+        <button type="button" :class="{ active: showBacktest }" @click="showBacktest = !showBacktest">Backtest: SMA 5/25 cross</button>
         <button type="button" :class="{ active: showSrZones }" @click="showSrZones = !showSrZones">S/R Zones</button>
         <button type="button" :class="{ active: showTrail }" @click="showTrail = !showTrail">Trail Stop</button>
         <button type="button" :class="{ active: showVolOverlay }" @click="showVolOverlay = !showVolOverlay">Vol Overlay</button>

@@ -172,7 +172,8 @@ export function App() {
   const backtestResult = useMemo(() => {
     if (!showBacktest) return undefined;
     const normalized = normalizeCandles(candles);
-    return runBacktest(normalized, goldenCrossCondition(), deadCrossCondition(), {
+    // Buy when SMA 5 crosses above SMA 25, sell when it crosses back below
+    return runBacktest(normalized, goldenCrossCondition(5, 25), deadCrossCondition(5, 25), {
       capital: 100000,
     });
   }, [showBacktest]);
@@ -220,7 +221,7 @@ export function App() {
                 MACD
               </Btn>
               <Btn active={showBacktest} onClick={() => setShowBacktest(!showBacktest)}>
-                Backtest
+                Backtest: SMA 5/25 cross
               </Btn>
               <Btn active={showSrZones} onClick={() => setShowSrZones(!showSrZones)}>
                 S/R Zones
