@@ -79,11 +79,15 @@ export class DataLayer {
     return this._version;
   }
 
+  /** Whether any series, hidden ones included, is assigned to `paneId`. */
+  hasSeriesInPane(paneId: string): boolean {
+    return [...this._series.values()].some((s) => s.paneId === paneId);
+  }
+
   private checkPaneEmpty(paneId: string): void {
     // Count hidden series too: the pane is torn down for good, and a hidden
     // series still assigned to it could never be shown again.
-    const hasSeries = [...this._series.values()].some((s) => s.paneId === paneId);
-    if (!hasSeries) {
+    if (!this.hasSeriesInPane(paneId)) {
       this._onPaneEmpty?.(paneId);
     }
   }
@@ -345,7 +349,7 @@ export class DataLayer {
     return this._backtestResult;
   }
 
-  setBacktestResult(result: import("./types").BacktestResultData): void {
+  setBacktestResult(result: import("./types").BacktestResultData | null): void {
     this._backtestResult = result;
     this.markDirty();
   }

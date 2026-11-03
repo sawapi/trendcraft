@@ -227,13 +227,29 @@ export function useTrendChart(opts: UseTrendChartOptions): UseTrendChartResult {
   }, [chart, indicators]);
 
   // Signals
+  const hadSignals = useRef(false);
   useEffect(() => {
-    if (signals) chart?.addSignals(signals);
+    if (!chart) return;
+    if (signals) {
+      chart.addSignals(signals);
+      hadSignals.current = true;
+    } else if (hadSignals.current) {
+      chart.removeSignals();
+      hadSignals.current = false;
+    }
   }, [chart, signals]);
 
   // Trades
+  const hadTrades = useRef(false);
   useEffect(() => {
-    if (trades) chart?.addTrades(trades);
+    if (!chart) return;
+    if (trades) {
+      chart.addTrades(trades);
+      hadTrades.current = true;
+    } else if (hadTrades.current) {
+      chart.removeTrades();
+      hadTrades.current = false;
+    }
   }, [chart, trades]);
 
   // Drawings
@@ -255,18 +271,42 @@ export function useTrendChart(opts: UseTrendChartOptions): UseTrendChartResult {
   }, [chart, timeframes]);
 
   // Backtest
+  const hadBacktest = useRef(false);
   useEffect(() => {
-    if (backtest) chart?.addBacktest(backtest);
+    if (!chart) return;
+    if (backtest) {
+      chart.addBacktest(backtest);
+      hadBacktest.current = true;
+    } else if (hadBacktest.current) {
+      chart.removeBacktest();
+      hadBacktest.current = false;
+    }
   }, [chart, backtest]);
 
   // Patterns
+  const hadPatterns = useRef(false);
   useEffect(() => {
-    if (patterns) chart?.addPatterns(patterns);
+    if (!chart) return;
+    if (patterns) {
+      chart.addPatterns(patterns);
+      hadPatterns.current = true;
+    } else if (hadPatterns.current) {
+      chart.removePatterns();
+      hadPatterns.current = false;
+    }
   }, [chart, patterns]);
 
   // Scores
+  const hadScores = useRef(false);
   useEffect(() => {
-    if (scores) chart?.addScores(scores);
+    if (!chart) return;
+    if (scores) {
+      chart.addScores(scores);
+      hadScores.current = true;
+    } else if (hadScores.current) {
+      chart.removeScores();
+      hadScores.current = false;
+    }
   }, [chart, scores]);
 
   // Plugins. The prop wins: every listed renderer is (re-)registered when

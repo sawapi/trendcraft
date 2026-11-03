@@ -59,6 +59,10 @@ export type ChartInstance = {
   // Signals & Trades
   addSignals(signals: SignalMarker[]): void;
   addTrades(trades: TradeMarker[]): void;
+  /** Clear the signal markers. Does nothing when none are drawn. */
+  removeSignals(): void;
+  /** Clear the trade markers. Does nothing when none are drawn. */
+  removeTrades(): void;
 
   // Drawings
   addDrawing(drawing: Drawing): void;
@@ -74,12 +78,21 @@ export type ChartInstance = {
 
   // Backtest visualization (trendcraft integration)
   addBacktest(result: BacktestResultData): void;
+  /**
+   * Clear the backtest: its trade markers, summary and the equity pane that
+   * `addBacktest` added. Does nothing when no backtest is drawn.
+   */
+  removeBacktest(): void;
 
   // Pattern visualization
   addPatterns(patterns: ChartPatternSignal[]): void;
+  /** Clear the pattern outlines. Does nothing when none are drawn. */
+  removePatterns(): void;
 
   // Score heatmap
   addScores(scores: DataPoint<number | null>[]): void;
+  /** Clear the score heatmap. Does nothing when none is drawn. */
+  removeScores(): void;
 
   // Layout
   setLayout(layout: LayoutConfig): void;

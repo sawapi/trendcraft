@@ -62,6 +62,8 @@ export function createMockChartInstance(): MockChartInstance {
     }),
     addSignals: vi.fn(),
     addTrades: vi.fn(),
+    removeSignals: vi.fn(),
+    removeTrades: vi.fn(),
     addDrawing: vi.fn((d: { id: string }) => {
       state.drawingIds.add(d.id);
     }),
@@ -75,8 +77,11 @@ export function createMockChartInstance(): MockChartInstance {
       state.timeframeIds.delete(id);
     }),
     addBacktest: vi.fn(),
+    removeBacktest: vi.fn(),
     addPatterns: vi.fn(),
+    removePatterns: vi.fn(),
     addScores: vi.fn(),
+    removeScores: vi.fn(),
     registerRenderer: vi.fn((plugin: SeriesRendererPlugin) => {
       state.registeredRenderers++;
       state.rendererRegistry.registerRenderer(plugin);

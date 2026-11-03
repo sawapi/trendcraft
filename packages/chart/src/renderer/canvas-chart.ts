@@ -163,6 +163,8 @@ export class CanvasChart implements ChartInstance {
   private _layout = new LayoutEngine();
   private _timeScale = new TimeScale();
   private _viewport = new Viewport();
+  /** Whether addBacktest created the "equity" pane (removeBacktest drops it). */
+  private _equityPaneAdded = false;
   private _priceScales = new Map<string, { left: PriceScale; right: PriceScale }>();
   private _infoOverlay: InfoOverlay | null = null;
   private _legendOverlay: LegendOverlay | null = null;
@@ -913,6 +915,18 @@ export class CanvasChart implements ChartInstance {
     this._needsRender = true;
   }
 
+  removeSignals(): void {
+    if (this._data.signals.length === 0) return;
+    this._data.setSignals([]);
+    this._needsRender = true;
+  }
+
+  removeTrades(): void {
+    if (this._data.trades.length === 0) return;
+    this._data.setTrades([]);
+    this._needsRender = true;
+  }
+
   // ---- Optional features ----
 
   /**
@@ -1052,7 +1066,19 @@ export class CanvasChart implements ChartInstance {
     // Add equity curve subchart pane
     if (!this._layout.hasPane("equity")) {
       this._layout.addPane({ id: "equity", flex: 0.8 });
+      this._equityPaneAdded = true;
     }
+    this._needsRender = true;
+  }
+
+  removeBacktest(): void {
+    if (!this._data.backtestResult) return;
+    this._data.setBacktestResult(null);
+    // Drop the equity pane only if addBacktest added it and no series moved in
+    if (this._equityPaneAdded && !this._data.hasSeriesInPane("equity")) {
+      if (this._layout.removePane("equity")) this._priceScales.delete("equity");
+    }
+    this._equityPaneAdded = false;
     this._needsRender = true;
   }
 
@@ -1068,6 +1094,18 @@ export class CanvasChart implements ChartInstance {
     this._needsRender = true;
   }
 
+  removePatterns(): void {
+    if (this._data.patterns.length === 0) return;
+    this._data.setPatterns([]);
+    this._needsRender = true;
+  }
+
+  removeScores(): void {
+    if (this._data.scores.length === 0) return;
+    this._data.setScores([]);
+    this._needsRender = true;
+  }
+
   // ---- Public API: Layout ----
 
   setLayout(layout: LayoutConfig): void {
@@ -1075,6 +1113,9 @@ export class CanvasChart implements ChartInstance {
       this._warn('setLayout: scale mode "percent" is not implemented and renders as "linear"');
     }
     this._layout.setLayout(layout);
+    // The app's layout now owns the pane list: an "equity" pane it lists is
+    // its own, and one it leaves out is already gone.
+    this._equityPaneAdded = false;
     this._needsRender = true;
   }
 

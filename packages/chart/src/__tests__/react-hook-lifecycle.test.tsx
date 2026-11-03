@@ -222,4 +222,31 @@ describe("useTrendChart (React)", () => {
 
     unmount();
   });
+
+  it.each([
+    ["signals", "addSignals", "removeSignals", [{ time: 1, type: "buy" }]],
+    ["trades", "addTrades", "removeTrades", []],
+    ["backtest", "addBacktest", "removeBacktest", { trades: [] }],
+    ["patterns", "addPatterns", "removePatterns", []],
+    ["scores", "addScores", "removeScores", [{ time: 1, value: 50 }]],
+  ] as const)(
+    "calls %s's remove method when the prop goes back to undefined",
+    (prop, add, remove, value) => {
+      const { rerender } = render(<Harness opts={{ candles: sampleCandles }} />);
+      // Never set: no remove call, so an overlay the app added itself stays
+      expect(currentMock[remove]).not.toHaveBeenCalled();
+
+      rerender(
+        <Harness opts={{ candles: sampleCandles, [prop]: value } as UseTrendChartOptions} />,
+      );
+      expect(currentMock[add]).toHaveBeenCalledTimes(1);
+      expect(currentMock[remove]).not.toHaveBeenCalled();
+
+      rerender(<Harness opts={{ candles: sampleCandles }} />);
+      expect(currentMock[remove]).toHaveBeenCalledTimes(1);
+
+      rerender(<Harness opts={{ candles: sampleCandles }} />);
+      expect(currentMock[remove]).toHaveBeenCalledTimes(1);
+    },
+  );
 });

@@ -224,4 +224,42 @@ describe("useTrendChart (Vue)", () => {
     expect(new Set(nonNull).size).toBe(1);
     expect(nonNull[0]).toBe(currentMock);
   });
+
+  it.each([
+    ["signals", "addSignals", "removeSignals", [{ time: 1, type: "buy" }]],
+    ["trades", "addTrades", "removeTrades", []],
+    ["backtest", "addBacktest", "removeBacktest", { trades: [] }],
+    ["patterns", "addPatterns", "removePatterns", []],
+    ["scores", "addScores", "removeScores", [{ time: 1, value: 50 }]],
+  ] as const)(
+    "calls %s's remove method when the option goes back to undefined",
+    async (prop, add, remove, value) => {
+      const source = shallowRef<unknown>(undefined);
+      const Harness = defineComponent({
+        setup() {
+          const { containerRef } = useTrendChart({
+            candles: sampleCandles,
+            [prop]: () => source.value as never,
+          });
+          return () => h("div", { ref: containerRef });
+        },
+      });
+      mount(Harness);
+      const tick = async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      };
+      // Never set: no remove call, so an overlay the app added itself stays
+      expect(currentMock[remove]).not.toHaveBeenCalled();
+
+      source.value = value;
+      await tick();
+      expect(currentMock[add]).toHaveBeenCalledTimes(1);
+      expect(currentMock[remove]).not.toHaveBeenCalled();
+
+      source.value = undefined;
+      await tick();
+      expect(currentMock[remove]).toHaveBeenCalledTimes(1);
+    },
+  );
 });
