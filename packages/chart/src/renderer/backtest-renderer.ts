@@ -196,6 +196,8 @@ export function renderBacktestSummary(
   locale?: import("../core/i18n").ChartLocale,
   fontFamily: string = DEFAULT_FONT_FAMILY,
   partial?: { view: EquityView; lastTime: number },
+  /** Width available from `x`; items that do not fit move to the next line. */
+  maxWidth: number = Number.POSITIVE_INFINITY,
 ): void {
   let returnPercent: number | null = result.totalReturnPercent;
   let maxDrawdown: number | null = result.maxDrawdown;
@@ -254,13 +256,26 @@ export function renderBacktestSummary(
   }
   parts.push({ label: locale?.trades ?? "Trades", value: `${tradeCount}`, color: theme.text });
 
-  let currentX = x + 4;
+  // Wrap whole items onto further lines rather than running past the pane
+  // into the price axis on a narrow chart.
+  const left = x + 4;
+  const right = x + maxWidth - 4;
+  const lineHeight = fontSize + 4;
+  let currentX = left;
+  let lineY = y + 4;
   for (const part of parts) {
+    const labelText = `${part.label}: `;
+    const labelW = measureTextWidth(ctx, labelText);
+    const valueW = measureTextWidth(ctx, part.value);
+    if (currentX > left && currentX + labelW + valueW > right) {
+      currentX = left;
+      lineY += lineHeight;
+    }
     ctx.fillStyle = theme.textSecondary;
-    ctx.fillText(`${part.label}: `, currentX, y + 4);
-    currentX += measureTextWidth(ctx, `${part.label}: `);
+    ctx.fillText(labelText, currentX, lineY);
+    currentX += labelW;
     ctx.fillStyle = part.color;
-    ctx.fillText(part.value, currentX, y + 4);
-    currentX += measureTextWidth(ctx, part.value) + 12;
+    ctx.fillText(part.value, currentX, lineY);
+    currentX += valueW + 12;
   }
 }
