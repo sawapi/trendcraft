@@ -222,22 +222,43 @@ export function dispatchSeries(
     return;
   }
 
-  if (rule.name === "macd") {
+  // A histogram series: MACD-like ones (MACD, PPO, Klinger) have a
+  // `histogram` channel drawn as bars behind their lines; one with a single
+  // channel (Weis Wave, Gap Analysis) is all bars.
+  if (rule.seriesType === "histogram") {
     const channels = getCachedChannels(s, rule);
-    const cc = s.config.channelColors;
-    renderHistogram(ctx, channels.get("histogram") ?? [], timeScale, priceScale, {
-      upColor: cc?.histogramUp ?? "rgba(38,166,154,0.6)",
-      downColor: cc?.histogramDown ?? "rgba(239,83,80,0.6)",
-    });
-    renderChannelLine(ctx, channels.get("macd") ?? [], timeScale, priceScale, {
-      color: cc?.macd ?? "#2196F3",
-      lineWidth,
-    });
-    renderChannelLine(ctx, channels.get("signal") ?? [], timeScale, priceScale, {
-      color: cc?.signal ?? "#FF9800",
-      lineWidth,
-    });
-    return;
+    const bars = channels.get("histogram");
+    if (bars) {
+      const cc = s.config.channelColors;
+      renderHistogram(ctx, bars, timeScale, priceScale, {
+        upColor: cc?.histogramUp ?? "rgba(38,166,154,0.6)",
+        downColor: cc?.histogramDown ?? "rgba(239,83,80,0.6)",
+      });
+      const names = [...channels.keys()].filter((name) => name !== "histogram");
+      names.forEach((name, i) => {
+        renderChannelLine(ctx, channels.get(name) ?? [], timeScale, priceScale, {
+          color: cc?.[name] ?? (i === 0 ? "#2196F3" : "#FF9800"),
+          lineWidth,
+        });
+      });
+      return;
+    }
+    if (channels.size === 1) {
+      // An explicit `color` fills every bar, as for a plain histogram;
+      // otherwise bars take the theme's up / down volume colours.
+      const own = s.config.color;
+      const [values] = channels.values();
+      const direction =
+        rule.name === "weisWave"
+          ? (i: number) => (s.data[i]?.value as { direction?: string } | null)?.direction === "down"
+          : undefined;
+      renderHistogram(ctx, values, timeScale, priceScale, {
+        upColor: own ?? theme?.volumeUp ?? color,
+        downColor: own ?? theme?.volumeDown ?? color,
+        isDown: direction,
+      });
+      return;
+    }
   }
 
   if (rule.name === "ichimoku") {

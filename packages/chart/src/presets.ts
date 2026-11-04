@@ -145,7 +145,12 @@ const TRENDCRAFT_RULES: IntrospectionRule[] = [
     test: (v) => hasKeys(v, ["gapPercent", "classification", "filled"]),
     seriesType: "histogram",
     defaultPane: "sub",
-    decompose: (v) => ({ value: v.gapPercent }),
+    // Gap-downs below zero, so the two directions read apart.
+    decompose: (v) => {
+      const pct = v.gapPercent;
+      const down = (v as Record<string, unknown>).type === "down";
+      return { value: pct !== null && down ? -pct : pct };
+    },
   },
 
   // Opening Range Breakout (high/low levels)
