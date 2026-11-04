@@ -250,6 +250,14 @@ now hide, is `"above"` instead, drawn after the series.
 A custom `"below"` primitive that meant to draw over the candles but under
 the series should move to `"above"`.
 
+### Fixed — a chart preset's reference lines were never drawn
+
+`connectIndicators` took a pane's reference lines and y range from the
+indicator's own meta only, so the ones a chart preset declares were
+dropped: Roofing Filter's and Returns' zero lines never appeared. They now
+fill in where the indicator's meta has none. Meta that declares its own
+lines still wins.
+
 ### Fixed — a stray date among month labels on the time axis
 
 On daily and coarser data, the time axis could show one date among month
