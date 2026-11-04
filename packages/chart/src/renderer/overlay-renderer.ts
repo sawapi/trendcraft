@@ -307,7 +307,11 @@ export function computeSeriesBadges(
     for (const [channelName, values] of s._channels) {
       const val = latestInArray(values, searchUpTo);
       if (val === null) continue;
-      const color = channelColors?.[channelName] ?? s.config.color ?? theme.text;
+      const color =
+        s._lineColors?.get(channelName) ??
+        channelColors?.[channelName] ??
+        s.config.color ??
+        theme.text;
       candidates.push({
         y: priceScale.priceToY(val) + pane.y,
         color,

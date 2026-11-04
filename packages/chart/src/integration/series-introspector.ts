@@ -119,6 +119,9 @@ export function introspect<T>(
  * `channelColors` win. Otherwise a preset's channel colours apply, except
  * that a `color` the caller gave recolours the first channel, the series' own
  * line (the MACD line, %K, ADX); the other channels keep the preset's colours.
+ * A channel whose preset colour is the one the first channel now has takes
+ * the first channel's preset colour instead, so the two lines stay apart
+ * (Slow Stochastics is orange, the preset %D's colour).
  */
 export function channelColorsWithOwnColor(
   own: Record<string, string> | undefined,
@@ -129,5 +132,13 @@ export function channelColorsWithOwnColor(
   if (!preset) return undefined;
   if (!color) return preset;
   const [first] = Object.keys(preset);
-  return first === undefined ? preset : { ...preset, [first]: color };
+  if (first === undefined) return preset;
+  const displaced = preset[first];
+  const out: Record<string, string> = { ...preset, [first]: color };
+  for (const name of Object.keys(preset)) {
+    if (name !== first && preset[name]?.toLowerCase() === color.toLowerCase() && displaced) {
+      out[name] = displaced;
+    }
+  }
+  return out;
 }
