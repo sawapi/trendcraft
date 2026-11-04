@@ -109,5 +109,10 @@ export function computeSeriesRange(
   for (const [, vals] of channels) {
     acc = reduceRange(vals, start, end, acc);
   }
+  // Bars of a one-channel histogram (Weis Wave, Gap Analysis) stand on zero,
+  // so the range keeps zero in view or their heights cannot be compared.
+  if (rule.seriesType === "histogram" && channels.size === 1 && acc[0] <= acc[1]) {
+    return [Math.min(acc[0], 0), Math.max(acc[1], 0)];
+  }
   return acc;
 }

@@ -223,6 +223,21 @@ reach it); a theme switch
 that changes them restyles the tooltip with no call into the group. Unset,
 the tooltip looks as before.
 
+### Fixed — PPO, Klinger, Weis Wave and Gap Analysis drew lines instead of bars
+
+Only MACD's histogram was drawn as bars. PPO's and Klinger's histograms came
+out as a third line next to their two lines, and Weis Wave and Gap Analysis,
+both histograms, were drawn as lines. Now:
+
+- **PPO and Klinger** draw their histogram as bars behind the two lines,
+  like MACD, in the preset's up and down colours.
+- **Weis Wave** draws a bar per bar of each wave, in the theme's up or down
+  volume colour by the wave's direction.
+- **Gap Analysis** draws gap-ups above zero and gap-downs below it, so the
+  two directions read apart. The info overlay shows a gap-down as negative.
+- Both keep zero in their pane's range, so the bars stand on it and their
+  heights can be compared.
+
 ### Fixed — a stray date among month labels on the time axis
 
 On daily and coarser data, the time axis could show one date among month

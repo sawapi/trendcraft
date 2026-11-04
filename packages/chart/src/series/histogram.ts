@@ -14,6 +14,12 @@ export type HistogramRenderOptions = {
   downColor: string;
   /** Bar width as fraction of bar spacing (default: 0.6) */
   widthFraction?: number;
+  /**
+   * Whether the bar at `index` takes `downColor`. Default: the value is
+   * below zero. A histogram whose bars are all positive but carry a
+   * direction of their own (Weis Wave) passes its own test.
+   */
+  isDown?: (index: number, value: number) => boolean;
 };
 
 /**
@@ -159,7 +165,7 @@ export function renderHistogram(
       barLeft(timeScale.indexToX(i), barWidth),
       top,
       top + Math.max(1, Math.abs(valY - zeroY)),
-      val < 0,
+      options.isDown ? options.isDown(i, val) : val < 0,
     );
   }
   bars.fill(ctx, options.upColor, options.downColor);
