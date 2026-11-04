@@ -114,8 +114,10 @@ export function buildSeriesConfig(
     // passed `meta.label` from the static preset meta (`"SMA"`) it would win
     // in the user-config precedence and erase the parametric suffix.
     label: overrides?.label,
-    yRange: overrides?.yRange ?? meta.yRange,
-    referenceLines: overrides?.referenceLines ?? meta.referenceLines,
+    // The chart preset's range and reference lines fill in where the
+    // indicator's own meta has none (Roofing Filter's and Returns' zero line).
+    yRange: overrides?.yRange ?? meta.yRange ?? chartPreset?.yRange,
+    referenceLines: overrides?.referenceLines ?? meta.referenceLines ?? chartPreset?.referenceLines,
     channelColors: channelColorsWithOwnColor(
       overrides?.channelColors,
       overrides?.color,
