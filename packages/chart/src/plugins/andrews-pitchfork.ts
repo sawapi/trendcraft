@@ -220,7 +220,8 @@ export function createAndrewsPitchfork(
   return definePrimitive<AndrewsPitchforkState>({
     name: "andrewsPitchfork",
     pane: "main",
-    zOrder: "below",
+    // Lines and labels: drawn over the candles, which would hide them.
+    zOrder: "above",
     defaultState: { anchors, ...options },
     render: renderAndrewsPitchfork,
   });

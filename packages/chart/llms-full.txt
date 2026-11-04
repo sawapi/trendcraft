@@ -238,6 +238,18 @@ both histograms, were drawn as lines. Now:
 - Both keep zero in their pane's range, so the bars stand on it and their
   heights can be compared.
 
+### Fixed — `zOrder: "below"` primitives were drawn over the candles
+
+A `"below"` primitive ran after the candles and before the series, so a
+translucent background (S/R Confluence zones, the regime heatmap, session
+zones) tinted every candle it covered. It now runs before the candles, and
+in the volume pane before the volume bars, so a background stays behind the
+price. The Andrews Pitchfork primitive, lines and labels the candles would
+now hide, is `"above"` instead, drawn after the series.
+
+A custom `"below"` primitive that meant to draw over the candles but under
+the series should move to `"above"`.
+
 ### Fixed — a stray date among month labels on the time axis
 
 On daily and coarser data, the time axis could show one date among month
@@ -3964,7 +3976,7 @@ type SrState = { zones: { price: number; strength: number; kind: 'support' | 're
 const srZones = definePrimitive<SrState>({
   name: 'srZones',
   pane: 'main',
-  zOrder: 'below',  // render before series — zones look like a background
+  zOrder: 'below',  // render under the candles and series — zones look like a background
   defaultState: { zones: [] },
   render: ({ draw, theme, pane }, state) => {
     for (const zone of state.zones) {
@@ -4004,7 +4016,7 @@ const myPrim = definePrimitive<MyState>({
 |---|---|---|---|
 | `name` | `string` | Yes | Unique identifier. Used by `chart.removePrimitive(name)`. |
 | `pane` | `string` | Yes | Target pane: `'main'`, a specific pane id, or `'all'` to render on every pane. |
-| `zOrder` | `'below' \| 'above'` | Yes | Render order relative to series. `'below'` = backgrounds, `'above'` = annotations. |
+| `zOrder` | `'below' \| 'above'` | Yes | Render order. `'below'` draws before the candles (or volume bars) and series, for backgrounds; `'above'` draws after the series, for annotations. |
 | `defaultState` | `TState` | Yes | Initial state object. The chart takes a shallow copy at registration, so later mutations of your original object are not seen — change state via the `update` hook or by re-registering under the same `name`. |
 | `render` | `(ctx, state) => void` | Yes | Draw the primitive. Called once per frame per matched pane. |
 | `update` | `(state) => state` | No | Optional state transform called before each render. Return a new state to replace the current one. |

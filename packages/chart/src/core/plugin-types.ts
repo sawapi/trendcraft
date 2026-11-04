@@ -78,7 +78,10 @@ export type PrimitivePlugin<TState = unknown> = {
   readonly name: string;
   /** Target pane: 'main', a pane id, or 'all' for every pane */
   pane: string;
-  /** Render order relative to series: 'below' (before series) or 'above' (after) */
+  /**
+   * Render order: 'below' draws before the candles (or volume bars) and the
+   * series, for backgrounds; 'above' draws after the series, for annotations.
+   */
   zOrder: "below" | "above";
   /** Render the primitive */
   render: (context: PrimitiveRenderContext, state: TState) => void;

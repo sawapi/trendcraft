@@ -62,7 +62,7 @@ describe("createAndrewsPitchfork", () => {
     const plugin = createAndrewsPitchfork(anchors);
     expect(plugin.name).toBe("andrewsPitchfork");
     expect(plugin.pane).toBe("main");
-    expect(plugin.zOrder).toBe("below");
+    expect(plugin.zOrder).toBe("above");
   });
 
   it("renders three parallel lines, the handle connector, anchor dots, and labels", () => {
