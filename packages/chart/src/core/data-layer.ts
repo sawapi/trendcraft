@@ -435,6 +435,12 @@ export type InternalSeries = {
   _channels?: Map<string, (number | null)[]>;
   /** Data length when _channels was computed — used to detect staleness */
   _channelsLen?: number;
+  /**
+   * Colour of each channel line, by channel name, as last drawn by the plain
+   * multi-line path, so the series badges match the lines. Unset for series
+   * drawn any other way.
+   */
+  _lineColors?: Map<string, string>;
   /** Monotonic counter incremented on every data mutation — used by render caches */
   _dataVersion?: number;
 };

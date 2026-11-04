@@ -329,8 +329,13 @@ a second Bollinger Bands) were all the same blue. Now:
 - **Presets with channel colours** (MACD, Stochastics, DMI, …): a `color`
   you pass recolours the series' own line (the MACD line, %K, ADX), and the
   other lines keep their colours. `channelColors` still sets every line.
+  A line whose colour the series' own line now has takes that line's old
+  colour, so Slow Stochastics (orange, like %D) draws %D in blue.
 - **Other multi-line series** draw their first line in the series colour,
-  so Adaptive RSI's line matches its orange legend.
+  so Adaptive RSI's line matches its orange legend. Their other lines skip
+  any colour another line of the series already has, so ORB or VWAP added
+  in orange does not draw two orange lines. Their series badges take the
+  colours the lines are drawn in.
 
 Presets drawn by their own renderer in colours that carry a meaning
 (fractals, fair value gaps, order blocks, Heikin-Ashi) are unchanged.

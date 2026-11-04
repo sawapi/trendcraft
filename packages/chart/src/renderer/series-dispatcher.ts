@@ -20,6 +20,7 @@ import { renderHeatmap } from "../series/heatmap";
 import { BarBatch, renderHistogram } from "../series/histogram";
 import { renderChannelLine, renderLine } from "../series/line";
 import { renderMarkers } from "../series/marker";
+import { plainChannelColors } from "./series-color";
 
 /** Cached DrawHelper for custom plugin renderers — avoids per-frame allocation */
 let _pluginDrawHelper: DrawHelper | null = null;
@@ -390,18 +391,15 @@ export function dispatchSeries(
 
   // Generic multi-channel: render each channel as a line
   const channels = getCachedChannels(s, rule);
-  const cc = s.config.channelColors;
-  const fallbackColors = ["#2196F3", "#FF9800", "#26a69a", "#ef5350", "#9c27b0", "#FF5722"];
-  let colorIdx = 0;
-  for (const [name, vals] of channels) {
-    renderChannelLine(ctx, vals, timeScale, priceScale, {
-      // The first channel is the series' own line: it takes the series colour
-      color:
-        cc?.[name] ??
-        (colorIdx === 0 ? s.config.color : undefined) ??
-        fallbackColors[colorIdx % fallbackColors.length],
+  const names = [...channels.keys()];
+  const colors = plainChannelColors(names, s.config);
+  const drawn = new Map<string, string>();
+  names.forEach((name, i) => {
+    renderChannelLine(ctx, channels.get(name) ?? [], timeScale, priceScale, {
+      color: colors[i],
       lineWidth,
     });
-    colorIdx++;
-  }
+    drawn.set(name, colors[i]);
+  });
+  s._lineColors = drawn;
 }
