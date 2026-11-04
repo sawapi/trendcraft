@@ -197,3 +197,40 @@ describe("renderFrame — a renderer that throws", () => {
     });
   });
 });
+
+describe("renderFrame — draw order", () => {
+  it("draws 'below' primitives before the candles", () => {
+    // A 'below' primitive is a background: drawn after the candles, a
+    // translucent zone tinted every body it covered.
+    const rc = makeRenderContext();
+    const log: string[] = [];
+    const ctx = rc.ctx as unknown as { fillStyle: string; fillRect: (...a: number[]) => void };
+    ctx.fillRect = () => {
+      if (ctx.fillStyle === DARK_THEME.upColor || ctx.fillStyle === DARK_THEME.downColor) {
+        log.push("candle");
+      }
+    };
+    rc.rendererRegistry.registerPrimitive({
+      name: "zone",
+      pane: "main",
+      zOrder: "below",
+      defaultState: null,
+      render: () => {
+        log.push("below");
+      },
+    });
+    rc.data.setCandles(
+      Array.from({ length: 20 }, (_, i) =>
+        makeCandle(1609459200000 + i * 86400000, 100 + i, 105 + i, 95 + i, 1000),
+      ),
+    );
+    rc.timeScale.setTotalCount(20);
+    rc.timeScale.fitContent();
+    renderFrame(rc);
+
+    const firstCandle = log.indexOf("candle");
+    expect(firstCandle).toBeGreaterThan(-1);
+    expect(log.indexOf("below")).toBeGreaterThan(-1);
+    expect(log.indexOf("below")).toBeLessThan(firstCandle);
+  });
+});

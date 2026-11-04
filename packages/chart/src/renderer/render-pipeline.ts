@@ -366,6 +366,33 @@ export function renderFrame(rc: RenderContext): RenderResult {
         scores.renderHeatmap(ctx, data.scores, timeScale, { ...pane, y: 0 });
       }
 
+      // Pre-compute translated pane object once (avoids spread per primitive)
+      const translatedPane = { ...pane, y: 0 };
+
+      // 'below' primitives: backgrounds, drawn before the price data and
+      // the volume bars so they never tint a candle.
+      for (const prim of rc.rendererRegistry.getPrimitives(pane.id, "below")) {
+        try {
+          if (!drawHelper) drawHelper = new DrawHelper(ctx, timeScale, ps);
+          else drawHelper.reset(ctx, timeScale, ps);
+          prim.plugin.render(
+            {
+              ctx,
+              pane: translatedPane,
+              timeScale,
+              priceScale: ps,
+              dataLayer: data,
+              theme,
+              draw: drawHelper,
+              fontFamily: rc.fontFamily,
+            },
+            prim.state,
+          );
+        } catch (err) {
+          rc.emit("error", renderError(`primitive:${prim.plugin.name}`, err));
+        }
+      }
+
       // Price data
       if (pane.id === "main") {
         const decimTarget = getDecimationTarget(
@@ -428,32 +455,6 @@ export function renderFrame(rc: RenderContext): RenderResult {
 
       if (pane.id === "volume") {
         renderVolume(ctx, candles, timeScale, ps, theme);
-      }
-
-      // Pre-compute translated pane object once (avoids spread per primitive)
-      const translatedPane = { ...pane, y: 0 };
-
-      // 'below' primitives
-      for (const prim of rc.rendererRegistry.getPrimitives(pane.id, "below")) {
-        try {
-          if (!drawHelper) drawHelper = new DrawHelper(ctx, timeScale, ps);
-          else drawHelper.reset(ctx, timeScale, ps);
-          prim.plugin.render(
-            {
-              ctx,
-              pane: translatedPane,
-              timeScale,
-              priceScale: ps,
-              dataLayer: data,
-              theme,
-              draw: drawHelper,
-              fontFamily: rc.fontFamily,
-            },
-            prim.state,
-          );
-        } catch (err) {
-          rc.emit("error", renderError(`primitive:${prim.plugin.name}`, err));
-        }
       }
 
       // Series — dispatch to correct scale (cache for later info overlay use)

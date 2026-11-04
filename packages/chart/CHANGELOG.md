@@ -47,6 +47,18 @@ both histograms, were drawn as lines. Now:
 - Both keep zero in their pane's range, so the bars stand on it and their
   heights can be compared.
 
+### Fixed — `zOrder: "below"` primitives were drawn over the candles
+
+A `"below"` primitive ran after the candles and before the series, so a
+translucent background (S/R Confluence zones, the regime heatmap, session
+zones) tinted every candle it covered. It now runs before the candles, and
+in the volume pane before the volume bars, so a background stays behind the
+price. The Andrews Pitchfork primitive, lines and labels the candles would
+now hide, is `"above"` instead, drawn after the series.
+
+A custom `"below"` primitive that meant to draw over the candles but under
+the series should move to `"above"`.
+
 ### Fixed — a stray date among month labels on the time axis
 
 On daily and coarser data, the time axis could show one date among month

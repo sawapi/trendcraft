@@ -122,7 +122,7 @@ type SrState = { zones: { price: number; strength: number; kind: 'support' | 're
 const srZones = definePrimitive<SrState>({
   name: 'srZones',
   pane: 'main',
-  zOrder: 'below',  // render before series — zones look like a background
+  zOrder: 'below',  // render under the candles and series — zones look like a background
   defaultState: { zones: [] },
   render: ({ draw, theme, pane }, state) => {
     for (const zone of state.zones) {
@@ -162,7 +162,7 @@ const myPrim = definePrimitive<MyState>({
 |---|---|---|---|
 | `name` | `string` | Yes | Unique identifier. Used by `chart.removePrimitive(name)`. |
 | `pane` | `string` | Yes | Target pane: `'main'`, a specific pane id, or `'all'` to render on every pane. |
-| `zOrder` | `'below' \| 'above'` | Yes | Render order relative to series. `'below'` = backgrounds, `'above'` = annotations. |
+| `zOrder` | `'below' \| 'above'` | Yes | Render order. `'below'` draws before the candles (or volume bars) and series, for backgrounds; `'above'` draws after the series, for annotations. |
 | `defaultState` | `TState` | Yes | Initial state object. The chart takes a shallow copy at registration, so later mutations of your original object are not seen — change state via the `update` hook or by re-registering under the same `name`. |
 | `render` | `(ctx, state) => void` | Yes | Draw the primitive. Called once per frame per matched pane. |
 | `update` | `(state) => state` | No | Optional state transform called before each render. Return a new state to replace the current one. |
