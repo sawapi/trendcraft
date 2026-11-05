@@ -105,6 +105,11 @@ export function buildSeriesConfig(
   return {
     ...overrides,
     pane: overrides?.pane ?? (meta.overlay ? "main" : snapshotName),
+    // A preset keyed by the indicator id (AO) cannot be found again by the
+    // shape-based introspection, so its series type and bar colouring are
+    // resolved here.
+    type: overrides?.type ?? chartPreset?.seriesType,
+    histogramColorBy: overrides?.histogramColorBy ?? chartPreset?.histogramColorBy,
     color: overrides?.color ?? presetColorString,
     colorPalette: overrides?.color ? undefined : presetPalette,
     lineWidth: overrides?.lineWidth ?? chartPreset?.lineWidth,

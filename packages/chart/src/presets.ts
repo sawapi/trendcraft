@@ -460,7 +460,7 @@ const TRENDCRAFT_PRESETS: [string, IndicatorPreset][] = [
   ["imi", { color: "#f44336" }],
   ["hurst", { color: "#795548" }],
   ["stc", { color: "#607d8b" }],
-  ["ao", { color: "#00bcd4" }],
+  ["ao", { seriesType: "histogram", histogramColorBy: "change" }],
   ["bop", { color: "#8bc34a" }],
   ["qstick", { color: "#3f51b5" }],
   ["coppock", { color: "#009688" }],

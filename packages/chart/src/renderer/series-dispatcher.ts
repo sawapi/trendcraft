@@ -121,22 +121,38 @@ export function dispatchSeries(
     // Honor explicit type override (e.g., volume as histogram)
     if (s.config.type === "histogram") {
       // Render histogram inline without .map() allocation. An explicit
-      // `color` fills every bar; with none, bars follow the candle's
-      // direction in the theme's volume colours.
+      // `color` fills every bar. With none, `histogramColorBy` picks each
+      // bar's colour: the candle's direction in the theme's volume colours
+      // (default), or the value's sign or change in its candle colours.
       const candles = dataLayer?.candles;
       const own = s.config.color;
-      const upColor = own ?? theme?.volumeUp ?? color;
-      const downColor = own ?? theme?.volumeDown ?? color;
+      const colorBy = s.config.histogramColorBy ?? "candle";
+      const byCandle = colorBy === "candle";
+      const upColor = own ?? (byCandle ? theme?.volumeUp : theme?.upColor) ?? color;
+      const downColor = own ?? (byCandle ? theme?.volumeDown : theme?.downColor) ?? color;
+      const values = s.data as DataPoint<number | null>[];
       const start = timeScale.startIndex;
       const end = timeScale.endIndex;
       const barWidth = oddPixelWidth(timeScale.barSpacing * 0.6);
       const zeroY = priceScale.priceToY(0);
       const bars = new BarBatch(barWidth);
+      // "change": the colour of the bar before the first visible one, carried
+      // forward so an equal value keeps it.
+      let falling =
+        colorBy === "change" && start > 0 ? fallsFromPrevious(values, start - 1) : false;
       for (let i = start; i < end && i < s.data.length; i++) {
-        const val = (s.data[i] as DataPoint<number | null>)?.value;
+        if (colorBy === "change") falling = nextFalling(values, i, falling);
+        const val = values[i]?.value;
         if (val === null || val === undefined) continue;
         const valY = priceScale.priceToY(val);
-        const isDown = candles?.[i] ? candles[i].close < candles[i].open : false;
+        const isDown =
+          colorBy === "sign"
+            ? val < 0
+            : colorBy === "change"
+              ? falling
+              : candles?.[i]
+                ? candles[i].close < candles[i].open
+                : false;
         const top = Math.min(valY, zeroY);
         bars.add(
           barLeft(timeScale.indexToX(i), barWidth),
@@ -423,4 +439,35 @@ export function dispatchSeries(
     drawn.set(name, colors[i]);
   });
   s._lineColors = drawn;
+}
+
+/**
+ * Whether bar `i` of a scalar series is lower than the bar before it. An
+ * equal value keeps the colour of the previous bar, so the search walks
+ * back to the last change; the first bar, and a bar after a gap, count
+ * as rising.
+ */
+function fallsFromPrevious(values: readonly DataPoint<number | null>[], i: number): boolean {
+  for (let j = i; j > 0; j--) {
+    const cur = values[j]?.value;
+    const prev = values[j - 1]?.value;
+    if (cur === null || cur === undefined || prev === null || prev === undefined) return false;
+    if (cur < prev) return true;
+    if (cur > prev) return false;
+  }
+  return false;
+}
+
+/** `fallsFromPrevious` for bar `i`, given the answer for bar `i - 1`. */
+function nextFalling(
+  values: readonly DataPoint<number | null>[],
+  i: number,
+  previous: boolean,
+): boolean {
+  const cur = values[i]?.value;
+  const prev = i > 0 ? values[i - 1]?.value : undefined;
+  if (cur === null || cur === undefined || prev === null || prev === undefined) return false;
+  if (cur < prev) return true;
+  if (cur > prev) return false;
+  return previous;
 }

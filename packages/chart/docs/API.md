@@ -399,6 +399,7 @@ destroy(): void
 | `yRange` | `[number, number]` | Fixed Y-axis range (e.g. `[0, 100]`). Applied when a new pane is created. |
 | `referenceLines` | `number[]` | Horizontal reference lines. Applied when a new pane is created. |
 | `channelColors` | `Record<string, string>` | Per-channel colors for multi-channel series (`{ upper, middle, lower }`, etc.). |
+| `histogramColorBy` | `'candle' \| 'sign' \| 'change'` | How a `type: 'histogram'` scalar series colours its bars. `'candle'` (default) follows each candle's direction in the theme's volume colours. `'sign'` is up at or above zero and down below it. `'change'` is up when the value is higher than the previous bar's and down when lower; an equal value keeps the previous colour. `'sign'` and `'change'` use the theme's candle colours. A `color` fills every bar and overrides this. |
 
 ## `SeriesHandle`
 

@@ -166,7 +166,13 @@ chart.addIndicator(mySeries, {
 });
 ```
 
-With `type: 'histogram'`, a `color` fills every bar. Leave it out to colour each bar by its candle's direction in the theme's volume colours; the legend swatch then takes the up colour.
+With `type: 'histogram'`, a `color` fills every bar. Leave it out and `histogramColorBy` picks each bar's colour:
+
+- `'candle'` (default): the candle's direction, in the theme's volume colours.
+- `'sign'`: up at or above zero, down below it, in the theme's candle colours.
+- `'change'`: up when the value is higher than the previous bar's, down when lower, in the theme's candle colours. An equal value keeps the previous bar's colour.
+
+The legend swatch takes the up colour the bars are drawn in. The value range always includes zero, because the bars stand on it.
 
 `'sub'` mints a new auto-generated sub-pane on every call; any other string is a literal pane id — indicators passing the same id share that pane.
 

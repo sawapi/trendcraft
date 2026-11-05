@@ -80,7 +80,13 @@ export function computeSeriesRange(
   if (!rule) return [Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY];
 
   if (rule.name === "number") {
-    return linePriceRange(s.data as DataPoint<number | null>[], start, end);
+    const range = linePriceRange(s.data as DataPoint<number | null>[], start, end);
+    // A scalar drawn as a histogram (AO) has its bars standing on zero, so
+    // the range keeps zero in view or their heights cannot be compared.
+    if (s.config.type === "histogram" && range[0] <= range[1]) {
+      return [Math.min(range[0], 0), Math.max(range[1], 0)];
+    }
+    return range;
   }
 
   if (rule.name === "band") {
