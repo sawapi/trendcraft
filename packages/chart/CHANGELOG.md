@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — `histogramColorBy` for scalar histograms
+
+A `Series<number>` drawn with `type: "histogram"` could only colour its
+bars by the direction of each candle. `histogramColorBy` adds two more
+ways, both in the theme's candle colours:
+
+- `"sign"`: up at or above zero, down below it.
+- `"change"`: up when the value is higher than the previous bar's, down
+  when it is lower. An equal value keeps the previous bar's colour.
+
+The default, `"candle"`, keeps the old behaviour. A `color` still fills
+every bar with that one colour. Chart presets (`IndicatorPreset`) take the
+same field.
+
+The Awesome Oscillator preset now draws AO as bars coloured by
+`"change"`, which is how AO is read. Before, it was a single cyan line.
+The legend swatch takes the up colour of the bars. A scalar histogram's
+value range now always includes zero, as Weis Wave's and Gap Analysis'
+already did, so bars that are all positive (AO in an uptrend) keep
+heights that compare. To keep the old line,
+pass `{ type: "line", color: "#00bcd4" }` when adding it.
+
 ### Added — remove methods for overlays
 
 `removeBacktest()`, `removePatterns()`, `removeScores()`, `removeSignals()`

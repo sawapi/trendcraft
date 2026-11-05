@@ -95,6 +95,7 @@ export function introspect<T>(
     color: userConfig?.color ?? presetColorString,
     colorPalette: userConfig?.color ? undefined : presetPalette,
     lineWidth: userConfig?.lineWidth ?? preset?.lineWidth,
+    histogramColorBy: userConfig?.histogramColorBy ?? preset?.histogramColorBy,
     label,
     channelColors: channelColorsWithOwnColor(
       userConfig?.channelColors,

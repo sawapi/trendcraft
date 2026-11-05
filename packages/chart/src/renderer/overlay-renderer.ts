@@ -216,7 +216,7 @@ export function renderPaneTitles(
     for (const s of paneSeries) {
       const label = s.config.label;
       if (!label) continue;
-      ctx.fillStyle = seriesColor(s.config, theme.text, theme.volumeUp);
+      ctx.fillStyle = seriesColor(s.config, theme.text, theme.volumeUp, theme.upColor);
       ctx.fillText(label, x, y);
       x += ctx.measureText(label).width + GAP;
     }

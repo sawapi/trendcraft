@@ -6,7 +6,7 @@
  * indicators still render via introspection with default styling.
  */
 
-import type { SeriesType } from "../core/types";
+import type { SeriesConfig, SeriesType } from "../core/types";
 
 export type IndicatorPreset = {
   /** Visual series type override */
@@ -34,6 +34,8 @@ export type IndicatorPreset = {
   yRange?: [number, number];
   /** Reference lines */
   referenceLines?: number[];
+  /** Bar colouring for a scalar histogram (see `SeriesConfig.histogramColorBy`) */
+  histogramColorBy?: SeriesConfig["histogramColorBy"];
 };
 
 /** Preset map keyed by introspection rule name */

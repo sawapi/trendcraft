@@ -66,6 +66,21 @@ export type SeriesConfig = {
    * ambiguity that motivates this option.
    */
   markers?: boolean | { radius?: number; color?: string };
+  /**
+   * How a `type: "histogram"` scalar series (`Series<number>`) picks the
+   * up or down colour of each bar. Ignored when `color` is set, which
+   * fills every bar with that one colour.
+   *
+   * - `"candle"` (default): the direction of that bar's candle, in the
+   *   theme's volume colours. Suits volume-like series.
+   * - `"sign"`: up at or above zero, down below it, in the theme's candle
+   *   colours.
+   * - `"change"`: up when the value is higher than the previous bar's,
+   *   down when it is lower, and the previous bar's colour when it is
+   *   equal, in the theme's candle colours. This is how the Awesome
+   *   Oscillator is read.
+   */
+  histogramColorBy?: "candle" | "sign" | "change";
 };
 
 export type SeriesHandle = {

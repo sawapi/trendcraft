@@ -8,13 +8,14 @@ import type { SeriesConfig } from "../core/types";
  * represents it; falling back to the theme text would show a white or black
  * swatch that matches none of its lines.
  *
- * `volumeUp` is the theme's up-volume colour, for a `type: "histogram"`
- * series with no `color` (see below).
+ * `volumeUp` and `upColor` are the theme's up-volume and up-candle colours,
+ * for a `type: "histogram"` series with no `color` (see below).
  */
 export function seriesColor(
-  config: Pick<SeriesConfig, "color" | "channelColors" | "type">,
+  config: Pick<SeriesConfig, "color" | "channelColors" | "type" | "histogramColorBy">,
   fallback: string,
   volumeUp: string = fallback,
+  upColor: string = volumeUp,
 ): string {
   if (config.color) return config.color;
   const channels = config.channelColors;
@@ -25,9 +26,13 @@ export function seriesColor(
     }
   }
   // A single histogram with no colour of its own is drawn in the theme's
-  // up / down volume colours, so its swatch takes the up colour. A
-  // multi-channel series typed "histogram" (MACD) has its channel colours.
-  if (config.type === "histogram") return volumeUp;
+  // up / down volume colours, or its candle colours when coloured by sign
+  // or change, so its swatch takes that up colour. A multi-channel series
+  // typed "histogram" (MACD) has its channel colours.
+  if (config.type === "histogram") {
+    const byCandle = (config.histogramColorBy ?? "candle") === "candle";
+    return byCandle ? volumeUp : upColor;
+  }
   return fallback;
 }
 
