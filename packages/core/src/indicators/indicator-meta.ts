@@ -50,7 +50,12 @@ export const RSI_META: SeriesMeta = {
   yRange: [0, 100],
   referenceLines: [30, 70],
 };
-export const MACD_META: SeriesMeta = { kind: "macd", overlay: false, label: "MACD" };
+export const MACD_META: SeriesMeta = {
+  kind: "macd",
+  overlay: false,
+  label: "MACD",
+  referenceLines: [0],
+};
 export const STOCHASTICS_META: SeriesMeta = {
   kind: "stochastics",
   overlay: false,
@@ -107,14 +112,14 @@ export const CONNORS_RSI_META: SeriesMeta = {
   overlay: false,
   label: "CRSI",
   yRange: [0, 100],
-  referenceLines: [30, 70],
+  referenceLines: [10, 90],
 };
 export const CMO_META: SeriesMeta = {
   kind: "cmo",
   overlay: false,
   label: "CMO",
   yRange: [-100, 100],
-  referenceLines: [50, -50],
+  referenceLines: [-50, 0, 50],
 };
 export const ADXR_META: SeriesMeta = {
   kind: "adxr",

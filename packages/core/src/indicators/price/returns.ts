@@ -81,6 +81,7 @@ export const CUMULATIVE_RETURNS_META: SeriesMeta = {
   kind: "cumulativeReturns",
   overlay: false,
   label: "Cum. Returns",
+  referenceLines: [0],
 };
 
 /**
