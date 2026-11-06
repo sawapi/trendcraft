@@ -18,7 +18,11 @@ export type PaneConfig = {
   yScale?: ScaleMode;
   /** Fixed Y-axis range for right scale (e.g., [0, 100] for RSI) */
   yRange?: [number, number];
-  /** Horizontal reference lines (e.g., [30, 70] for RSI) */
+  /**
+   * Horizontal reference lines (e.g., [30, 70] for RSI). The auto-scaled
+   * range includes them, so a line is not off screen; on a log scale, a
+   * line at or below zero is left out.
+   */
   referenceLines?: number[];
   /** Reference line color */
   referenceLineColor?: string;

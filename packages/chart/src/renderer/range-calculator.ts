@@ -51,7 +51,20 @@ export function computePaneRange(
     if (Number.isFinite(sMax) && sMax > max) max = sMax;
   }
 
-  return min <= max ? [min, max] : [0, 100];
+  if (min > max) return [0, 100];
+
+  // A reference line is there to be read against the data, so the range
+  // keeps it in view (Mass Index's 27 and 26.5 sat above its values). A
+  // log scale cannot show zero or below, so such a line is left out there.
+  const left = scaleId === "left";
+  const lines = left ? pane.config?.leftScale?.referenceLines : pane.config?.referenceLines;
+  const log = (left ? pane.config?.leftScale?.mode : pane.config?.yScale) === "log";
+  for (const v of lines ?? []) {
+    if (!Number.isFinite(v) || (log && v <= 0)) continue;
+    if (v < min) min = v;
+    if (v > max) max = v;
+  }
+  return [min, max];
 }
 
 /**

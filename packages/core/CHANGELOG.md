@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+### Changed — reference lines in the series metadata
+
+The reference lines in `__meta.referenceLines`, which charts draw across an
+indicator's pane, now include the levels each indicator is read against:
+
+- **MACD:** a zero line (`[0]`). MACD crossing zero is part of how it is
+  read, and PPO and Klinger, which share its shape, already had one.
+- **CMO:** `[-50, 0, 50]`, adding the zero line to the ±50 overbought and
+  oversold levels.
+- **Connors RSI:** `[10, 90]` instead of `[30, 70]`, the levels its author
+  recommends for it.
+- **Cumulative returns:** a zero line (`[0]`), where the position breaks
+  even.
+
+Code that reads `referenceLines` sees the new values.
+
 ## [0.6.2] - 2026-11-02
 
 A patch release: seven indicators that returned an untagged series now carry

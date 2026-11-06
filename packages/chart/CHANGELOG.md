@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — reference lines stay in view
+
+A pane's auto-scaled range now includes its reference lines. Before, a
+line outside the values in view was off screen: Mass Index's 27 and 26.5
+sat above its values. For a zero line, the range now reaches zero even when
+every value in view is on one side of it, and CCI's pane always shows ±100.
+A fixed `yRange` is unchanged, and on a log scale a line at or below zero
+is left out of the range. The Connors RSI preset's lines are 10 and 90,
+matching the indicator's own.
+
 ### Added — `histogramColorBy` for scalar histograms
 
 A `Series<number>` drawn with `type: "histogram"` could only colour its

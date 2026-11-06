@@ -385,7 +385,7 @@ const TRENDCRAFT_PRESETS: [string, IndicatorPreset][] = [
       label: "Connors RSI",
       color: "#2196F3",
       yRange: [0, 100],
-      referenceLines: [20, 80],
+      referenceLines: [10, 90],
     },
   ],
   [
