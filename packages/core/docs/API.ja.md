@@ -1450,7 +1450,7 @@ const logReturns = returns(candles, { period: 1, type: 'log' });
 | `period` | `number` | `1` | リターン期間 |
 | `type` | `'simple' \| 'log'` | `'simple'` | リターン種別（対数リターンは 'log'） |
 
-**戻り値:** `Series<number | null>`
+**戻り値:** `Series<number | null>`。値は小数です（1% の上昇は `0.01`）。単純リターンを % で得るには [`roc()`](#roccandles-options) を使います。
 
 ---
 

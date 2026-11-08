@@ -2206,7 +2206,8 @@ function buildIndicatorPresets(): Record<string, IndicatorPreset> {
       {
         category: "Price",
         name: "Returns",
-        description: "Bar-over-bar percentage or log returns of close prices.",
+        description:
+          "Simple or log returns of close prices over N bars, as fractions (0.01 = 1%). For simple returns in percent, use ROC.",
         paramSchema: [period(1, 1, 100)],
       },
     ),
