@@ -39,7 +39,7 @@ export function parseColor(input: string): [number, number, number] | null {
   }
 
   if (s.startsWith("rgb")) {
-    const m = s.match(/rgba?\(([^)]+)\)/);
+    const m = s.match(/^rgba?\(([^)]+)\)$/);
     if (!m) return null;
     const parts = m[1].split(",").map((p) => p.trim());
     if (parts.length < 3) return null;

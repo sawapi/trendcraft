@@ -1,4 +1,5 @@
-import type { SeriesConfig } from "../core/types";
+import { resolveSeriesColors, themePalette } from "../core/theme-colors";
+import type { SeriesConfig, ThemeColors } from "../core/types";
 
 /**
  * The colour that stands for a series in its legend swatch and labels.
@@ -8,15 +9,15 @@ import type { SeriesConfig } from "../core/types";
  * represents it; falling back to the theme text would show a white or black
  * swatch that matches none of its lines.
  *
- * `volumeUp` and `upColor` are the theme's up-volume and up-candle colours,
- * for a `type: "histogram"` series with no `color` (see below).
+ * Colour tokens are resolved against `theme`. A series with no colour at all
+ * takes the theme text colour, or, for a `type: "histogram"` series, its
+ * up-volume or up-candle colour (see below).
  */
 export function seriesColor(
-  config: Pick<SeriesConfig, "color" | "channelColors" | "type" | "histogramColorBy">,
-  fallback: string,
-  volumeUp: string = fallback,
-  upColor: string = volumeUp,
+  raw: Pick<SeriesConfig, "color" | "channelColors" | "type" | "histogramColorBy">,
+  theme: ThemeColors,
 ): string {
+  const config = resolveSeriesColors(raw, theme);
   if (config.color) return config.color;
   const channels = config.channelColors;
   if (channels) {
@@ -31,25 +32,26 @@ export function seriesColor(
   // typed "histogram" (MACD) has its channel colours.
   if (config.type === "histogram") {
     const byCandle = (config.histogramColorBy ?? "candle") === "candle";
-    return byCandle ? volumeUp : upColor;
+    return byCandle ? theme.volumeUp : theme.upColor;
   }
-  return fallback;
+  return theme.text;
 }
-
-/** Spare line colours for channels that have none of their own. */
-const SPARE_CHANNEL_COLORS = ["#2196F3", "#FF9800", "#26a69a", "#ef5350", "#9c27b0", "#FF5722"];
 
 /**
  * The colour of each line of a multi-line series drawn as plain lines (ORB,
  * VWAP bands, EMA Ribbon, …). A channel colour the series was given wins.
  * Otherwise the first line is the series' own line and takes the series
- * colour, and the others take spare colours, skipping any colour another
- * line of the same series already has, so no two lines look alike.
+ * colour, and the others take spare colours from the theme palette, skipping
+ * any colour another line of the same series already has, so no two lines
+ * look alike. Colour tokens are resolved against `theme`.
  */
 export function plainChannelColors(
   names: readonly string[],
-  config: Pick<SeriesConfig, "color" | "channelColors">,
+  raw: Pick<SeriesConfig, "color" | "channelColors">,
+  theme: ThemeColors,
 ): string[] {
+  const config = resolveSeriesColors(raw, theme);
+  const spares = themePalette(theme);
   const cc = config.channelColors;
   const taken = new Set<string>();
   for (const name of names) {
@@ -57,19 +59,19 @@ export function plainChannelColors(
     if (c) taken.add(c.toLowerCase());
   }
   if (config.color) taken.add(config.color.toLowerCase());
-  const n = SPARE_CHANNEL_COLORS.length;
+  const n = spares.length;
   return names.map((name, i) => {
     const own = cc?.[name] ?? (i === 0 ? config.color : undefined);
     if (own) return own;
     // Start where the list used to put this line, so lines that never
     // clashed keep their colours.
     for (let k = 0; k < n; k++) {
-      const c = SPARE_CHANNEL_COLORS[(i + k) % n];
+      const c = spares[(i + k) % n];
       if (!taken.has(c.toLowerCase())) {
         taken.add(c.toLowerCase());
         return c;
       }
     }
-    return SPARE_CHANNEL_COLORS[i % n];
+    return spares[i % n];
   });
 }

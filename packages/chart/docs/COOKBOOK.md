@@ -107,7 +107,7 @@ chart.addIndicator(rsi(candles, { period: 14 }), {
 
 ## Recipe 4: Theming
 
-**Goal:** Switch between dark and light, or supply a fully custom palette.
+**Goal:** Switch between dark and light, or supply a fully custom theme.
 
 ```typescript
 import { DARK_THEME, LIGHT_THEME } from "@trendcraft/chart";
@@ -115,16 +115,17 @@ import { DARK_THEME, LIGHT_THEME } from "@trendcraft/chart";
 chart.setTheme("dark");
 chart.setTheme("light");
 
-// Custom palette
+// Custom theme, with its own line palette
 chart.setTheme({
   ...DARK_THEME,
   background: "#0b1020",
   upColor: "#00c2a8",
   downColor: "#ff5c8a",
+  palette: ["#4fc3f7", "#ffb74d", "#ba68c8", "#aed581", "#f06292"],
 });
 ```
 
-For a one-shot custom theme at construction, pass it as `createChart(el, { theme: { ... } })`.
+For a one-shot custom theme at construction, pass it as `createChart(el, { theme: { ... } })`. Series without a colour of their own take the theme palette and are recoloured on a theme switch; see [GUIDE.md#theming](./GUIDE.md#theming).
 
 ---
 

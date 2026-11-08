@@ -198,6 +198,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — theme palettes and theme colour tokens
+
+`ThemeColors` takes three optional fields: `palette` (the colours handed
+out to series without a colour of their own), `semantic` (`profit`,
+`profitSoft`, `loss`, `lossSoft`, `neutral`) and `mode` (`'dark'` or
+`'light'`). A series `color` or `channelColors` entry can name a theme
+colour instead of giving one: `'@up'`, `'@down'`, `'@profit'`, `'@loss'`,
+`'@palette.2'` and so on. Tokens are resolved each time the chart draws,
+so `setTheme()` recolours them. `resolveThemeColor(color, theme)` returns
+the colour a token stands for, for renderer plugins.
+
+`IndicatorHandle.colorSpec` is new: the colour as the series holds it. Pass
+it as `series.color` to keep an instance's colour across a remove + add.
+
+### Changed — auto-assigned colours follow the theme
+
+A series without a colour used to get a hex from one 12-colour list for
+both themes. Two of those colours were the candle colours, one was close
+to the dark theme's crosshair, and several had less than 3:1 contrast
+with the background. Each built-in theme now has its own 12-colour palette
+whose colours all have 3:1 contrast with its background and stay clear of
+the candle, crosshair and text colours. A series gets the token
+`'@palette.N'`, so it changes colour with the theme; the default look of
+auto-coloured lines changes.
+
+- `SeriesHandle.config.color` now holds that token, not a hex.
+- `IndicatorHandle.color` is the CSS colour for the current theme, read
+  each time, not a snapshot from when the instance was added. Passing it
+  back as `series.color` fixes the line to that colour; pass `colorSpec`
+  to keep it following the theme.
+- Spare colours for the extra lines of a plain multi-line series (ORB,
+  VWAP bands) come from the theme palette.
+- The `number` preset no longer carries its own copy of the palette.
+- A custom theme without `palette` or `semantic` gets the built-in colours
+  for its `mode`, read from its background when omitted.
+
 ### Changed — reference lines stay in view
 
 A pane's auto-scaled range now includes its reference lines. Before, a
@@ -2500,7 +2536,30 @@ const chart = createChart(container, {
 chart.setTheme('light'); // runtime swap
 ```
 
-Individual series colors are independent of the theme — pass `color` in `SeriesConfig` or set per-channel colors via `channelColors`.
+A series with no `color` of its own takes the next free colour of the theme's palette. Each built-in theme has its own palette: every colour has at least 3:1 contrast with that theme's background and stays clear of the candle colours. Switching the theme recolours these series.
+
+A colour can also name a theme colour instead of giving one. `color` and `channelColors` accept these tokens, resolved against the current theme each time the chart draws:
+
+| Token | Colour |
+|---|---|
+| `'@up'`, `'@down'` | The theme's `upColor` / `downColor`, for lines that mean what the candles mean |
+| `'@profit'`, `'@profitSoft'`, `'@loss'`, `'@lossSoft'` | Profit-side and loss-side lines (take-profit and stop levels); the soft shade is a second line of the same meaning |
+| `'@neutral'` | A state that is neither (a sideways regime) |
+| `'@palette.N'` | Entry `N` of the theme palette, wrapping at its length |
+
+Profit and loss are their own colours, apart from the candle colours: a stop line never reads as a candle, even after you change `upColor` / `downColor`. A custom theme can set its own palette and semantic colours:
+
+```typescript
+chart.setTheme({
+  ...DARK_THEME,
+  palette: ['#4fc3f7', '#ffb74d', '#ba68c8', '#aed581', '#f06292'],
+  semantic: { loss: '#ff7043' }, // the others keep the built-in values
+});
+```
+
+When `palette` or `semantic` is left out, the built-in colours for the theme's `mode` (`'dark'` or `'light'`) are used. Without a `mode`, the chart reads it from `background`, so `{ ...DARK_THEME, background: '#ffffff' }` gets the light colours. A background it cannot read as an opaque colour (`transparent`, a colour with alpha, a CSS variable) counts as dark, with a warning; set `mode` to choose.
+
+A hex `color` stays as given. See [API.md#theme-colours](https://github.com/sawapi/trendcraft/blob/main/packages/chart/docs/API.md#theme-colours) for how palette slots behave when the palette length changes.
 
 ## Viewport and navigation
 
@@ -3023,6 +3082,24 @@ applyOptions(options: Partial<ChartOptions>): void
 
 `applyOptions()` is the runtime equivalent of re-passing options to `createChart`. Fields that can't be changed after construction (see the option table above) are ignored, and a warning fires via the `error` event when the value you pass differs from the one in effect.
 
+#### Theme colours
+
+`ThemeColors` has three optional fields besides its colours:
+
+| Field | Type | Description |
+|---|---|---|
+| `mode` | `'dark' \| 'light'` | Picks the built-in palette and semantic colours when `palette` or `semantic` is left out. Read from `background` when omitted; a background that is not an opaque colour counts as dark, with a warning. |
+| `palette` | `readonly string[]` | Colours handed out to series without a colour of their own. |
+| `semantic` | `Partial<SemanticColors>` | `profit`, `profitSoft`, `loss`, `lossSoft`, `neutral`. A name left out takes the built-in colour. |
+
+`SeriesConfig.color` and `channelColors` accept a `ThemeColorToken` in place of a CSS colour: `'@up'`, `'@down'`, `'@profit'`, `'@profitSoft'`, `'@loss'`, `'@lossSoft'`, `'@neutral'` or `'@palette.N'`. Tokens are resolved against the current theme each time the chart draws, so `setTheme()` recolours them. An unknown token is drawn in the theme's text colour, with a warning. `resolveThemeColor(color, theme)` returns the CSS colour a token stands for (a CSS colour comes back as it is), for a renderer plugin's own colour options.
+
+A series added without a colour gets `'@palette.N'`, the lowest slot no other series has. When `setTheme()` switches to a palette of another length, two slots can land on one colour (`N % length`); the series that would share a colour with an earlier one moves to the lowest free slot, and the others keep theirs. This holds for every `'@palette.N'` series, including one re-added with `IndicatorHandle.colorSpec`. Limits:
+
+- With more such series than palette colours, some share a colour.
+- Switching back to the earlier palette does not restore the earlier slots, and `colorSpec` reports the new slot.
+- The two built-in palettes have the same length, so switching between dark and light never moves a slot.
+
 ### Plugin methods
 
 ```typescript
@@ -3055,7 +3132,7 @@ destroy(): void
 | `pane` | `'main' \| string` | Target pane id. Omit for auto-detection via `__meta`. Pass `'sub'` to auto-create a new sub-pane; any other custom string creates (or reuses) a pane with that id. |
 | `scaleId` | `'left' \| 'right'` | Which scale to bind to (only relevant for dual-scale panes). Default `'right'`. |
 | `type` | `SeriesType` | Override the auto-detected series type. |
-| `color` | `string` | Primary color for the series. |
+| `color` | `string` | Primary color for the series: a CSS colour or a theme colour token such as `'@palette.2'` or `'@loss'` (see [Theme colours](#theme-colours)). Omitted, the series takes the next free palette slot. |
 | `lineWidth` | `number` | Line width in pixels (default 1.5). |
 | `label` | `string` | Legend label. Overrides `__meta.label`. |
 | `visible` | `boolean` | Initial visibility (default `true`). |
@@ -3161,6 +3238,8 @@ Unified indicator wiring for both static and live modes. See [LIVE.md](https://g
 | `snapshotName` | Unique key for this instance. |
 | `presetId` | Preset id used. |
 | `params` | Effective parameters (defaults merged). |
+| `color` | The line colour as a CSS colour for the chart's current theme; follows a theme switch. `undefined` for a multi-channel series. |
+| `colorSpec` | The line colour as the series holds it: a CSS colour or a theme colour token. Pass it as `series.color` to keep the colour across a remove + add (a params change); passing `color` instead fixes the line to that CSS colour. |
 | `series` | Underlying `SeriesHandle`. |
 | `removed` | `true` once removed. |
 | `setVisible(visible)` | Toggle visibility. |
@@ -4159,6 +4238,8 @@ type SeriesRenderContext = {
 };
 ```
 
+The `config` passed to `render(context, config)` has the series' `color`, `channelColors` and marker colour resolved against the current theme. Theme colour tokens in any other option of your plugin (`'@loss'`, `'@palette.2'`) are yours to resolve: `resolveThemeColor(color, context.theme)` returns the CSS colour. `context.series.config` holds the tokens as given.
+
 ### `PrimitiveRenderContext`
 
 ```typescript
@@ -4440,7 +4521,7 @@ chart.addIndicator(rsi(candles, { period: 14 }), {
 
 ## Recipe 4: Theming
 
-**Goal:** Switch between dark and light, or supply a fully custom palette.
+**Goal:** Switch between dark and light, or supply a fully custom theme.
 
 ```typescript
 import { DARK_THEME, LIGHT_THEME } from "@trendcraft/chart";
@@ -4448,16 +4529,17 @@ import { DARK_THEME, LIGHT_THEME } from "@trendcraft/chart";
 chart.setTheme("dark");
 chart.setTheme("light");
 
-// Custom palette
+// Custom theme, with its own line palette
 chart.setTheme({
   ...DARK_THEME,
   background: "#0b1020",
   upColor: "#00c2a8",
   downColor: "#ff5c8a",
+  palette: ["#4fc3f7", "#ffb74d", "#ba68c8", "#aed581", "#f06292"],
 });
 ```
 
-For a one-shot custom theme at construction, pass it as `createChart(el, { theme: { ... } })`.
+For a one-shot custom theme at construction, pass it as `createChart(el, { theme: { ... } })`. Series without a colour of their own take the theme palette and are recoloured on a theme switch; see [GUIDE.md#theming](https://github.com/sawapi/trendcraft/blob/main/packages/chart/docs/GUIDE.md#theming).
 
 ---
 

@@ -193,29 +193,14 @@ export const INDICATOR_PRESETS = new Map<string, IndicatorPreset>([
     },
   ],
 
-  // Simple number (RSI, CCI, ATR, etc.) — default for scalar series.
-  // `color` here is an array palette: the first instance of any scalar
-  // indicator picks #2196F3, the next #FF9800, and so on. Stacking multiple
-  // SMAs / RSIs produces distinct colors instead of collapsing into one.
+  // Simple number (RSI, CCI, ATR, etc.) — default for scalar series. No
+  // colour: each instance takes the next free colour of the theme palette,
+  // so stacked SMAs / RSIs stay apart and follow a theme switch.
   [
     "number",
     {
       pane: "sub",
       label: "Indicator",
-      color: [
-        "#2196F3",
-        "#FF9800",
-        "#26a69a",
-        "#ef5350",
-        "#9c27b0",
-        "#FF5722",
-        "#00bcd4",
-        "#8bc34a",
-        "#e91e63",
-        "#607d8b",
-        "#ffc107",
-        "#3f51b5",
-      ],
       lineWidth: 1.5,
     },
   ],

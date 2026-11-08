@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — theme palettes and theme colour tokens
+
+`ThemeColors` takes three optional fields: `palette` (the colours handed
+out to series without a colour of their own), `semantic` (`profit`,
+`profitSoft`, `loss`, `lossSoft`, `neutral`) and `mode` (`'dark'` or
+`'light'`). A series `color` or `channelColors` entry can name a theme
+colour instead of giving one: `'@up'`, `'@down'`, `'@profit'`, `'@loss'`,
+`'@palette.2'` and so on. Tokens are resolved each time the chart draws,
+so `setTheme()` recolours them. `resolveThemeColor(color, theme)` returns
+the colour a token stands for, for renderer plugins.
+
+`IndicatorHandle.colorSpec` is new: the colour as the series holds it. Pass
+it as `series.color` to keep an instance's colour across a remove + add.
+
+### Changed — auto-assigned colours follow the theme
+
+A series without a colour used to get a hex from one 12-colour list for
+both themes. Two of those colours were the candle colours, one was close
+to the dark theme's crosshair, and several had less than 3:1 contrast
+with the background. Each built-in theme now has its own 12-colour palette
+whose colours all have 3:1 contrast with its background and stay clear of
+the candle, crosshair and text colours. A series gets the token
+`'@palette.N'`, so it changes colour with the theme; the default look of
+auto-coloured lines changes.
+
+- `SeriesHandle.config.color` now holds that token, not a hex.
+- `IndicatorHandle.color` is the CSS colour for the current theme, read
+  each time, not a snapshot from when the instance was added. Passing it
+  back as `series.color` fixes the line to that colour; pass `colorSpec`
+  to keep it following the theme.
+- Spare colours for the extra lines of a plain multi-line series (ORB,
+  VWAP bands) come from the theme palette.
+- The `number` preset no longer carries its own copy of the palette.
+- A custom theme without `palette` or `semantic` gets the built-in colours
+  for its `mode`, read from its background when omitted.
+
 ### Changed — reference lines stay in view
 
 A pane's auto-scaled range now includes its reference lines. Before, a

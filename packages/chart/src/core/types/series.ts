@@ -88,7 +88,8 @@ export type SeriesHandle = {
   readonly id: string;
   /**
    * Resolved series config (after preset defaults, palette rotation, and
-   * introspection). Useful for reading back the auto-assigned color.
+   * introspection). An auto-assigned color reads back as a `"@palette.N"`
+   * token; `resolveThemeColor()` turns it into the CSS colour for a theme.
    */
   readonly config: Readonly<SeriesConfig>;
   /** Push a single data point (streaming). Accepts scalar or compound values. */

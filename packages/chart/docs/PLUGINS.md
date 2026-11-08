@@ -258,6 +258,8 @@ type SeriesRenderContext = {
 };
 ```
 
+The `config` passed to `render(context, config)` has the series' `color`, `channelColors` and marker colour resolved against the current theme. Theme colour tokens in any other option of your plugin (`'@loss'`, `'@palette.2'`) are yours to resolve: `resolveThemeColor(color, context.theme)` returns the CSS colour. `context.series.config` holds the tokens as given.
+
 ### `PrimitiveRenderContext`
 
 ```typescript

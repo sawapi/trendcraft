@@ -33,6 +33,7 @@
  * ```
  */
 
+import { chartTheme, resolveThemeColor } from "../core/theme-colors";
 import type { ChartInstance, DataPoint, SeriesConfig, SeriesHandle } from "../core/types";
 import {
   buildSeriesConfig,
@@ -153,12 +154,23 @@ export type IndicatorHandle = {
   /** Effective parameters (defaultParams merged with overrides) */
   readonly params: Readonly<Record<string, unknown>>;
   /**
-   * The assigned line color (either explicit or palette-rotated). Useful for
-   * preserving an instance's color across a remove+add params-change cycle.
-   * `undefined` when the indicator uses `channelColors` (multi-channel series)
-   * or when no color has been resolved yet.
+   * The line colour as a CSS colour, for the chart's current theme: the
+   * colour given, or the palette colour the chart assigned. It follows a
+   * theme switch. `undefined` when the indicator uses `channelColors`
+   * (multi-channel series) or when no colour has been resolved yet.
+   *
+   * To keep an instance's colour across a remove+add (params change), pass
+   * {@link IndicatorHandle.colorSpec} as the new instance's `color`, not this
+   * value: a CSS colour stays fixed when the theme changes, while
+   * `colorSpec` keeps following it.
    */
   readonly color: string | undefined;
+  /**
+   * The line colour as the series holds it: a CSS colour or a theme colour
+   * token such as `"@palette.2"` or `"@loss"`. Pass it as `color` to give a
+   * re-added instance the same colour, following the theme.
+   */
+  readonly colorSpec: string | undefined;
   /** Underlying chart series handle. Escape hatch for advanced use cases. */
   readonly series: SeriesHandle;
   /** True once this instance has been removed */
@@ -300,7 +312,7 @@ type ActiveEntry = {
   staticOnly: boolean;
   /** User-facing wrapper, lazily assigned after creation */
   handle: IndicatorHandle;
-  /** Snapshot of the resolved primary color at creation time */
+  /** The primary colour as the series holds it (CSS colour or theme token) */
   color: string | undefined;
   removed: boolean;
 };
@@ -320,6 +332,15 @@ type ActiveEntry = {
  * @param options - Presets, candle data, and optional live source
  * @returns An IndicatorConnection for managing the lifecycle
  */
+/**
+ * The colour a mounted series holds now. A theme switch to a palette of
+ * another length can move a series to another `"@palette.N"` slot, so this
+ * reads the live config, falling back to the colour at creation.
+ */
+function colorSpecOf(entry: ActiveEntry): string | undefined {
+  return entry.series.config?.color ?? entry.color;
+}
+
 export function connectIndicators(
   chart: ChartInstance,
   options: ConnectIndicatorsOptions,
@@ -476,7 +497,13 @@ export function connectIndicators(
         return entry.series;
       },
       get color() {
-        return entry.color;
+        const spec = colorSpecOf(entry);
+        if (!spec) return undefined;
+        const theme = chartTheme(chart);
+        return theme ? resolveThemeColor(spec, theme) : spec;
+      },
+      get colorSpec() {
+        return colorSpecOf(entry);
       },
       get removed() {
         return entry.removed;
@@ -640,7 +667,7 @@ export function connectIndicators(
       snapshotName: handle.snapshotName,
       staticOnly: false,
       handle,
-      color: handle.color,
+      color: handle.colorSpec,
       removed: true,
     };
   }

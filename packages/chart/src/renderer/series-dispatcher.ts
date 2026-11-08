@@ -11,7 +11,8 @@ import type { RendererRegistry } from "../core/renderer-registry";
 import type { PriceScale, TimeScale } from "../core/scale";
 import type { IntrospectionRule } from "../core/series-registry";
 import { defaultRegistry } from "../core/series-registry";
-import type { DataPoint, ThemeColors } from "../core/types";
+import { resolveSeriesColors } from "../core/theme-colors";
+import { DARK_THEME, type DataPoint, type ThemeColors } from "../core/types";
 import { renderArea } from "../series/area";
 import { renderBand } from "../series/band";
 import { renderBoxes } from "../series/box";
@@ -75,6 +76,9 @@ export function dispatchSeries(
   theme?: ThemeColors,
   rendererRegistry?: RendererRegistry,
 ): void {
+  // Colour tokens ("@loss", "@palette.2") are resolved against the current
+  // theme here, so a theme switch recolours them on the next frame.
+  const config = theme ? resolveSeriesColors(s.config, theme) : s.config;
   // Use cached rule from addSeries() — avoids per-frame data scan
   const rule = s._rule !== undefined ? s._rule : defaultRegistry.detect(s.data);
 
@@ -97,7 +101,7 @@ export function dispatchSeries(
           theme,
           draw: _pluginDrawHelper,
         },
-        s.config,
+        config,
       );
       return;
     }
@@ -105,11 +109,11 @@ export function dispatchSeries(
 
   if (!rule) return;
 
-  const color = s.config.color ?? "#2196F3";
-  const lineWidth = s.config.lineWidth ?? 1.5;
+  const color = config.color ?? "#2196F3";
+  const lineWidth = config.lineWidth ?? 1.5;
   // Resolve `markers` config — `true` becomes default style, an object
   // overrides; `undefined` / `false` skip marker rendering entirely.
-  const markersConfig = s.config.markers;
+  const markersConfig = config.markers;
   const markers =
     markersConfig === true
       ? { radius: 2.5, color }
@@ -119,14 +123,14 @@ export function dispatchSeries(
 
   if (rule.name === "number") {
     // Honor explicit type override (e.g., volume as histogram)
-    if (s.config.type === "histogram") {
+    if (config.type === "histogram") {
       // Render histogram inline without .map() allocation. An explicit
       // `color` fills every bar. With none, `histogramColorBy` picks each
       // bar's colour: the candle's direction in the theme's volume colours
       // (default), or the value's sign or change in its candle colours.
       const candles = dataLayer?.candles;
-      const own = s.config.color;
-      const colorBy = s.config.histogramColorBy ?? "candle";
+      const own = config.color;
+      const colorBy = config.histogramColorBy ?? "candle";
       const byCandle = colorBy === "candle";
       const upColor = own ?? (byCandle ? theme?.volumeUp : theme?.upColor) ?? color;
       const downColor = own ?? (byCandle ? theme?.volumeDown : theme?.downColor) ?? color;
@@ -216,10 +220,10 @@ export function dispatchSeries(
 
   if (rule.name === "band") {
     const channels = getCachedChannels(s, rule);
-    const cc = s.config.channelColors;
+    const cc = config.channelColors;
     // A band line without a colour of its own takes the series colour, and
     // the fill a light tint of it.
-    const base = s.config.color;
+    const base = config.color;
     renderBand(
       ctx,
       channels.get("upper") ?? [],
@@ -232,7 +236,7 @@ export function dispatchSeries(
         middleColor: cc?.middle ?? base,
         lowerColor: cc?.lower ?? base,
         fillColor: base ? withAlpha(base, 0.08) : undefined,
-        lineWidth: s.config.lineWidth,
+        lineWidth: config.lineWidth,
       }),
     );
     return;
@@ -245,7 +249,7 @@ export function dispatchSeries(
     const channels = getCachedChannels(s, rule);
     const bars = channels.get("histogram");
     if (bars) {
-      const cc = s.config.channelColors;
+      const cc = config.channelColors;
       renderHistogram(ctx, bars, timeScale, priceScale, {
         upColor: cc?.histogramUp ?? "rgba(38,166,154,0.6)",
         downColor: cc?.histogramDown ?? "rgba(239,83,80,0.6)",
@@ -262,7 +266,7 @@ export function dispatchSeries(
     if (channels.size === 1) {
       // An explicit `color` fills every bar, as for a plain histogram;
       // otherwise bars take the theme's up / down volume colours.
-      const own = s.config.color;
+      const own = config.color;
       const [values] = channels.values();
       const direction =
         rule.name === "weisWave"
@@ -284,7 +288,7 @@ export function dispatchSeries(
       channels,
       timeScale,
       priceScale,
-      definedOnly({ lineColors: s.config.channelColors, lineWidth: s.config.lineWidth }),
+      definedOnly({ lineColors: config.channelColors, lineWidth: config.lineWidth }),
     );
     return;
   }
@@ -302,7 +306,7 @@ export function dispatchSeries(
     const upper = channels.get("upperBand") ?? [];
     const lower = channels.get("lowerBand") ?? [];
     const trend = channels.get("trend") ?? [];
-    const cc = s.config.channelColors;
+    const cc = config.channelColors;
     const upColor = cc?.lowerBand ?? "#26a69a";
     const downColor = cc?.upperBand ?? "#ef5350";
     const start = timeScale.startIndex;
@@ -369,7 +373,7 @@ export function dispatchSeries(
     }
 
     // Pass 2: Draw the supertrend line with color switching
-    ctx.lineWidth = s.config.lineWidth ?? 1.5;
+    ctx.lineWidth = config.lineWidth ?? 1.5;
     ctx.lineJoin = "round";
     ctx.lineCap = "round";
     ctx.setLineDash([]);
@@ -429,7 +433,7 @@ export function dispatchSeries(
   // Generic multi-channel: render each channel as a line
   const channels = getCachedChannels(s, rule);
   const names = [...channels.keys()];
-  const colors = plainChannelColors(names, s.config);
+  const colors = plainChannelColors(names, config, theme ?? DARK_THEME);
   const drawn = new Map<string, string>();
   names.forEach((name, i) => {
     renderChannelLine(ctx, channels.get(name) ?? [], timeScale, priceScale, {
