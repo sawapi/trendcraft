@@ -152,7 +152,7 @@ export const VOLATILITY_MANIFESTS: IndicatorManifest[] = [
     oneLiner: "ATR-multiplied stop-loss and take-profit levels for both long and short positions.",
     whenToUse: [
       "Volatility-adjusted exits in trend systems",
-      "Chandelier-style trailing stops",
+      "Trailing stops, once the caller keeps the level from moving against the position (for a long, the running maximum of longStopLevel since entry)",
       "Position sizing: shares = risk_amount / stopDistance (returns stopDistance directly)",
       "Consistent risk/reward sizing across instruments with different volatility",
     ],
@@ -163,6 +163,7 @@ export const VOLATILITY_MANIFESTS: IndicatorManifest[] = [
     pitfalls: [
       "Multiplier tuning is asset-specific — same setting can be tight on stocks and loose on crypto",
       "Take-profit at 3×ATR with 2×ATR stop assumes 1:1.5 RR — verify the assumption holds for your edge",
+      "Not a trailing stop by itself: each bar's levels come from that bar's close and ATR, so they move both ways (longStopLevel falls when price falls). chandelierExit() measures the stop from the highest high instead of the close",
     ],
     marketRegime: ["trending", "volatile"],
     timeframe: ["intraday", "swing", "position"],

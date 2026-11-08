@@ -3827,6 +3827,8 @@ const latest = stops[stops.length - 1].value;
 | `stopMultiplier` | `number` | `2.0` | ストップ距離のATR倍率 |
 | `takeProfitMultiplier` | `number` | `3.0` | 利確距離のATR倍率 |
 
+各足の水準はその足の終値とATRから計算するため、上下どちらにも動きます（価格が下がれば `longStopLevel` も下がります）。トレーリングストップとして使う場合は、ポジションに不利な方向へ動かないよう呼び出し側で抑えてください（買いならエントリー以降の `longStopLevel` の最大値）。終値ではなく最高値からストップを測る [`chandelierExit()`](#シャンデリアエグジット) もあります。
+
 **バックテスト連携:**
 
 ```typescript
