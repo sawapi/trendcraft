@@ -359,6 +359,24 @@ applyOptions(options: Partial<ChartOptions>): void
 
 `applyOptions()` is the runtime equivalent of re-passing options to `createChart`. Fields that can't be changed after construction (see the option table above) are ignored, and a warning fires via the `error` event when the value you pass differs from the one in effect.
 
+#### Theme colours
+
+`ThemeColors` has three optional fields besides its colours:
+
+| Field | Type | Description |
+|---|---|---|
+| `mode` | `'dark' \| 'light'` | Picks the built-in palette and semantic colours when `palette` or `semantic` is left out. Read from `background` when omitted; a background that is not an opaque colour counts as dark, with a warning. |
+| `palette` | `readonly string[]` | Colours handed out to series without a colour of their own. |
+| `semantic` | `Partial<SemanticColors>` | `profit`, `profitSoft`, `loss`, `lossSoft`, `neutral`. A name left out takes the built-in colour. |
+
+`SeriesConfig.color` and `channelColors` accept a `ThemeColorToken` in place of a CSS colour: `'@up'`, `'@down'`, `'@profit'`, `'@profitSoft'`, `'@loss'`, `'@lossSoft'`, `'@neutral'` or `'@palette.N'`. Tokens are resolved against the current theme each time the chart draws, so `setTheme()` recolours them. An unknown token is drawn in the theme's text colour, with a warning. `resolveThemeColor(color, theme)` returns the CSS colour a token stands for (a CSS colour comes back as it is), for a renderer plugin's own colour options.
+
+A series added without a colour gets `'@palette.N'`, the lowest slot no other series has. When `setTheme()` switches to a palette of another length, two slots can land on one colour (`N % length`); the series that would share a colour with an earlier one moves to the lowest free slot, and the others keep theirs. This holds for every `'@palette.N'` series, including one re-added with `IndicatorHandle.colorSpec`. Limits:
+
+- With more such series than palette colours, some share a colour.
+- Switching back to the earlier palette does not restore the earlier slots, and `colorSpec` reports the new slot.
+- The two built-in palettes have the same length, so switching between dark and light never moves a slot.
+
 ### Plugin methods
 
 ```typescript
@@ -391,7 +409,7 @@ destroy(): void
 | `pane` | `'main' \| string` | Target pane id. Omit for auto-detection via `__meta`. Pass `'sub'` to auto-create a new sub-pane; any other custom string creates (or reuses) a pane with that id. |
 | `scaleId` | `'left' \| 'right'` | Which scale to bind to (only relevant for dual-scale panes). Default `'right'`. |
 | `type` | `SeriesType` | Override the auto-detected series type. |
-| `color` | `string` | Primary color for the series. |
+| `color` | `string` | Primary color for the series: a CSS colour or a theme colour token such as `'@palette.2'` or `'@loss'` (see [Theme colours](#theme-colours)). Omitted, the series takes the next free palette slot. |
 | `lineWidth` | `number` | Line width in pixels (default 1.5). |
 | `label` | `string` | Legend label. Overrides `__meta.label`. |
 | `visible` | `boolean` | Initial visibility (default `true`). |
@@ -497,6 +515,8 @@ Unified indicator wiring for both static and live modes. See [LIVE.md](./LIVE.md
 | `snapshotName` | Unique key for this instance. |
 | `presetId` | Preset id used. |
 | `params` | Effective parameters (defaults merged). |
+| `color` | The line colour as a CSS colour for the chart's current theme; follows a theme switch. `undefined` for a multi-channel series. |
+| `colorSpec` | The line colour as the series holds it: a CSS colour or a theme colour token. Pass it as `series.color` to keep the colour across a remove + add (a params change); passing `color` instead fixes the line to that CSS colour. |
 | `series` | Underlying `SeriesHandle`. |
 | `removed` | `true` once removed. |
 | `setVisible(visible)` | Toggle visibility. |

@@ -109,6 +109,8 @@ export class LegendOverlay {
 
   setTheme(theme: ThemeColors): void {
     this._theme = theme;
+    // Swatches resolve colour tokens against the theme, so rebuild the rows.
+    if (this._currentSeries.length > 0) this._rerender();
   }
 
   setFontFamily(fontFamily: string): void {
@@ -150,10 +152,7 @@ export class LegendOverlay {
   private _renderRow(s: InternalSeries): string {
     const rawLabel = s.config.label ?? "";
     const t = cssColor(this._theme.text);
-    const color = cssColor(
-      seriesColor(s.config, this._theme.text, this._theme.volumeUp, this._theme.upColor),
-      t,
-    );
+    const color = cssColor(seriesColor(s.config, this._theme), t);
     const style = s.visible ? "" : "opacity:.35;text-decoration:line-through";
     const label = escapeHtml(rawLabel);
     const id = escapeHtml(s.id);

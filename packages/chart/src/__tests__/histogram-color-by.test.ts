@@ -117,7 +117,7 @@ describe("histogramColorBy", () => {
 
   it("gives the swatch the up colour the bars are drawn in", () => {
     const t = DARK_THEME;
-    const swatch = (c: SeriesConfig) => seriesColor(c, t.text, t.volumeUp, t.upColor);
+    const swatch = (c: SeriesConfig) => seriesColor(c, t);
     expect(swatch({ type: "histogram" })).toBe(t.volumeUp);
     expect(swatch({ type: "histogram", histogramColorBy: "change" })).toBe(t.upColor);
   });

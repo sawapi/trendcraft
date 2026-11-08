@@ -11,7 +11,8 @@
 import { indicatorPresets } from "trendcraft";
 import { beforeAll, describe, expect, it } from "vitest";
 import type { InternalSeries } from "../core/data-layer";
-import { DARK_THEME } from "../core/types";
+import { BUILTIN_PALETTES } from "../core/theme-colors";
+import { DARK_THEME, LIGHT_THEME } from "../core/types";
 import { createChart } from "../index";
 import { connectIndicators } from "../integration/connect-indicators";
 import { channelColorsWithOwnColor } from "../integration/series-introspector";
@@ -47,32 +48,42 @@ describe("channelColorsWithOwnColor", () => {
 });
 
 describe("plainChannelColors", () => {
+  // Spare colours come from the theme palette.
+  const P = BUILTIN_PALETTES.dark;
+
   it("skips the series colour for the other lines", () => {
-    const colours = plainChannelColors(["high", "low"], { color: "#FF9800" });
-    expect(colours).toEqual(["#FF9800", "#26a69a"]);
+    const colours = plainChannelColors(["high", "low"], { color: "#FF9800" }, DARK_THEME);
+    expect(colours).toEqual(["#FF9800", P[1]]);
   });
 
   it("gives every line a different colour", () => {
-    for (const color of ["#2196F3", "#FF9800", "#26a69a", "#ef5350", "#9c27b0"]) {
-      const colours = plainChannelColors(["a", "b", "c", "d", "e"], { color });
+    for (const color of [P[0], P[1], P[2], "#26a69a", "#ef5350"]) {
+      const colours = plainChannelColors(["a", "b", "c", "d", "e"], { color }, DARK_THEME);
       expect(new Set(colours.map((c) => c.toLowerCase())).size, color).toBe(5);
     }
   });
 
   it("keeps the colours of lines that never clashed", () => {
-    expect(plainChannelColors(["a", "b", "c"], { color: "#e91e63" })).toEqual([
+    expect(plainChannelColors(["a", "b", "c"], { color: "#e91e63" }, DARK_THEME)).toEqual([
       "#e91e63",
-      "#FF9800",
-      "#26a69a",
+      P[1],
+      P[2],
     ]);
   });
 
   it("skips a colour another line was given", () => {
-    const colours = plainChannelColors(["a", "b", "c"], {
-      color: "#2196F3",
-      channelColors: { c: "#FF9800" },
-    });
-    expect(colours).toEqual(["#2196F3", "#26a69a", "#FF9800"]);
+    const colours = plainChannelColors(
+      ["a", "b", "c"],
+      { color: P[0], channelColors: { c: P[1] } },
+      DARK_THEME,
+    );
+    expect(colours).toEqual([P[0], P[2], P[1]]);
+  });
+
+  it("resolves colour tokens against the theme", () => {
+    const colours = plainChannelColors(["a", "b"], { color: "@palette.1" }, LIGHT_THEME);
+    expect(colours[0]).toBe(BUILTIN_PALETTES.light[1]);
+    expect(colours[1]).not.toBe(colours[0]);
   });
 });
 
@@ -199,7 +210,7 @@ describe("series badges of a plain multi-line series", () => {
       (v) => v.toFixed(2),
     );
     expect(badges.map((b) => b.color).sort()).toEqual(
-      plainChannelColors(["high", "low"], s.config).sort(),
+      plainChannelColors(["high", "low"], s.config, DARK_THEME).sort(),
     );
     expect(new Set(badges.map((b) => b.color)).size).toBe(2);
   });

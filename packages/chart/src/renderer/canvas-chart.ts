@@ -4,7 +4,7 @@
  */
 
 import { ViewTransition } from "../core/animation";
-import { DataLayer } from "../core/data-layer";
+import { DataLayer, type InternalSeries } from "../core/data-layer";
 import { safeDevicePixelRatio } from "../core/dpr";
 import type { DrawHelper } from "../core/draw-helper";
 import {
@@ -30,6 +30,16 @@ import {
   type ResolvedSessionGapsOptions,
   resolveSessionGapsOptions,
 } from "../core/session-gaps";
+import {
+  invalidateResolvedColors,
+  isKnownThemeColorToken,
+  isThemeColorToken,
+  paletteSlot,
+  paletteToken,
+  readThemeMode,
+  registerChartTheme,
+  themePalette,
+} from "../core/theme-colors";
 import { isValidTimeZone } from "../core/time-zone";
 import type {
   CandleData,
@@ -236,29 +246,17 @@ export class CanvasChart implements ChartInstance {
   // so viewport sync between mismatched timeframes doesn't oscillate forever
   // on the per-frame range tween.
   private _animatingRange = false;
-  // Auto-color cycling palette for indicators without explicit color
-  private _colorIndex = 0;
   /**
-   * Per-palette counters so that a preset's palette (e.g. the `"number"`
-   * catch-all palette) rotates independently of the default palette and of
-   * other presets' palettes. Keyed by the palette array identity so the same
-   * array always resolves to the same counter.
+   * Per-palette counters so that a preset's own palette (an array `color`
+   * on a custom preset) rotates independently of other presets' palettes.
+   * Keyed by the palette array identity so the same array always resolves
+   * to the same counter.
    */
   private _paletteIndices = new WeakMap<readonly string[], number>();
-  private static readonly _COLOR_PALETTE: readonly string[] = [
-    "#2196F3",
-    "#FF9800",
-    "#26a69a",
-    "#ef5350",
-    "#9c27b0",
-    "#FF5722",
-    "#00bcd4",
-    "#8bc34a",
-    "#e91e63",
-    "#607d8b",
-    "#ffc107",
-    "#3f51b5",
-  ];
+  /** Palette length the `"@palette.N"` slots were last laid out for. */
+  private _paletteLength = 0;
+  /** The last theme warned about for an unreadable background. */
+  private _warnedTheme: ThemeColors | undefined;
 
   // Event listeners
   // Handlers of different events share one map; on() and _emit() pair each
@@ -433,6 +431,8 @@ export class CanvasChart implements ChartInstance {
     } else {
       this._theme = options?.theme === "light" ? LIGHT_THEME : DARK_THEME;
     }
+    this._themeChanged();
+    registerChartTheme(this, () => this._theme);
 
     // Create canvas
     this._canvas = document.createElement("canvas");
@@ -827,23 +827,24 @@ export class CanvasChart implements ChartInstance {
       result.config.type !== "histogram"
     ) {
       const presetPalette = result.config.colorPalette;
-      const palette =
-        presetPalette && presetPalette.length > 0 ? presetPalette : CanvasChart._COLOR_PALETTE;
-      const usedColors = new Set<string>();
-      for (const s of this._data.getAllSeries()) {
-        if (s.config.color) usedColors.add(s.config.color);
-      }
-      const freeColor = palette.find((c) => !usedColors.has(c));
-      if (freeColor) {
-        result.config.color = freeColor;
-      } else if (presetPalette && presetPalette.length > 0) {
-        const idx = this._paletteIndices.get(presetPalette) ?? 0;
-        result.config.color = presetPalette[idx % presetPalette.length];
-        this._paletteIndices.set(presetPalette, idx + 1);
+      if (presetPalette && presetPalette.length > 0) {
+        const usedColors = new Set<string>();
+        for (const s of this._data.getAllSeries()) {
+          if (s.config.color) usedColors.add(s.config.color);
+        }
+        const freeColor = presetPalette.find((c) => !usedColors.has(c));
+        if (freeColor) {
+          result.config.color = freeColor;
+        } else {
+          const idx = this._paletteIndices.get(presetPalette) ?? 0;
+          result.config.color = presetPalette[idx % presetPalette.length];
+          this._paletteIndices.set(presetPalette, idx + 1);
+        }
       } else {
-        result.config.color =
-          CanvasChart._COLOR_PALETTE[this._colorIndex % CanvasChart._COLOR_PALETTE.length];
-        this._colorIndex++;
+        // A "@palette.N" token, so the colour follows the theme. Take the
+        // lowest slot no live series has; reusing a freed slot keeps the
+        // remove→re-add (param change) cycle on the same colour.
+        result.config.color = paletteToken(this._freePaletteSlot());
       }
     }
 
@@ -866,6 +867,22 @@ export class CanvasChart implements ChartInstance {
         yRange: result.yRange,
         referenceLines: result.referenceLines,
       });
+    }
+
+    const markers = result.config.markers;
+    const markerColor = typeof markers === "object" ? markers.color : undefined;
+    for (const c of [
+      result.config.color,
+      markerColor,
+      ...Object.values(result.config.channelColors ?? {}),
+    ]) {
+      if (isThemeColorToken(c) && !isKnownThemeColorToken(c)) {
+        this._warn(
+          `addIndicator: unknown colour token "${c}"; drawn in the theme text colour`,
+          undefined,
+          "INVALID_OPTION",
+        );
+      }
     }
 
     // Align series data to candle indices for efficient rendering
@@ -1332,9 +1349,85 @@ export class CanvasChart implements ChartInstance {
     } else {
       this._theme = theme === "light" ? LIGHT_THEME : DARK_THEME;
     }
+    this._themeChanged();
     this._infoOverlay?.setTheme(this._theme);
     this._legendOverlay?.setTheme(this._theme);
     this._needsRender = true;
+  }
+
+  /**
+   * Bookkeeping after the theme is set: warn once when the built-in colours
+   * cannot tell whether the theme is dark or light, and lay the
+   * `"@palette.N"` slots out again when the palette length changed.
+   */
+  private _themeChanged(): void {
+    invalidateResolvedColors();
+    const theme = this._theme;
+    if (theme !== this._warnedTheme && !readThemeMode(theme)) {
+      this._warnedTheme = theme;
+      this._warn(
+        `theme background "${theme.background}" is not an opaque colour; using the dark built-in colours. Set theme.mode to choose.`,
+        undefined,
+        "INVALID_OPTION",
+      );
+    }
+    const length = themePalette(theme).length;
+    if (this._paletteLength !== 0 && length !== this._paletteLength) {
+      this._relayoutPaletteSlots(length);
+    }
+    this._paletteLength = length;
+  }
+
+  /**
+   * After a switch to a palette of another length, two `"@palette.N"`
+   * series can land on one colour (`N % length`). Keep every series whose
+   * colour is still its own, and move each one that now shares a colour
+   * with an earlier series to the lowest free slot. With more such series
+   * than colours, the rest keep their slots.
+   */
+  private _relayoutPaletteSlots(length: number): void {
+    const taken = new Set<number>();
+    const clashing: InternalSeries[] = [];
+    for (const s of this._data.getAllSeries()) {
+      const slot = paletteSlot(s.config.color);
+      if (slot === undefined) continue;
+      const at = slot % length;
+      if (taken.has(at)) clashing.push(s);
+      else taken.add(at);
+    }
+    for (const s of clashing) {
+      let free = -1;
+      for (let i = 0; i < length; i++) {
+        if (!taken.has(i)) {
+          free = i;
+          break;
+        }
+      }
+      if (free < 0) break;
+      taken.add(free);
+      s.config.color = paletteToken(free);
+    }
+  }
+
+  /**
+   * The slot for a new `"@palette.N"` series: the lowest one whose colour
+   * (`N % length` of the current palette) no live series has. With every
+   * colour taken, the lowest slot number no series holds.
+   */
+  private _freePaletteSlot(): number {
+    const length = themePalette(this._theme).length;
+    const usedColors = new Set<number>();
+    const usedSlots = new Set<number>();
+    for (const s of this._data.getAllSeries()) {
+      const slot = paletteSlot(s.config.color);
+      if (slot === undefined) continue;
+      usedSlots.add(slot);
+      usedColors.add(slot % length);
+    }
+    for (let n = 0; n < length; n++) if (!usedColors.has(n)) return n;
+    let n = 0;
+    while (usedSlots.has(n)) n++;
+    return n;
   }
 
   setChartType(type: import("../core/types").ChartType): void {

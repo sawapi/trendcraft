@@ -94,7 +94,7 @@ function captureSelection(): Selection {
       presetId: h.presetId,
       snapshotName: h.snapshotName,
       params: { ...h.params },
-      color: h.color,
+      color: h.colorSpec,
     })),
     plugins: pluginsPanel?.getActiveIds() ?? [],
     signals: signalsPanel?.getActiveIds() ?? [],
@@ -169,7 +169,7 @@ function replaceIndicator(
   params: Record<string, unknown>,
 ): boolean {
   const old = conn.get(snapshotName);
-  const oldColor = old?.color;
+  const oldColor = old?.colorSpec;
   const oldParams = old ? { ...old.params } : undefined;
   const build = (p: Record<string, unknown>) => {
     const overrides: Record<string, unknown> = { ...resolveParams(presetId, p), snapshotName };

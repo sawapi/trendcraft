@@ -111,7 +111,7 @@ export class InfoOverlay {
       if (this._formatInfoOverlay) {
         const seriesData = mainSeries.map((s) => ({
           label: s.config.label ?? "",
-          color: seriesColor(s.config, this._theme.text, this._theme.volumeUp, this._theme.upColor),
+          color: seriesColor(s.config, this._theme),
           value: s.data[i]?.value ?? null,
         }));
         customHtml = this._formatInfoOverlay({
@@ -208,10 +208,7 @@ export class InfoOverlay {
         .map((s) => {
           const label = s.config.label;
           if (!label) return "";
-          const color = cssColor(
-            seriesColor(s.config, this._theme.text, this._theme.volumeUp, this._theme.upColor),
-            cssColor(this._theme.text),
-          );
+          const color = cssColor(seriesColor(s.config, this._theme), cssColor(this._theme.text));
           return `<span style="color:${color}">${escapeHtml(label)}</span>`;
         })
         .filter(Boolean)
@@ -229,10 +226,7 @@ export class InfoOverlay {
     if (!point || point.value === null || point.value === undefined) return "";
 
     const label = escapeHtml(s.config.label ?? "?");
-    const color = cssColor(
-      seriesColor(s.config, this._theme.text, this._theme.volumeUp, this._theme.upColor),
-      cssColor(this._theme.text),
-    );
+    const color = cssColor(seriesColor(s.config, this._theme), cssColor(this._theme.text));
 
     // Check custom renderer formatValue first
     if (this._rendererRegistry) {

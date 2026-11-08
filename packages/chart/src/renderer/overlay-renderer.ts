@@ -10,6 +10,7 @@ import { canvasFont, DEFAULT_FONT_FAMILY } from "../core/font";
 import { autoFormatPrice, measureTextWidth } from "../core/format";
 import type { PriceScale } from "../core/scale";
 import { defaultRegistry } from "../core/series-registry";
+import { resolveSeriesColors, resolveThemeColor } from "../core/theme-colors";
 import type { CandleData, DataPoint, PaneRect, ThemeColors, TimeframeOverlay } from "../core/types";
 import { isFiniteOHLC } from "../core/validation";
 import type { AxisExcludeRange } from "./axis-renderer";
@@ -216,7 +217,7 @@ export function renderPaneTitles(
     for (const s of paneSeries) {
       const label = s.config.label;
       if (!label) continue;
-      ctx.fillStyle = seriesColor(s.config, theme.text, theme.volumeUp, theme.upColor);
+      ctx.fillStyle = seriesColor(s.config, theme);
       ctx.fillText(label, x, y);
       x += ctx.measureText(label).width + GAP;
     }
@@ -291,7 +292,7 @@ export function computeSeriesBadges(
       if (val === null) continue;
       candidates.push({
         y: priceScale.priceToY(val) + pane.y,
-        color: s.config.color ?? theme.text,
+        color: s.config.color ? resolveThemeColor(s.config.color, theme) : theme.text,
         label: valueFormatter(val),
         w: 0,
       });
@@ -303,15 +304,12 @@ export function computeSeriesBadges(
       s._channels = defaultRegistry.decomposeAll(s.data, rule);
       s._channelsLen = s.data.length;
     }
-    const channelColors = s.config.channelColors;
+    const { channelColors, color: ownColor } = resolveSeriesColors(s.config, theme);
     for (const [channelName, values] of s._channels) {
       const val = latestInArray(values, searchUpTo);
       if (val === null) continue;
       const color =
-        s._lineColors?.get(channelName) ??
-        channelColors?.[channelName] ??
-        s.config.color ??
-        theme.text;
+        s._lineColors?.get(channelName) ?? channelColors?.[channelName] ?? ownColor ?? theme.text;
       candidates.push({
         y: priceScale.priceToY(val) + pane.y,
         color,

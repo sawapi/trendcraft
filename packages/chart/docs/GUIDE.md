@@ -284,7 +284,30 @@ const chart = createChart(container, {
 chart.setTheme('light'); // runtime swap
 ```
 
-Individual series colors are independent of the theme — pass `color` in `SeriesConfig` or set per-channel colors via `channelColors`.
+A series with no `color` of its own takes the next free colour of the theme's palette. Each built-in theme has its own palette: every colour has at least 3:1 contrast with that theme's background and stays clear of the candle colours. Switching the theme recolours these series.
+
+A colour can also name a theme colour instead of giving one. `color` and `channelColors` accept these tokens, resolved against the current theme each time the chart draws:
+
+| Token | Colour |
+|---|---|
+| `'@up'`, `'@down'` | The theme's `upColor` / `downColor`, for lines that mean what the candles mean |
+| `'@profit'`, `'@profitSoft'`, `'@loss'`, `'@lossSoft'` | Profit-side and loss-side lines (take-profit and stop levels); the soft shade is a second line of the same meaning |
+| `'@neutral'` | A state that is neither (a sideways regime) |
+| `'@palette.N'` | Entry `N` of the theme palette, wrapping at its length |
+
+Profit and loss are their own colours, apart from the candle colours: a stop line never reads as a candle, even after you change `upColor` / `downColor`. A custom theme can set its own palette and semantic colours:
+
+```typescript
+chart.setTheme({
+  ...DARK_THEME,
+  palette: ['#4fc3f7', '#ffb74d', '#ba68c8', '#aed581', '#f06292'],
+  semantic: { loss: '#ff7043' }, // the others keep the built-in values
+});
+```
+
+When `palette` or `semantic` is left out, the built-in colours for the theme's `mode` (`'dark'` or `'light'`) are used. Without a `mode`, the chart reads it from `background`, so `{ ...DARK_THEME, background: '#ffffff' }` gets the light colours. A background it cannot read as an opaque colour (`transparent`, a colour with alpha, a CSS variable) counts as dark, with a warning; set `mode` to choose.
+
+A hex `color` stays as given. See [API.md#theme-colours](./API.md#theme-colours) for how palette slots behave when the palette length changes.
 
 ## Viewport and navigation
 

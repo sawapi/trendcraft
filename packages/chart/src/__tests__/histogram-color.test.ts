@@ -73,19 +73,14 @@ describe("histogram colour", () => {
     expect(
       seriesColor(
         { type: "histogram", channelColors: { macd: "#2196F3", signal: "#FF9800" } },
-        DARK_THEME.text,
-        DARK_THEME.volumeUp,
+        DARK_THEME,
       ),
     ).toBe("#2196F3");
   });
 
   it("gives an uncoloured histogram the up-volume swatch", () => {
-    expect(seriesColor({ type: "histogram" }, DARK_THEME.text, DARK_THEME.volumeUp)).toBe(
-      DARK_THEME.volumeUp,
-    );
-    expect(
-      seriesColor({ type: "histogram", color: "#123456" }, DARK_THEME.text, DARK_THEME.volumeUp),
-    ).toBe("#123456");
+    expect(seriesColor({ type: "histogram" }, DARK_THEME)).toBe(DARK_THEME.volumeUp);
+    expect(seriesColor({ type: "histogram", color: "#123456" }, DARK_THEME)).toBe("#123456");
   });
 });
 

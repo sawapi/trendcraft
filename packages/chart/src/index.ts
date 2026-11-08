@@ -71,6 +71,7 @@ export {
 export { RendererRegistry } from "./core/renderer-registry";
 // Series registry (for custom rules)
 export { type IntrospectionRule, SeriesRegistry } from "./core/series-registry";
+export { resolveThemeColor } from "./core/theme-colors";
 // Core types
 export type {
   ArrowDrawing,
@@ -112,6 +113,7 @@ export type {
   RayDrawing,
   RectangleDrawing,
   ScaleMode,
+  SemanticColors,
   SeriesActionData,
   SeriesAddedData,
   SeriesConfig,
@@ -123,6 +125,7 @@ export type {
   SignalMarker,
   TextLabelDrawing,
   ThemeColors,
+  ThemeColorToken,
   TimeframeOverlay,
   TimeScaleOptions,
   TimeValue,
