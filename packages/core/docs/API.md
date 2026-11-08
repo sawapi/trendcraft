@@ -3862,6 +3862,8 @@ const latest = stops[stops.length - 1].value;
 | `stopMultiplier` | `number` | `2.0` | ATR multiplier for stop distance |
 | `takeProfitMultiplier` | `number` | `3.0` | ATR multiplier for take-profit distance |
 
+Each bar's levels come from that bar's close and ATR, so they move both ways: `longStopLevel` falls when price falls. For a trailing stop, keep the level from moving against the position yourself (for a long, the running maximum of `longStopLevel` since entry). [`chandelierExit()`](#chandelier-exit) measures the stop from the highest high instead of the close.
+
 **Backtest integration:**
 
 ```typescript

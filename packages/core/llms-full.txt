@@ -1390,8 +1390,8 @@ Helpers: `calculateKellyPercent(winRate, winLossRatio)`, `maxPositions(accountSi
 ### `chandelierExit(candles, { period?, multiplier? })`
 Trailing stop. Returns `Series<{ longExit, shortExit, direction, isCrossover }>`.
 
-### `atrStops(candles, { atrPeriod?, stopMultiplier?, takeProfitMultiplier? })`
-ATR-based stop/TP levels. Returns `Series<{ atr, stopDistance, takeProfitDistance, longStop, longTakeProfit, shortStop, shortTakeProfit }>`.
+### `atrStops(candles, { period?, stopMultiplier?, takeProfitMultiplier? })`
+ATR-based stop/TP levels. Returns `Series<{ atr, stopDistance, takeProfitDistance, longStopLevel, longTakeProfitLevel, shortStopLevel, shortTakeProfitLevel }>`. Each bar's levels come from that bar's close and ATR, so they move both ways; for a trailing stop, keep the level from moving against the position yourself. `chandelierExit()` measures the stop from the highest high instead of the close.
 
 Standalone helpers: `calculateAtrStop(opts)`, `calculateAtrTakeProfit(opts)`, `calculateAtrTrailingStop(opts)`.
 

@@ -25,6 +25,16 @@ percentages, but `returns()` gives fractions: a 1% rise is `0.01`. The
 description, the JSDoc and the API reference now say so and point to
 `roc()` for simple returns in percent. The values do not change.
 
+### Fixed — ATR Stops is not a trailing stop by itself
+
+The `atrStops()` documentation suggested using `longStopLevel` as a trailing
+stop. Each bar's levels come from that bar's close and ATR, so they move both
+ways: `longStopLevel` falls when price falls. The JSDoc, the API reference,
+the manifest and `llms-full.txt` now say so: for a trailing stop, keep the
+level from moving against the position yourself. They also point to
+`chandelierExit()`, which measures the stop from the highest high instead of
+the close. The values do not change.
+
 ## [0.6.2] - 2026-11-02
 
 A patch release: seven indicators that returned an untagged series now carry

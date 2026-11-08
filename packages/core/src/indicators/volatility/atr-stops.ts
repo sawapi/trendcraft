@@ -6,8 +6,12 @@
  *
  * Use cases:
  * - Position sizing: Calculate risk per trade based on ATR stop distance
- * - Trailing stops: Use longStopLevel as dynamic trailing stop
  * - Take profit targets: Use ATR-based targets for consistent risk/reward
+ * - Trailing stops: each bar's levels come from that bar's close and ATR, so
+ *   they move both ways: longStopLevel falls when price falls. For a trailing
+ *   stop, keep the level from moving against the position yourself (for a
+ *   long, the running maximum of longStopLevel since entry). chandelierExit()
+ *   measures the stop from the highest high instead of the close.
  */
 
 import { ensureNormalized } from "../../core/normalize";
