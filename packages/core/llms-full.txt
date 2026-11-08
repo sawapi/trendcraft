@@ -284,8 +284,8 @@ Market Profile / TPO — builds price-time distribution profiles per session. De
 ### `highest(candles, { period })` / `lowest(candles, { period })`
 Highest High / Lowest Low. Returns `Series<number | null>`.
 
-### `returns(candles, { period?, log? })` / `cumulativeReturns(candles)`
-Price returns. Returns `Series<number | null>`.
+### `returns(candles, { period?, type? })` / `cumulativeReturns(candles)`
+Price returns, `type: 'simple' | 'log'`. Returns `Series<number | null>` as fractions (0.01 = 1%); `roc()` gives simple returns in percent.
 
 ### `pivotPoints(candles, { method? })`
 Pivot Points. Methods: `'standard'` | `'fibonacci'` | `'woodie'` | `'camarilla'` | `'demark'`.

@@ -22,9 +22,13 @@ const CUMULATIVE_RETURN_TYPES = keywords<NonNullable<Parameters<typeof cumulativ
  * Simple Return = (Current Price - Previous Price) / Previous Price
  * Log Return = ln(Current Price / Previous Price)
  *
+ * Values are fractions, not percentages: a 1% rise is 0.01, the form that
+ * return statistics such as volatility take as input. For simple returns in
+ * percent, use `roc()`.
+ *
  * @param candles - Array of candles (raw or normalized)
  * @param options - Returns options (period=1, type='simple')
- * @returns Series of return values
+ * @returns Series of returns as fractions (0.01 = 1%)
  *
  * @example
  * ```ts

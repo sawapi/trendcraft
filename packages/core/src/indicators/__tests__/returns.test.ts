@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { indicatorPresets } from "../../streaming/indicator-presets";
 import type { NormalizedCandle } from "../../types";
+import { roc } from "../momentum/roc";
 import { cumulativeReturns, returns } from "../price/returns";
 
 describe("returns", () => {
@@ -110,5 +112,31 @@ describe("cumulativeReturns", () => {
     const resultSimple = cumulativeReturns(candles, "simple");
 
     expect(resultDefault).toEqual(resultSimple);
+  });
+});
+
+// `returns()` gives fractions and `roc()` the percent form. The indicator
+// list once described the returns as percentages, so a reader expected 1
+// where the series held 0.01.
+describe("returns unit", () => {
+  const candles = [100, 101, 99.99].map((close, i) => ({
+    time: 1700000000000 + i * 86400000,
+    open: close,
+    high: close,
+    low: close,
+    close,
+    volume: 1,
+  }));
+
+  it("gives fractions, a hundredth of roc()", () => {
+    expect(returns(candles)[1].value).toBeCloseTo(0.01, 12);
+    expect(returns(candles)[2].value).toBeCloseTo(-0.01, 12);
+    expect(roc(candles, { period: 1 })[1].value).toBeCloseTo(1, 10);
+  });
+
+  it("is described as fractions, not percentages", () => {
+    const { description } = indicatorPresets.returns;
+    expect(description).not.toMatch(/percentage/i);
+    expect(description).toMatch(/fraction/i);
   });
 });

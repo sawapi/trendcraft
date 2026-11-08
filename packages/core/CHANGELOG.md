@@ -18,6 +18,13 @@ indicator's pane, now include the levels each indicator is read against:
 
 Code that reads `referenceLines` sees the new values.
 
+### Fixed — the returns description
+
+The `returns` entry in `indicatorPresets` described its values as
+percentages, but `returns()` gives fractions: a 1% rise is `0.01`. The
+description, the JSDoc and the API reference now say so and point to
+`roc()` for simple returns in percent. The values do not change.
+
 ## [0.6.2] - 2026-11-02
 
 A patch release: seven indicators that returned an untagged series now carry

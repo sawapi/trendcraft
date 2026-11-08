@@ -1474,7 +1474,7 @@ const logReturns = returns(candles, { period: 1, type: 'log' });
 | `period` | `number` | `1` | Return period |
 | `type` | `'simple' \| 'log'` | `'simple'` | Return type (simple or log) |
 
-**Returns:** `Series<number | null>`
+**Returns:** `Series<number | null>` as fractions (a 1% rise is `0.01`). For simple returns in percent, use [`roc()`](#roccandles-options).
 
 ---
 
